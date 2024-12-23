@@ -180,11 +180,10 @@ test "Convolution 4D Input with 2x2 Kernel" {
 
     const allocator = pkgAllocator.allocator;
 
+    // Input tensor
     var input_shape: [4]usize = [_]usize{ 2, 2, 3, 3 };
-    var kernel_shape: [4]usize = [_]usize{ 1, 2, 2, 2 };
-
-    var inputArray: [2][2][3][3]f32 = [_][2][3][3]f32{
-        //Firsr Batch
+    var inputArray: [2][2][3][3]f32 = [_][2][3][3]f32{ //batches:2, channels:2, rows:3, cols:3
+        //First Batch
         [_][3][3]f32{
             // First Channel
             [_][3]f32{
@@ -217,61 +216,100 @@ test "Convolution 4D Input with 2x2 Kernel" {
     };
 
     // Kernel tensor
-    var kernelArray: [1][2][2][2]f32 = [_][2][2][2]f32{
+    var kernel_shape: [4]usize = [_]usize{ 2, 2, 2, 2 };
+    var kernelArray: [2][2][2][2]f32 = [_][2][2][2]f32{ //filters:2, channels:2, rows:2, cols:2
+        //first filter
         [_][2][2]f32{
+            //first channel
             [_][2]f32{
                 [_]f32{ -1.0, 0.0 },
                 [_]f32{ 0.0, 1.0 },
             },
+            //second channel
             [_][2]f32{
                 [_]f32{ 1.0, -1.0 },
                 [_]f32{ -1.0, 1.0 },
             },
         },
-    };
-
-    var inputbias: [2][1]f32 = [_][1]f32{
-        [_]f32{1},
-        [_]f32{
-            1,
+        //second filter
+        [_][2][2]f32{
+            //first channel
+            [_][2]f32{
+                [_]f32{ 0.0, 0.0 },
+                [_]f32{ 0.0, 0.0 },
+            },
+            //second channel
+            [_][2]f32{
+                [_]f32{ 0.0, 0.0 },
+                [_]f32{ 0.0, 0.0 },
+            },
         },
     };
-    var shape: [2]usize = [_]usize{ 2, 1 };
-    var bias = try Tensor(f32).fromArray(&allocator, &inputbias, &shape);
 
+    var inputbias: [2][2]f32 = [_][2]f32{ //batches: 2, filters:2
+        [_]f32{ 1, 1 },
+        [_]f32{ 10, 10 },
+    };
+
+    var bias_shape: [2]usize = [_]usize{ 2, 2 };
+    var bias = try Tensor(f32).fromArray(&allocator, &inputbias, &bias_shape);
+    defer bias.deinit();
     var input_tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &input_shape);
+    defer input_tensor.deinit();
     var kernel_tensor = try Tensor(f32).fromArray(&allocator, &kernelArray, &kernel_shape);
+    defer kernel_tensor.deinit();
+    var stride: [2]usize = [_]usize{ 1, 1 };
 
-    var result_tensor = try TensMath.CPU_convolve_tensors_with_bias(f32, f32, &input_tensor, &kernel_tensor, &bias);
+    var result_tensor = try TensMath.convolve_tensor_with_bias(f32, f32, &input_tensor, &kernel_tensor, &bias, &stride);
+    defer result_tensor.deinit();
 
     // Expected results with the correct dimensions
-    const expected_result: [2][1][2][2]f32 = [_][1][2][2]f32{
+    const expected_result: [2][2][2][2]f32 = [_][2][2][2]f32{
         // Primo batch
         [_][2][2]f32{
-            [_][2]f32{ [_]f32{ 3.0, 5.0 }, [_]f32{ 5.0, 5.0 } },
+            [_][2]f32{
+                [_]f32{ 3.0, 5.0 },
+                [_]f32{ 5.0, 5.0 },
+            },
+            [_][2]f32{
+                [_]f32{ 1.0, 1.0 },
+                [_]f32{ 1.0, 1.0 },
+            },
         },
         // Secondo batch
         [_][2][2]f32{
-            [_][2]f32{ [_]f32{ 5.0, 5.0 }, [_]f32{ 5.0, 5.0 } },
+            [_][2]f32{
+                [_]f32{ 14.0, 14.0 },
+                [_]f32{ 14.0, 14.0 },
+            },
+            [_][2]f32{
+                [_]f32{ 10.0, 10.0 },
+                [_]f32{ 10.0, 10.0 },
+            },
         },
     };
-    result_tensor.info();
+
+    // result_tensor.info();
+    // result_tensor.print();
+
+    const output_location = try allocator.alloc(usize, 4); //coordinates in the output space, see test below
+    defer allocator.free(output_location);
+    @memset(output_location, 0);
 
     for (0..2) |batch| {
-        for (0..1) |filter| {
-            for (0..2) |i| {
-                for (0..2) |j| {
-                    const idx = batch * (1 * 2 * 2) + filter * (2 * 2) + i * 2 + j;
-                    try std.testing.expectEqual(expected_result[batch][filter][i][j], result_tensor.data[idx]);
+        output_location[0] = batch;
+        for (0..2) |filter| {
+            output_location[1] = filter;
+            for (0..2) |row| {
+                output_location[2] = row;
+                for (0..2) |col| {
+                    output_location[3] = col;
+                    std.debug.print("\n get OUTPUT at:{any}", .{output_location});
+                    try std.testing.expectEqual(expected_result[batch][filter][row][col], result_tensor.get_at(output_location));
                 }
             }
         }
     }
-
-    result_tensor.deinit();
-    input_tensor.deinit();
-    kernel_tensor.deinit();
-    bias.deinit();
 }
 
 test "Pooling 2D" {
