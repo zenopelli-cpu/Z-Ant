@@ -38,6 +38,7 @@ pub const TensorMathError = error{
     OutputTensorDifferentSize,
     TooSmallOutputType, //the type dimension of the output Tensor could coause a loss of information
     InputTensorDimensionMismatch,
+    WrongStride,
 };
 
 /// Tensor errors
