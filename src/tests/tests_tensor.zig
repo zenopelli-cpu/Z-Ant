@@ -311,3 +311,41 @@ test "tests isSafe() -> TensorError.NanValue " {
     try std.testing.expect(std.math.isNan(inputArray[1][1]) == true);
     try std.testing.expectError(TensorError.NanValue, tensore.isSafe());
 }
+
+test "test addPadding() " {
+    std.debug.print("\n     test: addPadding()", .{});
+}
+
+test "test setToZero() " {
+    std.debug.print("\n     test: setToZero()", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    var inputArray: [2][3][3]u8 = [_][3][3]u8{
+        [_][3]u8{
+            [_]u8{ 10, 20, 30 },
+            [_]u8{ 40, 50, 60 },
+            [_]u8{ 70, 80, 90 },
+        },
+        [_][3]u8{
+            [_]u8{ 10, 20, 30 },
+            [_]u8{ 40, 50, 60 },
+            [_]u8{ 70, 80, 90 },
+        },
+    };
+    var shape: [3]usize = [_]usize{ 2, 3, 3 };
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    try tensor.setToZero();
+
+    for (tensor.data) |d| {
+        try std.testing.expectEqual(d, 0);
+    }
+
+    for (0..tensor.shape.len) |i| {
+        try std.testing.expectEqual(tensor.shape[i], shape[i]);
+    }
+
+    //tensor.printMultidim();
+}

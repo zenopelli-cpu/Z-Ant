@@ -103,9 +103,7 @@ pub fn Tensor(comptime T: type) type {
             @memcpy(tensorShape, shape);
 
             const tensorData = try allocator.alloc(T, total_size);
-            for (tensorData) |*data| {
-                data.* = 0;
-            }
+            @memset(tensorData, 0);
 
             return @This(){
                 .data = tensorData,
@@ -531,6 +529,36 @@ pub fn Tensor(comptime T: type) type {
                     return;
                 },
             }
+        }
+
+        /// Set all tensor values to zero.
+        pub fn setToZero(self: *@This()) !void {
+            if (self.size == 0) {
+                return TensorError.TensorNotInitialized;
+            }
+            @memset(self.data, 0);
+        }
+
+        /// Method to add a top&bottom padding and a left&right padding.
+        /// At the moment the function only supports 2 padding params, but the method
+        /// is already set to have different left, right, top and bottom padding values.
+        pub fn addPadding(self: *@This(), upDownPadding: usize, leftRightPadding: usize) !void {
+
+            //checks on padding dim (usize is alway >= 0)
+            if (upDownPadding == 0 and leftRightPadding == 0) return;
+            if (self.shape.len < 2) return TensorError.TooSmallToPadding;
+
+            const upPadding = upDownPadding;
+            const downPadding = upDownPadding;
+            const leftPadding = leftRightPadding;
+            const rightPadding = leftRightPadding;
+            const dim = self.shape.len;
+
+            const new_row_numb = self.shape[dim - 2] + upPadding + downPadding; //oldRowNumb
+            const new_col_numb = self.shape[dim - 1] + leftPadding + rightPadding; //oldRowNumb
+
+            _ = new_row_numb;
+            _ = new_col_numb;
         }
     };
 }
