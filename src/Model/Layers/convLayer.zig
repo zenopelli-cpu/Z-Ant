@@ -154,14 +154,12 @@ pub fn ConvolutionalLayer(comptime T: type) type {
                 self.b_gradients.deinit();
             }
 
-            _ = dValues;
-
             // Compute gradients with respect to biases
             // Sum over the spatial dimensions
-            // self.b_gradients = TensMath.convolution_backward_biases(T, dValues) catch |err| {
-            //     std.debug.print("Error during conv backward_biases {any}", .{err});
-            //     return err;
-            // };
+            self.b_gradients = TensMath.convolution_backward_biases(T, dValues) catch |err| {
+                std.debug.print("Error during conv backward_biases {any}", .{err});
+                return err;
+            };
 
             // // Compute gradients with respect to weights
             // self.w_gradients = TensMath.convolution_backward_weights(T, &self.input, dValues) catch |err| {

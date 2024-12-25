@@ -312,10 +312,6 @@ test "tests isSafe() -> TensorError.NanValue " {
     try std.testing.expectError(TensorError.NanValue, tensore.isSafe());
 }
 
-test "test addPadding() " {
-    std.debug.print("\n     test: addPadding()", .{});
-}
-
 test "test setToZero() " {
     std.debug.print("\n     test: setToZero()", .{});
 
@@ -348,4 +344,113 @@ test "test setToZero() " {
     }
 
     //tensor.printMultidim();
+}
+
+test "test addPadding() " {
+    std.debug.print("\n     test: addPadding()", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    var inputArray: [2][3][3]i8 = [_][3][3]i8{
+        [_][3]i8{
+            [_]i8{ 1, 2, 3 },
+            [_]i8{ 4, 5, 6 },
+            [_]i8{ 7, 8, 9 },
+        },
+        [_][3]i8{
+            [_]i8{ 1, 2, 3 },
+            [_]i8{ 4, 5, 6 },
+            [_]i8{ 7, 8, 9 },
+        },
+    };
+    var shape: [3]usize = [_]usize{ 2, 3, 3 };
+    var tensor = try Tensor(i8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    try tensor.addPadding(1, 2);
+
+    var resultArray: [2][5][7]i8 = [_][5][7]i8{
+        [_][7]i8{
+            [_]i8{ 0, 0, 0, 0, 0, 0, 0 },
+            [_]i8{ 0, 0, 1, 2, 3, 0, 0 },
+            [_]i8{ 0, 0, 4, 5, 6, 0, 0 },
+            [_]i8{ 0, 0, 7, 8, 9, 0, 0 },
+            [_]i8{ 0, 0, 0, 0, 0, 0, 0 },
+        },
+        [_][7]i8{
+            [_]i8{ 0, 0, 0, 0, 0, 0, 0 },
+            [_]i8{ 0, 0, 1, 2, 3, 0, 0 },
+            [_]i8{ 0, 0, 4, 5, 6, 0, 0 },
+            [_]i8{ 0, 0, 7, 8, 9, 0, 0 },
+            [_]i8{ 0, 0, 0, 0, 0, 0, 0 },
+        },
+    };
+    var resultShape: [3]usize = [_]usize{ 2, 5, 7 };
+    var resultTensor = try Tensor(i8).fromArray(&allocator, &resultArray, &resultShape);
+    defer resultTensor.deinit();
+
+    //check on data
+    for (0..resultTensor.data.len) |i| {
+        try std.testing.expectEqual(resultTensor.data[i], tensor.data[i]);
+    }
+    //check on shape
+    for (0..resultTensor.shape.len) |i| {
+        try std.testing.expectEqual(resultTensor.shape[i], tensor.shape[i]);
+    }
+    //check on size
+    try std.testing.expectEqual(resultTensor.size, tensor.size);
+}
+
+test "test flip() " {
+    std.debug.print("\n     test: flip()", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    var inputArray: [2][3][3]i8 = [_][3][3]i8{
+        [_][3]i8{
+            [_]i8{ 1, 2, 3 },
+            [_]i8{ 4, 5, 6 },
+            [_]i8{ 7, 8, 9 },
+        },
+        [_][3]i8{
+            [_]i8{ 10, 20, 30 },
+            [_]i8{ 40, 50, 60 },
+            [_]i8{ 70, 80, 90 },
+        },
+    };
+    var shape: [3]usize = [_]usize{ 2, 3, 3 };
+    var tensor = try Tensor(i8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    var flippedTensor = try tensor.flip();
+    defer flippedTensor.deinit();
+    //flippedTensor.print();
+
+    var resultArray: [2][3][3]i8 = [_][3][3]i8{
+        [_][3]i8{
+            [_]i8{ 9, 8, 7 },
+            [_]i8{ 6, 5, 4 },
+            [_]i8{ 3, 2, 1 },
+        },
+        [_][3]i8{
+            [_]i8{ 90, 80, 70 },
+            [_]i8{ 60, 50, 40 },
+            [_]i8{ 30, 20, 10 },
+        },
+    };
+
+    var resultShape: [3]usize = [_]usize{ 2, 3, 3 };
+    var resultTensor = try Tensor(i8).fromArray(&allocator, &resultArray, &resultShape);
+    defer resultTensor.deinit();
+
+    //check on data
+    for (0..resultTensor.data.len) |i| {
+        try std.testing.expectEqual(resultTensor.data[i], flippedTensor.data[i]);
+    }
+    //check on shape
+    for (0..resultTensor.shape.len) |i| {
+        try std.testing.expectEqual(resultTensor.shape[i], flippedTensor.shape[i]);
+    }
+    //check on size
+    try std.testing.expectEqual(resultTensor.size, flippedTensor.size);
 }
