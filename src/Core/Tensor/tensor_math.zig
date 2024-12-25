@@ -680,7 +680,7 @@ pub fn convolution_backward_input(comptime T: type, dValues: *Tensor(T), weights
                 //std.debug.print("Processing batch {d}, in_channel {d}, out_channel {d}\n", .{ b, ic, oc });
 
                 // Flip weights along spatial dimensions (rotate 180 degrees)
-                var flipped_weights = try flip_kernel(T, weights, oc, ic);
+                var flipped_weights = try weights.flip();
 
                 // Slice dValues for the current batch and out_channel
                 var start_indices = [_]usize{ b, oc, 0, 0 };
@@ -737,29 +737,6 @@ pub fn convolution_backward_input(comptime T: type, dValues: *Tensor(T), weights
     //std.debug.print("Completed backward input gradients computation. Shape: {d}\n", .{input_gradients.shape});
 
     return input_gradients;
-}
-
-// Helper function to flip the kernel (rotate 180 degrees)
-fn flip_kernel(comptime T: type, weights: *Tensor(T), out_channel: usize, in_channel: usize) !Tensor(T) {
-    const kernel_height = weights.shape[2];
-    const kernel_width = weights.shape[3];
-    var flipped_shape = [_]usize{ 1, 1, kernel_height, kernel_width };
-
-    var flipped_kernel = try Tensor(T).fromShape(&pkg_allocator, &flipped_shape);
-
-    for (0..kernel_height) |h| {
-        for (0..kernel_width) |w| {
-            const flipped_index = [_]usize{ 0, 0, kernel_height - h - 1, kernel_width - w - 1 };
-            const original_index = [_]usize{ out_channel, in_channel, h, w };
-
-            const value = try weights.get_at(&original_index);
-            try flipped_kernel.set_at(&flipped_index, value);
-        }
-    }
-
-    //std.debug.print("Flipped kernel for out_channel {d}, in_channel {d} generated.\n", .{ out_channel, in_channel });
-
-    return flipped_kernel;
 }
 
 // POOLING -----------------------------------------------------------------------------------------------------------------------

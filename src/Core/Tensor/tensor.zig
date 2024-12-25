@@ -557,8 +557,74 @@ pub fn Tensor(comptime T: type) type {
             const new_row_numb = self.shape[dim - 2] + upPadding + downPadding; //oldRowNumb
             const new_col_numb = self.shape[dim - 1] + leftPadding + rightPadding; //oldRowNumb
 
-            _ = new_row_numb;
-            _ = new_col_numb;
+            //compute new shape
+            const new_shape = try self.allocator.alloc(usize, dim);
+            @memcpy(new_shape, self.shape);
+            new_shape[dim - 1] = new_col_numb;
+            new_shape[dim - 2] = new_row_numb;
+
+            //compute new size
+            var new_total_size: usize = 1;
+            for (new_shape) |size_i| {
+                new_total_size *= size_i;
+            }
+
+            //alloc new tensor.data memory space to all zero
+            const new_data = try self.allocator.alloc(T, new_total_size);
+            @memset(new_data, 0);
+
+            const new_matrix_dim = new_row_numb * new_col_numb;
+            const total_number_2DMatrices = new_total_size / new_matrix_dim;
+            const old_matrix_dim = self.shape[dim - 2] * self.shape[dim - 1];
+            const old_total_number_2DMatrices = self.size / old_matrix_dim; //just for check assertion
+            std.debug.assert(total_number_2DMatrices == old_total_number_2DMatrices);
+
+            for (0..total_number_2DMatrices) |matix_i| {
+                for (upPadding..new_row_numb - downPadding) |i| {
+                    for (leftPadding..new_col_numb - rightPadding) |j| {
+                        //std.debug.print("\n i:{}, j:{} new_data[{}], self.data[{}]", .{ i, j, i * new_col_numb + j, (i - upPadding) * (self.shape[dim - 1]) + (j - leftPadding) });
+
+                        new_data[matix_i * new_matrix_dim + i * new_col_numb + j] = self.data[matix_i * old_matrix_dim + (i - upPadding) * (self.shape[dim - 1]) + (j - leftPadding)];
+                    }
+                }
+            }
+
+            //free all old attributes and setting new ones
+            self.allocator.free(self.data);
+            self.allocator.free(self.shape);
+
+            self.shape = new_shape;
+            self.data = new_data;
+            self.size = new_total_size;
+        }
+
+        /// Helper function to flip the kernel (rotate 180 degrees horizontaly and vertically)
+        /// ex:
+        ///  flip( [[a, b], [c, d], [e, f]] ) = [[f, e], [d, c], [b, a]]
+        pub fn flip(self: *@This()) !Tensor(T) {
+            const kernel_dim = self.shape.len;
+            const kernel_row = self.shape[kernel_dim - 2];
+            const kernel_cols = self.shape[kernel_dim - 1];
+            const matrix_dim = kernel_cols * kernel_row;
+
+            //create and initialize the new shape
+            const flipped_shape = try self.allocator.alloc(usize, self.shape.len);
+            defer self.allocator.free(flipped_shape);
+            @memcpy(flipped_shape, self.shape);
+
+            var flipped_kernel = try Tensor(T).fromShape(self.allocator, flipped_shape);
+
+            const total_number_2DMatrices = flipped_kernel.size / matrix_dim;
+
+            for (0..total_number_2DMatrices) |matix_i| {
+                for (0..kernel_row) |i| {
+                    for (0..kernel_cols) |j| {
+                        flipped_kernel.data[(matix_i + 1) * matrix_dim - (i * kernel_cols + j + 1)] = self.data[matix_i * matrix_dim + i * kernel_cols + j];
+                    }
+                }
+            }
+
+            return flipped_kernel;
         }
     };
 }
