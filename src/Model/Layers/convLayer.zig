@@ -9,7 +9,7 @@ pub fn ConvolutionalLayer(comptime T: type) type {
     return struct {
         // Convolutional layer parameters
         weights: Tensor.Tensor(T), // Weights (kernels) of shape [kernel_shape]
-        bias: Tensor.Tensor(T), // Biases for each output channel
+        bias: Tensor.Tensor(T), // a Bias for each kernel filter
         input: Tensor.Tensor(T), // Input tensor
         output: Tensor.Tensor(T), // Output tensor after convolution
         // Layer configuration
@@ -161,11 +161,11 @@ pub fn ConvolutionalLayer(comptime T: type) type {
                 return err;
             };
 
-            // // Compute gradients with respect to weights
-            // self.w_gradients = TensMath.convolution_backward_weights(T, &self.input, dValues) catch |err| {
-            //     std.debug.print("Error during conv backward_weights {any}", .{err});
-            //     return err;
-            // };
+            // Compute gradients with respect to weights
+            self.w_gradients = TensMath.convolution_backward_weights(T, &self.input, dValues) catch |err| {
+                std.debug.print("Error during conv backward_weights {any}", .{err});
+                return err;
+            };
 
             // // Compute gradients with respect to input
             // var dInput = TensMath.convolution_backward_input(T, dValues, &self.weights) catch |err| {

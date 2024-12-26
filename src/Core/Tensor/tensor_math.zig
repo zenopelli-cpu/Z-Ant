@@ -536,7 +536,7 @@ pub fn convolve_tensor_with_bias(
 
 pub fn convolution_backward_biases(comptime T: type, dValues: *Tensor(T)) !Tensor(T) {
     // Compute gradients with respect to biases by summing over batch, height, and width dimensions
-    // Assumes dValues shape: [batch_size, out_channels, output_height, output_width]
+    // Assumes dValues shape: [batch_size, out_channels (aka number of kernel filters ), output_height, output_width]
 
     // Check that dValues has at least 4 dimensions
     if (dValues.shape.len < 4) return TensorMathError.InputTensorsWrongShape;
@@ -546,9 +546,6 @@ pub fn convolution_backward_biases(comptime T: type, dValues: *Tensor(T)) !Tenso
 
     // Allocate the bias_gradients tensor
     var bias_gradients = try Tensor(T).fromShape(&pkg_allocator, &bias_gradients_shape);
-
-    // Initialize bias_gradients to zero
-    try bias_gradients.set(0, 0);
 
     const batch_size = dValues.shape[0];
     const output_height = dValues.shape[2];
@@ -563,6 +560,7 @@ pub fn convolution_backward_biases(comptime T: type, dValues: *Tensor(T)) !Tenso
                     const index = [_]usize{ b, oc, h, w };
                     const val = try dValues.get_at(&index);
                     sum += val;
+                    //std.debug.print("\n  adding:{} sum:{} index:{any}", .{ val, sum, index });
                 }
             }
         }
@@ -573,66 +571,54 @@ pub fn convolution_backward_biases(comptime T: type, dValues: *Tensor(T)) !Tenso
     return bias_gradients;
 }
 
-pub fn convolution_backward_weights(comptime T: type, input: *Tensor(T), dValues: *Tensor(T)) !Tensor(T) {
+pub fn convolution_backward_weights(
+    comptime T: type,
+    input: *Tensor(T),
+    dValues: *Tensor(T),
+    kernel_shape: [4]usize, // shape : [number of kernel filters, number of channels, height, width ]
+    stride: [2]usize,
+) !Tensor(T) {
     // Compute gradients with respect to weights
     // Input shape: [batch_size, in_channels, input_height, input_width]
     // dValues shape: [batch_size, out_channels, output_height, output_width]
-    // Weights shape: [out_channels, in_channels, kernel_height, kernel_width]
 
-    const batch_size = input.shape[0];
-    const in_channels = input.shape[1];
-    const input_height = input.shape[2];
-    const input_width = input.shape[3];
-
-    const out_batch_size = dValues.shape[0];
-    const out_channels = dValues.shape[1];
-    const output_height = dValues.shape[2];
-    const output_width = dValues.shape[3];
-
-    std.debug.print("\n batch_size: {} in_channels: {} input_height: {} input_width: {} out_batch_size: {} out_channels: {} output_height: {} output_width: {}\n", .{ batch_size, in_channels, input_height, input_width, out_batch_size, out_channels, output_height, output_width });
-
-    // Check for matching batch sizes
-    if (batch_size != out_batch_size) return TensorMathError.InputTensorsWrongShape;
-
-    // Calculate kernel dimensions
-    const kernel_height = input_height - output_height + 1;
-    const kernel_width = input_width - output_width + 1;
-
-    var w_gradients_shape = [_]usize{ out_channels, in_channels, kernel_height, kernel_width };
-    var w_gradients = try Tensor(T).fromShape(&pkg_allocator, &w_gradients_shape);
-
-    // Initialize w_gradients to zero
-    try w_gradients.set(0, 0);
-
-    // Compute gradients
-    for (0..out_channels) |oc| {
-        for (0..in_channels) |ic| {
-            for (0..kernel_height) |kh| {
-                for (0..kernel_width) |kw| {
-                    var sum: T = 0;
-                    for (0..batch_size) |b| {
-                        for (0..output_height) |oh| {
-                            for (0..output_width) |ow| {
-                                const input_h = oh + kh;
-                                const input_w = ow + kw;
-
-                                const input_index = [_]usize{ b, ic, input_h, input_w };
-                                const dValue_index = [_]usize{ b, oc, oh, ow };
-
-                                const input_val = try input.get_at(&input_index);
-                                const dValue = try dValues.get_at(&dValue_index);
-
-                                sum += input_val * dValue;
-                            }
-                        }
-                    }
-                    // Set the gradient
-                    const w_grad_index = [_]usize{ oc, ic, kh, kw };
-                    try w_gradients.set_at(&w_grad_index, sum);
-                }
-            }
+    //check dim:
+    if (input.shape.len != 4) {
+        std.debug.print("\n\nError: convolution_backward_weights() is only available for 4D input, your input shape:{any}", .{input.shape});
+        if (input.shape.len < 4) {
+            std.debug.print(", add [1]s dimensions in the front", .{});
         }
+        std.debug.print("\n \n ", .{});
+
+        return TensorMathError.InputTensorsWrongShape;
     }
+
+    // creating gradients
+    var w_gradients = try Tensor(T).fromShape(&pkg_allocator, @constCast(kernel_shape[0..]));
+
+    var zero_bias_shape = [_]usize{kernel_shape[0]};
+    var zero_bias = try Tensor(T).fromShape(&pkg_allocator, &zero_bias_shape);
+    defer zero_bias.deinit();
+
+    //initialize the current location to all 0
+    //OSS!! the "location" operates on the input, it represents the coordinates in the input space
+    const location = try pkg_allocator.alloc(usize, input.shape.len);
+    defer pkg_allocator.free(location);
+    for (location) |*loc| {
+        loc.* = 0;
+    }
+
+    try multidim_convolution_with_bias(
+        T,
+        T,
+        input,
+        dValues,
+        &w_gradients,
+        &zero_bias,
+        @constCast(stride[0..]),
+        0,
+        location,
+    );
 
     return w_gradients;
 }

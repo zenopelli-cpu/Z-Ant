@@ -175,8 +175,8 @@ test "mean" {
     t1.deinit();
 }
 
-test "Convolution 4D Input with 2x2 Kernel" {
-    std.debug.print("\n     test: Convolution 4D Input with 2x2 Kernel\n", .{});
+test "Convolution 4D Input with 2x2x2x2 Kernel" {
+    std.debug.print("\n     test: Convolution 4D Input with 2x2x2x2 Kernel\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -304,12 +304,226 @@ test "Convolution 4D Input with 2x2 Kernel" {
                 output_location[2] = row;
                 for (0..2) |col| {
                     output_location[3] = col;
-                    std.debug.print("\n get OUTPUT at:{any}", .{output_location});
+                    //std.debug.print("\n get OUTPUT at:{any}", .{output_location});
                     try std.testing.expectEqual(expected_result[batch][filter][row][col], result_tensor.get_at(output_location));
                 }
             }
         }
     }
+}
+
+test "convolution_backward_biases() " {
+    std.debug.print("\n     test: convolution_backward_biases \n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    var d_val_shape: [4]usize = [_]usize{ 2, 2, 2, 2 };
+    var d_val_array: [2][2][2][2]f32 = [_][2][2][2]f32{
+        // Primo batch
+        [_][2][2]f32{
+            [_][2]f32{
+                [_]f32{ 3.0, 5.0 },
+                [_]f32{ 5.0, 5.0 },
+            },
+            [_][2]f32{
+                [_]f32{ 1.0, 1.0 },
+                [_]f32{ 1.0, 1.0 },
+            },
+        },
+        // Secondo batch
+        [_][2][2]f32{
+            [_][2]f32{
+                [_]f32{ 14.0, 14.0 },
+                [_]f32{ 14.0, 14.0 },
+            },
+            [_][2]f32{
+                [_]f32{ 10.0, 10.0 },
+                [_]f32{ 10.0, 10.0 },
+            },
+        },
+    };
+
+    var d_val = try Tensor(f32).fromArray(&allocator, &d_val_array, &d_val_shape);
+    defer d_val.deinit();
+
+    //compute bias derivate
+    var result_tensor = try TensMath.convolution_backward_biases(f32, &d_val);
+    defer result_tensor.deinit();
+
+    result_tensor.print();
+
+    var d_bias_shape: [1]usize = [_]usize{2};
+    var d_bias_array: [2]f32 = [_]f32{ 74, 44 };
+
+    var d_bias_expected = try Tensor(f32).fromArray(&allocator, &d_bias_array, &d_bias_shape);
+    defer d_bias_expected.deinit();
+
+    //check on values
+    for (d_bias_expected.data, 0..) |expected, i| {
+        try std.testing.expectEqual(expected, result_tensor.data[i]);
+    }
+
+    //check on dim
+    try std.testing.expectEqual(d_bias_expected.size, result_tensor.size);
+
+    for (d_bias_expected.shape, 0..) |expected, i| {
+        try std.testing.expectEqual(expected, result_tensor.shape[i]);
+    }
+}
+
+test "convolution_backward_weights() " {
+    std.debug.print("\n     test: convolution_backward_weights \n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    var input_shape: [4]usize = [_]usize{ 2, 2, 3, 3 };
+    var inputArray: [2][2][3][3]f32 = [_][2][3][3]f32{ //batches:2, channels:2, rows:3, cols:3
+        //First Batch
+        [_][3][3]f32{
+            // First Channel
+            [_][3]f32{
+                [_]f32{ 2.0, 2.0, 3.0 },
+                [_]f32{ 4.0, 5.0, 6.0 },
+                [_]f32{ 7.0, 8.0, 9.0 },
+            },
+            // Second Channel
+            [_][3]f32{
+                [_]f32{ 8.0, 8.0, 7.0 },
+                [_]f32{ 6.0, 5.0, 4.0 },
+                [_]f32{ 3.0, 2.0, 1.0 },
+            },
+        },
+        // Second batch
+        [_][3][3]f32{
+            // First channel
+            [_][3]f32{
+                [_]f32{ 2.0, 3.0, 4.0 },
+                [_]f32{ 5.0, 6.0, 7.0 },
+                [_]f32{ 8.0, 9.0, 10.0 },
+            },
+            // Second channel
+            [_][3]f32{
+                [_]f32{ 10.0, 9.0, 8.0 },
+                [_]f32{ 7.0, 6.0, 5.0 },
+                [_]f32{ 4.0, 3.0, 2.0 },
+            },
+        },
+    };
+    var input_tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &input_shape);
+    defer input_tensor.deinit();
+
+    // Kernel tensor
+    var kernel_shape: [4]usize = [_]usize{ 2, 2, 2, 2 };
+    var kernelArray: [2][2][2][2]f32 = [_][2][2][2]f32{ //filters:2, channels:2, rows:2, cols:2
+        //first filter
+        [_][2][2]f32{
+            //first channel
+            [_][2]f32{
+                [_]f32{ -1.0, 0.0 },
+                [_]f32{ 0.0, 1.0 },
+            },
+            //second channel
+            [_][2]f32{
+                [_]f32{ 1.0, -1.0 },
+                [_]f32{ -1.0, 1.0 },
+            },
+        },
+        //second filter
+        [_][2][2]f32{
+            //first channel
+            [_][2]f32{
+                [_]f32{ 0.0, 0.0 },
+                [_]f32{ 0.0, 0.0 },
+            },
+            //second channel
+            [_][2]f32{
+                [_]f32{ 0.0, 0.0 },
+                [_]f32{ 0.0, 0.0 },
+            },
+        },
+    };
+    var kernel_tensor = try Tensor(f32).fromArray(&allocator, &kernelArray, &kernel_shape);
+    defer kernel_tensor.deinit();
+
+    // d_val
+    var d_val_shape: [4]usize = [_]usize{ 2, 2, 2, 2 };
+    var d_val_array: [2][2][2][2]f32 = [_][2][2][2]f32{
+        // Primo batch
+        [_][2][2]f32{
+            [_][2]f32{
+                [_]f32{ 0, 0 },
+                [_]f32{ 0, 0 },
+            },
+            [_][2]f32{
+                [_]f32{ 0, 0 },
+                [_]f32{ 0, 0 },
+            },
+        },
+        // Secondo batch
+        [_][2][2]f32{
+            [_][2]f32{
+                [_]f32{ 1.0, 1.0 },
+                [_]f32{ 1.0, 1.0 },
+            },
+            [_][2]f32{
+                [_]f32{ 1.0, 1.0 },
+                [_]f32{ 1.0, 1.0 },
+            },
+        },
+    };
+
+    var d_val_tensor = try Tensor(f32).fromArray(&allocator, &d_val_array, &d_val_shape);
+    defer d_val_tensor.deinit();
+
+    //create stride
+    var stride: [2]usize = [_]usize{ 1, 1 };
+
+    //creating all zero bias
+    var bias_array: [2][2]f32 = [_][2]f32{ //batches: 2, filters:2
+        [_]f32{ 1, 1 },
+        [_]f32{ 10, 10 },
+    };
+    var bias_shape: [2]usize = [_]usize{ 2, 2 };
+    var bias = try Tensor(f32).fromArray(&allocator, &bias_array, &bias_shape);
+    defer bias.deinit();
+
+    //generating an output
+    var output_tensor = try TensMath.convolve_tensor_with_bias(f32, f32, &input_tensor, &kernel_tensor, &bias, &stride);
+    defer output_tensor.deinit();
+
+    output_tensor.info();
+    output_tensor.print();
+
+    //compute bias derivate
+    var d_weights = try TensMath.convolution_backward_weights(
+        f32,
+        &input_tensor,
+        &d_val_tensor,
+        kernel_shape,
+        stride,
+    );
+    defer d_weights.deinit();
+
+    d_weights.info();
+    d_weights.print();
+
+    // var d_bias_shape: [1]usize = [_]usize{2};
+    // var d_bias_array: [2]f32 = [_]f32{ 74, 44 };
+
+    // var d_bias_expected = try Tensor(f32).fromArray(&allocator, &d_bias_array, &d_bias_shape);
+    // defer d_bias_expected.deinit();
+
+    // //check on values
+    // for (d_bias_expected.data, 0..) |expected, i| {
+    //     try std.testing.expectEqual(expected, result_tensor.data[i]);
+    // }
+
+    // //check on dim
+    // try std.testing.expectEqual(d_bias_expected.size, result_tensor.size);
+
+    // for (d_bias_expected.shape, 0..) |expected, i| {
+    //     try std.testing.expectEqual(expected, result_tensor.shape[i]);
+    // }
 }
 
 test "Pooling 2D" {
