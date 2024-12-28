@@ -252,7 +252,7 @@ test "ActivationLayer forward and backward test" {
     defer res.deinit();
 }
 
-test "Complete test of the new convolutional layer functionalities" {
+test "Conv forward()" {
     std.debug.print("\n     Test: Conv forward test ", .{});
 
     const allocator = &pkg_allocator.allocator;
@@ -276,7 +276,7 @@ test "Complete test of the new convolutional layer functionalities" {
         31, 32, 33,
         34, 35, 36,
     };
-    var input_shape = [_]usize{ 2, 2, 3, 3 }; // [batch_size, in_channels, height, width]
+    var input_shape = [_]usize{ 2, 2, 3, 3 }; // [batches, in_channels, height, width]
     var input = try Tensor(f64).fromArray(allocator, &input_data, &input_shape);
     defer input.deinit();
 
@@ -305,7 +305,7 @@ test "Complete test of the new convolutional layer functionalities" {
             stride: [2]usize,
         }{
             .input_channels = 2,
-            .kernel_shape = .{ 1, 2, 2, 2 }, //filters, channels, rows, cols
+            .kernel_shape = .{ 3, 2, 2, 2 }, //filters, channels, rows, cols
             .stride = .{ 1, 1 },
         }),
     );
@@ -313,10 +313,10 @@ test "Complete test of the new convolutional layer functionalities" {
 
     // Perform the forward pass
     var output = try layer.forward(&input);
-    std.debug.print("Output shape: {any}\n", .{output.shape});
+    std.debug.print("\nOutput shape: {any}\n", .{output.shape});
 
     // Print the output for verification
-    std.debug.print("Output of forward pass:\n", .{});
+    std.debug.print("\nOutput of forward pass:\n", .{});
     output.info();
 
     // Create a dummy gradient for the backward pass (same shape as output)
@@ -334,11 +334,11 @@ test "Complete test of the new convolutional layer functionalities" {
     // defer dInput.deinit();
 
     // Print the gradients for verification
-    std.debug.print("Weight gradients:\n", .{});
+    std.debug.print("\nWeight gradients:\n", .{});
     // conv_layer.w_gradients.printMultidim();
     conv_layer.w_gradients.info();
 
-    std.debug.print("Input gradients:\n", .{});
+    // std.debug.print("Input gradients:\n", .{});
     // dInput.printMultidim();
 
     // Verify the shapes
