@@ -316,6 +316,7 @@ fn multidim_convolution_with_bias(
     location: []usize,
 ) !void {
     if (current_dim == input.shape.len - 3) { //
+        //std.debug.print("\n\n KERNEL:{any} \n stride:{any} \n ", .{ kernel.data, stride });
 
         const outDim = output.shape.len;
         const inDim = input.shape.len;
@@ -336,13 +337,16 @@ fn multidim_convolution_with_bias(
         for (0..kernelDim - 4) |i| { //copying the batches
             kernel_location[i] = input_location[i];
         }
+
         //init input coordinates
         @memcpy(input_location, location);
+
         //init output coordinates
         @memset(output_location, 0);
         for (0..outDim - 3) |i| { //copying the batches
             output_location[i] = input_location[i];
         }
+
         //init bias coordinates
         @memset(bias_location, 0);
         for (0..biasDim - 1) |i| { //copying the batches
@@ -453,6 +457,8 @@ pub fn convolve_tensor_with_bias(
     const nDimOutput = nDimInput;
     const nDimBias = bias.shape.len;
 
+    //std.debug.print("\n -----------------------------------convolve_tensor_with_bias()", .{});
+
     //chck on dimensions
     if (nDimKernel > nDimInput) {
         std.debug.print("Error: Kernel size must be smaller or equal to Input size, Kernel size:{}, Input size:{}\n", .{ nDimKernel, nDimInput });
@@ -502,7 +508,7 @@ pub fn convolve_tensor_with_bias(
     for (0..nDimInput - 3) |i| {
         out_shape[i] = input.shape[i];
     }
-    out_shape[nDimOutput - 3] = kernel.shape[nDimKernel - 3]; // n filters
+    out_shape[nDimOutput - 3] = kernel.shape[nDimKernel - 4]; // n filters
     out_shape[nDimOutput - 2] = (input.shape[nDimInput - 2] - kernel.shape[nDimInput - 2]) / stride[0] + 1; // Height
     out_shape[nDimOutput - 1] = (input.shape[nDimInput - 1] - kernel.shape[nDimInput - 1]) / stride[1] + 1; // Width
 

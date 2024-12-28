@@ -74,7 +74,7 @@ pub fn ConvolutionalLayer(comptime T: type) type {
 
             //check channels
             if (self.input_channels != self.kernel_shape[1]) {
-                std.debug.print("\nERROR : Input and K ernel must have the same number of channels", .{});
+                std.debug.print("\nERROR : Input and Kernel must have the same number of channels", .{});
             }
 
             // Initialize weights and biases
@@ -91,6 +91,12 @@ pub fn ConvolutionalLayer(comptime T: type) type {
             // Initialize gradients to zero
             self.w_gradients = try Tensor.Tensor(T).fromShape(self.allocator, &self.kernel_shape);
             self.b_gradients = try Tensor.Tensor(T).fromShape(self.allocator, &bias_shape);
+
+            std.debug.print("\n ----CONVOLUTIONAL LAYER INITIALIZED----", .{});
+            std.debug.print("\n KERNEL:", .{});
+            self.weights.info();
+            std.debug.print("\n KERNEL SHAPE:{any}", .{self.kernel_shape});
+            std.debug.print("\n BIAS:{any}", .{self.bias});
         }
 
         /// Deallocate the convolutional layer resources
@@ -136,6 +142,9 @@ pub fn ConvolutionalLayer(comptime T: type) type {
             self.input = try input.copy();
 
             // Perform convolution operation
+            if (self.output.data.len > 0) {
+                self.output.deinit();
+            }
             self.output = try TensMath.convolve_tensor_with_bias(T, T, &self.input, &self.weights, &self.bias, &self.stride);
             //self.output.info();
             self.output.info();
