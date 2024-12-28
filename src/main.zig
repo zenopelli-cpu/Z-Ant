@@ -30,22 +30,25 @@ pub fn main() !void {
         .input = undefined,
         .output = undefined,
         .input_channels = 0,
-        .output_channels = 0,
-        .kernel_size = undefined,
+        .kernel_shape = undefined,
+        .stride = undefined,
         .w_gradients = undefined,
         .b_gradients = undefined,
         .allocator = &allocator,
     };
     var layer_ = conv_layer.create();
-    try layer_.init(&allocator, @constCast(&struct {
-        input_channels: usize,
-        output_channels: usize,
-        kernel_size: [2]usize,
-    }{
-        .input_channels = 1,
-        .output_channels = 32,
-        .kernel_size = .{ 5, 5 },
-    }));
+    try layer_.init(
+        &allocator,
+        @constCast(&struct {
+            input_channels: usize,
+            kernel_shape: [4]usize,
+            stride: [2]usize,
+        }{
+            .input_channels = 1,
+            .kernel_shape = .{ 16, 1, 2, 2 }, //filters, channels, rows, cols
+            .stride = .{ 1, 1 },
+        }),
+    );
     try model.addLayer(layer_);
 
     // var pooling_layer = PoolingLayer(f64){
@@ -101,47 +104,50 @@ pub fn main() !void {
         .input = undefined,
         .output = undefined,
         .input_channels = 0,
-        .output_channels = 0,
-        .kernel_size = undefined,
+        .kernel_shape = undefined,
+        .stride = undefined,
         .w_gradients = undefined,
         .b_gradients = undefined,
         .allocator = &allocator,
     };
     var layer2_ = conv_layer2.create();
-    try layer2_.init(&allocator, @constCast(&struct {
-        input_channels: usize,
-        output_channels: usize,
-        kernel_size: [2]usize,
-    }{
-        .input_channels = 32,
-        .output_channels = 32,
-        .kernel_size = .{ 5, 5 },
-    }));
+    try layer2_.init(
+        &allocator,
+        @constCast(&struct {
+            input_channels: usize,
+            kernel_shape: [4]usize,
+            stride: [2]usize,
+        }{
+            .input_channels = 16,
+            .kernel_shape = .{ 16, 16, 2, 2 }, //filters, channels, rows, cols
+            .stride = .{ 1, 1 },
+        }),
+    );
     try model.addLayer(layer2_);
 
-    var conv_layer3C = convlayer(f64){
-        .weights = undefined,
-        .bias = undefined,
-        .input = undefined,
-        .output = undefined,
-        .input_channels = 0,
-        .output_channels = 0,
-        .kernel_size = undefined,
-        .w_gradients = undefined,
-        .b_gradients = undefined,
-        .allocator = &allocator,
-    };
-    var layer3C_ = conv_layer3C.create();
-    try layer3C_.init(&allocator, @constCast(&struct {
-        input_channels: usize,
-        output_channels: usize,
-        kernel_size: [2]usize,
-    }{
-        .input_channels = 32,
-        .output_channels = 64,
-        .kernel_size = .{ 5, 5 },
-    }));
-    try model.addLayer(layer3C_);
+    // var conv_layer3C = convlayer(f64){
+    //     .weights = undefined,
+    //     .bias = undefined,
+    //     .input = undefined,
+    //     .output = undefined,
+    //     .input_channels = 0,
+    //     .output_channels = 0,
+    //     .kernel_size = undefined,
+    //     .w_gradients = undefined,
+    //     .b_gradients = undefined,
+    //     .allocator = &allocator,
+    // };
+    // var layer3C_ = conv_layer3C.create();
+    // try layer3C_.init(&allocator, @constCast(&struct {
+    //     input_channels: usize,
+    //     output_channels: usize,
+    //     kernel_size: [2]usize,
+    // }{
+    //     .input_channels = 32,
+    //     .output_channels = 64,
+    //     .kernel_size = .{ 5, 5 },
+    // }));
+    // try model.addLayer(layer3C_);
 
     // var pooling_layer2 = PoolingLayer(f64){
     //     .input = undefined,
@@ -205,91 +211,91 @@ pub fn main() !void {
 
     try model.addLayer(Flattenlayer);
 
-    //layer 3 ----------------------------------------------------------------------------
-    var layer3 = denselayer(f64){
-        .weights = undefined,
-        .bias = undefined,
-        .input = undefined,
-        .output = undefined,
-        .n_inputs = 0,
-        .n_neurons = 0,
-        .w_gradients = undefined,
-        .b_gradients = undefined,
-        .allocator = undefined,
-    };
-    //layer 3: 64 inputs, 10 neurons
-    var layer3_ = denselayer(f64).create(&layer3);
-    try layer3_.init(&allocator, @constCast(&struct {
-        n_inputs: usize,
-        n_neurons: usize,
-    }{
-        .n_inputs = 16384,
-        .n_neurons = 256,
-    }));
-    try model.addLayer(layer3_);
+    // //layer 3 ----------------------------------------------------------------------------
+    // var layer3 = denselayer(f64){
+    //     .weights = undefined,
+    //     .bias = undefined,
+    //     .input = undefined,
+    //     .output = undefined,
+    //     .n_inputs = 0,
+    //     .n_neurons = 0,
+    //     .w_gradients = undefined,
+    //     .b_gradients = undefined,
+    //     .allocator = undefined,
+    // };
+    // //layer 3: 64 inputs, 10 neurons
+    // var layer3_ = denselayer(f64).create(&layer3);
+    // try layer3_.init(&allocator, @constCast(&struct {
+    //     n_inputs: usize,
+    //     n_neurons: usize,
+    // }{
+    //     .n_inputs = 16384,
+    //     .n_neurons = 256,
+    // }));
+    // try model.addLayer(layer3_);
 
-    //layer 4 ----------------------------------------------------------------------------
-    var layer3Activ = activationlayer(f64){
-        .input = undefined,
-        .output = undefined,
-        .n_inputs = 0,
-        .n_neurons = 0,
-        .activationFunction = ActivationType.ReLU,
-        .allocator = &allocator,
-    };
-    var layer3_act = activationlayer(f64).create(&layer3Activ);
-    try layer3_act.init(&allocator, @constCast(&struct {
-        n_inputs: usize,
-        n_neurons: usize,
-    }{
-        .n_inputs = 16384,
-        .n_neurons = 256,
-    }));
-    try model.addLayer(layer3_act);
+    // //layer 4 ----------------------------------------------------------------------------
+    // var layer3Activ = activationlayer(f64){
+    //     .input = undefined,
+    //     .output = undefined,
+    //     .n_inputs = 0,
+    //     .n_neurons = 0,
+    //     .activationFunction = ActivationType.ReLU,
+    //     .allocator = &allocator,
+    // };
+    // var layer3_act = activationlayer(f64).create(&layer3Activ);
+    // try layer3_act.init(&allocator, @constCast(&struct {
+    //     n_inputs: usize,
+    //     n_neurons: usize,
+    // }{
+    //     .n_inputs = 16384,
+    //     .n_neurons = 256,
+    // }));
+    // try model.addLayer(layer3_act);
 
-    //new dense layer
+    // //new dense layer
 
-    var layer4 = denselayer(f64){
-        .weights = undefined,
-        .bias = undefined,
-        .input = undefined,
-        .output = undefined,
-        .n_inputs = 0,
-        .n_neurons = 0,
-        .w_gradients = undefined,
-        .b_gradients = undefined,
-        .allocator = undefined,
-    };
+    // var layer4 = denselayer(f64){
+    //     .weights = undefined,
+    //     .bias = undefined,
+    //     .input = undefined,
+    //     .output = undefined,
+    //     .n_inputs = 0,
+    //     .n_neurons = 0,
+    //     .w_gradients = undefined,
+    //     .b_gradients = undefined,
+    //     .allocator = undefined,
+    // };
 
-    var layer4_ = denselayer(f64).create(&layer4);
-    try layer4_.init(&allocator, @constCast(&struct {
-        n_inputs: usize,
-        n_neurons: usize,
-    }{
-        .n_inputs = 256,
-        .n_neurons = 10,
-    }));
+    // var layer4_ = denselayer(f64).create(&layer4);
+    // try layer4_.init(&allocator, @constCast(&struct {
+    //     n_inputs: usize,
+    //     n_neurons: usize,
+    // }{
+    //     .n_inputs = 256,
+    //     .n_neurons = 10,
+    // }));
 
-    try model.addLayer(layer4_);
+    // try model.addLayer(layer4_);
 
-    //Softmax
-    var layer4Activ = activationlayer(f64){
-        .input = undefined,
-        .output = undefined,
-        .n_inputs = 0,
-        .n_neurons = 0,
-        .activationFunction = ActivationType.Softmax,
-        .allocator = &allocator,
-    };
-    var layer4_act = activationlayer(f64).create(&layer4Activ);
-    try layer4_act.init(&allocator, @constCast(&struct {
-        n_inputs: usize,
-        n_neurons: usize,
-    }{
-        .n_inputs = 256,
-        .n_neurons = 10,
-    }));
-    try model.addLayer(layer4_act);
+    // //Softmax
+    // var layer4Activ = activationlayer(f64){
+    //     .input = undefined,
+    //     .output = undefined,
+    //     .n_inputs = 0,
+    //     .n_neurons = 0,
+    //     .activationFunction = ActivationType.Softmax,
+    //     .allocator = &allocator,
+    // };
+    // var layer4_act = activationlayer(f64).create(&layer4Activ);
+    // try layer4_act.init(&allocator, @constCast(&struct {
+    //     n_inputs: usize,
+    //     n_neurons: usize,
+    // }{
+    //     .n_inputs = 256,
+    //     .n_neurons = 10,
+    // }));
+    // try model.addLayer(layer4_act);
 
     var load = loader.DataLoader(f64, u8, u8, 16, 3){
         .X = undefined,
