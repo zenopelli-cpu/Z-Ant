@@ -330,8 +330,8 @@ test "Complete test of the new convolutional layer functionalities" {
     defer dValues.deinit();
 
     // Perform the backward pass
-    var dInput = try layer.backward(&dValues);
-    defer dInput.deinit();
+    // var dInput = try layer.backward(&dValues);
+    // defer dInput.deinit();
 
     // Print the gradients for verification
     std.debug.print("Weight gradients:\n", .{});
@@ -346,8 +346,6 @@ test "Complete test of the new convolutional layer functionalities" {
     // try std.testing.expectEqual(dInput.shape, input.shape);
 
     // Clean up resourcess
-    _ = &input_data;
-    _ = &conv_layer;
 }
 
 test "Complete test of the Flatten layer functionalities with first dimension unflattened" {

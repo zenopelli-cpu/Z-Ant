@@ -504,8 +504,8 @@ test "convolution_backward_weights() " {
     );
     defer d_weights.deinit();
 
-    d_weights.info();
-    d_weights.print();
+    // d_weights.info();
+    // d_weights.print();
 
     // var d_bias_shape: [1]usize = [_]usize{2};
     // var d_bias_array: [2]f32 = [_]f32{ 74, 44 };

@@ -146,23 +146,23 @@ pub fn ConvolutionalLayer(comptime T: type) type {
         pub fn backward(ctx: *anyopaque, dValues: *Tensor.Tensor(T)) !Tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
-            // Initialize gradient tensors if not already initialized
-            if (self.w_gradients.data.len > 0) {
-                self.w_gradients.deinit();
-            }
+            // --- Compute gradients with respect to biases
+            // free old bias gradients
             if (self.b_gradients.data.len > 0) {
                 self.b_gradients.deinit();
             }
-
-            // Compute gradients with respect to biases
             // Sum over the spatial dimensions
             self.b_gradients = TensMath.convolution_backward_biases(T, dValues) catch |err| {
                 std.debug.print("Error during conv backward_biases {any}", .{err});
                 return err;
             };
 
-            // Compute gradients with respect to weights
-            self.w_gradients = TensMath.convolution_backward_weights(T, &self.input, dValues) catch |err| {
+            //free old weights gradients
+            if (self.w_gradients.data.len > 0) {
+                self.w_gradients.deinit();
+            }
+            // --- Compute gradients with respect to weights
+            self.w_gradients = TensMath.convolution_backward_weights(T, &self.input, dValues, self.kernel_shape, self.stride) catch |err| {
                 std.debug.print("Error during conv backward_weights {any}", .{err});
                 return err;
             };

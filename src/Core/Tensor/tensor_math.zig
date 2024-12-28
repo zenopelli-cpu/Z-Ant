@@ -593,6 +593,15 @@ pub fn convolution_backward_weights(
         return TensorMathError.InputTensorsWrongShape;
     }
 
+    //check stride:
+    if (stride[0] < 1 or stride[1] < 1) {
+        std.debug.print("\n\nError: Strides must be grather or equal to 1, your stride is:{any}", .{stride});
+        return TensorMathError.InputTensorsWrongShape;
+    }
+
+    // Add Padding and dilatation to dVal
+    try dValues.addPaddingAndDilation(0, 0, stride[0] - 1, stride[1] - 1);
+
     // creating gradients
     var w_gradients = try Tensor(T).fromShape(&pkg_allocator, @constCast(kernel_shape[0..]));
 
@@ -608,6 +617,9 @@ pub fn convolution_backward_weights(
         loc.* = 0;
     }
 
+    // Declading [1,1] stride for the full convolution
+    var full_conv_stride: [2]usize = [2]usize{ 1, 1 };
+
     try multidim_convolution_with_bias(
         T,
         T,
@@ -615,7 +627,7 @@ pub fn convolution_backward_weights(
         dValues,
         &w_gradients,
         &zero_bias,
-        @constCast(stride[0..]),
+        &full_conv_stride,
         0,
         location,
     );
@@ -623,106 +635,67 @@ pub fn convolution_backward_weights(
     return w_gradients;
 }
 
-pub fn convolution_backward_input(comptime T: type, dValues: *Tensor(T), weights: *Tensor(T)) !Tensor(T) {
-    // Compute gradients with respect to the input
-    // dValues shape: [batch_size, out_channels, output_height, output_width]
-    // Weights shape: [out_channels, in_channels, kernel_height, kernel_width]
-    // Output gradients shape: [batch_size, in_channels, input_height, input_width]
+/// Computes the backward derivate of the Output with respect to the Input.
+/// The operation consist in a full convolution of the flipped Kernel and dValues.
+pub fn convolution_backward_input(
+    comptime T: type,
+    dValues: *Tensor(T),
+    kernel: *Tensor(T),
+    input: *Tensor(T),
+    stride: [2]usize,
+) !Tensor(T) {
+    // - dValues shape: [number of batches , out_channels, output_height, output_width]
+    // - Weights shape: [number of kernel filters, number of channels, height, width ]
 
-    const batch_size = dValues.shape[0];
-    const out_channels = dValues.shape[1];
-    const output_height = dValues.shape[2];
-    const output_width = dValues.shape[3];
+    //consts
+    const kernel_dim = kernel.shape.len;
+    const kernel_cols = kernel.shape[kernel_dim - 1];
+    const kernel_rows = kernel.shape[kernel_dim - 2];
 
-    const weight_out_channels = weights.shape[0];
-    const in_channels = weights.shape[1];
-    const kernel_height = weights.shape[2];
-    const kernel_width = weights.shape[3];
+    // Checks
 
-    if (out_channels != weight_out_channels) {
-        std.debug.print("Error: Mismatched output channels: dValues {d}, weights {d}\n", .{ out_channels, weight_out_channels });
-        return TensorMathError.InputTensorsWrongShape;
-    }
+    // Flip the kernel
+    var flipped_kernel = try kernel.flip();
+    defer flipped_kernel.deinit();
 
-    const input_height = output_height + kernel_height - 1;
-    const input_width = output_width + kernel_width - 1;
+    // Compute the needed Padding so to correctly do the Full convolution
+    const up_down_padding = kernel_rows - 1;
+    const left_right_padding = kernel_cols - 1;
 
-    var input_gradients_shape = [_]usize{ batch_size, in_channels, input_height, input_width };
-    var input_gradients = try Tensor(T).fromShape(&pkg_allocator, &input_gradients_shape);
+    // Declading [1,1] stride for the full convolution
+    var full_conv_stride: usize[2] = usize[2]{ 1, 1 };
 
-    // Initialize input_gradients to zero
-    try input_gradients.set(0, 0);
+    // Add Padding and dilatation to dVal
+    try dValues.addPaddingAndDilation(up_down_padding, left_right_padding, stride[0], stride[1]);
 
-    std.debug.print("Backward input gradients initialized with shape: {d}\n", .{input_gradients.shape});
+    // Zero bias initialization
+    var zero_bias_shape = [_]usize{kernel.shape[0]}; //one bias for each filter
+    var zero_bias = try Tensor(T).fromShape(&pkg_allocator, &zero_bias_shape);
+    defer zero_bias.deinit();
 
-    // Compute input gradients
-    for (0..batch_size) |b| {
-        for (0..in_channels) |ic| {
-            var shape: [4]usize = [_]usize{ 1, 1, input_height, input_width };
-            var input_channel_gradient = try Tensor(T).fromShape(&pkg_allocator, &shape);
-            try input_channel_gradient.set(0, 0);
+    //initialize out vector
+    var result = try Tensor(T).fromShape(&pkg_allocator, &zero_bias_shape);
 
-            for (0..out_channels) |oc| {
-                //std.debug.print("Processing batch {d}, in_channel {d}, out_channel {d}\n", .{ b, ic, oc });
+    //initialize the current location to all 0
+    //OSS!! the "location" operates on the input, it represents the coordinates in the input space
+    const location = try pkg_allocator.alloc(usize, input.shape.len);
+    defer pkg_allocator.free(location);
+    @memset(location, 0);
 
-                // Flip weights along spatial dimensions (rotate 180 degrees)
-                var flipped_weights = try weights.flip();
+    // Convolve flipped kernel and padded gradient
+    try multidim_convolution_with_bias(
+        T,
+        T,
+        dValues, //static tensor
+        flipped_kernel, //mooving tensor
+        &result, //output tensor
+        zero_bias,
+        &full_conv_stride,
+        0,
+        location,
+    );
 
-                // Slice dValues for the current batch and out_channel
-                var start_indices = [_]usize{ b, oc, 0, 0 };
-                var slice_shape = [_]usize{ 1, 1, output_height, output_width };
-
-                //std.debug.print("Slicing dValues with start indices: {d}, slice shape: {d}\n", .{ start_indices, slice_shape });
-
-                var dValue_slice = try dValues.slice(&start_indices, &slice_shape);
-
-                //std.debug.print("Starting convolution for batch {d}, in_channel {d}, out_channel {d}\n", .{ b, ic, oc });
-
-                //Create 0 array with bias, can be optimized
-                const zeros = try Layer.zeros(T, &pkg_allocator, out_channels, 1);
-                defer pkg_allocator.free(zeros);
-                var shapeBias = [_]usize{ out_channels, 1 };
-                var zeroBias = try Tensor(T).fromArray(&pkg_allocator, zeros, &shapeBias);
-
-                // Convolve dValues[b, oc, :, :] with flipped_weights
-                var input_grad = try convolve_tensor_with_bias(T, T, &dValue_slice, &flipped_weights, &zeroBias);
-
-                // Add to input_channel_gradient
-                for (0..input_grad.shape[2]) |h| {
-                    for (0..input_grad.shape[3]) |w| {
-                        const input_grad_val = try input_grad.get_at(&[_]usize{ 0, 0, h, w });
-                        const index = [_]usize{ 0, 0, h, w };
-                        const current_val = try input_channel_gradient.get_at(&index);
-                        try input_channel_gradient.set_at(&index, current_val + input_grad_val);
-                    }
-                }
-
-                //std.debug.print("Completed convolution for batch {d}, in_channel {d}, out_channel {d}\n", .{ b, ic, oc });
-
-                // Clean up temporary tensors
-                input_grad.deinit();
-                flipped_weights.deinit();
-                dValue_slice.deinit();
-                zeroBias.deinit();
-            }
-
-            // Add input_channel_gradient to input_gradients
-            for (0..input_height) |h| {
-                for (0..input_width) |w| {
-                    const grad_val = try input_channel_gradient.get_at(&[_]usize{ 0, 0, h, w });
-                    const index = [_]usize{ b, ic, h, w };
-                    const current_val = try input_gradients.get_at(&index);
-                    try input_gradients.set_at(&index, current_val + grad_val);
-                }
-            }
-
-            input_channel_gradient.deinit();
-        }
-    }
-
-    //std.debug.print("Completed backward input gradients computation. Shape: {d}\n", .{input_gradients.shape});
-
-    return input_gradients;
+    return result;
 }
 
 // POOLING -----------------------------------------------------------------------------------------------------------------------

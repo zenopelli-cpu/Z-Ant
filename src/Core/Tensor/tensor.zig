@@ -542,10 +542,15 @@ pub fn Tensor(comptime T: type) type {
         /// Method to add a top&bottom padding and a left&right padding.
         /// At the moment the function only supports 2 padding params, but the method
         /// is already set to have different left, right, top and bottom padding values.
-        pub fn addPadding(self: *@This(), upDownPadding: usize, leftRightPadding: usize) !void {
+        pub fn addPaddingAndDilation(
+            self: *@This(),
+            upDownPadding: usize,
+            leftRightPadding: usize,
+            verticalDil: usize,
+            horizontalDil: usize,
+        ) !void {
 
             //checks on padding dim (usize is alway >= 0)
-            if (upDownPadding == 0 and leftRightPadding == 0) return;
             if (self.shape.len < 2) return TensorError.TooSmallToPadding;
 
             const upPadding = upDownPadding;
@@ -554,8 +559,9 @@ pub fn Tensor(comptime T: type) type {
             const rightPadding = leftRightPadding;
             const dim = self.shape.len;
 
-            const new_row_numb = self.shape[dim - 2] + upPadding + downPadding; //oldRowNumb
-            const new_col_numb = self.shape[dim - 1] + leftPadding + rightPadding; //oldRowNumb
+            const new_row_numb = self.shape[dim - 2] + upPadding + downPadding + verticalDil * (self.shape[dim - 2] - 1);
+            const new_col_numb = self.shape[dim - 1] + leftPadding + rightPadding + horizontalDil * (self.shape[dim - 1] - 1);
+            std.debug.print("\n new_row_numb: {} new_col_numb:{}", .{ new_row_numb, new_col_numb });
 
             //compute new shape
             const new_shape = try self.allocator.alloc(usize, dim);
@@ -580,12 +586,28 @@ pub fn Tensor(comptime T: type) type {
             std.debug.assert(total_number_2DMatrices == old_total_number_2DMatrices);
 
             for (0..total_number_2DMatrices) |matix_i| {
-                for (upPadding..new_row_numb - downPadding) |i| {
-                    for (leftPadding..new_col_numb - rightPadding) |j| {
-                        //std.debug.print("\n i:{}, j:{} new_data[{}], self.data[{}]", .{ i, j, i * new_col_numb + j, (i - upPadding) * (self.shape[dim - 1]) + (j - leftPadding) });
+                const num_elem_prec_new_matr = matix_i * new_matrix_dim;
+                const num_elem_prec_old_matr = matix_i * old_matrix_dim;
+                // for (upPadding..new_row_numb - downPadding) |i| { //do a while!!
+                //     for (leftPadding..new_col_numb - rightPadding) |j| {
+                //         //std.debug.print("\n i:{}, j:{} new_data[{}], self.data[{}]", .{ i, j, i * new_col_numb + j, (i - upPadding) * (self.shape[dim - 1]) + (j - leftPadding) });
 
-                        new_data[matix_i * new_matrix_dim + i * new_col_numb + j] = self.data[matix_i * old_matrix_dim + (i - upPadding) * (self.shape[dim - 1]) + (j - leftPadding)];
+                //         new_data[num_elem_prec_new_matr + i * new_col_numb + j] = self.data[num_elem_prec_old_matr + (i - upPadding) * (self.shape[dim - 1]) + (j - leftPadding)];
+                //         //j += horizontalDil;
+                //     }
+                // }
+                var i = upPadding;
+                var old_row: usize = 0;
+                while (i < new_row_numb - downPadding) : (i += (1 + verticalDil)) {
+                    var j = leftPadding;
+                    var old_col: usize = 0;
+                    while (j < new_col_numb - rightPadding) : (j += (1 + horizontalDil)) {
+                        const idx_new_matr = num_elem_prec_new_matr + i * new_col_numb + j;
+                        const idx_old_matr = num_elem_prec_old_matr + old_row * (self.shape[dim - 1]) + old_col;
+                        new_data[idx_new_matr] = self.data[idx_old_matr];
+                        old_col += 1;
                     }
+                    old_row += 1;
                 }
             }
 
