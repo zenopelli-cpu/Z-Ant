@@ -168,13 +168,13 @@ pub fn ConvolutionalLayer(comptime T: type) type {
             };
 
             // // Compute gradients with respect to input
-            // var dInput = TensMath.convolution_backward_input(T, dValues, &self.weights) catch |err| {
-            //     std.debug.print("Error during conv backward_input {any}", .{err});
-            //     return err;
-            // };
-            // _ = &dInput;
+            var dInput = TensMath.convolution_backward_input(T, dValues, &self.weights, &self.input, self.stride) catch |err| {
+                std.debug.print("Error during conv backward_input {any}", .{err});
+                return err;
+            };
+            _ = &dInput;
 
-            return self.w_gradients; //TODO: CHANGEEEEE!!! JUST FOR DEBUG
+            return dInput;
         }
 
         /// Print the convolutional layer information (To be written)

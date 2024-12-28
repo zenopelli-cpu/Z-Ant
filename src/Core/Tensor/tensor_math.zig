@@ -663,10 +663,14 @@ pub fn convolution_backward_input(
     const left_right_padding = kernel_cols - 1;
 
     // Declading [1,1] stride for the full convolution
-    var full_conv_stride: usize[2] = usize[2]{ 1, 1 };
+    var full_conv_stride: [2]usize = [2]usize{ 1, 1 };
+
+    dValues.printMultidim();
 
     // Add Padding and dilatation to dVal
-    try dValues.addPaddingAndDilation(up_down_padding, left_right_padding, stride[0], stride[1]);
+    try dValues.addPaddingAndDilation(up_down_padding, left_right_padding, stride[0] - 1, stride[1] - 1);
+
+    dValues.printMultidim();
 
     // Zero bias initialization
     var zero_bias_shape = [_]usize{kernel.shape[0]}; //one bias for each filter
@@ -674,22 +678,24 @@ pub fn convolution_backward_input(
     defer zero_bias.deinit();
 
     //initialize out vector
-    var result = try Tensor(T).fromShape(&pkg_allocator, &zero_bias_shape);
+    var result = try Tensor(T).fromShape(&pkg_allocator, input.shape);
 
     //initialize the current location to all 0
     //OSS!! the "location" operates on the input, it represents the coordinates in the input space
-    const location = try pkg_allocator.alloc(usize, input.shape.len);
+    const location = try pkg_allocator.alloc(usize, dValues.shape.len);
     defer pkg_allocator.free(location);
     @memset(location, 0);
+
+    _ = &input;
 
     // Convolve flipped kernel and padded gradient
     try multidim_convolution_with_bias(
         T,
         T,
         dValues, //static tensor
-        flipped_kernel, //mooving tensor
+        &flipped_kernel, //mooving tensor
         &result, //output tensor
-        zero_bias,
+        &zero_bias,
         &full_conv_stride,
         0,
         location,
