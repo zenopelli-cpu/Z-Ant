@@ -561,7 +561,7 @@ pub fn Tensor(comptime T: type) type {
 
             const new_row_numb = self.shape[dim - 2] + upPadding + downPadding + verticalDil * (self.shape[dim - 2] - 1);
             const new_col_numb = self.shape[dim - 1] + leftPadding + rightPadding + horizontalDil * (self.shape[dim - 1] - 1);
-            std.debug.print("\n new_row_numb: {} new_col_numb:{}", .{ new_row_numb, new_col_numb });
+            //std.debug.print("\n new_row_numb: {} new_col_numb:{}", .{ new_row_numb, new_col_numb });
 
             //compute new shape
             const new_shape = try self.allocator.alloc(usize, dim);

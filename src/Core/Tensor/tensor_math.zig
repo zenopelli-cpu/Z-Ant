@@ -291,7 +291,7 @@ fn multidim_multiplication(comptime inputType: anytype, comptime outputType: any
 /// Multidim Conv
 /// INPUT:
 ///     INPUT[input.shape.len - 4] -> batches
-///     INPUT[input.shape.len - 3] -> channels
+///     INPUT[input.shape.len - 3] -> input channels
 ///     INPUT[input.shape.len - 2] -> rows
 ///     INPUT[input.shape.len - 1] -> cols
 /// KERNEL:
@@ -301,7 +301,7 @@ fn multidim_multiplication(comptime inputType: anytype, comptime outputType: any
 ///     KERNEL[kernel.shape.len - 1] -> cols
 /// OUTPUT:
 ///     OUTPUT[output.shape.len - 4] -> input_batch
-///     OUTPUT[output.shape.len - 3] -> number_of_kernel_filters
+///     OUTPUT[output.shape.len - 3] -> output channels (number_of_kernel_filters)
 ///     OUTPUT[output.shape.len - 2] -> rows
 ///     OUTPUT[output.shape.len - 1] -> cols
 fn multidim_convolution_with_bias(
@@ -317,6 +317,10 @@ fn multidim_convolution_with_bias(
 ) !void {
     if (current_dim == input.shape.len - 3) { //
         //std.debug.print("\n\n KERNEL:{any} \n stride:{any} \n ", .{ kernel.data, stride });
+        std.debug.print("\n         input shape:{any} ", .{input.shape});
+        std.debug.print("\n         kernel shape:{any} ", .{kernel.shape});
+        std.debug.print("\n         output shape:{any} ", .{output.shape});
+        std.debug.print("\n         stride:{any} ", .{stride});
 
         const outDim = output.shape.len;
         const inDim = input.shape.len;
@@ -355,11 +359,11 @@ fn multidim_convolution_with_bias(
 
         // std.debug.print("multidim_convolution_with_bias: location: {d}, sum: {}\n", .{ location, sum });
 
-        // for each filter in the kernel(remember, every filter must by applied to every input batch)
+        // for each filter in the kernel (remember, every filter must by applied to every input batch)
         for (0..kernel.shape[kernelDim - 4]) |filter_number| {
-            output_location[outDim - 3] = filter_number;
-            kernel_location[kernelDim - 4] = filter_number;
-            bias_location[biasDim - 1] = filter_number;
+            output_location[outDim - 3] = filter_number; // set output channel
+            kernel_location[kernelDim - 4] = filter_number; //set kernel filter
+            bias_location[biasDim - 1] = filter_number; //set bias location, one bias for each kernel filter
 
             // for each row of the output
             for (0..output.shape[outDim - 2]) |out_row| {
@@ -383,15 +387,25 @@ fn multidim_convolution_with_bias(
 
                         for (0..kernel.shape[kernelDim - 2]) |kernel_row| { //kernel rows
                             kernel_location[kernelDim - 2] = kernel_row;
-                            input_location[inDim - 2] += kernel_row;
+                            input_location[inDim - 2] = startInputRow + kernel_row;
 
                             for (0..kernel.shape[kernelDim - 1]) |kernel_cols| { //kernel cols
                                 kernel_location[kernelDim - 1] = kernel_cols;
-                                input_location[inDim - 1] += kernel_cols;
+                                input_location[inDim - 1] = startInputCol + kernel_cols;
 
-                                const kernel_value = try kernel.get_at(kernel_location);
+                                const kernel_value = try kernel.get_at(kernel_location); // kernel_location = [filter_number, channel, kernel_row, kernel_cols]
+                                const input_value = input.get_at(input_location) catch |err| { //input_location = [batch, channel, startInputRow + kernel_row, startInputCol + kernel_cols]
+                                    std.debug.print("\n\n  Error!!!  {any}", .{err});
+                                    std.debug.print("\n         get INPUT at:  {any} ", .{input_location});
+                                    std.debug.print("\n         get KERNEL at: {any} ", .{kernel_location});
+                                    std.debug.print("\n         input shape:{any} ", .{input.shape});
+                                    std.debug.print("\n         kernel shape:{any} ", .{kernel.shape});
+                                    std.debug.print("\n         output shape:{any} ", .{output.shape});
+                                    std.debug.print("\n         stride:{any} ", .{stride});
+
+                                    return err;
+                                };
                                 //std.debug.print("\n         get KERNEL at: {any} value:{any}", .{ kernel_location, kernel_value });
-                                const input_value = try input.get_at(input_location);
                                 //std.debug.print("\n         get INPUT at:  {any} value:{any}", .{ input_location, input_value });
 
                                 sum += kernel_value * input_value;
@@ -441,7 +455,6 @@ fn multidim_convolution_with_bias(
 
 /// Convolution tensor with bias
 /// TODO: create 2d convolution, atm is 3 or more dimensions
-/// TODO: add padding
 /// TODO: add better check on output size wrt input and kernel
 pub fn convolve_tensor_with_bias(
     comptime inputType: anytype,
@@ -457,7 +470,11 @@ pub fn convolve_tensor_with_bias(
     const nDimOutput = nDimInput;
     const nDimBias = bias.shape.len;
 
-    //std.debug.print("\n -----------------------------------convolve_tensor_with_bias()", .{});
+    std.debug.print("\n -----------------------------------convolve_tensor_with_bias()", .{});
+    std.debug.print("\n input shape:{any} ", .{input.shape});
+    std.debug.print("\n kernel shape:{any} ", .{kernel.shape});
+    std.debug.print("\n bias shape:{any} ", .{bias.shape});
+    std.debug.print("\n stride:{any} ", .{stride});
 
     //chck on dimensions
     if (nDimKernel > nDimInput) {
@@ -514,7 +531,7 @@ pub fn convolve_tensor_with_bias(
 
     var out_tensor = try Tensor(outputType).fromShape(&pkg_allocator, out_shape);
 
-    //std.debug.print("\n OUTPUT shape {any}", .{out_shape});
+    std.debug.print("\n output shape {any}", .{out_shape});
 
     //initialize the current location to all 0
     //OSS!! the "location" operates on the input, it represents the coordinates in the input space
@@ -537,6 +554,7 @@ pub fn convolve_tensor_with_bias(
     );
 
     //std.debug.print("Result tensor data: {d}\n", .{out_tensor.data});
+
     return out_tensor;
 }
 
@@ -579,66 +597,178 @@ pub fn convolution_backward_biases(comptime T: type, dValues: *Tensor(T)) !Tenso
 
 pub fn convolution_backward_weights(
     comptime T: type,
-    input: *Tensor(T),
-    dValues: *Tensor(T),
-    kernel_shape: [4]usize, // shape : [number of kernel filters, number of channels, height, width ]
-    stride: [2]usize,
-) !Tensor(T) {
-    // Compute gradients with respect to weights
-    // Input shape: [batch_size, in_channels, input_height, input_width]
-    // dValues shape: [batch_size, out_channels, output_height, output_width]
+    input: *Tensor(T), // Dimensions [batch_size, channels, height, width]
+    dValues: *Tensor(T), // Gradient of output
+    kernel: *Tensor(T), // Dimensions : [number of kernel filters, number of channels, height, width ]
+    stride: [2]usize, // Dimensions [stride_height, stride_width]
+) !Tensor(T) { //output: Dimensions [batch_size, num_filters, output_height, output_width]
 
-    //check dim:
+    //---------------------------- CONSTS ----------------------------
+    const num_filters = kernel.shape[0];
+    const num_channels = kernel.shape[1];
+    const kernel_height = kernel.shape[2];
+    const kernel_width = kernel.shape[3];
+
+    const batch_size = input.shape[0];
+    // const input_channels = input.shape[1];
+    const input_height = input.shape[2];
+    const input_width = input.shape[3];
+
+    // const dVal_batches = dValues.shape[0];
+    // const dVal_channels = dValues.shape[1];
+    const dVal_height = dValues.shape[2];
+    const dVal_width = dValues.shape[3];
+
+    std.debug.print("\n\n ---------------- convolution_backward_weights() ----------------", .{});
+    std.debug.print("\n input shape:{any} ", .{input.shape});
+    std.debug.print("\n dValues shape:{any} ", .{dValues.shape});
+    std.debug.print("\n kernel shape:{any} ", .{kernel.shape});
+    std.debug.print("\n stride:{any} ", .{stride});
+
+    // ---------------------------- CHECKS ----------------------------
+
+    //---------------- Validate Dimensions
+
+    //Input Tensor Shape:
     if (input.shape.len != 4) {
         std.debug.print("\n\nError: convolution_backward_weights() is only available for 4D input, your input shape:{any}", .{input.shape});
         if (input.shape.len < 4) {
-            std.debug.print(", add [1]s dimensions in the front", .{});
+            std.debug.print(", add [1]s dimensions in the front to reach 4D", .{});
         }
         std.debug.print("\n \n ", .{});
 
         return TensorMathError.InputTensorsWrongShape;
     }
 
-    //check stride:
+    //dValues Tensor Shape:
+    if (dValues.shape.len != 4) {
+        std.debug.print("\n\nError: convolution_backward_weights() is only available for 4D dValues, your dValues shape:{any}", .{dValues.shape});
+        if (input.shape.len < 4) {
+            std.debug.print(", add [1]s dimensions in the front to reach 4D", .{});
+        }
+        std.debug.print("\n \n ", .{});
+
+        return TensorMathError.InputTensorsWrongShape;
+    }
+
+    //kernel Tensor Shape:
+    if (kernel.shape.len != 4) {
+        std.debug.print("\n\nError: convolution_backward_weights() is only available for 4D kernel, your kernel shape:{any}", .{kernel.shape});
+        if (input.shape.len < 4) {
+            std.debug.print(", add [1]s dimensions in the front to reach 4D", .{});
+        }
+        std.debug.print("\n \n ", .{});
+
+        return TensorMathError.InputTensorsWrongShape;
+    }
+
+    // ---------------- validate STRIDE:
+    //stride values
+    if (stride[0] < 1 or stride[1] < 1) {
+        std.debug.print("\n\nError: Strides must be grather or equal to 1, your stride is:{any}", .{stride});
+        return TensorMathError.InputTensorsWrongShape;
+    }
+    //stride values
     if (stride[0] < 1 or stride[1] < 1) {
         std.debug.print("\n\nError: Strides must be grather or equal to 1, your stride is:{any}", .{stride});
         return TensorMathError.InputTensorsWrongShape;
     }
 
-    // Add Padding and dilatation to dVal
-    try dValues.addPaddingAndDilation(0, 0, stride[0] - 1, stride[1] - 1);
-
-    // creating gradients
-    var w_gradients = try Tensor(T).fromShape(&pkg_allocator, @constCast(kernel_shape[0..]));
-
-    var zero_bias_shape = [_]usize{kernel_shape[0]};
-    var zero_bias = try Tensor(T).fromShape(&pkg_allocator, &zero_bias_shape);
-    defer zero_bias.deinit();
-
-    //initialize the current location to all 0
-    //OSS!! the "location" operates on the input, it represents the coordinates in the input space
-    const location = try pkg_allocator.alloc(usize, input.shape.len);
-    defer pkg_allocator.free(location);
-    for (location) |*loc| {
-        loc.* = 0;
+    // ---------------- dimension consistency between dValues, input and kernel:
+    const expected_dVal_height = (input_height - kernel_height) / stride[0] + 1;
+    const expected_dVal_width = (input_width - kernel_width) / stride[1] + 1;
+    if (dVal_height != expected_dVal_height or dVal_width != expected_dVal_width) {
+        std.debug.print("\n\nError: expected_dVal_height:{} dVal_height:{} expected_dVal_width:{} dVal_width:{}", .{ expected_dVal_height, dVal_height, expected_dVal_width, dVal_width });
+        return error.MismatchedDimensions;
+    }
+    // ---------------- Validate Channels Size:
+    if (kernel.shape[1] != input.shape[1]) {
+        return error.MismatchedChannels;
     }
 
-    // Declading [1,1] stride for the full convolution
-    var full_conv_stride: [2]usize = [2]usize{ 1, 1 };
+    // ---------------- Validate Batch Size:
+    if (input.shape[0] != dValues.shape[0]) return error.MismatchedBatchSize;
 
-    try multidim_convolution_with_bias(
-        T,
-        T,
-        input,
-        dValues,
-        &w_gradients,
-        &zero_bias,
-        &full_conv_stride,
-        0,
-        location,
-    );
+    //---------------------------- COMPUTE D_KERNEL ----------------------------
 
-    return w_gradients;
+    //initialize d_kernel
+    var dKernel_shape: [4]usize = [_]usize{ num_filters, num_channels, kernel_height, kernel_width };
+    var dKernel = try Tensor(T).fromShape(&pkg_allocator, &dKernel_shape); //fromShape() already initialize to Zero
+
+    //coordinate trackers
+    const input_coordinates = try pkg_allocator.alloc(usize, input.shape.len); //coordinates in the input space
+    defer pkg_allocator.free(input_coordinates);
+
+    const dVal_coordinates = try pkg_allocator.alloc(usize, dValues.shape.len); //coordinates in the dValues space
+    defer pkg_allocator.free(dVal_coordinates);
+
+    const dKernel_coordinates = try pkg_allocator.alloc(usize, dValues.shape.len); //coordinates in the dKernel space
+    defer pkg_allocator.free(dKernel_coordinates);
+
+    for (0..batch_size) |batch_index| {
+        //set coordinates
+        dVal_coordinates[0] = batch_index;
+        input_coordinates[0] = batch_index;
+
+        for (0..num_filters) |filter| {
+            //set coordinates
+            dVal_coordinates[1] = filter;
+            dKernel_coordinates[0] = filter;
+
+            for (0..dVal_height) |y| {
+                //set coordinates
+                dVal_coordinates[2] = y;
+
+                for (0..dVal_width) |x| {
+                    //set coordinates
+                    dVal_coordinates[3] = x;
+
+                    //get the value
+                    //DEBUG std.debug.print("\n         get dVal_value at: {any} ", .{dVal_coordinates});
+
+                    const dVal_value = try dValues.get_at(dVal_coordinates);
+
+                    for (0..num_channels) |channel| {
+                        //set coordinates
+                        input_coordinates[1] = channel;
+                        dKernel_coordinates[1] = channel;
+
+                        for (0..kernel_height) |kernel_y| {
+                            //set coordinates
+                            dKernel_coordinates[2] = kernel_y;
+
+                            for (0..kernel_width) |kernel_x| {
+                                //set coordinates
+                                dKernel_coordinates[3] = kernel_x;
+
+                                const in_y = y * stride[0] + kernel_y;
+                                const in_x = x * stride[1] + kernel_x;
+
+                                if (in_y < input.shape[2] and in_x < input.shape[3]) {
+                                    input_coordinates[2] = in_y;
+                                    input_coordinates[3] = in_x;
+
+                                    //DEBUG std.debug.print("\n         get input_value at: {any}", .{input_coordinates});
+
+                                    //input_coordinates at this point= [batch_index, channel, in_y, in_x]
+                                    const input_value = try input.get_at(input_coordinates);
+
+                                    var sum = try dKernel.get_at(dKernel_coordinates);
+
+                                    sum += dVal_value * input_value;
+
+                                    //dKernel_coordinates at this point= [filter, channel, kernel_y, kernel_x]
+                                    try dKernel.set_at(dKernel_coordinates, sum);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return dKernel;
 }
 
 /// Computes the backward derivate of the Output with respect to the Input.
@@ -648,7 +778,7 @@ pub fn convolution_backward_input(
     dValues: *Tensor(T),
     kernel: *Tensor(T),
     input: *Tensor(T),
-    stride: [2]usize,
+    stride: [2]usize, //Dimensions [stride_height, stride_width]
 ) !Tensor(T) {
     // - dValues shape: [number of batches , out_channels, output_height, output_width]
     // - Weights shape: [number of kernel filters, number of channels, height, width ]
@@ -664,17 +794,13 @@ pub fn convolution_backward_input(
     var flipped_kernel = try kernel.flip();
     defer flipped_kernel.deinit();
 
-    // Compute the needed Padding so to correctly do the Full convolution
-    const up_down_padding = kernel_rows - 1;
-    const left_right_padding = kernel_cols - 1;
-
     // Declading [1,1] stride for the full convolution
     var full_conv_stride: [2]usize = [2]usize{ 1, 1 };
 
-    dValues.printMultidim();
+    //dValues.printMultidim();
 
     // Add Padding and dilatation to dVal
-    try dValues.addPaddingAndDilation(up_down_padding, left_right_padding, stride[0] - 1, stride[1] - 1);
+    try dValues.addPaddingAndDilation(kernel_rows - 1, kernel_cols - 1, stride[0] - 1, stride[1] - 1);
 
     dValues.printMultidim();
 
