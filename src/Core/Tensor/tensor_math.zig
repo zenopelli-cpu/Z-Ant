@@ -317,10 +317,10 @@ fn multidim_convolution_with_bias(
 ) !void {
     if (current_dim == input.shape.len - 3) { //
         //std.debug.print("\n\n KERNEL:{any} \n stride:{any} \n ", .{ kernel.data, stride });
-        std.debug.print("\n         input shape:{any} ", .{input.shape});
-        std.debug.print("\n         kernel shape:{any} ", .{kernel.shape});
-        std.debug.print("\n         output shape:{any} ", .{output.shape});
-        std.debug.print("\n         stride:{any} ", .{stride});
+        // std.debug.print("\n         input shape:{any} ", .{input.shape});
+        // std.debug.print("\n         kernel shape:{any} ", .{kernel.shape});
+        // std.debug.print("\n         output shape:{any} ", .{output.shape});
+        // std.debug.print("\n         stride:{any} ", .{stride});
 
         const outDim = output.shape.len;
         const inDim = input.shape.len;
@@ -395,13 +395,13 @@ fn multidim_convolution_with_bias(
 
                                 const kernel_value = try kernel.get_at(kernel_location); // kernel_location = [filter_number, channel, kernel_row, kernel_cols]
                                 const input_value = input.get_at(input_location) catch |err| { //input_location = [batch, channel, startInputRow + kernel_row, startInputCol + kernel_cols]
-                                    std.debug.print("\n\n  Error!!!  {any}", .{err});
-                                    std.debug.print("\n         get INPUT at:  {any} ", .{input_location});
-                                    std.debug.print("\n         get KERNEL at: {any} ", .{kernel_location});
-                                    std.debug.print("\n         input shape:{any} ", .{input.shape});
-                                    std.debug.print("\n         kernel shape:{any} ", .{kernel.shape});
-                                    std.debug.print("\n         output shape:{any} ", .{output.shape});
-                                    std.debug.print("\n         stride:{any} ", .{stride});
+                                    // std.debug.print("\n\n  Error!!!  {any}", .{err});
+                                    // std.debug.print("\n         get INPUT at:  {any} ", .{input_location});
+                                    // std.debug.print("\n         get KERNEL at: {any} ", .{kernel_location});
+                                    // std.debug.print("\n         input shape:{any} ", .{input.shape});
+                                    // std.debug.print("\n         kernel shape:{any} ", .{kernel.shape});
+                                    // std.debug.print("\n         output shape:{any} ", .{output.shape});
+                                    // std.debug.print("\n         stride:{any} ", .{stride});
 
                                     return err;
                                 };
@@ -470,11 +470,11 @@ pub fn convolve_tensor_with_bias(
     const nDimOutput = nDimInput;
     const nDimBias = bias.shape.len;
 
-    std.debug.print("\n -----------------------------------convolve_tensor_with_bias()", .{});
-    std.debug.print("\n input shape:{any} ", .{input.shape});
-    std.debug.print("\n kernel shape:{any} ", .{kernel.shape});
-    std.debug.print("\n bias shape:{any} ", .{bias.shape});
-    std.debug.print("\n stride:{any} ", .{stride});
+    // std.debug.print("\n -----------------------------------convolve_tensor_with_bias()", .{});
+    // std.debug.print("\n input shape:{any} ", .{input.shape});
+    // std.debug.print("\n kernel shape:{any} ", .{kernel.shape});
+    // std.debug.print("\n bias shape:{any} ", .{bias.shape});
+    // std.debug.print("\n stride:{any} ", .{stride});
 
     //chck on dimensions
     if (nDimKernel > nDimInput) {
