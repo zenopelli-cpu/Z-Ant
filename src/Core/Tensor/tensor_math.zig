@@ -620,10 +620,10 @@ pub fn convolution_backward_weights(
     const dVal_width = dValues.shape[3];
 
     std.debug.print("\n\n ---------------- convolution_backward_weights() ----------------", .{});
-    std.debug.print("\n input shape:{any} ", .{input.shape});
-    std.debug.print("\n dValues shape:{any} ", .{dValues.shape});
-    std.debug.print("\n kernel shape:{any} ", .{kernel.shape});
-    std.debug.print("\n stride:{any} ", .{stride});
+    // std.debug.print("\n input shape:{any} ", .{input.shape});
+    // std.debug.print("\n dValues shape:{any} ", .{dValues.shape});
+    // std.debug.print("\n kernel shape:{any} ", .{kernel.shape});
+    // std.debug.print("\n stride:{any} ", .{stride});
 
     // ---------------------------- CHECKS ----------------------------
 
@@ -780,60 +780,104 @@ pub fn convolution_backward_input(
     input: *Tensor(T),
     stride: [2]usize, //Dimensions [stride_height, stride_width]
 ) !Tensor(T) {
-    // - dValues shape: [number of batches , out_channels, output_height, output_width]
-    // - Weights shape: [number of kernel filters, number of channels, height, width ]
+    std.debug.print("\n\n ---------------- convolution_backward_input() ----------------", .{});
 
-    //consts
-    const kernel_dim = kernel.shape.len;
-    const kernel_cols = kernel.shape[kernel_dim - 1];
-    const kernel_rows = kernel.shape[kernel_dim - 2];
+    //---------------------------- CONSTS ----------------------------
+    const num_filters = kernel.shape[0];
+    const num_channels = kernel.shape[1];
+    const kernel_height = kernel.shape[2];
+    const kernel_width = kernel.shape[3];
 
-    // Checks
+    const batch_size = input.shape[0];
+    // const input_channels = input.shape[1];
+    // const input_height = input.shape[2];
+    // const input_width = input.shape[3];
 
-    // Flip the kernel
-    var flipped_kernel = try kernel.flip();
-    defer flipped_kernel.deinit();
+    // const dVal_batches = dValues.shape[0];
+    // const dVal_channels = dValues.shape[1];
+    const dVal_height = dValues.shape[2];
+    const dVal_width = dValues.shape[3];
 
-    // Declading [1,1] stride for the full convolution
-    var full_conv_stride: [2]usize = [2]usize{ 1, 1 };
+    //---------------------------- COMPUTE D_INPUT ----------------------------
 
-    //dValues.printMultidim();
+    //initialize d_kernel
+    var dInput = try Tensor(T).fromShape(&pkg_allocator, input.shape); //fromShape() already initialize to Zero
 
-    // Add Padding and dilatation to dVal
-    try dValues.addPaddingAndDilation(kernel_rows - 1, kernel_cols - 1, stride[0] - 1, stride[1] - 1);
+    //coordinate trackers
+    const dInput_coordinates = try pkg_allocator.alloc(usize, input.shape.len); //coordinates in the input space
+    defer pkg_allocator.free(dInput_coordinates);
 
-    dValues.printMultidim();
+    const dVal_coordinates = try pkg_allocator.alloc(usize, dValues.shape.len); //coordinates in the dValues space
+    defer pkg_allocator.free(dVal_coordinates);
 
-    // Zero bias initialization
-    var zero_bias_shape = [_]usize{kernel.shape[0]}; //one bias for each filter
-    var zero_bias = try Tensor(T).fromShape(&pkg_allocator, &zero_bias_shape);
-    defer zero_bias.deinit();
+    const kernel_coordinates = try pkg_allocator.alloc(usize, dValues.shape.len); //coordinates in the dKernel space
+    defer pkg_allocator.free(kernel_coordinates);
 
-    //initialize out vector
-    var result = try Tensor(T).fromShape(&pkg_allocator, input.shape);
+    for (0..batch_size) |batch_index| {
+        //set coordinates
+        dVal_coordinates[0] = batch_index;
+        dInput_coordinates[0] = batch_index;
 
-    //initialize the current location to all 0
-    //OSS!! the "location" operates on the input, it represents the coordinates in the input space
-    const location = try pkg_allocator.alloc(usize, dValues.shape.len);
-    defer pkg_allocator.free(location);
-    @memset(location, 0);
+        for (0..num_filters) |filter| {
+            //set coordinates
+            dVal_coordinates[1] = filter;
+            kernel_coordinates[0] = filter;
 
-    _ = &input;
+            for (0..dVal_height) |y| {
+                //set coordinates
+                dVal_coordinates[2] = y;
 
-    // Convolve flipped kernel and padded gradient
-    try multidim_convolution_with_bias(
-        T,
-        T,
-        dValues, //static tensor
-        &flipped_kernel, //mooving tensor
-        &result, //output tensor
-        &zero_bias,
-        &full_conv_stride,
-        0,
-        location,
-    );
+                for (0..dVal_width) |x| {
+                    //set coordinates
+                    dVal_coordinates[3] = x;
 
-    return result;
+                    //get the value
+                    //DEBUG std.debug.print("\n         get dVal_value at: {any} ", .{dVal_coordinates});
+                    //dVal_coordinates at this point= [batch_index, filter, y, x]]
+                    const dVal_value = try dValues.get_at(dVal_coordinates);
+
+                    for (0..num_channels) |channel| {
+                        //set coordinates
+                        dInput_coordinates[1] = channel;
+                        kernel_coordinates[1] = channel;
+
+                        for (0..kernel_height) |kernel_y| {
+                            //set coordinates
+                            kernel_coordinates[2] = kernel_y;
+
+                            for (0..kernel_width) |kernel_x| {
+                                //set coordinates
+                                kernel_coordinates[3] = kernel_x;
+
+                                const in_y = y * stride[0] + kernel_y;
+                                const in_x = x * stride[1] + kernel_x;
+
+                                if (in_y < input.shape[2] and in_x < input.shape[3]) {
+                                    dInput_coordinates[2] = in_y;
+                                    dInput_coordinates[3] = in_x;
+
+                                    //DEBUG std.debug.print("\n         get input_value at: {any}", .{input_coordinates});
+
+                                    //kernel_coordinates at this point= [filter, channel, kernel_y, kkernel_xx]]
+                                    const kernel_value = try kernel.get_at(kernel_coordinates);
+
+                                    //dInput_coordinates at this point= [batch_index, channel, in_y, in_x]
+                                    var sum = try dInput.get_at(dInput_coordinates);
+
+                                    sum += dVal_value * kernel_value;
+
+                                    //dKernel_coordinates at this point= [filter, channel, kernel_y, kernel_x]
+                                    try dInput.set_at(dInput_coordinates, sum);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return dInput;
 }
 
 // POOLING -----------------------------------------------------------------------------------------------------------------------
