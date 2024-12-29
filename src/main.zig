@@ -149,33 +149,33 @@ pub fn main() !void {
     // }));
     // try model.addLayer(layer3C_);
 
-    // var pooling_layer2 = PoolingLayer(f64){
-    //     .input = undefined,
-    //     .output = undefined,
-    //     .used_input = undefined,
-    //     .kernel = .{ 3, 3 },
-    //     .stride = .{ 1, 1 },
-    //     .poolingType = .Max,
-    //     .allocator = &allocator,
-    // };
-    // var layer_p2 = try pooling_layer2.create();
+    var pooling_layer2 = PoolingLayer(f64){
+        .input = undefined,
+        .output = undefined,
+        .used_input = undefined,
+        .kernel = .{ 2, 2 },
+        .stride = .{ 1, 1 },
+        .poolingType = .Max,
+        .allocator = &allocator,
+    };
+    var layer_p2 = try pooling_layer2.create();
 
-    // const InitArgsP2 = struct {
-    //     kernel: [2]usize,
-    //     stride: [2]usize,
-    //     poolingType: PoolingType,
-    // };
+    const InitArgsP2 = struct {
+        kernel: [2]usize,
+        stride: [2]usize,
+        poolingType: PoolingType,
+    };
 
-    // var init_args2 = InitArgsP2{
-    //     .kernel = .{ 3, 3 },
-    //     .stride = .{ 1, 1 },
-    //     .poolingType = .Max,
-    // };
+    var init_args2 = InitArgsP2{
+        .kernel = .{ 2, 2 },
+        .stride = .{ 1, 1 },
+        .poolingType = .Max,
+    };
 
-    // // Initialize the layer
-    // try layer_p2.init(&allocator, &init_args2);
+    // Initialize the layer
+    try layer_p2.init(&allocator, &init_args2);
 
-    // try model.addLayer(layer_p2);
+    try model.addLayer(layer_p2);
 
     // var layer2Activ = activationlayer(f64, &allocator){
     //     .input = undefined,
@@ -229,7 +229,7 @@ pub fn main() !void {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 10816,
+        .n_inputs = 10000,
         .n_neurons = 256,
     }));
     try model.addLayer(layer3_);
@@ -248,7 +248,7 @@ pub fn main() !void {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 10816,
+        .n_inputs = 10000,
         .n_neurons = 256,
     }));
     try model.addLayer(layer3_act);
