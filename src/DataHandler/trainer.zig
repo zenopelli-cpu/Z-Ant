@@ -76,6 +76,8 @@ pub fn TrainDataLoader(
 
         var optimizer = Optim.Optimizer(T, XType, YType, Optim.optimizer_SGD, lr, allocator){};
 
+        var optimizer = Optim.Optimizer(T, XType, YType, Optim.optimizer_SGD, lr, allocator){};
+
         for (0..steps) |step| {
             _ = load.xTrainNextBatch(batchSize);
             _ = load.yTrainNextBatch(batchSize);
@@ -242,7 +244,7 @@ pub fn TrainDataLoader2D(
             var optimizer = Optim.Optimizer(T, XType, YType, Optim.optimizer_SGD, lr){};
             try optimizer.step(model);
 
-            std.debug.print("Training - Epoch: {}, Step: {}\n", .{ i + 1, step + 1 });
+            std.debug.print("Training - Epoch: {}, Step: {}, Loss: {}, Accuracy: {} \n", .{ i + 1, step + 1, LossMeanRecord[i], AccuracyRecord[i] });
         }
 
         load.reset();
@@ -253,7 +255,7 @@ pub fn TrainDataLoader2D(
             val_steps += 1;
         }
 
-        std.debug.print("Number of validation steps: {}\n", .{val_steps});
+        std.debug.print("\nNumber of validation steps: {}\n", .{val_steps});
 
         for (0..val_steps) |step| {
             _ = load.xTestNextBatch(batchSize);
@@ -280,13 +282,13 @@ pub fn TrainDataLoader2D(
             ValidationLossRecord[i] = TensMath.mean(T, &loss);
             ValidationAccuracyRecord[i] = @as(f32, @floatFromInt(totalCorrectVal)) / @as(f32, @floatFromInt(totalSamplesVal)) * 100.0;
 
-            std.debug.print("Validation - Epoch: {}, Step: {}\n", .{ i + 1, step + 1 });
+            std.debug.print("\nValidation - Epoch: {}, Step: {}", .{ i + 1, step + 1 });
         }
 
         load.reset();
 
-        std.debug.print("Epoch {}: Training Loss = {}, Training Accuracy = {}%\n", .{ i + 1, LossMeanRecord[i], AccuracyRecord[i] });
-        std.debug.print("Epoch {}: Validation Loss = {}, Validation Accuracy = {}%\n", .{ i + 1, ValidationLossRecord[i], ValidationAccuracyRecord[i] });
+        std.debug.print("\nEpoch {}: Training Loss = {}, Training Accuracy = {}%", .{ i + 1, LossMeanRecord[i], AccuracyRecord[i] });
+        std.debug.print("\nEpoch {}: Validation Loss = {}, Validation Accuracy = {}%", .{ i + 1, ValidationLossRecord[i], ValidationAccuracyRecord[i] });
     }
 }
 
