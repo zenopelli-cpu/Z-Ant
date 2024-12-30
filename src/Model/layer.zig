@@ -17,62 +17,51 @@ const LayerError = @import("errorHandler").LayerError;
 pub const LayerType = enum {
     DenseLayer,
     DefaultLayer,
+    ConvolutionalLayer,
+    PoolingLayer,
     ActivationLayer,
+    FlattenLayer,
     null,
 };
 
 //------------------------------------------------------------------------------------------------------
 /// UTILS
-/// Initialize a matrix of random values with a normal distribution
-pub fn randn(comptime T: type, n_inputs: usize, n_neurons: usize) ![][]T {
-    var rng = std.Random.Xoshiro256.init();
+/// Initialize a vector of random values with a normal distribution
+pub fn randn(comptime T: type, allocator: *const std.mem.Allocator, n_inputs: usize, n_neurons: usize) ![]T {
+    var rng = std.Random.Xoshiro256.init(12345);
 
-    const matrix = try std.heap.page_allocator.alloc([]T, n_inputs);
-    for (matrix) |*row| {
-        row.* = try std.heap.page_allocator.alloc(T, n_neurons);
-        for (row.*) |*value| {
-            value.* = rng.random().floatNorm(T) + 1; // fix me!! why +1 ??
+    const vector = try allocator.alloc(T, n_inputs * n_neurons);
+    for (0..n_inputs) |i| {
+        for (0..n_neurons) |j| {
+            vector[i * n_neurons + j] = rng.random().floatNorm(T) + 1; // TODO: fix me!! why +1 ??
         }
     }
-    return matrix;
+    return vector;
 }
-
-pub fn he_init(comptime T: type, n_inputs: usize, n_neurons: usize) ![][]T {
-    var rng = std.Random.Xoshiro256.init();
-
-    const matrix = try std.heap.page_allocator.alloc([]T, n_inputs);
-    for (matrix) |*row| {
-        row.* = try std.heap.page_allocator.alloc(T, n_neurons);
-        for (row.*) |*value| {
-            value.* = rng.random().floatNorm(T) + 1; // fix me!! why +1 ??
+///Function used to initialize a vector of zeros used for bias
+pub fn zeros(comptime T: type, allocator: *const std.mem.Allocator, n_inputs: usize, n_neurons: usize) ![]T {
+    const vector = try allocator.alloc(T, n_inputs * n_neurons);
+    for (0..n_inputs) |i| {
+        for (0..n_neurons) |j| {
+            vector[i * n_neurons + j] = 0; // TODO: fix me!! why +1 ??
         }
     }
-    return matrix;
-}
-
-///Function used to initialize a matrix of zeros used for bias
-pub fn zeros(comptime T: type, n_inputs: usize, n_neurons: usize) ![][]T {
-    const matrix = try std.heap.page_allocator.alloc([]T, n_inputs);
-    for (matrix) |*row| {
-        row.* = try std.heap.page_allocator.alloc(T, n_neurons);
-        for (row.*) |*value| {
-            value.* = 0;
-        }
-    }
-    return matrix;
+    return vector;
 }
 
 //------------------------------------------------------------------------------------------------------
 // INTERFACE LAYER
 
-pub fn Layer(comptime T: type, allocator: *const std.mem.Allocator) type {
+pub fn Layer(comptime T: type) type {
     return struct {
         layer_type: LayerType,
         layer_ptr: *anyopaque,
         layer_impl: *const Basic_Layer_Interface,
 
+        const Self = @This();
+
         pub const Basic_Layer_Interface = struct {
-            init: *const fn (ctx: *anyopaque, n_inputs: usize, n_neurons: usize) anyerror!void,
+            init: *const fn (ctx: *anyopaque, allocator: *const std.mem.Allocator, args: *anyopaque) anyerror!void,
             deinit: *const fn (ctx: *anyopaque) void,
             forward: *const fn (ctx: *anyopaque, input: *tensor.Tensor(T)) anyerror!tensor.Tensor(T),
             backward: *const fn (ctx: *anyopaque, dValues: *tensor.Tensor(T)) anyerror!tensor.Tensor(T),
@@ -83,8 +72,8 @@ pub fn Layer(comptime T: type, allocator: *const std.mem.Allocator) type {
             get_output: *const fn (ctx: *anyopaque) *tensor.Tensor(T),
         };
 
-        pub fn init(self: Layer(T, allocator), n_inputs: usize, n_neurons: usize) anyerror!void {
-            return self.layer_impl.init(self.layer_ptr, n_inputs, n_neurons);
+        pub fn init(self: Self, alloc: *const std.mem.Allocator, args: *anyopaque) anyerror!void {
+            return self.layer_impl.init(self.layer_ptr, alloc, args);
         }
 
         /// When deinit() pay attention to:
@@ -92,28 +81,28 @@ pub fn Layer(comptime T: type, allocator: *const std.mem.Allocator) type {
         /// - Using uninitialized or already-deallocated pointers.
         /// - Incorrect allocation or deallocation logic.
         ///
-        pub fn deinit(self: Layer(T, allocator)) void {
+        pub fn deinit(self: Self) void {
             return self.layer_impl.deinit(self.layer_ptr);
         }
-        pub fn forward(self: Layer(T, allocator), input: *tensor.Tensor(T)) !tensor.Tensor(T) {
+        pub fn forward(self: Self, input: *tensor.Tensor(T)) !tensor.Tensor(T) {
             return self.layer_impl.forward(self.layer_ptr, input);
         }
-        pub fn backward(self: Layer(T, allocator), dValues: *tensor.Tensor(T)) !tensor.Tensor(T) {
+        pub fn backward(self: Self, dValues: *tensor.Tensor(T)) !tensor.Tensor(T) {
             return self.layer_impl.backward(self.layer_ptr, dValues);
         }
-        pub fn printLayer(self: Layer(T, allocator), choice: u8) void {
+        pub fn printLayer(self: Self, choice: u8) void {
             return self.layer_impl.printLayer(self.layer_ptr, choice);
         }
-        pub fn get_n_inputs(self: Layer(T, allocator)) usize {
+        pub fn get_n_inputs(self: Self) usize {
             return self.layer_impl.get_n_inputs(self.layer_ptr);
         }
-        pub fn get_n_neurons(self: Layer(T, allocator)) usize {
+        pub fn get_n_neurons(self: Self) usize {
             return self.layer_impl.get_n_neurons(self.layer_ptr);
         }
-        pub fn get_input(self: Layer(T, allocator)) *const tensor.Tensor(T) {
+        pub fn get_input(self: Self) *const tensor.Tensor(T) {
             return self.layer_impl.get_input(self.layer_ptr);
         }
-        pub fn get_output(self: Layer(T, allocator)) *tensor.Tensor(T) {
+        pub fn get_output(self: Self) *tensor.Tensor(T) {
             return self.layer_impl.get_output(self.layer_ptr);
         }
     };

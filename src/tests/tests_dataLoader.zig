@@ -1,6 +1,7 @@
 const std = @import("std");
 const DataLoader = @import("dataloader").DataLoader;
 const fs = std.fs;
+const pkgAllocator = @import("pkgAllocator");
 
 test "tests description" {
     std.debug.print("\n--- Running dataLoader tests\n", .{});
@@ -24,7 +25,7 @@ test "DataLoader xNext Test" {
 
     const labelSlice: []f32 = &labelSlices;
 
-    var loader = DataLoader(f32, f32, f32, 1){ // Cambiato u8 a f32 per le etichette
+    var loader = DataLoader(f32, f32, f32, 1, 2){ // Cambiato u8 a f32 per le etichette
         .X = &featureSlices,
         .y = labelSlice,
         .xTensor = undefined,
@@ -61,13 +62,13 @@ test "DataLoader xNext Test" {
 }
 
 test "splitCSVLine tests" {
-    const allocator = std.testing.allocator;
+    const allocator = pkgAllocator.allocator;
 
     const originalLine: []const u8 = "1,2,3,4,5\n";
     const csvLine = try allocator.alloc(u8, originalLine.len);
     defer allocator.free(csvLine);
     @memcpy(csvLine, originalLine);
-    const loader = DataLoader(f64, f64, u8, 1);
+    const loader = DataLoader(f64, f64, u8, 1, 2);
     const result = try loader.splitCSVLine(csvLine, &allocator);
     defer allocator.free(result);
     const expected_values = [_][]const u8{ "1", "2", "3", "4", "5" };
@@ -128,8 +129,8 @@ test "splitCSVLine tests" {
 }
 
 test "readCSVLine test with correct file flags" {
-    const allocator = std.testing.allocator;
-    const loader = DataLoader(f64, f64, u8, 1);
+    const allocator = pkgAllocator.allocator;
+    const loader = DataLoader(f64, f64, u8, 1, 2);
 
     const cwd = std.fs.cwd();
 
@@ -162,8 +163,8 @@ test "readCSVLine test with correct file flags" {
 }
 
 test "fromCSV test with feature and label extraction" {
-    var allocator = std.testing.allocator;
-    var loader = DataLoader(f64, f64, u8, 1){
+    var allocator = pkgAllocator.allocator;
+    var loader = DataLoader(f64, f64, u8, 1, 2){
         .X = undefined,
         .y = undefined,
         .xTensor = undefined,
@@ -200,8 +201,8 @@ test "fromCSV test with feature and label extraction" {
 }
 
 test "loadMNISTImages test" {
-    var allocator = std.testing.allocator;
-    var loader = DataLoader(f64, f64, f64, 1){
+    var allocator = pkgAllocator.allocator;
+    var loader = DataLoader(f64, f64, f64, 1, 2){
         .X = undefined,
         .y = undefined,
         .xTensor = undefined,
@@ -224,9 +225,73 @@ test "loadMNISTImages test" {
     loader.deinit(&allocator);
 }
 
+test "loadMNISTImages2D test Static" {
+    var allocator = pkgAllocator.allocator;
+    var loader = DataLoader(f64, f64, f64, 1, 3){
+        .X = undefined,
+        .y = undefined,
+        .xTensor = undefined,
+        .yTensor = undefined,
+        .XBatch = undefined,
+        .yBatch = undefined,
+    };
+
+    const file_name: []const u8 = "t10k-images-idx3-ubyte";
+
+    // Carica le immagini utilizzando la funzione aggiornata
+    try loader.loadMNISTImages2DStatic(&allocator, file_name, 10000, 28, 28);
+
+    // Verifica il numero totale di immagini
+    try std.testing.expectEqual(loader.X.len, 10000);
+
+    // Ogni immagine deve essere 28x28
+    for (loader.X[0..10]) |image| {
+        try std.testing.expectEqual(image.len, 28); // 28 righe
+        for (image) |row| {
+            try std.testing.expectEqual(row.len, 28); // 28 colonne per ogni riga
+        }
+    }
+
+    // Deinizializza il caricatore
+    loader.deinit(&allocator);
+}
+
+//Commented because it is slow
+
+// test "loadMNISTImages2D test Dynamic" {
+//     var allocator = pkgAllocator.allocator;
+//     var loader = DataLoader(f64, f64, f64, 1, 3){
+//         .X = undefined,
+//         .y = undefined,
+//         .xTensor = undefined,
+//         .yTensor = undefined,
+//         .XBatch = undefined,
+//         .yBatch = undefined,
+//     };
+
+//     const file_name: []const u8 = "t10k-images-idx3-ubyte";
+
+//     // Carica le immagini utilizzando la funzione aggiornata
+//     try loader.loadMNISTImages2DStatic(&allocator, file_name, 10000, 28, 28);
+
+//     // Verifica il numero totale di immagini
+//     try std.testing.expectEqual(loader.X.len, 10000);
+
+//     // Ogni immagine deve essere 28x28
+//     for (loader.X[0..10]) |image| {
+//         try std.testing.expectEqual(image.len, 28); // 28 righe
+//         for (image) |row| {
+//             try std.testing.expectEqual(row.len, 28); // 28 colonne per ogni riga
+//         }
+//     }
+
+//     // Deinizializza il caricatore
+//     loader.deinit(&allocator);
+// }
+
 test "loadMNISTLabels test" {
-    var allocator = std.testing.allocator;
-    var loader = DataLoader(f64, f64, f64, 1){
+    var allocator = pkgAllocator.allocator;
+    var loader = DataLoader(f64, f64, f64, 1, 2){
         .X = undefined,
         .y = undefined,
         .xTensor = undefined,
@@ -249,8 +314,8 @@ test "loadMNISTLabels test" {
 }
 
 test "loadMNISTDataParallel test" {
-    var allocator = std.testing.allocator;
-    var loader = DataLoader(f64, f64, f64, 1){
+    var allocator = pkgAllocator.allocator;
+    var loader = DataLoader(f64, f64, f64, 1, 2){
         .X = undefined,
         .y = undefined,
         .xTensor = undefined,
@@ -295,7 +360,7 @@ test "DataLoader shuffle simple test" {
     const labelSlice: []f64 = &labelSlices; // Modificato da `[]u8` a `[]f64` per coerenza con i tipi del DataLoader
 
     // Modifica del DataLoader per supportare `f64` come tipo per le etichette
-    var loader = DataLoader(f64, f64, f64, 1){ // Cambiato `u8` a `f64` per le etichette
+    var loader = DataLoader(f64, f64, f64, 1, 2){ // Cambiato `u8` a `f64` per le etichette
         .X = &featureSlices,
         .y = labelSlice,
         .xTensor = undefined,
@@ -334,7 +399,7 @@ test "To Tensor Batch Test" {
         [_]f64{ 1.0, 2.0, 3.0 },
         [_]f64{ 4.0, 5.0, 6.0 },
     };
-    var allocator = std.testing.allocator;
+    var allocator = pkgAllocator.allocator;
 
     const labels = [_]u8{ 1, 0 };
 
@@ -351,7 +416,7 @@ test "To Tensor Batch Test" {
     var shapeYArr = [_]usize{1};
     var shapeX: []usize = &shapeXArr;
     var shapeY: []usize = &shapeYArr;
-    var loader = DataLoader(f64, f64, u8, 1){
+    var loader = DataLoader(f64, f64, u8, 1, 2){
         .X = &featureSlices,
         .y = labelSlice,
         .xTensor = undefined,
@@ -372,8 +437,8 @@ test "To Tensor Batch Test" {
 }
 
 test "MNIST batch and to Tensor test" {
-    var allocator = std.testing.allocator;
-    var loader = DataLoader(f64, f64, f64, 1){
+    var allocator = pkgAllocator.allocator;
+    var loader = DataLoader(f64, f64, f64, 1, 2){
         .X = undefined,
         .y = undefined,
         .xTensor = undefined,
@@ -405,8 +470,8 @@ test "MNIST batch and to Tensor test" {
     loader.yTensor.deinit();
 }
 test "Shuffling and data split" {
-    var allocator = std.testing.allocator;
-    var loader = DataLoader(f64, f64, f64, 1){
+    var allocator = pkgAllocator.allocator;
+    var loader = DataLoader(f64, f64, f64, 1, 2){
         .X = undefined,
         .y = undefined,
         .xTensor = undefined,
@@ -442,6 +507,59 @@ test "Shuffling and data split" {
     try std.testing.expect(loader.xTensor.shape[0] == 32);
     try std.testing.expect(loader.xTensor.shape[1] == 784);
     try std.testing.expect(loader.yTensor.shape[0] == 32);
+    loader.xTensor.deinit();
+    loader.yTensor.deinit();
+}
+
+test "Shuffling and data split 2D" {
+    var allocator = pkgAllocator.allocator;
+    var loader = DataLoader(f64, f64, f64, 32, 3){
+        .X = undefined,
+        .y = undefined,
+        .xTensor = undefined,
+        .yTensor = undefined,
+        .XBatch = undefined,
+        .yBatch = undefined,
+    };
+    defer loader.deinit(&allocator);
+
+    const image_file_name: []const u8 = "t10k-images-idx3-ubyte";
+    const label_file_name: []const u8 = "t10k-labels-idx1-ubyte";
+
+    var shapeXArr = [_]usize{ 32, 28, 28 };
+    var shapeYArr = [_]usize{32};
+    var shapeX: []usize = &shapeXArr;
+    var shapeY: []usize = &shapeYArr;
+
+    try loader.loadMNIST2DDataParallel(&allocator, image_file_name, label_file_name);
+    try loader.trainTestSplit(&allocator, 0.8);
+
+    const total_samples = loader.X.len;
+    const train_samples = loader.X_train.?.len;
+    const test_samples = loader.X_test.?.len;
+
+    try std.testing.expect(test_samples == total_samples - train_samples);
+
+    const x_batch = loader.xTrainNextBatch(32) orelse unreachable;
+    const y_batch = loader.yTrainNextBatch(32) orelse unreachable;
+    const x_testBatch = loader.xTestNextBatch(32) orelse unreachable;
+    const y_testBatch = loader.yTestNextBatch(32) orelse unreachable;
+
+    try std.testing.expect(x_batch.len == 32);
+    try std.testing.expect(y_batch.len == 32);
+    try std.testing.expect(x_testBatch.len == 32);
+    try std.testing.expect(y_testBatch.len == 32);
+
+    try loader.toTensor(&allocator, &shapeX, &shapeY);
+
+    try std.testing.expect(loader.xTensor.shape.len == 3);
+    try std.testing.expect(loader.xTensor.shape[0] == 32);
+    try std.testing.expect(loader.xTensor.shape[1] == 28);
+    try std.testing.expect(loader.xTensor.shape[2] == 28);
+
+    try std.testing.expect(loader.yTensor.shape.len == 1);
+    try std.testing.expect(loader.yTensor.shape[0] == 32);
+
     loader.xTensor.deinit();
     loader.yTensor.deinit();
 }
