@@ -12,7 +12,7 @@ test "tests description" {
 // test "ReLU from ActivationFunction()" {
 //     std.debug.print("\n     test: ReLU from ActivationFunction()", .{});
 
-const allocator = pkgAllocator.allocator;
+// const allocator = pkgAllocator.allocator;
 
 //     var inputArray: [2][2]f32 = [_][2]f32{
 //         [_]f32{ 1.0, -2.0 },
@@ -60,7 +60,7 @@ const allocator = pkgAllocator.allocator;
 // test "ReLU all positive" {
 //     std.debug.print("\n     test: ReLU all positive", .{});
 
-const allocator = pkgAllocator.allocator;
+// const allocator = pkgAllocator.allocator;
 
 //     var inputArray: [2][2]f32 = [_][2]f32{
 //         [_]f32{ 1.0, 2.0 },
@@ -83,7 +83,7 @@ const allocator = pkgAllocator.allocator;
 // test "ReLU backward " {
 //     std.debug.print("\n     test: ReLU all positive", .{});
 
-const allocator = pkgAllocator.allocator;
+// const allocator = pkgAllocator.allocator;
 
 //     var inputArray: [2][2]f32 = [_][2]f32{
 //         [_]f32{ 1.0, -2.0 },
@@ -229,7 +229,7 @@ test "Softmax derivate" {
 test "Sigmoid forward" {
     std.debug.print("\n     test: Sigmoid forward ", .{});
 
-    const allocator = pkgAllocator.allocator;
+    var allocator = pkgAllocator.allocator;
 
     const input_data = [_]f64{ 0.0, 2.0, -2.0 }; // input data for the tensor
     var shape: [1]usize = [_]usize{3};
