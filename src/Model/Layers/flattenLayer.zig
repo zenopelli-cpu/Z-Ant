@@ -94,7 +94,7 @@ pub fn FlattenLayer(comptime T: type) type {
             self.output = try Tensor.Tensor(T).fromArray(self.allocator, input.data, output_shape[0..]);
             try self.output.isSafe();
             //print output shape
-            std.debug.print("Output shape: {any}\n", .{self.output.shape});
+            //std.debug.print("Output shape: {any}\n", .{self.output.shape});
             return self.output;
         }
 

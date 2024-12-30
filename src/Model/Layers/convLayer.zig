@@ -93,10 +93,10 @@ pub fn ConvolutionalLayer(comptime T: type) type {
             self.b_gradients = try Tensor.Tensor(T).fromShape(self.allocator, &bias_shape);
 
             std.debug.print("\n ----CONVOLUTIONAL LAYER INITIALIZED----", .{});
-            std.debug.print("\n KERNEL:", .{});
-            self.weights.info();
-            std.debug.print("\n KERNEL SHAPE:{any}", .{self.kernel_shape});
-            std.debug.print("\n BIAS:{any}", .{self.bias});
+            // std.debug.print("\n KERNEL:", .{});
+            // self.weights.info();
+            // std.debug.print("\n KERNEL SHAPE:{any}", .{self.kernel_shape});
+            // std.debug.print("\n BIAS:{any}", .{self.bias});
         }
 
         /// Deallocate the convolutional layer resources
