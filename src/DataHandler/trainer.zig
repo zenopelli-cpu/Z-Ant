@@ -76,8 +76,6 @@ pub fn TrainDataLoader(
 
         var optimizer = Optim.Optimizer(T, XType, YType, Optim.optimizer_SGD, lr, allocator){};
 
-        var optimizer = Optim.Optimizer(T, XType, YType, Optim.optimizer_SGD, lr, allocator){};
-
         for (0..steps) |step| {
             _ = load.xTrainNextBatch(batchSize);
             _ = load.yTrainNextBatch(batchSize);

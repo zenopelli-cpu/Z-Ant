@@ -531,7 +531,7 @@ pub fn convolve_tensor_with_bias(
 
     var out_tensor = try Tensor(outputType).fromShape(&pkg_allocator, out_shape);
 
-    std.debug.print("\n output shape {any}", .{out_shape});
+    //std.debug.print("\n output shape {any}", .{out_shape});
 
     //initialize the current location to all 0
     //OSS!! the "location" operates on the input, it represents the coordinates in the input space
