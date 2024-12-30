@@ -96,6 +96,8 @@ pub fn Sigmoid(comptime T: anytype) type {
     };
 }
 
+const pkg_allocator = @import("pkgAllocator").allocator;
+
 /// The Softmax activation function is used in multi-class classification tasks to convert
 /// logits (raw output values) into probabilities that sum to 1.
 /// Ideal for output layers in multi-class neural networks.
@@ -105,7 +107,7 @@ pub fn Softmax(comptime T: anytype) type {
         //it directly modify the input tensor
         pub fn forward(self: *Self, input: *Tensor(T)) !void {
             _ = self;
-            const allocator = std.heap.page_allocator;
+            const allocator = pkg_allocator;
 
             const location = try allocator.alloc(usize, input.shape.len);
             defer allocator.free(location);
@@ -123,20 +125,33 @@ pub fn Softmax(comptime T: anytype) type {
             const rows = input.shape[0];
             const cols = input.shape[1];
 
+            var max_val: T = undefined;
             var sum_of_exp: T = 0.0;
             var val: T = undefined;
 
-            //calculating the value of the exponential for each element
+            // For each row
             for (0..rows) |i| {
-                sum_of_exp = 0.0;
+                // Find the maximum value in the row to stabilize the computation
+                max_val = input.data[i * cols];
                 for (0..cols) |j| {
                     val = input.data[i * cols + j];
+                    if (val > max_val) {
+                        max_val = val;
+                    }
+                }
+
+                // Compute stabilized exponentials and their sum
+                sum_of_exp = 0.0;
+                for (0..cols) |j| {
+                    val = input.data[i * cols + j] - max_val; // Stabilization
                     val = @exp(val);
                     input.data[i * cols + j] = val;
                     sum_of_exp += val;
                 }
+
+                // Normalize to calculate the softmax
                 for (0..cols) |j| {
-                    input.data[i * cols + j] = input.data[i * cols + j] / sum_of_exp;
+                    input.data[i * cols + j] /= sum_of_exp;
                 }
             }
         }
@@ -145,7 +160,7 @@ pub fn Softmax(comptime T: anytype) type {
         fn compute_mutidim_softmax(input: *Tensor(T), current_depth: usize, location: []usize) !void {
             if (current_depth == (input.shape.len - 1)) {
                 //declaring res as the result of the sum of the MSE
-                const allocator = std.heap.page_allocator;
+                const allocator = pkg_allocator;
 
                 //get location is used just to manage the gets and sets relative to the current depth
                 const get_location = try allocator.alloc(usize, location.len);

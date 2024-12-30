@@ -1,9 +1,16 @@
 const std = @import("std");
 const tensor = @import("tensor");
-const layer = @import("layer");
+const layer = @import("Layer");
 const Model = @import("model");
 const TensorMathError = @import("errorHandler").TensorMathError;
 const DenseLayer = @import("denselayer");
+const ConvLayer = @import("convolutionallayer"); // Make sure this is the correct import for your convolutional layer
+
+pub const PoolingType = enum {
+    Max,
+    Min,
+    Avg,
+};
 
 pub const Optimizers = enum {
     SGD,
@@ -11,54 +18,72 @@ pub const Optimizers = enum {
     RMSprop,
 };
 
-// Define the Optimizer struct with the optimizer function, learning rate, and allocator
-pub fn Optimizer(comptime T: type, comptime Xtype: type, comptime YType: type, func: fn (comptime type, comptime type, comptime type, f64, *const std.mem.Allocator) type, lr: f64, allocator: *const std.mem.Allocator) type {
-    const optim = func(T, Xtype, YType, lr, allocator){};
+/// Generic Optimizer factory
+pub fn Optimizer(comptime T: type, comptime Xtype: type, comptime YType: type, func: fn (comptime type, comptime type, comptime type, f64) type, lr: f64) type {
+    const optim = func(T, Xtype, YType, lr){};
     return struct {
-        optimizer: func(T, Xtype, YType, lr, allocator) = optim, // Instantiation of the optimizer (e.g., SGD, Adam)
+        optimizer: func(T, Xtype, YType, lr) = optim,
 
-        pub fn step(self: *@This(), model: *Model.Model(T, allocator)) !void {
-            // Directly call the optimizer's step function
+        /// Call the optimizer's step function
+        pub fn step(self: *@This(), model: *Model.Model(T)) !void {
             try self.optimizer.step(model);
         }
     };
 }
 
-// Define the SGD optimizer
-// NEED TO BE MODIFIED IF NEW LAYERS ARE ADDED
-pub fn optimizer_SGD(T: type, XType: type, YType: type, lr: f64, allocator: *const std.mem.Allocator) type {
-    //Are XType and YType really necessary?
+/// SGD Optimizer
+/// If new layers are added, update this logic accordingly
+pub fn optimizer_SGD(T: type, XType: type, YType: type, lr: f64) type {
     _ = XType;
     _ = YType;
 
     return struct {
         learning_rate: f64 = lr,
-        allocator: *const std.mem.Allocator = allocator,
 
-        // Step function to update weights and biases using gradients
-        pub fn step(self: *@This(), model: *Model.Model(T, allocator)) !void {
+        /// Step through the model, updating parameters
+        pub fn step(self: *@This(), model: *Model.Model(T)) !void {
             var counter: u32 = 0;
             for (model.layers.items) |layer_| {
-                if (layer_.layer_type == layer.LayerType.DenseLayer) {
-                    const myDense: *DenseLayer.DenseLayer(T, allocator) = @ptrCast(@alignCast(layer_.layer_ptr));
-                    const weight_gradients = &myDense.w_gradients;
-                    const bias_gradients = &myDense.b_gradients;
-                    const weight = &myDense.weights;
-                    const bias = &myDense.bias;
+                switch (layer_.layer_type) {
+                    .DenseLayer => {
+                        const myDense: *DenseLayer.DenseLayer(T) = @ptrCast(@alignCast(layer_.layer_ptr));
+                        const weight_gradients = &myDense.w_gradients;
+                        const bias_gradients = &myDense.b_gradients;
+                        const weight = &myDense.weights;
+                        const bias = &myDense.bias;
 
-                    //std.debug.print("\n ------ step {}", .{counter});
+                        std.debug.print("\n------ step {} (DenseLayer)", .{counter});
+                        //weight_gradients.info();
+                        try self.update_tensor(weight, weight_gradients);
+                        try self.update_tensor(bias, bias_gradients);
+                    },
+                    .ConvolutionalLayer => {
+                        const myConv: *ConvLayer.ConvolutionalLayer(T) = @ptrCast(@alignCast(layer_.layer_ptr));
+                        const kernel_gradients = &myConv.w_gradients;
+                        const bias_gradients = &myConv.b_gradients;
+                        const kernel = &myConv.weights;
+                        const bias = &myConv.bias;
 
-                    try self.update_tensor(weight, weight_gradients);
-                    try self.update_tensor(bias, bias_gradients);
+                        std.debug.print("\n------ step {} (ConvLayer)", .{counter});
+                        kernel_gradients.info();
+                        kernel.info();
+                        try self.update_tensor(kernel, kernel_gradients);
+                        try self.update_tensor(bias, bias_gradients);
+                    },
+                    else => {
+                        //print layer name
+                        std.debug.print("\n------ step {} (LayerType not supported)", .{counter});
+                    },
                 }
                 counter += 1;
             }
         }
 
-        // Helper function to update tensors
+        /// Helper function to update any parameter tensor
         fn update_tensor(self: *@This(), t: *tensor.Tensor(T), gradients: *tensor.Tensor(T)) !void {
             if (t.size != gradients.size) return TensorMathError.InputTensorDifferentSize;
-            //we move in the opposite direction of the gradient
+
+            // Gradient descent step
             for (t.data, 0..) |*value, i| {
                 value.* -= gradients.data[i] * self.learning_rate;
             }
@@ -66,20 +91,28 @@ pub fn optimizer_SGD(T: type, XType: type, YType: type, lr: f64, allocator: *con
     };
 }
 
-pub fn optimizer_ADAMTEST(T: type, lr: f64, allocator: *const std.mem.Allocator) type {
+/// Example of another optimizer (e.g. Adam) could be implemented similarly
+pub fn optimizer_ADAMTEST(T: type, lr: f64) type {
     return struct {
         learning_rate: f64 = lr,
-        allocator: *const std.mem.Allocator = allocator,
 
-        // Step function to update weights and biases using gradients
-        pub fn step(self: *@This(), model: *Model.Model(T, allocator)) !void {
-            for (model.layers) |*dense_layer| {
-                const weight_gradients = &dense_layer.w_gradients;
-                try self.update_tensor(&dense_layer.weights, weight_gradients);
+        // Minimal example (not fully implemented)
+        pub fn step(self: *@This(), model: *Model.Model(T)) !void {
+            for (model.layers) |*some_layer| {
+                // Assuming a certain layer structure with w_gradients
+                // This is just an example; adapt as needed.
+                if (some_layer.layer_type == layer.LayerType.DenseLayer) {
+                    const dense: *DenseLayer.DenseLayer(T) = @ptrCast(@alignCast(some_layer.layer_ptr));
+                    const weight_gradients = &dense.w_gradients;
+                    try self.update_tensor(&dense.weights, weight_gradients);
+                } else if (some_layer.layer_type == layer.LayerType.ConvolutionalLayer) {
+                    const conv: *ConvLayer.ConvolutionalLayer(T) = @ptrCast(@alignCast(some_layer.layer_ptr));
+                    const kernel_gradients = &conv.w_gradients;
+                    try self.update_tensor(&conv.weights, kernel_gradients);
+                }
             }
         }
 
-        // Helper function to update tensors
         fn update_tensor(self: *@This(), t: *tensor.Tensor(T), gradients: *tensor.Tensor(T)) !void {
             if (t.size != gradients.size) return TensorMathError.InputTensorDifferentSize;
 

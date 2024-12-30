@@ -13,9 +13,9 @@ const DataProc = @import("dataprocessor");
 /// This model can be configured with a specific data type (`T`) and allocator. It supports
 /// adding layers, running forward and backward passes, and manages the allocation and
 /// deallocation of resources.
-pub fn Model(comptime T: type, comptime allocator: *const std.mem.Allocator) type {
+pub fn Model(comptime T: type) type {
     return struct {
-        layers: std.ArrayList(layer.Layer(T, allocator)) = undefined, // Array of layers in the model.
+        layers: std.ArrayList(layer.Layer(T)) = undefined, // Array of layers in the model.
         allocator: *const std.mem.Allocator, // Allocator reference for dynamic memory allocation.
         input_tensor: tensor.Tensor(T), // Tensor that holds the model's input data.
 
@@ -25,7 +25,7 @@ pub fn Model(comptime T: type, comptime allocator: *const std.mem.Allocator) typ
         /// # Errors
         /// Returns an error if memory allocation for the `layers` array or `input_tensor` fails.
         pub fn init(self: *@This()) !void {
-            self.layers = std.ArrayList(layer.Layer(T, allocator)).init(allocator.*);
+            self.layers = std.ArrayList(layer.Layer(T)).init(self.allocator.*);
             self.input_tensor = try tensor.Tensor(T).init(self.allocator);
         }
 
@@ -53,7 +53,7 @@ pub fn Model(comptime T: type, comptime allocator: *const std.mem.Allocator) typ
         ///
         /// # Errors
         /// Returns an error if reallocating the `layers` array fails.
-        pub fn addLayer(self: *@This(), new_layer: layer.Layer(T, allocator)) !void {
+        pub fn addLayer(self: *@This(), new_layer: layer.Layer(T)) !void {
             try self.layers.append(new_layer);
         }
 
@@ -72,8 +72,9 @@ pub fn Model(comptime T: type, comptime allocator: *const std.mem.Allocator) typ
             self.input_tensor = try input.copy();
 
             for (0..self.layers.items.len) |i| {
-                //std.debug.print("\n--------------------------------------forwarding layer {}", .{i});
+                std.debug.print("\n--------------------------------------forwarding layer {}", .{i});
                 if (self.layers.items[i].layer_type != layer.LayerType.ActivationLayer) try DataProc.normalize(T, self.getPrevOut(i), NormalizType.UnityBasedNormalizartion);
+                // DEBUG METHOD try self.getPrevOut(i).isSafe();
                 _ = try self.layers.items[i].forward(self.getPrevOut(i));
                 //self.layers.items[i].printLayer(0);
             }
@@ -90,25 +91,32 @@ pub fn Model(comptime T: type, comptime allocator: *const std.mem.Allocator) typ
         ///
         /// # Errors
         /// Returns an error if any layer's backward pass or tensor copying fails.
-        pub fn backward(self: *@This(), gradient: *tensor.Tensor(T)) !tensor.Tensor(T) {
-            // std.debug.print("\n GRADIENT ", .{});
-            // gradient.info();
-
+        pub fn backward(self: *@This(), gradient: *tensor.Tensor(T)) !void {
             var grad_ptr: tensor.Tensor(T) = undefined;
+            defer grad_ptr.deinit();
             var grad_duplicate: tensor.Tensor(T) = try gradient.copy();
-            // std.debug.print("\n grad_duplicate ", .{});
-            // grad_duplicate.info();
-
             defer grad_duplicate.deinit();
 
-            var counter = (self.layers.items.len - 1);
+            var counter = self.layers.items.len - 1;
             while (counter >= 0) : (counter -= 1) {
-                //std.debug.print("\n--------------------------------------backwarding layer {}", .{counter});
+                std.debug.print("\n--------------------------------------backwarding layer {}", .{counter});
+                if (counter != self.layers.items.len - 1) grad_ptr.deinit();
                 grad_ptr = try self.layers.items[counter].backward(&grad_duplicate);
+
+                // Conserviamo la vecchia copia per poi deallocarla
+                var old_dup = grad_duplicate;
+
+                // Creiamo la nuova copia da grad_ptr
                 grad_duplicate = try grad_ptr.copy();
+
+                // Ora possiamo deallocare la vecchia copia
+                old_dup.deinit();
+
                 if (counter == 0) break;
             }
-            return grad_ptr;
+
+            // Alla fine del ciclo, grad_duplicate contiene l'ultima copia. Non serve più.
+            grad_duplicate.deinit();
         }
 
         /// Retrieves the output of the specified layer or the input tensor for the first layer.

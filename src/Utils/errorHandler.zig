@@ -11,6 +11,11 @@ pub const LossError = error{
 pub const LayerError = error{
     NullLayer,
     InvalidParameters,
+    InvalidLayerType,
+    Only2DSupported, //TODO: add description
+    ZeroValueKernel, //TODO: add description
+    ZeroValueStride, //TODO: add description
+    FeatureNotSupported,
 };
 
 /// Type errors
@@ -33,6 +38,7 @@ pub const TensorMathError = error{
     OutputTensorDifferentSize,
     TooSmallOutputType, //the type dimension of the output Tensor could coause a loss of information
     InputTensorDimensionMismatch,
+    WrongStride,
 };
 
 /// Tensor errors
@@ -47,6 +53,11 @@ pub const TensorError = error{
     NotFiniteValue,
     NegativeInfValue,
     PositiveInfValue,
+    InvalidSliceIndices,
+    InvalidSliceShape,
+    SliceOutOfBounds,
+    InvalidIndices,
+    TooSmallToPadding,
 };
 
 /// A union type to represent any of the errors

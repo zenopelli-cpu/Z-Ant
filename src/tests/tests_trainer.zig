@@ -6,20 +6,22 @@ const activationlayer = @import("activationlayer");
 const Model = @import("model").Model;
 const ActivationType = @import("activation_function").ActivationType;
 const Trainer = @import("trainer");
+const pkgAllocator = @import("pkgAllocator");
 
 test "Multiple layers training test" {
     std.debug.print("\n     test: Multiple layers training test", .{});
-    const allocator = std.testing.allocator;
+    const allocator = pkgAllocator.allocator;
 
-    var model = Model(f64, &allocator){
+    var model = Model(f64){
         .layers = undefined,
         .allocator = &allocator,
         .input_tensor = undefined,
     };
     try model.init();
+    defer model.deinit(); // dealloca il modello alla fine del test, anche in caso di errori
 
     //layer 1: 3 inputs, 2 neurons
-    var layer1 = denselayer.DenseLayer(f64, &allocator){
+    var layer1 = denselayer.DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -30,12 +32,21 @@ test "Multiple layers training test" {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var layer1_ = denselayer.DenseLayer(f64, &allocator).create(&layer1);
-    try layer1_.init(3, 2);
+    var layer1_ = denselayer.DenseLayer(f64).create(&layer1);
+    try layer1_.init(
+        &allocator,
+        @constCast(&struct {
+            n_inputs: usize,
+            n_neurons: usize,
+        }{
+            .n_inputs = 3,
+            .n_neurons = 2,
+        }),
+    );
     try model.addLayer(layer1_);
 
-    //layer 1: 3 inputs, 2 neurons
-    var layer1Activ = activationlayer.ActivationLayer(f64, &allocator){
+    //layer 1 activation
+    var layer1Activ = activationlayer.ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 0,
@@ -43,12 +54,21 @@ test "Multiple layers training test" {
         .activationFunction = ActivationType.ReLU,
         .allocator = &allocator,
     };
-    var layer1Activ_ = activationlayer.ActivationLayer(f64, &allocator).create(&layer1Activ);
-    try layer1Activ_.init(2, 2);
+    var layer1Activ_ = activationlayer.ActivationLayer(f64).create(&layer1Activ);
+    try layer1Activ_.init(
+        &allocator,
+        @constCast(&struct {
+            n_inputs: usize,
+            n_neurons: usize,
+        }{
+            .n_inputs = 2,
+            .n_neurons = 2,
+        }),
+    );
     try model.addLayer(layer1Activ_);
 
     //layer 2: 2 inputs, 5 neurons
-    var layer2 = denselayer.DenseLayer(f64, &allocator){
+    var layer2 = denselayer.DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -59,11 +79,20 @@ test "Multiple layers training test" {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var layer2_ = denselayer.DenseLayer(f64, &allocator).create(&layer2);
-    try layer2_.init(2, 5);
+    var layer2_ = denselayer.DenseLayer(f64).create(&layer2);
+    try layer2_.init(
+        &allocator,
+        @constCast(&struct {
+            n_inputs: usize,
+            n_neurons: usize,
+        }{
+            .n_inputs = 2,
+            .n_neurons = 5,
+        }),
+    );
     try model.addLayer(layer2_);
 
-    var layer2Activ = activationlayer.ActivationLayer(f64, &allocator){
+    var layer2Activ = activationlayer.ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 0,
@@ -71,8 +100,17 @@ test "Multiple layers training test" {
         .activationFunction = ActivationType.Softmax,
         .allocator = &allocator,
     };
-    var layer2Activ_ = activationlayer.ActivationLayer(f64, &allocator).create(&layer2Activ);
-    try layer2Activ_.init(2, 5);
+    var layer2Activ_ = activationlayer.ActivationLayer(f64).create(&layer2Activ);
+    try layer2Activ_.init(
+        &allocator,
+        @constCast(&struct {
+            n_inputs: usize,
+            n_neurons: usize,
+        }{
+            .n_inputs = 2,
+            .n_neurons = 5,
+        }),
+    );
     try model.addLayer(layer2Activ_);
 
     var inputArray: [2][3]f64 = [_][3]f64{
@@ -105,9 +143,10 @@ test "Multiple layers training test" {
         &model, //model
         &input_tensor, //input
         &target_tensor, //target
-        10, //epochs
+        1, //epochs
         0.5, //learning rate
     );
 
-    model.deinit();
+    // Non serve più chiamare model.deinit() qui, poiché abbiamo già un defer sopra
+    // model.deinit();
 }

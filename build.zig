@@ -4,6 +4,9 @@ const std = @import("std");
 /// This function defines how to build the project by specifying various modules and their dependencies.
 /// @param b - The build context, which provides utilities for configuring the build process.
 pub fn build(b: *std.Build) void {
+    const build_options = b.addOptions();
+    build_options.addOption(bool, "trace_allocator", b.option(bool, "trace_allocator", "Use a tracing allocator") orelse true);
+    build_options.addOption([]const u8, "allocator", (b.option([]const u8, "allocator", "Allocator to use") orelse "raw_c_allocator"));
 
     // Set target options, such as architecture and OS.
     const target = b.standardTargetOptions(.{});
@@ -28,6 +31,9 @@ pub fn build(b: *std.Build) void {
     // Create modules from the source files in the `src/Model/Layers` directory.
     const denseLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/denseLayer.zig") });
     const activationLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/activationLayer.zig") });
+    const convLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/convLayer.zig") });
+    const flattenLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/flattenLayer.zig") });
+    const poolingLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/poolingLayer.zig") });
 
     // Create modules from the source files in the `src/DataHandler/` directory.
     const dataloader_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataLoader.zig") });
@@ -38,6 +44,8 @@ pub fn build(b: *std.Build) void {
     const typeConv_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/typeConverter.zig") });
     const errorHandler_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/errorHandler.zig") });
     const modelImportExport_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/model_import_export.zig") });
+    const allocator_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/allocator.zig") });
+    allocator_mod.addOptions("build_options", build_options);
 
     //************************************************MODEL DEPENDENCIES************************************************
 
@@ -60,6 +68,7 @@ pub fn build(b: *std.Build) void {
     layer_mod.addImport("tensor_m", tensor_math_mod);
     layer_mod.addImport("architectures", architectures_mod);
     layer_mod.addImport("errorHandler", errorHandler_mod);
+    layer_mod.addImport("pkgAllocator", allocator_mod);
 
     //************************************************DENSELAYER DEPENDENCIES************************************************
 
@@ -69,6 +78,28 @@ pub fn build(b: *std.Build) void {
     denseLayer_mod.addImport("Layer", layer_mod);
     denseLayer_mod.addImport("architectures", architectures_mod);
     denseLayer_mod.addImport("errorHandler", errorHandler_mod);
+
+    //************************************************CONVLAYER DEPENDENCIES************************************************
+    convLayer_mod.addImport("Tensor", tensor_mod);
+    convLayer_mod.addImport("tensor_m", tensor_math_mod);
+    convLayer_mod.addImport("Layer", layer_mod);
+    convLayer_mod.addImport("architectures", architectures_mod);
+    convLayer_mod.addImport("errorHandler", errorHandler_mod);
+
+    //************************************************FLATTENLAYER DEPENDENCIES************************************************
+
+    flattenLayer_mod.addImport("Tensor", tensor_mod);
+    flattenLayer_mod.addImport("tensor_m", tensor_math_mod);
+    flattenLayer_mod.addImport("Layer", layer_mod);
+    flattenLayer_mod.addImport("architectures", architectures_mod);
+    flattenLayer_mod.addImport("errorHandler", errorHandler_mod);
+
+    //************************************************POOLINGLAYER DEPENDENCIES************************************************
+    poolingLayer_mod.addImport("Tensor", tensor_mod);
+    poolingLayer_mod.addImport("tensor_m", tensor_math_mod);
+    poolingLayer_mod.addImport("Layer", layer_mod);
+    poolingLayer_mod.addImport("architectures", architectures_mod);
+    poolingLayer_mod.addImport("errorHandler", errorHandler_mod);
 
     //************************************************ACTIVATIONLAYER DEPENDENCIES************************************************
 
@@ -115,12 +146,16 @@ pub fn build(b: *std.Build) void {
     tensor_math_mod.addImport("typeC", typeConv_mod);
     tensor_math_mod.addImport("architectures", architectures_mod);
     tensor_math_mod.addImport("errorHandler", errorHandler_mod);
+    tensor_math_mod.addImport("Layer", layer_mod);
+    tensor_math_mod.addImport("pkgAllocator", allocator_mod);
+    tensor_math_mod.addImport("poolingLayer", poolingLayer_mod);
 
     //************************************************ACTIVATION DEPENDENCIES************************************************
 
     // Add necessary imports for the activation module.
     activation_mod.addImport("tensor", tensor_mod);
     activation_mod.addImport("errorHandler", errorHandler_mod);
+    activation_mod.addImport("pkgAllocator", allocator_mod);
 
     //************************************************LOSS DEPENDENCIES************************************************
 
@@ -129,6 +164,7 @@ pub fn build(b: *std.Build) void {
     loss_mod.addImport("tensor_m", tensor_math_mod);
     loss_mod.addImport("typeC", typeConv_mod);
     loss_mod.addImport("errorHandler", errorHandler_mod);
+    loss_mod.addImport("pkgAllocator", allocator_mod);
 
     //************************************************OPTIMIZER DEPENDENCIES************************************************
 
@@ -138,6 +174,7 @@ pub fn build(b: *std.Build) void {
     optim_mod.addImport("layer", layer_mod);
     optim_mod.addImport("errorHandler", errorHandler_mod);
     optim_mod.addImport("denselayer", denseLayer_mod);
+    optim_mod.addImport("convolutionallayer", convLayer_mod);
 
     //************************************************IMPORT/EXPORT DEPENDENCIES************************************************
 
@@ -159,6 +196,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
     exe.linkLibC();
 
     //************************************************EXE DEPENDENCIES************************************************
@@ -174,6 +212,10 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("trainer", trainer_mod);
     exe.root_module.addImport("denselayer", denseLayer_mod);
     exe.root_module.addImport("activationlayer", activationLayer_mod);
+    exe.root_module.addImport("convLayer", convLayer_mod);
+    exe.root_module.addImport("flattenLayer", flattenLayer_mod);
+    exe.root_module.addImport("poolingLayer", poolingLayer_mod);
+    exe.root_module.addImport("pkgAllocator", allocator_mod);
 
     // Install the executable.
     b.installArtifact(exe);
@@ -217,6 +259,12 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("model_import_export", modelImportExport_mod);
     unit_tests.root_module.addImport("denselayer", denseLayer_mod);
     unit_tests.root_module.addImport("activationlayer", activationLayer_mod);
+    unit_tests.root_module.addImport("convLayer", convLayer_mod);
+    unit_tests.root_module.addImport("flattenLayer", flattenLayer_mod);
+    unit_tests.root_module.addImport("poolingLayer", poolingLayer_mod);
+    unit_tests.root_module.addImport("pkgAllocator", allocator_mod);
+
+    unit_tests.linkLibC();
 
     // Add tests for the optimizer module.
     const optim_tests = b.addTest(.{

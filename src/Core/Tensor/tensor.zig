@@ -103,9 +103,7 @@ pub fn Tensor(comptime T: type) type {
             @memcpy(tensorShape, shape);
 
             const tensorData = try allocator.alloc(T, total_size);
-            for (tensorData) |*data| {
-                data.* = 0;
-            }
+            @memset(tensorData, 0);
 
             return @This(){
                 .data = tensorData,
@@ -239,9 +237,9 @@ pub fn Tensor(comptime T: type) type {
             return if (dim_count == 1) []DataType else []MagicalReturnType(DataType, dim_count - 1);
         }
 
-        fn calculateProduct(slice: []usize) usize {
+        fn calculateProduct(slices: []usize) usize {
             var product: usize = 1;
-            for (slice) |elem| {
+            for (slices) |elem| {
                 product *= elem;
             }
             return product;
@@ -271,11 +269,151 @@ pub fn Tensor(comptime T: type) type {
         pub fn flatten_index(self: *const @This(), indices: []const usize) !usize {
             var idx: usize = 0;
             var stride: usize = 1;
-            for (0..self.shape.len) |i| {
-                idx += indices[self.shape.len - 1 - i] * stride;
-                stride *= self.shape[self.shape.len - 1 - i];
+
+            if (indices.len != self.shape.len) {
+                return error.InvalidIndexLength;
             }
+
+            for (0..self.shape.len) |i| {
+                const rev_idx = self.shape.len - 1 - i;
+                const index = indices[rev_idx];
+
+                // Controllo per indice fuori dai limiti
+                if (index >= self.shape[rev_idx]) {
+                    return error.IndexOutOfBounds;
+                }
+
+                idx += index * stride;
+                stride *= self.shape[rev_idx];
+            }
+
             return idx;
+        }
+
+        pub fn slice(self: *Tensor(T), start_indices: []usize, slice_shape: []usize) !Tensor(T) {
+            // Validate input
+            if (start_indices.len != self.shape.len) return TensorError.InvalidSliceIndices;
+            if (slice_shape.len != self.shape.len) return TensorError.InvalidSliceShape;
+
+            // Verify that the slice is within bounds
+            for (0..self.shape.len) |i| {
+                if (start_indices[i] + slice_shape[i] > self.shape[i]) return TensorError.SliceOutOfBounds;
+            }
+
+            // Calculate the total size of the new tensor
+            var new_size: usize = 1;
+            for (slice_shape) |dim| {
+                new_size *= dim;
+            }
+
+            // Allocate data for the new tensor
+            const new_data = try self.allocator.alloc(T, new_size);
+
+            // Prepare for copying data
+            const num_dims = self.shape.len;
+
+            // Strides for the original tensor
+            const strides = try self.getStrides();
+            defer self.allocator.free(strides);
+
+            // Recursive function to copy data
+            const indices = try self.allocator.alloc(usize, num_dims);
+            defer self.allocator.free(indices);
+
+            for (indices) |*idx| idx.* = 0;
+
+            var new_data_index: usize = 0;
+
+            try copy_data_recursive(
+                self,
+                new_data,
+                &new_data_index,
+                start_indices,
+                slice_shape,
+                indices,
+                0,
+            );
+
+            // Create the new tensor
+            var new_tensor = Tensor(T){
+                .data = new_data,
+                .shape = try self.allocator.dupe(usize, slice_shape),
+                .size = new_size,
+                .allocator = self.allocator,
+            };
+
+            _ = &new_tensor;
+
+            return new_tensor;
+        }
+
+        // Recursive function to copy data
+        fn copy_data_recursive(
+            self: *Tensor(T),
+            new_data: []T,
+            new_data_index: *usize,
+            start_indices: []usize,
+            slice_shape: []usize,
+            indices: []usize,
+            dim: usize,
+        ) !void {
+            if (dim == self.shape.len) {
+                // Calculate the index in the original tensor
+                var self_indices = try self.allocator.alloc(usize, self.shape.len);
+                defer self.allocator.free(self_indices);
+
+                for (0..self.shape.len) |i| {
+                    self_indices[i] = start_indices[i] + indices[i];
+                }
+
+                const flat_index = try self.get_flat_index(self_indices);
+                new_data[new_data_index.*] = self.data[flat_index];
+                new_data_index.* += 1;
+            } else {
+                for (0..slice_shape[dim]) |i| {
+                    indices[dim] = i;
+                    try copy_data_recursive(
+                        self,
+                        new_data,
+                        new_data_index,
+                        start_indices,
+                        slice_shape,
+                        indices,
+                        dim + 1,
+                    );
+                }
+            }
+        }
+
+        // Helper function to calculate the flat index from multi-dimensional indices
+        fn get_flat_index(self: *Tensor(T), indices: []usize) !usize {
+            if (indices.len != self.shape.len) return TensorError.InvalidIndices;
+
+            var flat_index: usize = 0;
+            var stride: usize = 1;
+
+            var i: usize = self.shape.len - 1;
+            while (true) {
+                flat_index += indices[i] * stride;
+                stride *= self.shape[i];
+                if (i == 0) break;
+                i -= 1;
+            }
+
+            return flat_index;
+        }
+
+        // Function to calculate strides for the tensor
+        pub fn getStrides(self: *Tensor(T)) ![]usize {
+            const num_dims = self.shape.len;
+            var strides = try self.allocator.alloc(usize, num_dims);
+            strides[num_dims - 1] = 1;
+            var i: usize = num_dims - 1;
+            while (i > 0) {
+                strides[i - 1] = strides[i] * self.shape[i];
+                i -= 1;
+            }
+            return strides;
         }
 
         /// Prints all the possible details of a tensor.
@@ -289,7 +427,7 @@ pub fn Tensor(comptime T: type) type {
                 std.debug.print("{} ", .{self.shape[i]});
             }
             std.debug.print("] ", .{});
-            self.print();
+            //self.print();
         }
 
         /// Prints all the array self.data in an array.
@@ -392,6 +530,124 @@ pub fn Tensor(comptime T: type) type {
                 },
             }
         }
+
+        /// Set all tensor values to zero.
+        pub fn setToZero(self: *@This()) !void {
+            if (self.size == 0) {
+                return TensorError.TensorNotInitialized;
+            }
+            @memset(self.data, 0);
+        }
+
+        /// Method to add a top&bottom padding and a left&right padding.
+        /// At the moment the function only supports 2 padding params, but the method
+        /// is already set to have different left, right, top and bottom padding values.
+        pub fn addPaddingAndDilation(
+            self: *@This(),
+            upDownPadding: usize,
+            leftRightPadding: usize,
+            verticalDil: usize,
+            horizontalDil: usize,
+        ) !void {
+
+            //checks on padding dim (usize is alway >= 0)
+            if (self.shape.len < 2) return TensorError.TooSmallToPadding;
+
+            const upPadding = upDownPadding;
+            const downPadding = upDownPadding;
+            const leftPadding = leftRightPadding;
+            const rightPadding = leftRightPadding;
+            const dim = self.shape.len;
+
+            const new_row_numb = self.shape[dim - 2] + upPadding + downPadding + verticalDil * (self.shape[dim - 2] - 1);
+            const new_col_numb = self.shape[dim - 1] + leftPadding + rightPadding + horizontalDil * (self.shape[dim - 1] - 1);
+            //std.debug.print("\n new_row_numb: {} new_col_numb:{}", .{ new_row_numb, new_col_numb });
+
+            //compute new shape
+            const new_shape = try self.allocator.alloc(usize, dim);
+            @memcpy(new_shape, self.shape);
+            new_shape[dim - 1] = new_col_numb;
+            new_shape[dim - 2] = new_row_numb;
+
+            //compute new size
+            var new_total_size: usize = 1;
+            for (new_shape) |size_i| {
+                new_total_size *= size_i;
+            }
+
+            //alloc new tensor.data memory space to all zero
+            const new_data = try self.allocator.alloc(T, new_total_size);
+            @memset(new_data, 0);
+
+            const new_matrix_dim = new_row_numb * new_col_numb;
+            const total_number_2DMatrices = new_total_size / new_matrix_dim;
+            const old_matrix_dim = self.shape[dim - 2] * self.shape[dim - 1];
+            const old_total_number_2DMatrices = self.size / old_matrix_dim; //just for check assertion
+            std.debug.assert(total_number_2DMatrices == old_total_number_2DMatrices);
+
+            for (0..total_number_2DMatrices) |matix_i| {
+                const num_elem_prec_new_matr = matix_i * new_matrix_dim;
+                const num_elem_prec_old_matr = matix_i * old_matrix_dim;
+                // for (upPadding..new_row_numb - downPadding) |i| { //do a while!!
+                //     for (leftPadding..new_col_numb - rightPadding) |j| {
+                //         //std.debug.print("\n i:{}, j:{} new_data[{}], self.data[{}]", .{ i, j, i * new_col_numb + j, (i - upPadding) * (self.shape[dim - 1]) + (j - leftPadding) });
+
+                //         new_data[num_elem_prec_new_matr + i * new_col_numb + j] = self.data[num_elem_prec_old_matr + (i - upPadding) * (self.shape[dim - 1]) + (j - leftPadding)];
+                //         //j += horizontalDil;
+                //     }
+                // }
+                var i = upPadding;
+                var old_row: usize = 0;
+                while (i < new_row_numb - downPadding) : (i += (1 + verticalDil)) {
+                    var j = leftPadding;
+                    var old_col: usize = 0;
+                    while (j < new_col_numb - rightPadding) : (j += (1 + horizontalDil)) {
+                        const idx_new_matr = num_elem_prec_new_matr + i * new_col_numb + j;
+                        const idx_old_matr = num_elem_prec_old_matr + old_row * (self.shape[dim - 1]) + old_col;
+                        new_data[idx_new_matr] = self.data[idx_old_matr];
+                        old_col += 1;
+                    }
+                    old_row += 1;
+                }
+            }
+
+            //free all old attributes and setting new ones
+            self.allocator.free(self.data);
+            self.allocator.free(self.shape);
+
+            self.shape = new_shape;
+            self.data = new_data;
+            self.size = new_total_size;
+        }
+
+        /// Helper function to flip the kernel (rotate 180 degrees horizontaly and vertically)
+        /// ex:
+        ///  flip( [[a, b], [c, d], [e, f]] ) = [[f, e], [d, c], [b, a]]
+        pub fn flip(self: *@This()) !Tensor(T) {
+            const kernel_dim = self.shape.len;
+            const kernel_row = self.shape[kernel_dim - 2];
+            const kernel_cols = self.shape[kernel_dim - 1];
+            const matrix_dim = kernel_cols * kernel_row;
+
+            //create and initialize the new shape
+            const flipped_shape = try self.allocator.alloc(usize, self.shape.len);
+            defer self.allocator.free(flipped_shape);
+            @memcpy(flipped_shape, self.shape);
+
+            var flipped_kernel = try Tensor(T).fromShape(self.allocator, flipped_shape);
+
+            const total_number_2DMatrices = flipped_kernel.size / matrix_dim;
+
+            for (0..total_number_2DMatrices) |matix_i| {
+                for (0..kernel_row) |i| {
+                    for (0..kernel_cols) |j| {
+                        flipped_kernel.data[(matix_i + 1) * matrix_dim - (i * kernel_cols + j + 1)] = self.data[matix_i * matrix_dim + i * kernel_cols + j];
+                    }
+                }
+            }
+
+            return flipped_kernel;
+        }
     };
 }
 
@@ -401,22 +657,20 @@ fn flattenArray(comptime T: type, arr: anytype, flatArr: []T, startIndex: usize)
 
     const arrTypeInfo = @typeInfo(@TypeOf(arr));
 
-    // Check if arr is an Array or a Slice
     if (arrTypeInfo == .Array or arrTypeInfo == .Pointer) {
+        // if arr is a lice or 1d  DIRECTLY COPY
         if (@TypeOf(arr[0]) == T) {
-            // If arr is a 1D array or slice
             for (arr) |val| {
                 flatArr[idx] = val;
                 idx += 1;
             }
         } else {
-            // If arr is multidimensional, recursively flatten
+            // iff arr is mulltidimensional array recursive call
             for (arr) |subArray| {
                 idx = flattenArray(T, subArray, flatArr, idx);
             }
         }
     } else {
-        std.debug.print("The type of `arr` is not compatible with the required type. Type found: {}\n", .{@TypeOf(arr)});
         @panic("The type of `arr` is not compatible with the required type.");
     }
 
