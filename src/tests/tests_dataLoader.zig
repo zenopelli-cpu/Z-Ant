@@ -211,7 +211,7 @@ test "loadMNISTImages test" {
         .yBatch = undefined,
     };
 
-    const file_name: []const u8 = "t10k-images-idx3-ubyte";
+    const file_name: []const u8 = "datasets/t10k-images-idx3-ubyte";
 
     try loader.loadMNISTImages(&allocator, file_name);
 
@@ -236,7 +236,7 @@ test "loadMNISTImages2D test Static" {
         .yBatch = undefined,
     };
 
-    const file_name: []const u8 = "t10k-images-idx3-ubyte";
+    const file_name: []const u8 = "datasets/t10k-images-idx3-ubyte";
 
     // Carica le immagini utilizzando la funzione aggiornata
     try loader.loadMNISTImages2DStatic(&allocator, file_name, 10000, 28, 28);
@@ -256,39 +256,6 @@ test "loadMNISTImages2D test Static" {
     loader.deinit(&allocator);
 }
 
-//Commented because it is slow
-
-// test "loadMNISTImages2D test Dynamic" {
-//     var allocator = pkgAllocator.allocator;
-//     var loader = DataLoader(f64, f64, f64, 1, 3){
-//         .X = undefined,
-//         .y = undefined,
-//         .xTensor = undefined,
-//         .yTensor = undefined,
-//         .XBatch = undefined,
-//         .yBatch = undefined,
-//     };
-
-//     const file_name: []const u8 = "t10k-images-idx3-ubyte";
-
-//     // Carica le immagini utilizzando la funzione aggiornata
-//     try loader.loadMNISTImages2DStatic(&allocator, file_name, 10000, 28, 28);
-
-//     // Verifica il numero totale di immagini
-//     try std.testing.expectEqual(loader.X.len, 10000);
-
-//     // Ogni immagine deve essere 28x28
-//     for (loader.X[0..10]) |image| {
-//         try std.testing.expectEqual(image.len, 28); // 28 righe
-//         for (image) |row| {
-//             try std.testing.expectEqual(row.len, 28); // 28 colonne per ogni riga
-//         }
-//     }
-
-//     // Deinizializza il caricatore
-//     loader.deinit(&allocator);
-// }
-
 test "loadMNISTLabels test" {
     var allocator = pkgAllocator.allocator;
     var loader = DataLoader(f64, f64, f64, 1, 2){
@@ -300,7 +267,7 @@ test "loadMNISTLabels test" {
         .yBatch = undefined,
     };
 
-    const file_name: []const u8 = "t10k-labels-idx1-ubyte";
+    const file_name: []const u8 = "datasets/t10k-labels-idx1-ubyte";
 
     try loader.loadMNISTLabels(&allocator, file_name);
 
@@ -324,8 +291,8 @@ test "loadMNISTDataParallel test" {
         .yBatch = undefined,
     };
 
-    const image_file_name: []const u8 = "t10k-images-idx3-ubyte";
-    const label_file_name: []const u8 = "t10k-labels-idx1-ubyte";
+    const image_file_name: []const u8 = "datasets/t10k-images-idx3-ubyte";
+    const label_file_name: []const u8 = "datasets/t10k-labels-idx1-ubyte";
 
     try loader.loadMNISTDataParallel(&allocator, image_file_name, label_file_name);
 
@@ -448,8 +415,8 @@ test "MNIST batch and to Tensor test" {
     };
     defer loader.deinit(&allocator);
 
-    const image_file_name: []const u8 = "t10k-images-idx3-ubyte";
-    const label_file_name: []const u8 = "t10k-labels-idx1-ubyte";
+    const image_file_name: []const u8 = "datasets/t10k-images-idx3-ubyte";
+    const label_file_name: []const u8 = "datasets/t10k-labels-idx1-ubyte";
 
     try loader.loadMNISTDataParallel(&allocator, image_file_name, label_file_name);
 
@@ -481,8 +448,8 @@ test "Shuffling and data split" {
     };
     defer loader.deinit(&allocator);
 
-    const image_file_name: []const u8 = "t10k-images-idx3-ubyte";
-    const label_file_name: []const u8 = "t10k-labels-idx1-ubyte";
+    const image_file_name: []const u8 = "datasets/t10k-images-idx3-ubyte";
+    const label_file_name: []const u8 = "datasets/t10k-labels-idx1-ubyte";
     var shapeXArr = [_]usize{ 32, 784 };
     var shapeYArr = [_]usize{32};
     var shapeX: []usize = &shapeXArr;
@@ -523,8 +490,8 @@ test "Shuffling and data split 2D" {
     };
     defer loader.deinit(&allocator);
 
-    const image_file_name: []const u8 = "t10k-images-idx3-ubyte";
-    const label_file_name: []const u8 = "t10k-labels-idx1-ubyte";
+    const image_file_name: []const u8 = "datasets/t10k-images-idx3-ubyte";
+    const label_file_name: []const u8 = "datasets/t10k-labels-idx1-ubyte";
 
     var shapeXArr = [_]usize{ 32, 28, 28 };
     var shapeYArr = [_]usize{32};

@@ -191,8 +191,8 @@ pub fn main() !void {
         .yBatch = undefined,
     };
 
-    const image_file_name: []const u8 = "t10k-images-idx3-ubyte";
-    const label_file_name: []const u8 = "t10k-labels-idx1-ubyte";
+    const image_file_name: []const u8 = "datasets/t10k-images-idx3-ubyte";
+    const label_file_name: []const u8 = "datasets/t10k-labels-idx1-ubyte";
 
     try load.loadMNIST2DDataParallel(&allocator, image_file_name, label_file_name);
 

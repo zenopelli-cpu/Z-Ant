@@ -1,7 +1,7 @@
 # Contributor Covenant Code of Conduct
 
 ## Good practices
-- Marco queste le lascio fare a te se sei più sul pezzo, aggiungo giusto quelle che mi vengono in mente
+
 - all tests pass without any modification (zig build test_all --summary all)
 - anytime you add a class or a function it must be well tested 
 - If not well documented the code will be rejected
