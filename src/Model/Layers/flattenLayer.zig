@@ -5,6 +5,11 @@ const Layer = @import("Layer");
 const Architectures = @import("architectures").Architectures;
 const LayerError = @import("errorHandler").LayerError;
 
+/// Represents a flattening layer in a neural network.
+/// This layer reshapes a multidimensional input tensor into a one-dimensional output tensor,
+/// often used to transition from convolutional layers to fully connected layers.
+///
+/// @param T The data type of the tensor elements (e.g., `f32`, `f64`, etc.).
 pub fn FlattenLayer(comptime T: type) type {
     return struct {
         // Flatten layer parameters
