@@ -5,21 +5,60 @@ const Layer = @import("Layer");
 const Architectures = @import("architectures").Architectures;
 const LayerError = @import("errorHandler").LayerError;
 
+/// Represents a convolutional layer in a neural network.
+/// This type is parameterized by the data type `T` for the elements in the tensors (e.g., `f32`, `f64`, etc.).
+/// The convolutional layer applies convolution operations to input tensors using kernels and biases.
+///
+/// @param T The data type of the tensor elements.
 pub fn ConvolutionalLayer(comptime T: type) type {
     return struct {
-        // Convolutional layer parameters
-        weights: Tensor.Tensor(T), // Weights (kernels) of shape [kernel_shape]
-        bias: Tensor.Tensor(T), // a Bias for each kernel filter
-        input: Tensor.Tensor(T), // Input tensor
+        /// Convolutional Layer Parameters -----------------------
+        ///
+        /// The weights (kernels) of the layer, represented as a tensor.
+        /// Shape: `[kernel_shape]` where `kernel_shape` defines the dimensions of the kernels.
+        weights: Tensor.Tensor(T),
+
+        /// The bias for each kernel filter, represented as a tensor.
+        /// This is added to the convolutional output to adjust the result.
+        bias: Tensor.Tensor(T),
+
+        /// The input tensor to the convolutional layer.
+        /// Represents the data processed by the layer.
+        input: Tensor.Tensor(T),
+
+        /// The output tensor of the layer after the convolution operation.
+        /// Contains the transformed data resulting from applying the kernels and biases.
         output: Tensor.Tensor(T), // Output tensor after convolution
-        // Layer configuration
+
+        /// Layer Configuration -----------------------
+        ///
+        /// The number of input channels for the layer.
+        /// Determines how many channels the input tensor has (e.g., 3 for RGB images).
         input_channels: usize,
-        kernel_shape: [4]usize, // shape : [number of kernel filters, number of channels, height, width ]
+
+        /// The shape of the convolutional kernels.
+        /// Format: `[number of kernel filters, number of channels, height, width]`.
+        /// - `number of kernel filters`: How many distinct kernels are used in the layer.
+        /// - `number of channels`: The depth of each kernel (matches `input_channels`).
+        /// - `height` and `width`: The spatial dimensions of each kernel.
+        kernel_shape: [4]usize,
+
+        /// The stride of the convolution operation.
+        /// Format: `[stride_height, stride_width]`.
+        /// Specifies how far the kernels move during the convolution process in each spatial dimension.
         stride: [2]usize,
-        // Gradients
+
+        /// Gradients -----------------------
+        ///
+        /// The gradients of the weights (kernels), used for backpropagation.
+        /// Updated during the training process to optimize the layer's performance.
         w_gradients: Tensor.Tensor(T),
+
+        /// The gradients of the biases, used for backpropagation.
+        /// Updated during training to optimize the layer's performance.
         b_gradients: Tensor.Tensor(T),
-        // Utils
+
+        // Utilities -----------------------
         allocator: *const std.mem.Allocator,
 
         const Self = @This();

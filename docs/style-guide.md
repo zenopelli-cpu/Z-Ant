@@ -94,42 +94,22 @@ A well-organized codebase improves navigation and collaboration.
 
 - **Source Code**: Place in the `src/` directory.
 
-- **Tests**: Place in the `tests/` directory, mirroring the `src/` structure.
+- **Tests**: Place in the `src/tests/` directory
 
 - **Documentation**: Place in the `docs/` directory.
 
+## 4. Memory allocation policy
+### Package allocator
+A save memory usage ensures good performances. 
+Always refer to the class `allocator.zig` to get the correct allocation. 
+    
+- Check that your class has the `YourClass_mod.addImport("pkgAllocator", allocator_mod);` inside build.zig.  
+- Import the package allocator `const pkgAllocator = @import("pkgAllocator");`  
+- when calling `try pkgAllocator.alloc(usize, something);` it automatically uses the proper allocator depending if we are running the main or the tests.
 
-## 4. Formatting
-
-Consistent formatting enhances code readability.
-
-- **Indentation**: Use 4 spaces per indentation level.
-
-- **Line Length**: Limit lines to 80 characters when possible.
-
-- **Braces**: Place opening braces on the same line.
-
-  ```zig
-  fn predict(input: []const f64) f64 {
-      // ...
-  }
-  ```
-
-- **Spacing**:
-
-  - No space before function call parentheses.
-
-    ```zig
-    compute_gradient(x, y)
-    ```
-
-  - Single space after keywords and before opening parentheses.
-
-    ```zig
-    if (condition) {
-        // ...
-    }
-    ```
+### Memory allocation and free policy
+**" those who allocs, also frees "**  
+So the class that manages the allocation/initialization of something, also manages the free/deinitialization.
 
 ## 5. Comments and Documentation
 

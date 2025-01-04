@@ -12,14 +12,30 @@ pub const PoolingType = enum {
     Avg,
 };
 
-/// TODO: implement padding
+/// Represents a pooling layer in a neural network.
+/// A pooling layer reduces the spatial dimensions of the input tensor
+/// while retaining the most significant information, helping to down-sample and reduce computation.
+/// This struct supports different pooling types (e.g., max pooling, average pooling).
+///
+/// @param T The data type of the tensor elements (e.g., `f32`, `f64`, etc.).
+/// @note TODO: Padding support is not yet implemented
 pub fn PoolingLayer(comptime T: type) type {
     return struct {
         input: tensor.Tensor(T),
         output: tensor.Tensor(T),
+        /// A tensor that tracks which elements of the input were used in the pooling operation.
+        /// This is typically relevant for max pooling to facilitate backpropagation.
+        /// Stored as a tensor of `u8` (binary values).
         used_input: tensor.Tensor(u8),
-        kernel: [2]usize, // [rows, cols]
-        stride: [2]usize, // [rows, cols]
+
+        /// Pooling Configuration -----------------------
+        /// The dimensions of the pooling kernel, specified as `[rows, cols]`.
+        /// This defines the size of the pooling window applied to the input tensor.
+        kernel: [2]usize,
+
+        /// The stride of the pooling operation, specified as `[rows, cols]`.
+        /// This determines the step size of the pooling window as it moves across the input tensor.
+        stride: [2]usize,
         poolingType: PoolingType,
         allocator: *const std.mem.Allocator,
 

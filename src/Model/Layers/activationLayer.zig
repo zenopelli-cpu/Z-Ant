@@ -7,16 +7,26 @@ const ActivationType = @import("activation_function").ActivationType;
 const ActivLib = @import("activation_function");
 const LayerError = @import("errorHandler").LayerError;
 
+/// Represents an activation layer in a neural network, designed for use with tensors.
+/// The `ActivationLayer` type is parameterized by the type `T`, which represents the data type of the tensor elements.
+/// It includes the structure and utilities required to handle the layer's operations and its activation function.
+///
+/// @param T The data type of the tensor elements (e.g., `f32`, `f64`, etc.).
 pub fn ActivationLayer(comptime T: type) type {
     return struct {
-        //layer shape --------------------
+
+        // Layer shape --------------------
         n_inputs: usize,
         n_neurons: usize,
         input: tensor.Tensor(T), //is saved for semplicity, it can be sobstituted
         output: tensor.Tensor(T), // output = dot(input, weight.transposed) + bias
-        //activation function-----------------------
+
+        /// Activation Function -----------------------
+        /// The activation function applied to the layer's output.
+        /// This is of type `ActivationType`, which determines the specific activation behavior (e.g., ReLU, Sigmoid, etc.).
         activationFunction: ActivationType,
-        //utils---------------------------
+
+        // Utils---------------------------
         allocator: *const std.mem.Allocator,
 
         const Self = @This();
