@@ -95,6 +95,8 @@ pub fn FlattenLayer(comptime T: type) type {
             try self.output.isSafe();
             //print output shape
             //std.debug.print("Output shape: {any}\n", .{self.output.shape});
+            //print tensor out info
+            std.debug.print("Shape Flatten is {any}", .{self.output.shape});
             return self.output;
         }
 

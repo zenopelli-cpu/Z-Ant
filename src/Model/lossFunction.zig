@@ -246,30 +246,45 @@ pub fn CCELoss() type {
             return out_tensor;
         }
 
-        fn multidim_CCE(comptime T: type, predictions: *Tensor(T), targets: *Tensor(T), out_tensor: *Tensor(T), current_depth: usize, location: []usize) !void {
+        fn multidim_CCE(
+            comptime T: type,
+            predictions: *Tensor(T),
+            targets: *Tensor(T),
+            out_tensor: *Tensor(T),
+            current_depth: usize,
+            location: []usize,
+        ) !void {
             if (current_depth == (predictions.shape.len - 1)) {
-                //declaring res as the result of the sum of the MSE
                 var res: f64 = 0.0;
 
                 const allocator = @import("pkgAllocator").allocator;
 
                 const get_location = try allocator.alloc(usize, location.len);
                 defer allocator.free(get_location);
-                //initializing get location to the same values of location
                 for (0..get_location.len) |i| {
                     get_location[i] = location[i];
                 }
 
-                //calculating the loss
-                for (0..predictions.shape[current_depth]) |i| {
-                    get_location[current_depth] = i; //for each element of predictions vect and target vect
+                const epsilon = 1e-7;
+
+                const last_dim_size = predictions.shape[current_depth];
+                for (0..last_dim_size) |i| {
+                    get_location[current_depth] = i;
+
                     const target = try targets.get_at(get_location);
                     const prediction = try predictions.get_at(get_location);
-                    const log = std.math.log(f64, std.math.e, prediction);
-                    res -= (target * log);
+
+                    const clipped_pred = if (prediction < @as(T, epsilon))
+                        @as(T, epsilon)
+                    else if (prediction > @as(T, 1.0 - epsilon))
+                        @as(T, 1.0 - epsilon)
+                    else
+                        prediction;
+
+                    const log_val = std.math.log(f64, std.math.e, @as(f64, clipped_pred));
+                    res -= @as(f64, target) * log_val;
                 }
 
-                //declaring and initializing the landing location of the sum
                 const out_location = try allocator.alloc(usize, predictions.shape.len - 1);
                 defer allocator.free(out_location);
                 for (0..out_location.len) |i| {
@@ -279,7 +294,7 @@ pub fn CCELoss() type {
                 const out_res: T = Convert.convert(f64, T, res);
 
                 try out_tensor.set_at(out_location, out_res);
-            } else { //otherwise I have to go deeper
+            } else {
                 for (0..predictions.shape[current_depth]) |element_at_current_depth| {
                     location[current_depth] = element_at_current_depth;
                     try multidim_CCE(
