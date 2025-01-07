@@ -58,6 +58,11 @@ pub const TensorError = error{
     SliceOutOfBounds,
     InvalidIndices,
     TooSmallToPadding,
+    EmptyTensorList,
+    AxisOutOfBounds,
+    MismatchedRank,
+    MismatchedShape,
+    IndexOutOfBounds,
 };
 
 /// A union type to represent any of the errors
