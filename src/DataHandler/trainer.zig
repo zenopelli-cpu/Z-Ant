@@ -211,7 +211,7 @@ pub fn TrainDataLoader2D(
             try load.toTensor(allocator, &shapeX, &shapeY);
 
             try convertToOneHot(T, batchSize, &load.yTensor);
-            try DataProc.normalize(T, &load.xTensor, NormalizType.StandardDeviationNormalization);
+            //try DataProc.normalize(T, &load.xTensor, NormalizType.StandardDeviationNormalization);
             var predictions = try model.forward(&load.xTensor);
             //predictions.print();
             defer predictions.deinit();
@@ -260,6 +260,7 @@ pub fn TrainDataLoader2D(
             _ = load.yTestNextBatch(batchSize);
             try load.toTensor(allocator, &shapeX, &shapeY);
             try convertToOneHot(T, batchSize, &load.yTensor);
+            //try DataProc.normalize(T, &load.xTensor, NormalizType.StandardDeviationNormalization);
 
             var predictions = try model.forward(&load.xTensor);
             defer predictions.deinit();
