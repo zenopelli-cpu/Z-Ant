@@ -933,3 +933,185 @@ test "Pooling multidim" {
 
     // We do not check used_input details here, just shapes as in original.
 }
+
+test "Concatenate tensors along axis 0" {
+    std.debug.print("\n     test: Concatenate tensors along axis 0", .{});
+    var allocator = pkgAllocator.allocator;
+
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+
+    var inputArray2: [2][2]f32 = [_][2]f32{
+        [_]f32{ 5.0, 6.0 },
+        [_]f32{ 7.0, 8.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix for both tensors
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape);
+    defer t2.deinit();
+
+    var tensors = [_]Tensor(f32){ t1, t2 };
+
+    var result_tensor = try TensMath.concatenate(f32, &allocator, &tensors, 0);
+    defer result_tensor.deinit();
+
+    const expected_data: [4][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+        [_]f32{ 5.0, 6.0 },
+        [_]f32{ 7.0, 8.0 },
+    };
+
+    try std.testing.expect(result_tensor.shape[0] == 4);
+    try std.testing.expect(result_tensor.shape[1] == 2);
+
+    for (0..4) |i| {
+        for (0..2) |j| {
+            //std.debug.print("Checking result_tensor[{d}][{d}]: {f}\n", .{ i, j, result_tensor.data[i * 2 + j] });
+            try std.testing.expect(result_tensor.data[i * 2 + j] == expected_data[i][j]);
+        }
+    }
+}
+
+test "Concatenate tensors along axis 1" {
+    std.debug.print("\n     test: Concatenate tensors along axis 1", .{});
+    var allocator = pkgAllocator.allocator;
+
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+
+    var inputArray2: [2][2]f32 = [_][2]f32{
+        [_]f32{ 5.0, 6.0 },
+        [_]f32{ 7.0, 8.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix for both tensors
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape);
+    defer t2.deinit();
+
+    var tensors = [_]Tensor(f32){ t1, t2 };
+
+    var result_tensor = try TensMath.concatenate(f32, &allocator, &tensors, 1);
+    defer result_tensor.deinit();
+
+    const expected_data: [2][4]f32 = [_][4]f32{
+        [_]f32{ 1.0, 2.0, 5.0, 6.0 },
+        [_]f32{ 3.0, 4.0, 7.0, 8.0 },
+    };
+    result_tensor.print();
+
+    try std.testing.expect(result_tensor.shape[0] == 2);
+    try std.testing.expect(result_tensor.shape[1] == 4);
+
+    for (0..2) |i| {
+        for (0..4) |j| {
+            //std.debug.print("Checking result_tensor[{d}][{d}]: {f}\n", .{ i, j, result_tensor.data[i * 4 + j] });
+            try std.testing.expect(result_tensor.data[i * 4 + j] == expected_data[i][j]);
+        }
+    }
+}
+
+test "Concatenate tensors along negative axis" {
+    std.debug.print("\n     test: Concatenate tensors along negative axis", .{});
+    var allocator = std.testing.allocator;
+
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+
+    var inputArray2: [2][2]f32 = [_][2]f32{
+        [_]f32{ 5.0, 6.0 },
+        [_]f32{ 7.0, 8.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix for both tensors
+
+    // Initialize tensors from arrays
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape);
+    defer t2.deinit();
+
+    var tensors = [_]Tensor(f32){ t1, t2 };
+
+    // Perform concatenation along axis -1 (equivalent to axis 1)
+    var result_tensor = try TensMath.concatenate(f32, &allocator, &tensors, -1);
+    defer result_tensor.deinit();
+
+    const expected_data: [2][4]f32 = [_][4]f32{
+        [_]f32{ 1.0, 2.0, 5.0, 6.0 },
+        [_]f32{ 3.0, 4.0, 7.0, 8.0 },
+    };
+
+    try std.testing.expect(result_tensor.shape[0] == 2);
+    try std.testing.expect(result_tensor.shape[1] == 4);
+
+    for (0..2) |i| {
+        for (0..4) |j| {
+            try std.testing.expect(result_tensor.data[i * 4 + j] == expected_data[i][j]);
+        }
+    }
+}
+
+test "Concatenate 3D tensors along axis 2" {
+    std.debug.print("\n     test: Concatenate 3D tensors along axis 2", .{});
+    var allocator = std.testing.allocator;
+
+    // Tensor A: shape [2, 2, 2]
+    var inputArrayA: [2][2][2]f32 = [_][2][2]f32{
+        [_][2]f32{ [_]f32{ 1.0, 2.0 }, [_]f32{ 3.0, 4.0 } },
+        [_][2]f32{ [_]f32{ 5.0, 6.0 }, [_]f32{ 7.0, 8.0 } },
+    };
+    var shapeA: [3]usize = [_]usize{ 2, 2, 2 };
+    var tA = try Tensor(f32).fromArray(&allocator, &inputArrayA, &shapeA);
+    defer tA.deinit();
+
+    // Tensor B: shape [2, 2, 3]
+    var inputArrayB: [2][2][3]f32 = [_][2][3]f32{
+        [_][3]f32{ [_]f32{ 9.0, 10.0, 11.0 }, [_]f32{ 12.0, 13.0, 14.0 } },
+        [_][3]f32{ [_]f32{ 15.0, 16.0, 17.0 }, [_]f32{ 18.0, 19.0, 20.0 } },
+    };
+    var shapeB: [3]usize = [_]usize{ 2, 2, 3 };
+    var tB = try Tensor(f32).fromArray(&allocator, &inputArrayB, &shapeB);
+    defer tB.deinit();
+
+    var tensors = [_]Tensor(f32){ tA, tB };
+
+    // Perform concatenation along axis 2
+    var result_tensor = try TensMath.concatenate(f32, &allocator, &tensors, 2);
+    defer result_tensor.deinit();
+
+    const expected_data: [2][2][5]f32 = [_][2][5]f32{
+        [_][5]f32{
+            [_]f32{ 1.0, 2.0, 9.0, 10.0, 11.0 },
+            [_]f32{ 3.0, 4.0, 12.0, 13.0, 14.0 },
+        },
+        [_][5]f32{
+            [_]f32{ 5.0, 6.0, 15.0, 16.0, 17.0 },
+            [_]f32{ 7.0, 8.0, 18.0, 19.0, 20.0 },
+        },
+    };
+
+    try std.testing.expect(result_tensor.shape[0] == 2);
+    try std.testing.expect(result_tensor.shape[1] == 2);
+    try std.testing.expect(result_tensor.shape[2] == 5);
+
+    for (0..2) |i| {
+        for (0..2) |j| {
+            for (0..5) |k| {
+                try std.testing.expect(result_tensor.data[i * 2 * 5 + j * 5 + k] == expected_data[i][j][k]);
+            }
+        }
+    }
+}
