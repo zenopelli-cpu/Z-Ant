@@ -379,10 +379,6 @@ test "To Tensor Batch Test" {
     featureSlices[1] = &features[1];
     const labelSlice: []f64 = &labelSlices;
 
-    var shapeXArr = [_]usize{ 1, 3 };
-    var shapeYArr = [_]usize{1};
-    var shapeX: []usize = &shapeXArr;
-    var shapeY: []usize = &shapeYArr;
     var loader = DataLoader(f64, f64, u8, 1, 2){
         .X = &featureSlices,
         .y = labelSlice,
@@ -391,9 +387,13 @@ test "To Tensor Batch Test" {
         .XBatch = undefined,
         .yBatch = undefined,
     };
+    var shapeXArr = [_]usize{ loader.batchSize, 3 };
+    var shapeYArr = [_]usize{loader.batchSize};
+    var shapeX: []usize = &shapeXArr;
+    var shapeY: []usize = &shapeYArr;
 
-    _ = loader.xNextBatch(1);
-    _ = loader.yNextBatch(1);
+    _ = loader.xNextBatch();
+    _ = loader.yNextBatch();
     try loader.toTensor(&allocator, &shapeX, &shapeY);
     try std.testing.expect(loader.xTensor.shape[0] == 1);
     try std.testing.expect(loader.xTensor.shape[1] == 3);
@@ -405,7 +405,7 @@ test "To Tensor Batch Test" {
 
 test "MNIST batch and to Tensor test" {
     var allocator = pkgAllocator.allocator;
-    var loader = DataLoader(f64, f64, f64, 1, 2){
+    var loader = DataLoader(f64, f64, f64, 2, 2){
         .X = undefined,
         .y = undefined,
         .xTensor = undefined,
@@ -422,12 +422,12 @@ test "MNIST batch and to Tensor test" {
 
     try std.testing.expectEqual(loader.X.len, 10000);
     try std.testing.expectEqual(loader.y.len, 10000);
-    var shapeXArr = [_]usize{ 2, 784 };
-    var shapeYArr = [_]usize{2};
+    var shapeXArr = [_]usize{ loader.batchSize, 784 };
+    var shapeYArr = [_]usize{loader.batchSize};
     var shapeX: []usize = &shapeXArr;
     var shapeY: []usize = &shapeYArr;
-    _ = loader.xNextBatch(2);
-    _ = loader.yNextBatch(2);
+    _ = loader.xNextBatch();
+    _ = loader.yNextBatch();
     try loader.toTensor(&allocator, &shapeX, &shapeY);
     try std.testing.expect(loader.xTensor.shape[0] == 2);
     try std.testing.expect(loader.xTensor.shape[1] == 784);
@@ -438,7 +438,7 @@ test "MNIST batch and to Tensor test" {
 }
 test "Shuffling and data split" {
     var allocator = pkgAllocator.allocator;
-    var loader = DataLoader(f64, f64, f64, 1, 2){
+    var loader = DataLoader(f64, f64, f64, 32, 2){
         .X = undefined,
         .y = undefined,
         .xTensor = undefined,
@@ -450,8 +450,8 @@ test "Shuffling and data split" {
 
     const image_file_name: []const u8 = "datasets/t10k-images-idx3-ubyte";
     const label_file_name: []const u8 = "datasets/t10k-labels-idx1-ubyte";
-    var shapeXArr = [_]usize{ 32, 784 };
-    var shapeYArr = [_]usize{32};
+    var shapeXArr = [_]usize{ loader.batchSize, 784 };
+    var shapeYArr = [_]usize{loader.batchSize};
     var shapeX: []usize = &shapeXArr;
     var shapeY: []usize = &shapeYArr;
 
@@ -461,10 +461,10 @@ test "Shuffling and data split" {
     const train_samples = loader.X_train.?.len;
     const test_samples = loader.X_test.?.len;
     try std.testing.expect(test_samples == total_samples - train_samples);
-    const x_batch = loader.xTrainNextBatch(32) orelse unreachable;
-    const y_batch = loader.yTrainNextBatch(32) orelse unreachable;
-    const x_testBatch = loader.xTestNextBatch(32) orelse unreachable;
-    const y_testBatch = loader.yTestNextBatch(32) orelse unreachable;
+    const x_batch = loader.xTrainNextBatch() orelse unreachable;
+    const y_batch = loader.yTrainNextBatch() orelse unreachable;
+    const x_testBatch = loader.xTestNextBatch() orelse unreachable;
+    const y_testBatch = loader.yTestNextBatch() orelse unreachable;
 
     try std.testing.expect(x_batch.len == 32);
     try std.testing.expect(y_batch.len == 32);
@@ -493,8 +493,8 @@ test "Shuffling and data split 2D" {
     const image_file_name: []const u8 = "datasets/t10k-images-idx3-ubyte";
     const label_file_name: []const u8 = "datasets/t10k-labels-idx1-ubyte";
 
-    var shapeXArr = [_]usize{ 32, 28, 28 };
-    var shapeYArr = [_]usize{32};
+    var shapeXArr = [_]usize{ loader.batchSize, 28, 28 };
+    var shapeYArr = [_]usize{loader.batchSize};
     var shapeX: []usize = &shapeXArr;
     var shapeY: []usize = &shapeYArr;
 
@@ -507,10 +507,10 @@ test "Shuffling and data split 2D" {
 
     try std.testing.expect(test_samples == total_samples - train_samples);
 
-    const x_batch = loader.xTrainNextBatch(32) orelse unreachable;
-    const y_batch = loader.yTrainNextBatch(32) orelse unreachable;
-    const x_testBatch = loader.xTestNextBatch(32) orelse unreachable;
-    const y_testBatch = loader.yTestNextBatch(32) orelse unreachable;
+    const x_batch = loader.xTrainNextBatch() orelse unreachable;
+    const y_batch = loader.yTrainNextBatch() orelse unreachable;
+    const x_testBatch = loader.xTestNextBatch() orelse unreachable;
+    const y_testBatch = loader.yTestNextBatch() orelse unreachable;
 
     try std.testing.expect(x_batch.len == 32);
     try std.testing.expect(y_batch.len == 32);

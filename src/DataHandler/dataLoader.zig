@@ -73,9 +73,9 @@ pub fn DataLoader(comptime OutType: type, comptime Ftype: type, comptime LabelTy
         }
         //Maybe do batch size as a "attribute of the struct"
         ///Get the next batch of data
-        pub fn xNextBatch(self: *@This(), batch_size: usize) ?[][]OutType {
+        pub fn xNextBatch(self: *@This()) ?[][]OutType {
             const start = self.x_index;
-            const end = @min(start + batch_size, self.X.len);
+            const end = @min(start + self.batchSize, self.X.len);
 
             if (start >= end) return null;
 
@@ -85,9 +85,9 @@ pub fn DataLoader(comptime OutType: type, comptime Ftype: type, comptime LabelTy
             return batch;
         }
         ///Y next label iterator like in batch
-        pub fn yNextBatch(self: *@This(), batch_size: usize) ?[]OutType {
+        pub fn yNextBatch(self: *@This()) ?[]OutType {
             const start = self.y_index;
-            const end = @min(start + batch_size, self.y.len);
+            const end = @min(start + self.batchSize, self.y.len);
 
             if (start >= end) return null;
 
@@ -160,12 +160,12 @@ pub fn DataLoader(comptime OutType: type, comptime Ftype: type, comptime LabelTy
             }
         }
 
-        pub fn xTrainNextBatch(self: *@This(), batch_size: usize) ?MagicalReturnType(OutType, dimInput) {
+        pub fn xTrainNextBatch(self: *@This()) ?MagicalReturnType(OutType, dimInput) {
             if (self.X_train == null) return null;
             const x_train = self.X_train.?;
 
             const start = self.x_train_index;
-            const end = @min(start + batch_size, x_train.len);
+            const end = @min(start + self.batchSize, x_train.len);
 
             if (start >= end) return null;
 
@@ -175,12 +175,12 @@ pub fn DataLoader(comptime OutType: type, comptime Ftype: type, comptime LabelTy
             return batch;
         }
 
-        pub fn yTrainNextBatch(self: *@This(), batch_size: usize) ?[]OutType {
+        pub fn yTrainNextBatch(self: *@This()) ?[]OutType {
             if (self.y_train == null) return null;
             const y_train = self.y_train.?;
 
             const start = self.y_train_index;
-            const end = @min(start + batch_size, y_train.len);
+            const end = @min(start + self.batchSize, y_train.len);
 
             if (start >= end) return null;
 
@@ -190,12 +190,12 @@ pub fn DataLoader(comptime OutType: type, comptime Ftype: type, comptime LabelTy
             return batch;
         }
 
-        pub fn xTestNextBatch(self: *@This(), batch_size: usize) ?MagicalReturnType(OutType, dimInput) {
+        pub fn xTestNextBatch(self: *@This()) ?MagicalReturnType(OutType, dimInput) {
             if (self.X_test == null) return null;
             const x_test = self.X_test.?;
 
             const start = self.x_test_index;
-            const end = @min(start + batch_size, x_test.len);
+            const end = @min(start + self.batchSize, x_test.len);
 
             if (start >= end) return null;
 
@@ -205,12 +205,12 @@ pub fn DataLoader(comptime OutType: type, comptime Ftype: type, comptime LabelTy
             return batch;
         }
 
-        pub fn yTestNextBatch(self: *@This(), batch_size: usize) ?[]OutType {
+        pub fn yTestNextBatch(self: *@This()) ?[]OutType {
             if (self.y_test == null) return null;
             const y_test = self.y_test.?;
 
             const start = self.y_test_index;
-            const end = @min(start + batch_size, y_test.len);
+            const end = @min(start + self.batchSize, y_test.len);
 
             if (start >= end) return null;
 
