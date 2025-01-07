@@ -17,33 +17,61 @@ pub fn normalize(comptime T: anytype, tensor: *Tensor(T), normalizationType: Nor
 
 /// Normalize each row in a multidimensional tensor
 fn multidimNormalizeUnityBased(comptime T: anytype, tensor: *Tensor(T)) !void {
-    // --- Checks ---
-    // T must be float
+    // --- Type Checks ---
+    // Ensure that T is a floating-point type
     if (@typeInfo(T) != .Float) return error.NotFloatType;
 
-    var counter: usize = 0; //counter counts the rows in all the tensor, indipendently of the shape
-    const cols: usize = tensor.shape[tensor.shape.len - 1]; //aka: elements per row
-    const numb_of_rows = tensor.data.len / cols;
+    // --- Shape Checks ---
+    // Expecting a tensor with at least 2 dimensions
+    if (tensor.shape.len < 2) {
+        return error.InvalidTensorShape;
+    }
 
-    var delta: T = 0;
+    // Determine normalization parameters based on tensor dimensionality
+    var slice_size: usize = 1;
+    var num_slices: usize = 1;
 
-    while (counter < numb_of_rows) {
-        var max = tensor.data[counter * cols];
-        var min = tensor.data[counter * cols];
+    if (tensor.shape.len == 2) {
+        // For 2D tensors: [batch, features]
+        slice_size = tensor.shape[1];
+        num_slices = tensor.shape[0];
+    } else if (tensor.shape.len == 4) {
+        // For 4D tensors: [batch, channels, width, height]
+        slice_size = tensor.shape[2] * tensor.shape[3];
+        num_slices = tensor.shape[0] * tensor.shape[1];
+    } else {
+        // Unsupported tensor shape
+        return error.UnsupportedTensorShape;
+    }
 
-        // Find max and min for each row
-        for (0..cols) |i| {
-            if (tensor.data[counter * cols + i] > max) max = tensor.data[counter * cols + i];
-            if (tensor.data[counter * cols + i] < min) min = tensor.data[counter * cols + i];
+    // Iterate over each slice and perform min-max normalization
+    for (0..num_slices) |slice_idx| {
+        // Calculate the starting index for the current slice in the flat data array
+        const slice_offset = slice_idx * slice_size;
+
+        // --- Step 1: Find Min and Max ---
+        var slice_min: T = tensor.data[slice_offset];
+        var slice_max: T = tensor.data[slice_offset];
+
+        for (0..slice_size) |i| {
+            const val = tensor.data[slice_offset + i];
+            if (val > slice_max) slice_max = val;
+            if (val < slice_min) slice_min = val;
         }
-        delta = max - min;
 
-        // Update tensor for 1D normalization
-        for (0..cols) |i| {
-            tensor.data[counter * cols + i] = if (delta == 0) 0 else (tensor.data[counter * cols + i] - min) / delta;
+        // --- Step 2: Compute Delta ---
+        const delta = slice_max - slice_min;
+
+        // --- Step 3: Normalize Each Element ---
+        for (0..slice_size) |i| {
+            const idx = slice_offset + i;
+            if (delta != 0) {
+                tensor.data[idx] = (tensor.data[idx] - slice_min) / delta;
+            } else {
+                // If delta is zero (all elements are the same), set normalized value to 0
+                tensor.data[idx] = 0;
+            }
         }
-
-        counter += 1;
     }
 }
 
