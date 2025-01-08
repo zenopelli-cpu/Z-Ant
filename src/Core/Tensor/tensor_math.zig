@@ -70,6 +70,32 @@ pub fn mean(comptime T: anytype, tensor: *Tensor(T)) f32 {
     return res;
 }
 
+pub fn equal(comptime T: anytype, t1: *Tensor(T), t2: *Tensor(T)) bool {
+    //same size
+    if (t1.size != t2.size) {
+        std.debug.print("\n\n ERROR:WRONG SIZE t1.size:{} t2.size:{}", .{ t1.size, t2.size });
+        return false;
+    }
+
+    //same shape
+    for (0..t1.shape.len) |i| {
+        if (t1.shape[i] != t2.shape[i]) {
+            std.debug.print("\n\n ERROR: WRONG SHAPE t1.shape[{}]:{} t2.shape[{}]:{}", .{ i, t1.shape[i], i, t2.shape[i] });
+            return false;
+        }
+    }
+
+    //same data
+    for (0..t1.data.len) |i| {
+        if (t1.data[i] != t2.data[i]) {
+            std.debug.print("\n\n ERROR: WRONG DATA t1.data[{}]:{} t2.data[{}]:{}", .{ i, t1.data[i], i, t2.data[i] });
+            return false;
+        }
+    }
+
+    return true;
+}
+
 ///Returns a Tensor with the same shape pf t1 and t2, where each element --> out[location] = t1[location] + t2[location]
 pub fn sum_tensors(comptime arch: Architectures, comptime Tin: anytype, comptime Tout: anytype, t1: *Tensor(Tin), t2: *Tensor(Tin)) !Tensor(Tout) {
 
