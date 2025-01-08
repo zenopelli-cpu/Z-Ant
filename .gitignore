@@ -13,6 +13,7 @@
 
 # Ignore IDE/editor files
 .vscode/
+.VSC*
 .idea/
 
 #ignore zig cache

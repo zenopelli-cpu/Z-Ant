@@ -42,7 +42,7 @@ pub fn Model(comptime T: type) type {
             self.layers.deinit();
             std.debug.print("\n -.-.-> model layers deinitialized", .{});
 
-            self.input_tensor.deinit(); // pay attention! input_tensor is initialised only if forward() is run at leas once. Sess self.forward()
+            self.input_tensor.deinit(); // pay attention! input_tensor is initialised only if forward() is run at least once.
             std.debug.print("\n -.-.-> model input_tensor deinitialized", .{});
         }
 

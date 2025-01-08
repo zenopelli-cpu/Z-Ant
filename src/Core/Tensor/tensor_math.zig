@@ -86,11 +86,9 @@ pub fn equal(comptime T: anytype, t1: *Tensor(T), t2: *Tensor(T)) bool {
     }
 
     //same data
-    for (0..t1.data.len) |i| {
-        if (t1.data[i] != t2.data[i]) {
-            std.debug.print("\n\n ERROR: WRONG DATA t1.data[{}]:{} t2.data[{}]:{}", .{ i, t1.data[i], i, t2.data[i] });
-            return false;
-        }
+    if (!std.mem.eql(T, t1.data, t2.data)) {
+        std.debug.print("\n\n ERROR: WRONG DATA", .{});
+        return false;
     }
 
     return true;
