@@ -77,8 +77,8 @@ pub fn TrainDataLoader(
         var optimizer = Optim.Optimizer(T, XType, YType, Optim.optimizer_SGD, lr, allocator){};
 
         for (0..steps) |step| {
-            _ = load.xTrainNextBatch(batchSize);
-            _ = load.yTrainNextBatch(batchSize);
+            _ = load.xTrainNextBatch();
+            _ = load.yTrainNextBatch();
             try load.toTensor(allocator, &shapeX, &shapeY);
             try convertToOneHot(T, batchSize, &load.yTensor);
 
@@ -206,8 +206,8 @@ pub fn TrainDataLoader2D(
         var totalSamplesVal: u16 = 0;
 
         for (0..steps) |step| {
-            _ = load.xTrainNextBatch(batchSize);
-            _ = load.yTrainNextBatch(batchSize);
+            _ = load.xTrainNextBatch();
+            _ = load.yTrainNextBatch();
             try load.toTensor(allocator, &shapeX, &shapeY);
 
             try convertToOneHot(T, batchSize, &load.yTensor);
@@ -256,8 +256,8 @@ pub fn TrainDataLoader2D(
         std.debug.print("\nNumber of validation steps: {}\n", .{val_steps});
 
         for (0..val_steps) |step| {
-            _ = load.xTestNextBatch(batchSize);
-            _ = load.yTestNextBatch(batchSize);
+            _ = load.xTestNextBatch();
+            _ = load.yTestNextBatch();
             try load.toTensor(allocator, &shapeX, &shapeY);
             try convertToOneHot(T, batchSize, &load.yTensor);
             //try DataProc.normalize(T, &load.xTensor, NormalizType.UnityBasedNormalizartion);

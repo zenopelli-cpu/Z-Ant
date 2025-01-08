@@ -19,11 +19,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Installa Zig (sostituisci la versione con quella desiderata)
 ENV ZIG_VERSION=0.13.0
-RUN wget https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz \
-    && tar xf zig-linux-x86_64-${ZIG_VERSION}.tar.xz \
-    && mv zig-linux-x86_64-${ZIG_VERSION} /opt/zig \
+RUN wget https://ziglang.org/download/${ZIG_VERSION}/zig-linux-$(arch)-${ZIG_VERSION}.tar.xz \
+    && tar xf zig-linux-$(arch)-${ZIG_VERSION}.tar.xz \
+    && mv zig-linux-$(arch)-${ZIG_VERSION} /opt/zig \
     && ln -s /opt/zig/zig /usr/local/bin/zig \
-    && rm zig-linux-x86_64-${ZIG_VERSION}.tar.xz
+    && rm zig-linux-$(arch)-${ZIG_VERSION}.tar.xz
 
 # Imposta la directory di lavoro
 WORKDIR /workspace
