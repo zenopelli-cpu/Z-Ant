@@ -159,12 +159,11 @@ pub fn importLayer(
 
     //TODO: handle Default layer and null layer
     if (std.mem.eql(u8, &layer_type_string, "Dense.....")) {
-        const denseLayerPtr = try allocator.create(DenseLayer(T));
+        var denseLayerPtr: *DenseLayer(T) = undefined;
 
-        denseLayerPtr.* = try importLayerDense(T, allocator, reader);
+        denseLayerPtr = &(try importLayerDense(T, allocator, reader));
         // Transfer ownership to the Layer
         const newLayer = DenseLayer(T).create(denseLayerPtr);
-        defer {} // Cancel previous defer since ownership is transferred
 
         return newLayer;
     } else if (std.mem.eql(u8, &layer_type_string, "Activation")) {

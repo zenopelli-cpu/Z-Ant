@@ -37,7 +37,7 @@ test "Sum two tensors on CPU architecture" {
 }
 
 test " equal() " {
-    std.debug.print("\n     test: Error when input tensors have different sizes", .{});
+    std.debug.print("\n     test:equal()", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray: [2][2]f32 = [_][2]f32{
@@ -53,6 +53,28 @@ test " equal() " {
     defer t2.deinit();
 
     try std.testing.expect(TensMath.equal(f32, &t1, &t2) == true);
+
+    //wrong data
+    var inputArray3: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 4.0, 333.0 },
+    };
+
+    var shape3: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
+
+    var t3 = try Tensor(f32).fromArray(&allocator, &inputArray3, &shape3);
+    defer t3.deinit();
+
+    try std.testing.expect(TensMath.equal(f32, &t3, &t2) == false);
+
+    //wrong shape
+
+    var shape4: [2]usize = [_]usize{ 1, 4 }; // 2x2 matrix
+
+    var t4 = try Tensor(f32).fromArray(&allocator, &inputArray3, &shape4);
+    defer t4.deinit();
+
+    try std.testing.expect(TensMath.equal(f32, &t4, &t2) == false);
 }
 
 test "Error when input tensors have different sizes" {
