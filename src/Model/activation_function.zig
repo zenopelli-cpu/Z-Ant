@@ -9,6 +9,7 @@ pub const ActivationType = enum {
     Sigmoid,
     Softmax,
     None,
+    LeakyReLU,
 };
 
 /// Activation function Interface, used to instantiate a Loss Function struct
@@ -18,6 +19,7 @@ pub fn ActivationFunction(comptime T: anytype, activationType: ActivationType) t
         ActivationType.ReLU => ReLU(T),
         ActivationType.Sigmoid => Sigmoid(T),
         ActivationType.Softmax => Softmax(T),
+        ActivationType.LeakyReLU => LeakyReLU(T),
         ActivationType.None => None(),
     };
 }
@@ -57,6 +59,51 @@ pub fn ReLU(comptime T: anytype) type {
             for (0..(gradient.size - 1)) |i| {
                 if (act_relu_input.data[i] <= 0) {
                     gradient.data[i] = 0;
+                }
+            }
+        }
+    };
+}
+/// Leaky ReLU is a variant of ReLU that allows a small, positive gradient when the input is negative.
+/// This can help prevent the dying ReLU problem, where neurons stop learning if they get stuck in the negative side of the ReLU function.
+/// The leaky parameter is a small value that determines how much the function leaks into the negative side.
+/// A common value for the leaky parameter is 0.01.
+/// The Leaky ReLU function is defined as:
+/// f(x) = x if x > 0
+/// f(x) = alpha * x if x <= 0
+/// where alpha is a small constant.
+/// The derivative of the Leaky ReLU function is:
+/// f'(x) = 1 if x > 0
+/// f'(x) = alpha if x <= 0
+pub fn LeakyReLU(comptime T: anytype) type {
+    return struct {
+        const Self = @This();
+        pub fn forward(self: *Self, input: *Tensor(T)) !void {
+            _ = self;
+
+            //checks
+            if (input.size <= 0) return TensorError.ZeroSizeTensor;
+
+            //apply Leaky ReLU suing relu self.relu() - (-neg_slope*self).relu()
+            for (0..input.size) |i| {
+                if (input.data[i] <= 0) {
+                    input.data[i] = 0.01 * input.data[i];
+                }
+            }
+        }
+
+        pub fn derivate(self: *Self, gradient: *Tensor(T), act_relu_input: *Tensor(T)) !void {
+            _ = self;
+            //checks
+            if (gradient.size <= 0 or act_relu_input.size <= 0) return TensorError.ZeroSizeTensor;
+            if (gradient.size != act_relu_input.size) return TensorMathError.InputTensorDifferentSize;
+
+            //apply Leaky ReLU
+            for (0..gradient.size) |i| {
+                if (act_relu_input.data[i] > 0) {
+                    gradient.data[i] *= 1;
+                } else {
+                    gradient.data[i] *= 0.01;
                 }
             }
         }
