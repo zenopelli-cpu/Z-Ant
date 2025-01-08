@@ -63,6 +63,7 @@ pub const TensorError = error{
     MismatchedRank,
     MismatchedShape,
     IndexOutOfBounds,
+    InvalidAxis,
 };
 
 /// A union type to represent any of the errors
