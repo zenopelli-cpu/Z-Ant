@@ -649,6 +649,11 @@ pub fn Tensor(comptime T: type) type {
             return flipped_kernel;
         }
 
+        /// Gather elements from the tensor along an axis using the provided indices.
+        /// The axis parameter specifies the axis along which the elements will be gathered.
+        /// The indices tensor must have the same number of dimensions as the input tensor, except for the axis dimension.
+        /// The shape of the output tensor is the same as the shape of the indices tensor, with the axis dimension removed.
+        /// The output tensor is created by copying elements from the input tensor using the indices tensor.
         pub fn gather(self: *@This(), indices: Tensor(usize), axis: usize) !@This() {
             // Validate that the axis is within the tensor's dimensions
             if (axis >= self.shape.len) {
