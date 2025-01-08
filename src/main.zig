@@ -74,7 +74,7 @@ pub fn main() !void {
             stride: [2]usize,
         }{
             .input_channels = 16,
-            .kernel_shape = .{ 16, 16, 2, 2 }, //filters, channels, rows, cols
+            .kernel_shape = .{ 16, 16, 3, 3 }, //filters, channels, rows, cols
             .stride = .{ 1, 1 },
         }),
     );
@@ -113,7 +113,7 @@ pub fn main() !void {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 10816,
+        .n_inputs = 10000,
         .n_neurons = 256,
     }));
     try model.addLayer(layer3_);
@@ -132,7 +132,7 @@ pub fn main() !void {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 10816,
+        .n_inputs = 10000,
         .n_neurons = 256,
     }));
     try model.addLayer(layer3_act);

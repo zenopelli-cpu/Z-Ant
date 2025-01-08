@@ -648,6 +648,95 @@ pub fn Tensor(comptime T: type) type {
 
             return flipped_kernel;
         }
+
+        /// Gather elements from the tensor along an axis using the provided indices.
+        /// The axis parameter specifies the axis along which the elements will be gathered.
+        /// The indices tensor must have the same number of dimensions as the input tensor, except for the axis dimension.
+        /// The shape of the output tensor is the same as the shape of the indices tensor, with the axis dimension removed.
+        /// The output tensor is created by copying elements from the input tensor using the indices tensor.
+        pub fn gather(self: *@This(), indices: Tensor(usize), axis: usize) !@This() {
+            // Validate that the axis is within the tensor's dimensions
+            if (axis >= self.shape.len) {
+                return TensorError.InvalidAxis;
+            }
+
+            // Calculate the shape of the output tensor:
+            // [data.shape[0..axis], indices.shape..., data.shape[axis+1..]]
+            const output_shape_len = self.shape.len - 1 + indices.shape.len;
+            const output_shape = try self.allocator.alloc(usize, output_shape_len);
+
+            // Copy the dimensions before the axis
+            for (0..axis) |i| {
+                output_shape[i] = self.shape[i];
+            }
+
+            // Copy the indices tensor's shape
+            for (0..indices.shape.len) |i| {
+                output_shape[axis + i] = indices.shape[i];
+            }
+
+            // Copy the dimensions after the axis
+            for (0..(self.shape.len - axis - 1)) |i| {
+                output_shape[axis + indices.shape.len + i] = self.shape[axis + 1 + i];
+            }
+
+            // Compute the total number of elements in each segment
+            var outer_size: usize = 1;
+            for (0..axis) |i| outer_size *= self.shape[i];
+
+            var indices_size: usize = 1;
+            for (0..indices.shape.len) |i| indices_size *= indices.shape[i];
+
+            var inner_size: usize = 1;
+            for (axis + 1..self.shape.len) |i| inner_size *= self.shape[i];
+
+            // Compute the total size of the output tensor
+            const output_total_size = outer_size * indices_size * inner_size;
+
+            // Allocate memory for the output tensor's data
+            const output_data = try self.allocator.alloc(T, output_total_size);
+
+            // Get strides for the input tensor
+            const data_strides = try self.getStrides();
+            defer self.allocator.free(data_strides);
+
+            // Iterate over each "outer" segment
+            for (0..outer_size) |outer_idx| {
+                // Iterate over each index in the indices tensor
+                for (0..indices_size) |idx| {
+                    // Retrieve the gather index from the indices tensor
+                    const gather_idx = try indices.get(idx);
+
+                    // Validate the gather index
+                    if (gather_idx >= self.shape[axis]) {
+                        return TensorError.IndexOutOfBounds;
+                    }
+
+                    // Calculate the correct data_offset
+                    const data_offset = (outer_idx * self.shape[axis] + gather_idx) * inner_size;
+
+                    // Calculate the starting offset in the output tensor
+                    const output_offset = (outer_idx * indices_size + idx) * inner_size;
+
+                    // Debug Prints (optional, can be commented out after debugging)
+                    std.debug.print("Outer Index: {}, Gather Index: {}, Data Offset: {}, Output Offset: {}\n", .{ outer_idx, gather_idx, data_offset, output_offset });
+                    std.debug.print("Copying from input data[{}] = {}\n", .{ data_offset, self.data[data_offset] });
+
+                    // Perform the data copy using std.mem.copy
+                    @memcpy(output_data[output_offset .. output_offset + inner_size], self.data[data_offset .. data_offset + inner_size]);
+
+                    std.debug.print("Copied to output data[{}] = {}\n", .{ output_offset, output_data[output_offset] });
+                }
+            }
+
+            // Create and return the new tensor with the gathered data and calculated shape
+            return @This(){
+                .data = output_data,
+                .size = output_total_size,
+                .shape = output_shape,
+                .allocator = self.allocator,
+            };
+        }
     };
 }
 

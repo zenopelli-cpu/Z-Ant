@@ -279,3 +279,112 @@ test "Sigmoid derivate" {
         try std.testing.expect(gradient_tensor.data[i] - expected_values[i] < 0.0001);
     }
 }
+
+//*********************************************** LeakyReLU ***********************************************
+
+test "LeakyReLU from ActivationFunction()" {
+    std.debug.print("\n     test: LeakyReLU from ActivationFunction()", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    var inputArray: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, -2.0 },
+        [_]f32{ -4.0, 5.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer t1.deinit();
+
+    var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
+    try leaky_relu.forward(&t1);
+
+    try std.testing.expect(t1.data[0] == 1.0);
+    try std.testing.expect(@abs(t1.data[1] - (-0.02)) < 0.00001);
+    try std.testing.expect(@abs(t1.data[2] - (-0.04)) < 0.00001);
+    try std.testing.expect(t1.data[3] == 5.0);
+}
+
+test "LeakyReLU all negative" {
+    std.debug.print("\n     test: LeakyReLU all negative", .{});
+
+    const allocator = std.testing.allocator;
+
+    var inputArray: [2][2]f32 = [_][2]f32{
+        [_]f32{ -1.0, -2.0 },
+        [_]f32{ -4.0, -5.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer t1.deinit();
+
+    var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
+    try leaky_relu.forward(&t1);
+
+    for (0..t1.data.len) |i| {
+        try std.testing.expect(@abs(t1.data[i] - (0.01 * inputArray[i / shape[1]][i % shape[1]])) < 0.00001);
+    }
+}
+
+test "LeakyReLU all positive" {
+    std.debug.print("\n     test: LeakyReLU all positive", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    var inputArray: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 4.0, 5.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer t1.deinit();
+
+    var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
+    try leaky_relu.forward(&t1);
+
+    for (0..t1.data.len) |i| {
+        try std.testing.expect(t1.data[i] == inputArray[i / shape[1]][i % shape[1]]);
+    }
+}
+
+test "LeakyReLU backward" {
+    std.debug.print("\n     test: LeakyReLU backward", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    var inputArray: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, -2.0 },
+        [_]f32{ -4.0, 5.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
+
+    var t_input = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer t_input.deinit();
+
+    var t_gradient = try t_input.copy();
+    defer t_gradient.deinit();
+
+    var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
+    try leaky_relu.forward(&t_input);
+
+    var dValues: [2][2]f32 = [_][2]f32{
+        [_]f32{ 10.0, -20.0 },
+        [_]f32{ -40.0, -50.0 },
+    };
+
+    var t_dValues = try Tensor(f32).fromArray(&allocator, &dValues, &shape);
+    defer t_dValues.deinit();
+
+    try leaky_relu.derivate(&t_dValues, &t_input);
+
+    try std.testing.expect(t_dValues.data[0] == 10.0);
+    try std.testing.expect(@abs(t_dValues.data[1] - (-20.0 * 0.01)) < 0.00001);
+    try std.testing.expect(@abs(t_dValues.data[2] - (-40.0 * 0.01)) < 0.00001);
+    try std.testing.expect(t_dValues.data[3] == -50.0);
+}
