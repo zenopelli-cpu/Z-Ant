@@ -4,6 +4,7 @@ const Model = @import("model").Model;
 const layer = @import("layer");
 const denselayer = @import("denselayer");
 const actlayer = @import("activationlayer");
+const convlayer = @import("convLayer");
 const Tensor = @import("tensor").Tensor;
 const ActivationType = @import("activation_function").ActivationType;
 const Trainer = @import("trainer");
@@ -130,6 +131,84 @@ test "Import/Export of dense layer" {
     for (0..denseImportedPtr.bias.data.len) |i| {
         try std.testing.expect(denseImportedPtr.bias.data[i] == dense_layer1.bias.data[i]);
     }
+
+    try std.fs.cwd().deleteFile(file_path);
+}
+
+test "Import/Export of convolutional layer" {
+    std.debug.print("\n     test: Import/Export of convolutional layer", .{});
+    const allocator = std.heap.raw_c_allocator; //OSS!! denseLayerPtr in importLayer() is not freed
+    const file_path = "importExportDenseLayerTestFile.bin";
+
+    //EXPORT
+    var file = try std.fs.cwd().createFile(file_path, .{});
+    const writer = file.writer();
+
+    var conv_layer0 = convlayer.ConvolutionalLayer(f64){
+        .weights = undefined,
+        .bias = undefined,
+        .input = undefined,
+        .output = undefined,
+        .input_channels = 0,
+        .kernel_shape = undefined,
+        .stride = undefined,
+        .w_gradients = undefined,
+        .b_gradients = undefined,
+        .allocator = &allocator,
+    };
+    var layer0_ = conv_layer0.create();
+    try layer0_.init(
+        &allocator,
+        @constCast(&struct {
+            input_channels: usize,
+            kernel_shape: [4]usize,
+            stride: [2]usize,
+        }{
+            .input_channels = 16,
+            .kernel_shape = .{ 16, 16, 3, 3 }, //filters, channels, rows, cols
+            .stride = .{ 1, 1 },
+        }),
+    );
+    defer layer0_.deinit();
+
+    try model_import_export.exportLayer(f64, layer0_, writer);
+
+    file.close();
+
+    // IMPORT
+    file = try std.fs.cwd().openFile(file_path, .{});
+    const reader = file.reader();
+
+    var layer_imported = try model_import_export.importLayer(f64, &allocator, reader);
+    defer layer_imported.deinit();
+
+    file.close();
+
+    // same type
+    std.debug.print("\n same type: {any}={any}", .{ layer_imported.layer_type, layer0_.layer_type });
+    try std.testing.expect(layer_imported.layer_type == layer0_.layer_type);
+
+    // check layer
+    const convImportedPtr: *convlayer.ConvolutionalLayer(f64) = @alignCast(@ptrCast(layer_imported.layer_ptr));
+
+    // same weights
+    try std.testing.expect(TensMath.equal(f64, &conv_layer0.weights, &convImportedPtr.weights) == true);
+
+    // same bias
+    try std.testing.expect(TensMath.equal(f64, &conv_layer0.bias, &convImportedPtr.bias) == true);
+
+    // same input_channels
+    try std.testing.expectEqual(conv_layer0.input_channels, convImportedPtr.input_channels);
+
+    // same kernel_shape
+    try std.testing.expectEqual(conv_layer0.kernel_shape[0], convImportedPtr.kernel_shape[0]);
+    try std.testing.expectEqual(conv_layer0.kernel_shape[1], convImportedPtr.kernel_shape[1]);
+    try std.testing.expectEqual(conv_layer0.kernel_shape[2], convImportedPtr.kernel_shape[2]);
+    try std.testing.expectEqual(conv_layer0.kernel_shape[3], convImportedPtr.kernel_shape[3]);
+
+    // same stride
+    try std.testing.expectEqual(conv_layer0.stride[0], convImportedPtr.stride[0]);
+    try std.testing.expectEqual(conv_layer0.stride[1], convImportedPtr.stride[1]);
 
     try std.fs.cwd().deleteFile(file_path);
 }
