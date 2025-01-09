@@ -65,14 +65,6 @@ pub fn ActivationLayer(comptime T: type) type {
             self.allocator = alloc;
         }
 
-        pub fn convInit(ctx: *anyopaque, input_channels: usize, output_channels: usize, kernel_size: [2]usize) !void {
-            _ = ctx;
-            _ = input_channels;
-            _ = output_channels;
-            _ = kernel_size;
-            return LayerError.InvalidLayerType;
-        }
-
         ///Deallocate the layer
         pub fn deinit(ctx: *anyopaque) void {
             const self: *Self = @ptrCast(@alignCast(ctx));

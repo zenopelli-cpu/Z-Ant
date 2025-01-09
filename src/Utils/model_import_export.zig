@@ -4,12 +4,15 @@ const Model = @import("model").Model;
 const Layer = @import("layer");
 const DenseLayer = @import("denselayer").DenseLayer;
 const ActivationLayer = @import("activationlayer").ActivationLayer;
+const ConvolutionalLayer = @import("convolutionallayer").ConvolutionalLayer;
 
 const LayerType = @import("layer").LayerType;
 const Tensor = @import("tensor").Tensor;
 const ActivationType = @import("activation_function").ActivationType;
 
-// ----------------- Export -----------------
+// ----------------------------------------------------------------------------
+// ---------------------------------- Export ----------------------------------
+// ----------------------------------------------------------------------------
 pub fn exportModel(
     comptime T: type,
     model: Model(T),
@@ -38,14 +41,18 @@ pub fn exportLayer(
     std.debug.print("\n ... export layer... ", .{});
 
     //TODO: handle Default layer and null layer
-    if (layer.layer_type == LayerType.DenseLayer) {
-        _ = try writer.write("Dense.....");
+    if (layer.layer_type == LayerType.DenseLayer) { // ------ EXPORT DENSE
+        _ = try writer.write("Dense....."); //see #Tags in `import_export_guide.md`
         const denseLayer: *DenseLayer(T) = @alignCast(@ptrCast(layer.layer_ptr));
         try exportLayerDense(T, denseLayer.*, writer);
-    } else if (layer.layer_type == LayerType.ActivationLayer) {
-        _ = try writer.write("Activation");
+    } else if (layer.layer_type == LayerType.ActivationLayer) { // ------ EXPORT ACTIVATION
+        _ = try writer.write("Activation"); //see #Tags in `import_export_guide.md`
         const activationLayer: *ActivationLayer(T) = @alignCast(@ptrCast(layer.layer_ptr));
         try exportLayerActivation(T, activationLayer.*, writer);
+    } else if (layer.layer_type == LayerType.ConvolutionalLayer) { // ------ EXPORT CONVOLUTIONAL
+        _ = try writer.write("Convol...."); //see #Tags in `import_export_guide.md`
+        const convLayer: *ConvolutionalLayer(T) = @alignCast(@ptrCast(layer.layer_ptr));
+        try exportLayerConvolutional(T, convLayer.*, writer);
     }
 }
 
@@ -60,8 +67,26 @@ pub fn exportLayerDense(
     try exportTensor(T, layer.bias, writer);
     try writer.writeInt(usize, layer.n_inputs, std.builtin.Endian.big);
     try writer.writeInt(usize, layer.n_neurons, std.builtin.Endian.big);
-    try exportTensor(T, layer.w_gradients, writer);
-    try exportTensor(T, layer.b_gradients, writer);
+    //try exportTensor(T, layer.w_gradients, writer);
+    //try exportTensor(T, layer.b_gradients, writer);
+}
+
+pub fn exportLayerConvolutional(
+    comptime T: type,
+    layer: ConvolutionalLayer(T),
+    writer: std.fs.File.Writer,
+) !void {
+    std.debug.print(" convolutional ", .{});
+
+    try exportTensor(T, layer.weights, writer);
+    try exportTensor(T, layer.bias, writer);
+    try writer.writeInt(usize, layer.input_channels, std.builtin.Endian.big);
+    try writer.writeInt(usize, layer.kernel_shape[0], std.builtin.Endian.big);
+    try writer.writeInt(usize, layer.kernel_shape[1], std.builtin.Endian.big);
+    try writer.writeInt(usize, layer.kernel_shape[2], std.builtin.Endian.big);
+    try writer.writeInt(usize, layer.kernel_shape[3], std.builtin.Endian.big);
+    try writer.writeInt(usize, layer.stride[0], std.builtin.Endian.big);
+    try writer.writeInt(usize, layer.stride[1], std.builtin.Endian.big);
 }
 
 pub fn exportLayerActivation(
@@ -115,7 +140,10 @@ pub fn writeNumber(
     try writer.writeAll(&buffer);
 }
 
-// ----------------- Import -----------------
+// ----------------------------------------------------------------------------
+// ---------------------------------- Import ----------------------------------
+// ----------------------------------------------------------------------------
+
 pub fn importModel(
     comptime T: type,
     comptime allocator: *const std.mem.Allocator,
@@ -159,19 +187,23 @@ pub fn importLayer(
 
     //TODO: handle Default layer and null layer
     if (std.mem.eql(u8, &layer_type_string, "Dense.....")) {
-        var denseLayerPtr: *DenseLayer(T) = undefined;
-
-        denseLayerPtr = &(try importLayerDense(T, allocator, reader));
+        const denseLayerPtr = try allocator.create(DenseLayer(T));
+        denseLayerPtr.* = try importLayerDense(T, allocator, reader);
         // Transfer ownership to the Layer
         const newLayer = DenseLayer(T).create(denseLayerPtr);
-
+        return newLayer;
+    } else if (std.mem.eql(u8, &layer_type_string, "Convol....")) {
+        const convactivLayerPtr = try allocator.create(ConvolutionalLayer(T));
+        convactivLayerPtr.* = try importLayerConvolutional(T, allocator, reader);
+        // Transfer ownership to the Layer
+        const newLayer = ConvolutionalLayer(T).create(convactivLayerPtr);
         return newLayer;
     } else if (std.mem.eql(u8, &layer_type_string, "Activation")) {
-        return ActivationLayer(T).create(
-            @constCast(
-                &try importLayerActivation(T, allocator, reader),
-            ),
-        );
+        const activLayerPtr = try allocator.create(ActivationLayer(T));
+        activLayerPtr.* = try importLayerActivation(T, allocator, reader);
+        // Transfer ownership to the Layer
+        const newLayer = ActivationLayer(T).create(activLayerPtr);
+        return newLayer;
     } else {
         return error.impossibleLayer;
     }
@@ -186,8 +218,8 @@ pub fn importLayerDense(
     const bias_tens: Tensor(T) = try importTensor(T, allocator, reader);
     const n_inputs = try reader.readInt(usize, std.builtin.Endian.big);
     const n_neurons = try reader.readInt(usize, std.builtin.Endian.big);
-    const w_grad_tens = try importTensor(T, allocator, reader);
-    const b_grad_tens = try importTensor(T, allocator, reader);
+    //const w_grad_tens = try importTensor(T, allocator, reader);
+    //const b_grad_tens = try importTensor(T, allocator, reader);
 
     return DenseLayer(f64){
         .weights = weights_tens,
@@ -196,8 +228,41 @@ pub fn importLayerDense(
         .output = undefined,
         .n_inputs = n_inputs,
         .n_neurons = n_neurons,
-        .w_gradients = w_grad_tens,
-        .b_gradients = b_grad_tens,
+        .w_gradients = undefined, //w_grad_tens,
+        .b_gradients = undefined, //b_grad_tens,
+        .allocator = allocator,
+    };
+}
+
+pub fn importLayerConvolutional(
+    comptime T: type,
+    comptime allocator: *const std.mem.Allocator,
+    reader: std.fs.File.Reader,
+) !ConvolutionalLayer(T) {
+    const weights_tens: Tensor(T) = try importTensor(T, allocator, reader);
+    const bias_tens: Tensor(T) = try importTensor(T, allocator, reader);
+    const input_channels = try reader.readInt(usize, std.builtin.Endian.big);
+
+    var kernel_shape: [4]usize = .{ 0, 0, 0, 0 };
+    kernel_shape[0] = try reader.readInt(usize, std.builtin.Endian.big);
+    kernel_shape[1] = try reader.readInt(usize, std.builtin.Endian.big);
+    kernel_shape[2] = try reader.readInt(usize, std.builtin.Endian.big);
+    kernel_shape[3] = try reader.readInt(usize, std.builtin.Endian.big);
+
+    var stride: [2]usize = .{ 0, 0 };
+    stride[0] = try reader.readInt(usize, std.builtin.Endian.big);
+    stride[1] = try reader.readInt(usize, std.builtin.Endian.big);
+
+    return ConvolutionalLayer(f64){
+        .weights = weights_tens,
+        .bias = bias_tens,
+        .input = undefined,
+        .output = undefined,
+        .input_channels = input_channels,
+        .kernel_shape = .{ kernel_shape[0], kernel_shape[1], kernel_shape[2], kernel_shape[3] },
+        .stride = .{ stride[0], stride[1] },
+        .w_gradients = undefined, //w_gradients_tens,
+        .b_gradients = undefined, //b_grad_tens,
         .allocator = allocator,
     };
 }
