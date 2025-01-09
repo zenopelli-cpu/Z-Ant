@@ -87,6 +87,7 @@ pub fn DenseLayer(comptime T: type) type {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
             //std.debug.print("Deallocating DenseLayer resources...\n", .{});
+            std.debug.print("\nDENSE input.data.len : {}  size:{}", .{ self.input.data.len, self.input.size });
 
             // Dealloc tensors of weights, bias and output if allocated
             if (self.weights.data.len > 0) {
@@ -95,10 +96,6 @@ pub fn DenseLayer(comptime T: type) type {
 
             if (self.bias.data.len > 0) {
                 self.bias.deinit();
-            }
-
-            if (self.output.data.len > 0) {
-                self.output.deinit();
             }
 
             if (self.w_gradients.data.len > 0) {
@@ -111,6 +108,10 @@ pub fn DenseLayer(comptime T: type) type {
 
             if (self.input.data.len > 0) {
                 self.input.deinit();
+            }
+
+            if (self.output.data.len > 0) {
+                self.output.deinit();
             }
 
             std.debug.print("\nDenseLayer resources deallocated.", .{});

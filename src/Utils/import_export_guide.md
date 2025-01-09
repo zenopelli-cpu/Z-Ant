@@ -21,8 +21,13 @@ Depending on the type of layer see the relative format. See [Layer tags](#Layer-
 - **Tensor** : `bias` tensor
 - **usize** : `n_inputs`
 - **usize** : `n_neurons`
-- **Tensor** : `w_gradients` tensor
-- **Tensor** : `b_gradients` tensor
+
+### Convolutional Layer  
+- **Tensor** : `weights` tensor  
+- **Tensor** : `bias` tensor  
+- **usize** : `input_channels`  
+- **[4]usize** : `kernel_shape`  
+- **[2]usize** : `stride`  
 
 ## Model  
 - **usize** : NoLayer, representing the number of layers in the model
