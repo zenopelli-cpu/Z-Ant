@@ -5,6 +5,9 @@ const layer = @import("layer");
 const denselayer = @import("denselayer");
 const actlayer = @import("activationlayer");
 const convlayer = @import("convLayer");
+const flattenlayer = @import("flattenLayer");
+const PoolingLayer = @import("poolingLayer").PoolingLayer;
+
 const Tensor = @import("tensor").Tensor;
 const ActivationType = @import("activation_function").ActivationType;
 const Trainer = @import("trainer");
@@ -422,10 +425,10 @@ test "Export of a DENSE model" {
     try std.fs.cwd().deleteFile(file_path);
 }
 
-test "Export of a DENSE+ACTIVATION model" {
+test "Export/Import of a DENSE+ACTIVATION model" {
     std.debug.print("\n     test: Export of a DENSE+ACTIVATION model", .{});
 
-    const allocator = std.heap.raw_c_allocator; //
+    const allocator = std.heap.raw_c_allocator;
     const file_path = "importExportTestFile.bin";
 
     var model = Model(f64){
@@ -647,4 +650,196 @@ test "Export of a DENSE+ACTIVATION model" {
 
     std.debug.print("\n ------------------------------- imported_model.deinit(); ", .{});
     imported_model.deinit();
+}
+
+test "Export/Import of a COMPLEX model" {
+    std.debug.print("\n     test: Export/Import of a COMPLEX model", .{});
+
+    const allocator = std.heap.raw_c_allocator;
+    const file_path = "importExportTestFile.bin";
+
+    var model = Model(f64){
+        .layers = undefined,
+        .allocator = &allocator,
+        .input_tensor = undefined,
+    };
+    try model.init();
+    defer {
+        std.debug.print("\n ------------------------------- imported_model.deinit(); ", .{});
+        model.deinit();
+    }
+
+    //layer 0 ----------------------------------------------------------------------------
+    var conv_layer = convlayer.ConvolutionalLayer(f64){
+        .weights = undefined,
+        .bias = undefined,
+        .input = undefined,
+        .output = undefined,
+        .input_channels = 0,
+        .kernel_shape = undefined,
+        .stride = undefined,
+        .w_gradients = undefined,
+        .b_gradients = undefined,
+        .allocator = &allocator,
+    };
+    var layer_ = conv_layer.create();
+    try layer_.init(
+        &allocator,
+        @constCast(&struct {
+            input_channels: usize,
+            kernel_shape: [4]usize,
+            stride: [2]usize,
+        }{
+            .input_channels = 1,
+            .kernel_shape = .{ 16, 1, 2, 2 }, //filters, channels, rows, cols
+            .stride = .{ 1, 1 },
+        }),
+    );
+    try model.addLayer(layer_);
+
+    //layer 1 ----------------------------------------------------------------------------
+    var conv_layer2 = convlayer.ConvolutionalLayer(f64){
+        .weights = undefined,
+        .bias = undefined,
+        .input = undefined,
+        .output = undefined,
+        .input_channels = 0,
+        .kernel_shape = undefined,
+        .stride = undefined,
+        .w_gradients = undefined,
+        .b_gradients = undefined,
+        .allocator = &allocator,
+    };
+    var layer2_ = conv_layer2.create();
+    try layer2_.init(
+        &allocator,
+        @constCast(&struct {
+            input_channels: usize,
+            kernel_shape: [4]usize,
+            stride: [2]usize,
+        }{
+            .input_channels = 16,
+            .kernel_shape = .{ 16, 16, 3, 3 }, //filters, channels, rows, cols
+            .stride = .{ 1, 1 },
+        }),
+    );
+    try model.addLayer(layer2_);
+
+    //layer 2 ----------------------------------------------------------------------------
+    var flatten_layer = flattenlayer.FlattenLayer(f64){
+        .input = undefined,
+        .output = undefined,
+        .allocator = &allocator,
+    };
+    var Flattenlayer = flatten_layer.create();
+
+    // Initialize the Flatten layer with placeholder args
+    var init_argsF = flattenlayer.FlattenLayer(f64).FlattenInitArgs{
+        .placeholder = true,
+    };
+    try Flattenlayer.init(&allocator, &init_argsF);
+
+    try model.addLayer(Flattenlayer);
+
+    //layer 3 ----------------------------------------------------------------------------
+    var layer3 = denselayer.DenseLayer(f64){
+        .weights = undefined,
+        .bias = undefined,
+        .input = undefined,
+        .output = undefined,
+        .n_inputs = 0,
+        .n_neurons = 0,
+        .w_gradients = undefined,
+        .b_gradients = undefined,
+        .allocator = undefined,
+    };
+    var layer3_ = denselayer.DenseLayer(f64).create(&layer3);
+    try layer3_.init(&allocator, @constCast(&struct {
+        n_inputs: usize,
+        n_neurons: usize,
+    }{
+        .n_inputs = 10000,
+        .n_neurons = 256,
+    }));
+    try model.addLayer(layer3_);
+
+    //layer 4 ----------------------------------------------------------------------------
+    var layer3Activ = actlayer.ActivationLayer(f64){
+        .input = undefined,
+        .output = undefined,
+        .n_inputs = 0,
+        .n_neurons = 0,
+        .activationFunction = ActivationType.ReLU,
+        .allocator = &allocator,
+    };
+    var layer3_act = actlayer.ActivationLayer(f64).create(&layer3Activ);
+    try layer3_act.init(&allocator, @constCast(&struct {
+        n_inputs: usize,
+        n_neurons: usize,
+    }{
+        .n_inputs = 10000,
+        .n_neurons = 256,
+    }));
+    try model.addLayer(layer3_act);
+
+    //new dense layer
+
+    //layer 5 ----------------------------------------------------------------------------
+    var layer4 = denselayer.DenseLayer(f64){
+        .weights = undefined,
+        .bias = undefined,
+        .input = undefined,
+        .output = undefined,
+        .n_inputs = 0,
+        .n_neurons = 0,
+        .w_gradients = undefined,
+        .b_gradients = undefined,
+        .allocator = undefined,
+    };
+
+    var layer4_ = denselayer.DenseLayer(f64).create(&layer4);
+    try layer4_.init(&allocator, @constCast(&struct {
+        n_inputs: usize,
+        n_neurons: usize,
+    }{
+        .n_inputs = 256,
+        .n_neurons = 10,
+    }));
+
+    try model.addLayer(layer4_);
+
+    //layer 6 ----------------------------------------------------------------------------
+    var layer4Activ = actlayer.ActivationLayer(f64){
+        .input = undefined,
+        .output = undefined,
+        .n_inputs = 0,
+        .n_neurons = 0,
+        .activationFunction = ActivationType.Softmax,
+        .allocator = &allocator,
+    };
+    var layer4_act = actlayer.ActivationLayer(f64).create(&layer4Activ);
+    try layer4_act.init(&allocator, @constCast(&struct {
+        n_inputs: usize,
+        n_neurons: usize,
+    }{
+        .n_inputs = 256,
+        .n_neurons = 10,
+    }));
+    try model.addLayer(layer4_act);
+
+    try model_import_export.exportModel(f64, model, file_path);
+
+    var imported_model = try model_import_export.importModel(f64, &allocator, file_path);
+    defer {
+        std.debug.print("\n ------------------------------- imported_model.deinit(); ", .{});
+        imported_model.deinit();
+    }
+
+    //check same layers
+    std.debug.print("\n n layer model:{}, n layer imported_model:{}", .{ model.layers.items.len, imported_model.layers.items.len });
+    try std.testing.expect(imported_model.layers.items.len == model.layers.items.len);
+    for (0..imported_model.layers.items.len) |i| {
+        try std.testing.expect(imported_model.layers.items[i].layer_type == model.layers.items[i].layer_type);
+        std.debug.print("\n\ntype:{}", .{imported_model.layers.items[i].layer_type});
+    }
 }

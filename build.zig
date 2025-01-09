@@ -187,6 +187,8 @@ pub fn build(b: *std.Build) void {
     modelImportExport_mod.addImport("errorHandler", errorHandler_mod);
     modelImportExport_mod.addImport("activation_function", activation_mod);
     modelImportExport_mod.addImport("convolutionallayer", convLayer_mod);
+    modelImportExport_mod.addImport("flattenLayer", flattenLayer_mod);
+    modelImportExport_mod.addImport("poolingLayer", poolingLayer_mod);
 
     //************************************************MAIN EXECUTABLE************************************************
 
