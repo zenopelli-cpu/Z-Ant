@@ -29,6 +29,14 @@ Depending on the type of layer see the relative format. See [Layer tags](#Layer-
 - **[4]usize** : `kernel_shape`  
 - **[2]usize** : `stride`  
 
+### Flatten Layer  
+- This layer has no relevant attributes to be saved
+
+### Pooling Layer  
+- **[2]usize** : `kernel`  
+- **[2]usize** : `stride`  
+- **[3]u8** : `poolingType`, see [Pooling Type tags](#Pooling-Type-tags)
+
 ## Model  
 - **usize** : NoLayer, representing the number of layers in the model
 - **Layer** : representing a layer. See Layer above.
@@ -44,7 +52,15 @@ len = 10
 len = 10  
 - "Dense....."
 - "Activation"
-- "MaxPool..."
 - "Convol...."
+- "Flatten..."  
+- "Pooling..."  
+#### Pooling Type tags
+len = 3 
+- "Max"  
+- "Min"  
+- "Avg"  
+
+
 
 

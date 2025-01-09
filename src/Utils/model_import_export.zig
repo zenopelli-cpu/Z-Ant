@@ -5,10 +5,13 @@ const Layer = @import("layer");
 const DenseLayer = @import("denselayer").DenseLayer;
 const ActivationLayer = @import("activationlayer").ActivationLayer;
 const ConvolutionalLayer = @import("convolutionallayer").ConvolutionalLayer;
+const FlattenLayer = @import("flattenLayer").FlattenLayer;
+const PoolingLayer = @import("poolingLayer").PoolingLayer;
 
 const LayerType = @import("layer").LayerType;
 const Tensor = @import("tensor").Tensor;
 const ActivationType = @import("activation_function").ActivationType;
+const PoolingType = @import("poolingLayer").PoolingType;
 
 // ----------------------------------------------------------------------------
 // ---------------------------------- Export ----------------------------------
@@ -53,6 +56,13 @@ pub fn exportLayer(
         _ = try writer.write("Convol...."); //see #Tags in `import_export_guide.md`
         const convLayer: *ConvolutionalLayer(T) = @alignCast(@ptrCast(layer.layer_ptr));
         try exportLayerConvolutional(T, convLayer.*, writer);
+    } else if (layer.layer_type == LayerType.FlattenLayer) { // ------ EXPORT FLATTEN
+        _ = try writer.write("Flatten..."); //see #Tags in `import_export_guide.md`
+        //OSS!! There is nothing to export. We just need to know that it exists to put it in the model
+    } else if (layer.layer_type == LayerType.PoolingLayer) { // ------ EXPORT POOLING
+        _ = try writer.write("Pooling..."); //see #Tags in `import_export_guide.md`
+        const poolLayer: *PoolingLayer(T) = @alignCast(@ptrCast(layer.layer_ptr));
+        try exportLayerPooling(T, poolLayer.*, writer);
     }
 }
 
@@ -107,6 +117,32 @@ pub fn exportLayerActivation(
         _ = try writer.write("Softmax...");
     } else if (layer.activationFunction == ActivationType.None) {
         _ = try writer.write("None......");
+    } else {
+        return error.ImpossibleActivationgType;
+    }
+}
+
+pub fn exportLayerPooling(
+    comptime T: type,
+    layer: PoolingLayer(T),
+    writer: std.fs.File.Writer,
+) !void {
+    std.debug.print(" pooling ", .{});
+
+    try writer.writeInt(usize, layer.kernel[0], std.builtin.Endian.big);
+    try writer.writeInt(usize, layer.kernel[1], std.builtin.Endian.big);
+
+    try writer.writeInt(usize, layer.stride[0], std.builtin.Endian.big);
+    try writer.writeInt(usize, layer.stride[1], std.builtin.Endian.big);
+
+    if (layer.poolingType == PoolingType.Max) {
+        _ = try writer.write("Max");
+    } else if (layer.poolingType == PoolingType.Min) {
+        _ = try writer.write("Min");
+    } else if (layer.poolingType == PoolingType.Avg) {
+        _ = try writer.write("Avg");
+    } else {
+        return error.ImpossiblePoolingType;
     }
 }
 
@@ -204,6 +240,18 @@ pub fn importLayer(
         // Transfer ownership to the Layer
         const newLayer = ActivationLayer(T).create(activLayerPtr);
         return newLayer;
+    } else if (std.mem.eql(u8, &layer_type_string, "Flatten...")) {
+        const flattenLayerPtr = try allocator.create(FlattenLayer(T));
+        flattenLayerPtr.* = try importLayerFlatten(T, allocator);
+        // Transfer ownership to the Layer
+        const newLayer = FlattenLayer(T).create(flattenLayerPtr);
+        return newLayer;
+    } else if (std.mem.eql(u8, &layer_type_string, "Pooling...")) {
+        const poolLayerPtr = try allocator.create(PoolingLayer(T));
+        poolLayerPtr.* = try importLayerPooling(T, allocator, reader);
+        // Transfer ownership to the Layer
+        const newLayer = PoolingLayer(T).create(poolLayerPtr);
+        return newLayer;
     } else {
         return error.impossibleLayer;
     }
@@ -267,6 +315,17 @@ pub fn importLayerConvolutional(
     };
 }
 
+pub fn importLayerFlatten(
+    comptime T: type,
+    comptime allocator: *const std.mem.Allocator,
+) !FlattenLayer(T) {
+    return FlattenLayer(f64){
+        .input = undefined,
+        .output = undefined,
+        .allocator = allocator,
+    };
+}
+
 pub fn importLayerActivation(
     comptime T: type,
     comptime allocator: *const std.mem.Allocator,
@@ -298,6 +357,45 @@ pub fn importLayerActivation(
     }
 
     return layerActiv;
+}
+
+pub fn importLayerPooling(
+    comptime T: type,
+    comptime allocator: *const std.mem.Allocator,
+    reader: std.fs.File.Reader,
+) !PoolingLayer(T) {
+    var kernel: [4]usize = .{ 0, 0, 0, 0 };
+    kernel[0] = try reader.readInt(usize, std.builtin.Endian.big);
+    kernel[1] = try reader.readInt(usize, std.builtin.Endian.big);
+
+    var stride: [2]usize = .{ 0, 0 };
+    stride[0] = try reader.readInt(usize, std.builtin.Endian.big);
+    stride[1] = try reader.readInt(usize, std.builtin.Endian.big);
+
+    var pooling_type_string: [3]u8 = undefined;
+    _ = try reader.read(&pooling_type_string);
+
+    var layerPooling = PoolingLayer(T){
+        .input = undefined, //input_tens,
+        .output = undefined, //output_tens,
+        .used_input = undefined,
+        .kernel = .{ kernel[0], kernel[1] },
+        .stride = .{ stride[0], stride[1] },
+        .poolingType = undefined,
+        .allocator = allocator,
+    };
+
+    if (std.mem.eql(u8, &pooling_type_string, "Max")) {
+        layerPooling.poolingType = PoolingType.Max;
+    } else if (std.mem.eql(u8, &pooling_type_string, "Min")) {
+        layerPooling.poolingType = PoolingType.Min;
+    } else if (std.mem.eql(u8, &pooling_type_string, "Avg")) {
+        layerPooling.poolingType = PoolingType.Avg;
+    } else {
+        return error.ImpossiblePoolingType;
+    }
+
+    return layerPooling;
 }
 
 pub fn importTensor(
