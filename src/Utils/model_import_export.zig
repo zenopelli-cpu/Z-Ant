@@ -21,13 +21,14 @@ pub fn exportModel(
     model: Model(T),
     file_path: []const u8,
 ) !void {
-    std.debug.print("\n ..... EXPORTING THE MODEL ......", .{});
+    print_exporting();
+    //std.debug.print("\n ..... EXPORTING THE MODEL ......", .{});
     var file = try std.fs.cwd().createFile(file_path, .{});
-    std.debug.print("\n ..... file created ......", .{});
+    std.debug.print("\n .......... file created, path:{s}", .{file_path});
     defer file.close();
 
     const writer = file.writer();
-    std.debug.print("\n ..... writer created ......", .{});
+    std.debug.print("\n .......... writer created ", .{});
 
     try writer.writeInt(usize, model.layers.items.len, std.builtin.Endian.big);
     for (model.layers.items) |*l| {
@@ -41,7 +42,7 @@ pub fn exportLayer(
     layer: Layer.Layer(T),
     writer: std.fs.File.Writer,
 ) !void {
-    std.debug.print("\n ... export layer... ", .{});
+    std.debug.print("\n .......... export layer :  ", .{});
 
     //TODO: handle Default layer and null layer
     if (layer.layer_type == LayerType.DenseLayer) { // ------ EXPORT DENSE
@@ -151,7 +152,7 @@ pub fn exportTensor(
     tensor: Tensor(T),
     writer: std.fs.File.Writer,
 ) !void {
-    std.debug.print("\n ... export tensor... ", .{});
+    std.debug.print("\n .......... exporting tensor", .{});
 
     // Write tensor size and shape
     try writer.writeInt(usize, tensor.size, std.builtin.Endian.big);
@@ -185,14 +186,15 @@ pub fn importModel(
     comptime allocator: *const std.mem.Allocator,
     file_path: []const u8,
 ) !Model(T) {
-    std.debug.print("\n ..... IMPORTING THE MODEL ......", .{});
+    //std.debug.print("\n ..... IMPORTING THE MODEL ......", .{});
+    print_import();
 
     var file = try std.fs.cwd().openFile(file_path, .{});
-    std.debug.print("\n ..... file created ......", .{});
+    std.debug.print("\n .......... file created, path:{s}", .{file_path});
 
     defer file.close();
     const reader = file.reader();
-    std.debug.print("\n ..... reader created ......", .{});
+    std.debug.print("\n .......... reader created ", .{});
 
     var model: Model(T) = Model(T){
         .layers = undefined,
@@ -215,7 +217,7 @@ pub fn importLayer(
     comptime allocator: *const std.mem.Allocator,
     reader: std.fs.File.Reader,
 ) !Layer.Layer(T) {
-    std.debug.print("\n ... import layer... ", .{});
+    std.debug.print("\n .......... import layer : ", .{});
 
     var layer_type_string: [10]u8 = undefined;
     _ = try reader.read(&layer_type_string);
@@ -262,12 +264,14 @@ pub fn importLayerDense(
     comptime allocator: *const std.mem.Allocator,
     reader: std.fs.File.Reader,
 ) !DenseLayer(T) {
+    std.debug.print(" dense ", .{});
+
     const weights_tens: Tensor(T) = try importTensor(T, allocator, reader);
     const bias_tens: Tensor(T) = try importTensor(T, allocator, reader);
     const n_inputs = try reader.readInt(usize, std.builtin.Endian.big);
     const n_neurons = try reader.readInt(usize, std.builtin.Endian.big);
-    //const w_grad_tens = try importTensor(T, allocator, reader);
-    //const b_grad_tens = try importTensor(T, allocator, reader);
+    const w_grad_tens = try Tensor(T).fromShape(allocator, weights_tens.shape);
+    const b_grad_tens = try Tensor(T).fromShape(allocator, bias_tens.shape);
 
     return DenseLayer(f64){
         .weights = weights_tens,
@@ -276,8 +280,8 @@ pub fn importLayerDense(
         .output = undefined,
         .n_inputs = n_inputs,
         .n_neurons = n_neurons,
-        .w_gradients = undefined, //w_grad_tens,
-        .b_gradients = undefined, //b_grad_tens,
+        .w_gradients = w_grad_tens,
+        .b_gradients = b_grad_tens,
         .allocator = allocator,
     };
 }
@@ -287,6 +291,8 @@ pub fn importLayerConvolutional(
     comptime allocator: *const std.mem.Allocator,
     reader: std.fs.File.Reader,
 ) !ConvolutionalLayer(T) {
+    std.debug.print(" convolutional ", .{});
+
     const weights_tens: Tensor(T) = try importTensor(T, allocator, reader);
     const bias_tens: Tensor(T) = try importTensor(T, allocator, reader);
     const input_channels = try reader.readInt(usize, std.builtin.Endian.big);
@@ -301,6 +307,9 @@ pub fn importLayerConvolutional(
     stride[0] = try reader.readInt(usize, std.builtin.Endian.big);
     stride[1] = try reader.readInt(usize, std.builtin.Endian.big);
 
+    const w_grad_tens = try Tensor(T).fromShape(allocator, &kernel_shape);
+    const b_grad_tens = try Tensor(T).fromShape(allocator, bias_tens.shape);
+
     return ConvolutionalLayer(f64){
         .weights = weights_tens,
         .bias = bias_tens,
@@ -309,8 +318,8 @@ pub fn importLayerConvolutional(
         .input_channels = input_channels,
         .kernel_shape = .{ kernel_shape[0], kernel_shape[1], kernel_shape[2], kernel_shape[3] },
         .stride = .{ stride[0], stride[1] },
-        .w_gradients = undefined, //w_gradients_tens,
-        .b_gradients = undefined, //b_grad_tens,
+        .w_gradients = w_grad_tens,
+        .b_gradients = b_grad_tens,
         .allocator = allocator,
     };
 }
@@ -319,6 +328,8 @@ pub fn importLayerFlatten(
     comptime T: type,
     comptime allocator: *const std.mem.Allocator,
 ) !FlattenLayer(T) {
+    std.debug.print(" flatten ", .{});
+
     return FlattenLayer(f64){
         .input = undefined,
         .output = undefined,
@@ -331,6 +342,8 @@ pub fn importLayerActivation(
     comptime allocator: *const std.mem.Allocator,
     reader: std.fs.File.Reader,
 ) !ActivationLayer(T) {
+    std.debug.print(" activation ", .{});
+
     const n_inputs = try reader.readInt(usize, std.builtin.Endian.big);
     const n_neurons = try reader.readInt(usize, std.builtin.Endian.big);
 
@@ -364,6 +377,8 @@ pub fn importLayerPooling(
     comptime allocator: *const std.mem.Allocator,
     reader: std.fs.File.Reader,
 ) !PoolingLayer(T) {
+    std.debug.print(" pooling ", .{});
+
     var kernel: [4]usize = .{ 0, 0, 0, 0 };
     kernel[0] = try reader.readInt(usize, std.builtin.Endian.big);
     kernel[1] = try reader.readInt(usize, std.builtin.Endian.big);
@@ -403,7 +418,7 @@ pub fn importTensor(
     allocator: *const std.mem.Allocator,
     reader: std.fs.File.Reader,
 ) !Tensor(T) {
-    std.debug.print("\n ... import tensor... ", .{});
+    std.debug.print("\n ...... importing tensor ", .{});
 
     // Read tensor size
     const tensor_size: usize = try reader.readInt(usize, std.builtin.Endian.big);
@@ -439,4 +454,34 @@ inline fn readNumber(
     var buffer: [size]u8 = undefined;
     _ = try reader.readAll(&buffer);
     return @bitCast(buffer);
+}
+
+fn print_import() void {
+    const import_str =
+        \\
+        \\    ____                           __  _                   
+        \\   /  _/___ ___  ____  ____  _____/ /_(_)___  ____ _       
+        \\   / // __ `__ \/ __ \/ __ \/ ___/ __/ / __ \/ __ `/       
+        \\ _/ // / / / / / /_/ / /_/ / /  / /_/ / / / / /_/ /  _ _ _ 
+        \\/___/_/ /_/ /_/ .___/\____/_/   \__/_/_/ /_/\__, /  (_|_|_)
+        \\             /_/                           /____/      
+        \\
+    ;
+
+    std.debug.print("{s}", .{import_str});
+}
+
+fn print_exporting() void {
+    const export_str =
+        \\
+        \\    ______                      __  _                   
+        \\   / ____/  ______  ____  _____/ /_(_)___  ____ _       
+        \\  / __/ | |/_/ __ \/ __ \/ ___/ __/ / __ \/ __ `/       
+        \\ / /____>  </ /_/ / /_/ / /  / /_/ / / / / /_/ /  _ _ _ 
+        \\/_____/_/|_/ .___/\____/_/   \__/_/_/ /_/\__, /  (_|_|_)
+        \\          /_/                           /____/               
+        \\
+    ;
+
+    std.debug.print("{s}", .{export_str});
 }
