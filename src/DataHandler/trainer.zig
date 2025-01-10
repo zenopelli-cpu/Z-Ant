@@ -196,6 +196,7 @@ pub fn TrainDataLoader2D(
         steps += 1;
     }
 
+    print_start_training();
     std.debug.print("Number of training steps: {}\n", .{steps});
 
     for (0..epochs) |i| {
@@ -288,6 +289,8 @@ pub fn TrainDataLoader2D(
         std.debug.print("\nEpoch {}: Training Loss = {}, Training Accuracy = {}%", .{ i + 1, LossMeanRecord[i], AccuracyRecord[i] });
         std.debug.print("\nEpoch {}: Validation Loss = {}, Validation Accuracy = {}%", .{ i + 1, ValidationLossRecord[i], ValidationAccuracyRecord[i] });
     }
+
+    print_end_training();
 }
 
 /// Computes the accuracy of model predictions by comparing predicted and actual labels.
@@ -406,4 +409,34 @@ pub fn trainTensors(
     }
 
     std.debug.print("\n>>>>>>>>>>>> loss record:{any}", .{LossMeanRecord});
+}
+
+fn print_start_training() void {
+    const str =
+        \\
+        \\   _____ __             __     __             _       _                   
+        \\  / ___// /_____ ______/ /_   / /__________ _(_)___  (_)___  ____ _       
+        \\  \__ \/ __/ __ `/ ___/ __/  / __/ ___/ __ `/ / __ \/ / __ \/ __ `/       
+        \\ ___/ / /_/ /_/ / /  / /_   / /_/ /  / /_/ / / / / / / / / / /_/ /  _ _ _ 
+        \\/____/\__/\__,_/_/   \__/   \__/_/   \__,_/_/_/ /_/_/_/ /_/\__, /  (_|_|_)
+        \\                                                          /____/          
+        \\ 
+    ;
+
+    std.debug.print("{s}", .{str});
+}
+
+fn print_end_training() void {
+    const str =
+        \\
+        \\    ______          __   __             _       _                   
+        \\   / ____/___  ____/ /  / /__________ _(_)___  (_)___  ____ _       
+        \\  / __/ / __ \/ __  /  / __/ ___/ __ `/ / __ \/ / __ \/ __ `/       
+        \\ / /___/ / / / /_/ /  / /_/ /  / /_/ / / / / / / / / / /_/ /  _ _ _ 
+        \\/_____/_/ /_/\__,_/   \__/_/   \__,_/_/_/ /_/_/_/ /_/\__, /  (_|_|_)
+        \\                                                 /____/                 
+        \\ 
+    ;
+
+    std.debug.print("{s}", .{str});
 }
