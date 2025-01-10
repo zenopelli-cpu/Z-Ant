@@ -422,6 +422,16 @@ test "Export of a DENSE model" {
     //  same bias
     try std.testing.expect(TensMath.equal(f64, &l1_export.bias, &l1_import.bias) == true);
 
+    try Trainer.trainTensors(
+        f64, //type
+        &allocator, //allocator
+        &imported_model, //model
+        &input_tensor, //input
+        &target_tensor, //target
+        1, //epochs
+        0.5, //learning rate
+    );
+
     try std.fs.cwd().deleteFile(file_path);
 }
 
@@ -842,4 +852,6 @@ test "Export/Import of a COMPLEX model" {
         try std.testing.expect(imported_model.layers.items[i].layer_type == model.layers.items[i].layer_type);
         std.debug.print("\n\ntype:{}", .{imported_model.layers.items[i].layer_type});
     }
+
+    try std.fs.cwd().deleteFile(file_path);
 }

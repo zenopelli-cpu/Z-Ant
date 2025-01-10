@@ -219,6 +219,7 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("flattenLayer", flattenLayer_mod);
     exe.root_module.addImport("poolingLayer", poolingLayer_mod);
     exe.root_module.addImport("pkgAllocator", allocator_mod);
+    exe.root_module.addImport("model_import_export", modelImportExport_mod);
 
     // Install the executable.
     b.installArtifact(exe);
