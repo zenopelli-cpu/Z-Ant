@@ -634,84 +634,8 @@ pub fn convolution_backward_weights(
     const kernel_width = kernel.shape[3];
 
     const batch_size = input.shape[0];
-    // const input_channels = input.shape[1];
-    const input_height = input.shape[2];
-    const input_width = input.shape[3];
-
-    // const dVal_batches = dValues.shape[0];
-    // const dVal_channels = dValues.shape[1];
     const dVal_height = dValues.shape[2];
     const dVal_width = dValues.shape[3];
-
-    std.debug.print("\n\n ---------------- convolution_backward_weights() ----------------", .{});
-    // std.debug.print("\n input shape:{any} ", .{input.shape});
-    // std.debug.print("\n dValues shape:{any} ", .{dValues.shape});
-    // std.debug.print("\n kernel shape:{any} ", .{kernel.shape});
-    // std.debug.print("\n stride:{any} ", .{stride});
-
-    // ---------------------------- CHECKS ----------------------------
-
-    //---------------- Validate Dimensions
-
-    //Input Tensor Shape:
-    if (input.shape.len != 4) {
-        std.debug.print("\n\nError: convolution_backward_weights() is only available for 4D input, your input shape:{any}", .{input.shape});
-        if (input.shape.len < 4) {
-            std.debug.print(", add [1]s dimensions in the front to reach 4D", .{});
-        }
-        std.debug.print("\n \n ", .{});
-
-        return TensorMathError.InputTensorsWrongShape;
-    }
-
-    //dValues Tensor Shape:
-    if (dValues.shape.len != 4) {
-        std.debug.print("\n\nError: convolution_backward_weights() is only available for 4D dValues, your dValues shape:{any}", .{dValues.shape});
-        if (input.shape.len < 4) {
-            std.debug.print(", add [1]s dimensions in the front to reach 4D", .{});
-        }
-        std.debug.print("\n \n ", .{});
-
-        return TensorMathError.InputTensorsWrongShape;
-    }
-
-    //kernel Tensor Shape:
-    if (kernel.shape.len != 4) {
-        std.debug.print("\n\nError: convolution_backward_weights() is only available for 4D kernel, your kernel shape:{any}", .{kernel.shape});
-        if (input.shape.len < 4) {
-            std.debug.print(", add [1]s dimensions in the front to reach 4D", .{});
-        }
-        std.debug.print("\n \n ", .{});
-
-        return TensorMathError.InputTensorsWrongShape;
-    }
-
-    // ---------------- validate STRIDE:
-    //stride values
-    if (stride[0] < 1 or stride[1] < 1) {
-        std.debug.print("\n\nError: Strides must be grather or equal to 1, your stride is:{any}", .{stride});
-        return TensorMathError.InputTensorsWrongShape;
-    }
-    //stride values
-    if (stride[0] < 1 or stride[1] < 1) {
-        std.debug.print("\n\nError: Strides must be grather or equal to 1, your stride is:{any}", .{stride});
-        return TensorMathError.InputTensorsWrongShape;
-    }
-
-    // ---------------- dimension consistency between dValues, input and kernel:
-    const expected_dVal_height = (input_height - kernel_height) / stride[0] + 1;
-    const expected_dVal_width = (input_width - kernel_width) / stride[1] + 1;
-    if (dVal_height != expected_dVal_height or dVal_width != expected_dVal_width) {
-        std.debug.print("\n\nError: expected_dVal_height:{} dVal_height:{} expected_dVal_width:{} dVal_width:{}", .{ expected_dVal_height, dVal_height, expected_dVal_width, dVal_width });
-        return error.MismatchedDimensions;
-    }
-    // ---------------- Validate Channels Size:
-    if (kernel.shape[1] != input.shape[1]) {
-        return error.MismatchedChannels;
-    }
-
-    // ---------------- Validate Batch Size:
-    if (input.shape[0] != dValues.shape[0]) return error.MismatchedBatchSize;
 
     //---------------------------- COMPUTE D_KERNEL ----------------------------
 
@@ -726,8 +650,8 @@ pub fn convolution_backward_weights(
     const dVal_coordinates = try pkg_allocator.alloc(usize, dValues.shape.len); //coordinates in the dValues space
     defer pkg_allocator.free(dVal_coordinates);
 
-    const dKernel_coordinates = try pkg_allocator.alloc(usize, dValues.shape.len); //coordinates in the dKernel space
-    defer pkg_allocator.free(dKernel_coordinates);
+    const kernel_coordinates = try pkg_allocator.alloc(usize, kernel.shape.len); //coordinates in the kernel space
+    defer pkg_allocator.free(kernel_coordinates);
 
     for (0..batch_size) |batch_index| {
         //set coordinates
@@ -737,7 +661,7 @@ pub fn convolution_backward_weights(
         for (0..num_filters) |filter| {
             //set coordinates
             dVal_coordinates[1] = filter;
-            dKernel_coordinates[0] = filter;
+            kernel_coordinates[0] = filter;
 
             for (0..dVal_height) |y| {
                 //set coordinates
@@ -747,23 +671,20 @@ pub fn convolution_backward_weights(
                     //set coordinates
                     dVal_coordinates[3] = x;
 
-                    //get the value
-                    //DEBUG std.debug.print("\n         get dVal_value at: {any} ", .{dVal_coordinates});
-
                     const dVal_value = try dValues.get_at(dVal_coordinates);
 
                     for (0..num_channels) |channel| {
                         //set coordinates
                         input_coordinates[1] = channel;
-                        dKernel_coordinates[1] = channel;
+                        kernel_coordinates[1] = channel;
 
                         for (0..kernel_height) |kernel_y| {
                             //set coordinates
-                            dKernel_coordinates[2] = kernel_y;
+                            kernel_coordinates[2] = kernel_y;
 
                             for (0..kernel_width) |kernel_x| {
                                 //set coordinates
-                                dKernel_coordinates[3] = kernel_x;
+                                kernel_coordinates[3] = kernel_x;
 
                                 const in_y = y * stride[0] + kernel_y;
                                 const in_x = x * stride[1] + kernel_x;
@@ -772,17 +693,10 @@ pub fn convolution_backward_weights(
                                     input_coordinates[2] = in_y;
                                     input_coordinates[3] = in_x;
 
-                                    //DEBUG std.debug.print("\n         get input_value at: {any}", .{input_coordinates});
-
-                                    //input_coordinates at this point= [batch_index, channel, in_y, in_x]
                                     const input_value = try input.get_at(input_coordinates);
-
-                                    var sum = try dKernel.get_at(dKernel_coordinates);
-
+                                    var sum = try dKernel.get_at(kernel_coordinates);
                                     sum += dVal_value * input_value;
-
-                                    //dKernel_coordinates at this point= [filter, channel, kernel_y, kernel_x]
-                                    try dKernel.set_at(dKernel_coordinates, sum);
+                                    try dKernel.set_at(kernel_coordinates, sum);
                                 }
                             }
                         }
@@ -802,96 +716,63 @@ pub fn convolution_backward_input(
     dValues: *Tensor(T),
     kernel: *Tensor(T),
     input: *Tensor(T),
-    stride: [2]usize, //Dimensions [stride_height, stride_width]
+    stride: [2]usize,
 ) !Tensor(T) {
-    std.debug.print("\n\n ---------------- convolution_backward_input() ----------------", .{});
+    var dInput = try Tensor(T).fromShape(&pkg_allocator, input.shape);
 
-    //---------------------------- CONSTS ----------------------------
+    const input_coordinates = try pkg_allocator.alloc(usize, input.shape.len);
+    defer pkg_allocator.free(input_coordinates);
+
+    const dVal_coordinates = try pkg_allocator.alloc(usize, dValues.shape.len);
+    defer pkg_allocator.free(dVal_coordinates);
+
+    const kernel_coordinates = try pkg_allocator.alloc(usize, kernel.shape.len);
+    defer pkg_allocator.free(kernel_coordinates);
+
+    const batch_size = input.shape[0];
     const num_filters = kernel.shape[0];
     const num_channels = kernel.shape[1];
     const kernel_height = kernel.shape[2];
     const kernel_width = kernel.shape[3];
-
-    const batch_size = input.shape[0];
-    // const input_channels = input.shape[1];
-    // const input_height = input.shape[2];
-    // const input_width = input.shape[3];
-
-    // const dVal_batches = dValues.shape[0];
-    // const dVal_channels = dValues.shape[1];
     const dVal_height = dValues.shape[2];
     const dVal_width = dValues.shape[3];
 
-    //---------------------------- COMPUTE D_INPUT ----------------------------
-
-    //initialize d_kernel
-    var dInput = try Tensor(T).fromShape(&pkg_allocator, input.shape); //fromShape() already initialize to Zero
-
-    //coordinate trackers
-    const dInput_coordinates = try pkg_allocator.alloc(usize, input.shape.len); //coordinates in the input space
-    defer pkg_allocator.free(dInput_coordinates);
-
-    const dVal_coordinates = try pkg_allocator.alloc(usize, dValues.shape.len); //coordinates in the dValues space
-    defer pkg_allocator.free(dVal_coordinates);
-
-    const kernel_coordinates = try pkg_allocator.alloc(usize, dValues.shape.len); //coordinates in the dKernel space
-    defer pkg_allocator.free(kernel_coordinates);
-
     for (0..batch_size) |batch_index| {
-        //set coordinates
         dVal_coordinates[0] = batch_index;
-        dInput_coordinates[0] = batch_index;
+        input_coordinates[0] = batch_index;
 
         for (0..num_filters) |filter| {
-            //set coordinates
             dVal_coordinates[1] = filter;
             kernel_coordinates[0] = filter;
 
             for (0..dVal_height) |y| {
-                //set coordinates
                 dVal_coordinates[2] = y;
 
                 for (0..dVal_width) |x| {
-                    //set coordinates
                     dVal_coordinates[3] = x;
-
-                    //get the value
-                    //DEBUG std.debug.print("\n         get dVal_value at: {any} ", .{dVal_coordinates});
-                    //dVal_coordinates at this point= [batch_index, filter, y, x]]
                     const dVal_value = try dValues.get_at(dVal_coordinates);
 
                     for (0..num_channels) |channel| {
-                        //set coordinates
-                        dInput_coordinates[1] = channel;
+                        input_coordinates[1] = channel;
                         kernel_coordinates[1] = channel;
 
                         for (0..kernel_height) |kernel_y| {
-                            //set coordinates
                             kernel_coordinates[2] = kernel_y;
 
                             for (0..kernel_width) |kernel_x| {
-                                //set coordinates
                                 kernel_coordinates[3] = kernel_x;
 
                                 const in_y = y * stride[0] + kernel_y;
                                 const in_x = x * stride[1] + kernel_x;
 
                                 if (in_y < input.shape[2] and in_x < input.shape[3]) {
-                                    dInput_coordinates[2] = in_y;
-                                    dInput_coordinates[3] = in_x;
+                                    input_coordinates[2] = in_y;
+                                    input_coordinates[3] = in_x;
 
-                                    //DEBUG std.debug.print("\n         get input_value at: {any}", .{input_coordinates});
-
-                                    //kernel_coordinates at this point= [filter, channel, kernel_y, kkernel_xx]]
                                     const kernel_value = try kernel.get_at(kernel_coordinates);
-
-                                    //dInput_coordinates at this point= [batch_index, channel, in_y, in_x]
-                                    var sum = try dInput.get_at(dInput_coordinates);
-
+                                    var sum = try dInput.get_at(input_coordinates);
                                     sum += dVal_value * kernel_value;
-
-                                    //dKernel_coordinates at this point= [filter, channel, kernel_y, kernel_x]
-                                    try dInput.set_at(dInput_coordinates, sum);
+                                    try dInput.set_at(input_coordinates, sum);
                                 }
                             }
                         }
@@ -1196,7 +1077,7 @@ pub fn concatenate(comptime T: type, allocator: *std.mem.Allocator, tensors: []T
 }
 
 /// Calculate strides for a given shape
-pub fn calculateStrides(shape: []usize, allocator: *std.mem.Allocator) ![]usize {
+pub fn calculateStrides(shape: []usize, allocator: *const std.mem.Allocator) ![]usize {
     const len = shape.len;
     const strides = try allocator.alloc(usize, len);
     if (len == 0) return strides; // Handle scalar tensor
@@ -1370,39 +1251,51 @@ fn CPU_sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
     @memset(shape1, 1);
     @memset(shape2, 1);
 
-    // Copy original shapes from the right
-    for (0..rank1) |i| {
+    // Copy original shapes from right to left
+    var i: usize = 0;
+    while (i < rank1) : (i += 1) {
         shape1[max_rank - rank1 + i] = t1.shape[i];
     }
-    for (0..rank2) |i| {
+    i = 0;
+    while (i < rank2) : (i += 1) {
         shape2[max_rank - rank2 + i] = t2.shape[i];
     }
 
-    // Calculate output shape and total size
+    // Verify shapes are compatible for broadcasting
     var out_shape = try pkg_allocator.alloc(usize, max_rank);
     errdefer pkg_allocator.free(out_shape);
-    var total_size: usize = 1;
 
-    for (0..max_rank) |i| {
-        if (shape1[i] == shape2[i]) {
-            out_shape[i] = shape1[i];
-        } else if (shape1[i] == 1) {
-            out_shape[i] = shape2[i];
-        } else if (shape2[i] == 1) {
-            out_shape[i] = shape1[i];
-        } else {
+    for (0..max_rank) |dim| {
+        if (shape1[dim] != shape2[dim] and shape1[dim] != 1 and shape2[dim] != 1) {
             return TensorMathError.IncompatibleBroadcastShapes;
         }
-        total_size *= out_shape[i];
+        out_shape[dim] = @max(shape1[dim], shape2[dim]);
     }
 
-    // Calculate strides for input tensors
-    const strides1 = try calculateStrides(shape1, &pkg_allocator);
+    // Calculate total size and strides
+    var total_size: usize = 1;
+    var strides1 = try pkg_allocator.alloc(usize, max_rank);
     defer pkg_allocator.free(strides1);
-    const strides2 = try calculateStrides(shape2, &pkg_allocator);
+    var strides2 = try pkg_allocator.alloc(usize, max_rank);
     defer pkg_allocator.free(strides2);
-    const out_strides = try calculateStrides(out_shape, &pkg_allocator);
+    var out_strides = try pkg_allocator.alloc(usize, max_rank);
     defer pkg_allocator.free(out_strides);
+
+    // Calculate strides from right to left
+    var stride: usize = 1;
+    i = max_rank;
+    while (i > 0) {
+        i -= 1;
+        out_strides[i] = stride;
+        strides1[i] = if (shape1[i] > 1) stride else 0;
+        strides2[i] = if (shape2[i] > 1) stride else 0;
+        stride *= out_shape[i];
+    }
+    total_size = stride;
+
+    std.debug.print("\nshape1: {any}, strides1: {any}", .{ shape1, strides1 });
+    std.debug.print("\nshape2: {any}, strides2: {any}", .{ shape2, strides2 });
+    std.debug.print("\nout_shape: {any}, out_strides: {any}", .{ out_shape, out_strides });
 
     // Allocate output tensor
     var out_data = try pkg_allocator.alloc(outputType, total_size);
@@ -1413,7 +1306,7 @@ fn CPU_sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
     defer pkg_allocator.free(indices);
     @memset(indices, 0);
 
-    var i: usize = 0;
+    i = 0;
     while (i < total_size) : (i += 1) {
         // Calculate indices for current position
         var temp = i;
@@ -1426,12 +1319,32 @@ fn CPU_sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
         // Calculate input indices considering broadcasting
         var idx1: usize = 0;
         var idx2: usize = 0;
-        for (indices, 0..) |idx, dim| {
-            idx1 += (idx % shape1[dim]) * strides1[dim];
-            idx2 += (idx % shape2[dim]) * strides2[dim];
+
+        // For same shape tensors, use the same index calculation
+        if (std.mem.eql(usize, shape1, shape2)) {
+            idx1 = i;
+            idx2 = i;
+        } else {
+            // For broadcasting case
+            for (0..max_rank) |dim| {
+                const pos = indices[dim];
+                // For t1: if dimension is 1, don't increment index (broadcasting)
+                if (shape1[dim] > 1) {
+                    idx1 += pos * strides1[dim];
+                }
+                // For t2: if dimension is 1, don't increment index (broadcasting)
+                if (shape2[dim] > 1) {
+                    const t2_pos = pos % shape2[dim];
+                    idx2 += t2_pos * strides2[dim];
+                }
+            }
         }
 
-        out_data[i] = t1.data[idx1] - t2.data[idx2];
+        // Perform subtraction: t1 - t2
+        const val1 = t1.data[idx1];
+        const val2 = t2.data[idx2];
+        out_data[i] = val1 - val2;
+        std.debug.print("\nFinal: idx1={}, val1={}, idx2={}, val2={}, result={}", .{ idx1, val1, idx2, val2, out_data[i] });
     }
 
     return Tensor(outputType){

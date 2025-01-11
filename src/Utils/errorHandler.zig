@@ -39,6 +39,7 @@ pub const TensorMathError = error{
     TooSmallOutputType, //the type dimension of the output Tensor could coause a loss of information
     InputTensorDimensionMismatch,
     WrongStride,
+    IncompatibleBroadcastShapes,
 };
 
 /// Tensor errors
@@ -64,6 +65,9 @@ pub const TensorError = error{
     MismatchedShape,
     IndexOutOfBounds,
     InvalidAxis,
+    InvalidInput,
+    UnsupportedMode,
+    UnsupportedDimension,
 };
 
 /// A union type to represent any of the errors
@@ -110,6 +114,7 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         TensorMathError.OutputTensorDifferentSize => "TensorMath: output tensor size mismatch",
         TensorMathError.TooSmallOutputType => "TensorMath: output tensor type may lose information",
         TensorMathError.InputTensorDimensionMismatch => "TensorMath: input tensor dimension mismatch",
+        TensorMathError.IncompatibleBroadcastShapes => "TensorMath: tensors have incompatible shapes for broadcasting",
 
         //TENSOR
         TensorError.TensorNotInitialized => "Tensor: tensor not initialized",
@@ -122,6 +127,9 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         TensorError.NotFiniteValue => "Tensor: tensor has non-finite value",
         TensorError.NegativeInfValue => "Tensor: tensor has negative infinity value",
         TensorError.PositiveInfValue => "Tensor: tensor has positive infinity value",
+        TensorError.InvalidInput => "Tensor: invalid input parameters for operation",
+        TensorError.UnsupportedMode => "Tensor: unsupported interpolation mode",
+        TensorError.UnsupportedDimension => "Tensor: operation not supported for this tensor dimension",
 
         else => "Unknown error type",
     };
