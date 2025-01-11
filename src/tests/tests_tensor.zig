@@ -678,3 +678,152 @@ test "gather along axis 0 and axis 1" {
     const result0 = inputTensor0.gather(indicesTensor0, invalidAxis);
     try std.testing.expect(result0 == TensorError.InvalidAxis);
 }
+
+test "resize with nearest neighbor interpolation" {
+    std.debug.print("\n     test: resize with nearest neighbor interpolation", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Test 1D tensor resize
+    var input_array_1d = [_]u8{ 1, 2, 3, 4 };
+    var shape_1d = [_]usize{4};
+    var tensor_1d = try Tensor(u8).fromArray(&allocator, &input_array_1d, &shape_1d);
+    defer tensor_1d.deinit();
+
+    // Scale up by 2x
+    var scales = [_]f32{2.0};
+    var resized_1d = try tensor_1d.resize("nearest", &scales, null, "half_pixel");
+    defer resized_1d.deinit();
+
+    try std.testing.expectEqual(@as(usize, 8), resized_1d.size);
+    try std.testing.expectEqual(@as(u8, 1), resized_1d.data[0]);
+    try std.testing.expectEqual(@as(u8, 1), resized_1d.data[1]);
+    try std.testing.expectEqual(@as(u8, 2), resized_1d.data[2]);
+    try std.testing.expectEqual(@as(u8, 2), resized_1d.data[3]);
+
+    // Test 2D tensor resize
+    var input_array_2d = [_][2]u8{
+        [_]u8{ 1, 2 },
+        [_]u8{ 3, 4 },
+    };
+    var shape_2d = [_]usize{ 2, 2 };
+    var tensor_2d = try Tensor(u8).fromArray(&allocator, &input_array_2d, &shape_2d);
+    defer tensor_2d.deinit();
+
+    // Scale up by 2x in both dimensions
+    var scales_2d = [_]f32{ 2.0, 2.0 };
+    var resized_2d = try tensor_2d.resize("nearest", &scales_2d, null, "half_pixel");
+    defer resized_2d.deinit();
+
+    try std.testing.expectEqual(@as(usize, 16), resized_2d.size);
+    try std.testing.expectEqual(@as(usize, 4), resized_2d.shape[0]);
+    try std.testing.expectEqual(@as(usize, 4), resized_2d.shape[1]);
+}
+
+test "resize with linear interpolation" {
+    std.debug.print("\n     test: resize with linear interpolation", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Test 1D tensor resize
+    var input_array_1d = [_]u8{ 1, 2, 3, 4 };
+    var shape_1d = [_]usize{4};
+    var tensor_1d = try Tensor(u8).fromArray(&allocator, &input_array_1d, &shape_1d);
+    defer tensor_1d.deinit();
+
+    // Scale up by 2x
+    var scales = [_]f32{2.0};
+    var resized_1d = try tensor_1d.resize("linear", &scales, null, "half_pixel");
+    defer resized_1d.deinit();
+
+    try std.testing.expectEqual(@as(usize, 8), resized_1d.size);
+
+    // Test 2D tensor resize
+    var input_array_2d = [_][2]u8{
+        [_]u8{ 1, 2 },
+        [_]u8{ 3, 4 },
+    };
+    var shape_2d = [_]usize{ 2, 2 };
+    var tensor_2d = try Tensor(u8).fromArray(&allocator, &input_array_2d, &shape_2d);
+    defer tensor_2d.deinit();
+
+    // Scale up by 2x in both dimensions
+    var scales_2d = [_]f32{ 2.0, 2.0 };
+    var resized_2d = try tensor_2d.resize("linear", &scales_2d, null, "half_pixel");
+    defer resized_2d.deinit();
+
+    try std.testing.expectEqual(@as(usize, 16), resized_2d.size);
+    try std.testing.expectEqual(@as(usize, 4), resized_2d.shape[0]);
+    try std.testing.expectEqual(@as(usize, 4), resized_2d.shape[1]);
+}
+
+test "resize with cubic interpolation" {
+    std.debug.print("\n     test: resize with cubic interpolation", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Test 1D tensor resize
+    var input_array_1d = [_]u8{ 1, 2, 3, 4, 5, 6, 7, 8 };
+    var shape_1d = [_]usize{8};
+    var tensor_1d = try Tensor(u8).fromArray(&allocator, &input_array_1d, &shape_1d);
+    defer tensor_1d.deinit();
+
+    // Scale down by 0.5x
+    var scales = [_]f32{0.5};
+    var resized_1d = try tensor_1d.resize("cubic", &scales, null, "half_pixel");
+    defer resized_1d.deinit();
+
+    try std.testing.expectEqual(@as(usize, 4), resized_1d.size);
+}
+
+test "resize with explicit sizes" {
+    std.debug.print("\n     test: resize with explicit sizes", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var input_array = [_][2]u8{
+        [_]u8{ 1, 2 },
+        [_]u8{ 3, 4 },
+    };
+    var shape = [_]usize{ 2, 2 };
+    var tensor = try Tensor(u8).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Resize to specific dimensions
+    var sizes = [_]usize{ 3, 3 };
+    var resized = try tensor.resize("nearest", null, &sizes, "half_pixel");
+    defer resized.deinit();
+
+    try std.testing.expectEqual(@as(usize, 9), resized.size);
+    try std.testing.expectEqual(@as(usize, 3), resized.shape[0]);
+    try std.testing.expectEqual(@as(usize, 3), resized.shape[1]);
+}
+
+test "resize error cases" {
+    std.debug.print("\n     test: resize error cases", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var input_array = [_][2]u8{
+        [_]u8{ 1, 2 },
+        [_]u8{ 3, 4 },
+    };
+    var shape = [_]usize{ 2, 2 };
+    var tensor = try Tensor(u8).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Test invalid mode
+    var scales = [_]f32{ 2.0, 2.0 };
+    try std.testing.expectError(
+        TensorError.UnsupportedMode,
+        tensor.resize("invalid_mode", &scales, null, "half_pixel"),
+    );
+
+    // Test both scales and sizes provided
+    var sizes = [_]usize{ 3, 3 };
+    try std.testing.expectError(
+        TensorError.InvalidInput,
+        tensor.resize("nearest", &scales, &sizes, "half_pixel"),
+    );
+
+    // Test neither scales nor sizes provided
+    try std.testing.expectError(
+        TensorError.InvalidInput,
+        tensor.resize("nearest", null, null, "half_pixel"),
+    );
+}
