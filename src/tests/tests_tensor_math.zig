@@ -1156,3 +1156,118 @@ test "Concatenate 3D tensors along axis 2" {
         }
     }
 }
+
+test "Subtraction with same shape tensors" {
+    std.debug.print("\n     test: Subtraction with same shape tensors", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 5.0, 7.0 },
+        [_]f32{ 9.0, 11.0 },
+    };
+
+    var inputArray2: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 2 };
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape);
+    defer t2.deinit();
+
+    var result = try TensMath.sub_tensors(Architectures.CPU, f32, f32, &t1, &t2);
+    defer result.deinit();
+
+    try std.testing.expectEqual(result.data[0], 4.0);
+    try std.testing.expectEqual(result.data[1], 5.0);
+    try std.testing.expectEqual(result.data[2], 6.0);
+    try std.testing.expectEqual(result.data[3], 7.0);
+}
+
+test "Subtraction with broadcasting - scalar and matrix" {
+    std.debug.print("\n     test: Subtraction with broadcasting - scalar and matrix", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Matrix 2x2
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 5.0, 7.0 },
+        [_]f32{ 9.0, 11.0 },
+    };
+    var shape1: [2]usize = [_]usize{ 2, 2 };
+
+    // Scalar (1x1)
+    var inputArray2 = [_]f32{2.0};
+    var shape2: [1]usize = [_]usize{1};
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape1);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
+    defer t2.deinit();
+
+    var result = try TensMath.sub_tensors(Architectures.CPU, f32, f32, &t1, &t2);
+    defer result.deinit();
+
+    try std.testing.expectEqual(result.data[0], 3.0);
+    try std.testing.expectEqual(result.data[1], 5.0);
+    try std.testing.expectEqual(result.data[2], 7.0);
+    try std.testing.expectEqual(result.data[3], 9.0);
+}
+
+test "Subtraction with broadcasting - row and matrix" {
+    std.debug.print("\n     test: Subtraction with broadcasting - row and matrix", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Matrix 2x2
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 5.0, 7.0 },
+        [_]f32{ 9.0, 11.0 },
+    };
+    var shape1: [2]usize = [_]usize{ 2, 2 };
+
+    // Row 1x2
+    var inputArray2: [2]f32 = [_]f32{ 1.0, 2.0 };
+    var shape2: [2]usize = [_]usize{ 1, 2 };
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape1);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
+    defer t2.deinit();
+
+    var result = try TensMath.sub_tensors(Architectures.CPU, f32, f32, &t1, &t2);
+    defer result.deinit();
+
+    try std.testing.expectEqual(result.data[0], 4.0);
+    try std.testing.expectEqual(result.data[1], 5.0);
+    try std.testing.expectEqual(result.data[2], 8.0);
+    try std.testing.expectEqual(result.data[3], 9.0);
+}
+
+test "Subtraction with incompatible shapes" {
+    std.debug.print("\n     test: Subtraction with incompatible shapes", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Matrix 2x2
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 5.0, 7.0 },
+        [_]f32{ 9.0, 11.0 },
+    };
+    var shape1: [2]usize = [_]usize{ 2, 2 };
+
+    // Matrix 3x2 (incompatible)
+    var inputArray2: [3][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+        [_]f32{ 5.0, 6.0 },
+    };
+    var shape2: [2]usize = [_]usize{ 3, 2 };
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape1);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
+    defer t2.deinit();
+
+    try std.testing.expectError(TensorMathError.IncompatibleBroadcastShapes, TensMath.sub_tensors(Architectures.CPU, f32, f32, &t1, &t2));
+}

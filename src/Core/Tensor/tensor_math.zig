@@ -1325,3 +1325,119 @@ pub fn pool_backward(comptime T: type, dValues: *Tensor(T), input_shape: []const
 
     return dInput;
 }
+
+/// Performs element-wise binary subtraction with Numpy-style broadcasting support
+pub fn sub_tensors(comptime arch: Architectures, comptime Tin: anytype, comptime Tout: anytype, t1: *Tensor(Tin), t2: *Tensor(Tin)) !Tensor(Tout) {
+    //selecting between all possible architectures
+    return switch (arch) {
+        Architectures.CPU => return CPU_sub_tensors(Tin, Tout, t1, t2),
+        Architectures.GPU => {
+            std.debug.print("{} is under developement \n", .{arch});
+            return ArchitectureError.UnderDevelopementArchitecture;
+        },
+        Architectures.SP32 => {
+            std.debug.print("{} is under developement \n", .{arch});
+            return ArchitectureError.UnderDevelopementArchitecture;
+        },
+        else => return ArchitectureError.UnknownArchitecture,
+    };
+}
+
+fn CPU_sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
+    // CHECKS:
+    if (@TypeOf(outputType) == @TypeOf(inputType)) {
+        // If input and output are same type, no check needed
+    } else {
+        if (@bitSizeOf(outputType) <= 16) { //quantized
+            if (@bitSizeOf(outputType) <= (@bitSizeOf(inputType) * 2)) return TensorMathError.TooSmallOutputType;
+        } else { //non-quant
+            if (@bitSizeOf(outputType) < @bitSizeOf(inputType)) return TensorMathError.TooSmallOutputType;
+        }
+    }
+
+    // Handle broadcasting
+    const rank1 = t1.shape.len;
+    const rank2 = t2.shape.len;
+    const max_rank = @max(rank1, rank2);
+
+    // Pad shapes with 1s for broadcasting
+    var shape1 = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(shape1);
+    var shape2 = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(shape2);
+
+    // Initialize with 1s
+    @memset(shape1, 1);
+    @memset(shape2, 1);
+
+    // Copy original shapes from the right
+    for (0..rank1) |i| {
+        shape1[max_rank - rank1 + i] = t1.shape[i];
+    }
+    for (0..rank2) |i| {
+        shape2[max_rank - rank2 + i] = t2.shape[i];
+    }
+
+    // Calculate output shape and total size
+    var out_shape = try pkg_allocator.alloc(usize, max_rank);
+    errdefer pkg_allocator.free(out_shape);
+    var total_size: usize = 1;
+
+    for (0..max_rank) |i| {
+        if (shape1[i] == shape2[i]) {
+            out_shape[i] = shape1[i];
+        } else if (shape1[i] == 1) {
+            out_shape[i] = shape2[i];
+        } else if (shape2[i] == 1) {
+            out_shape[i] = shape1[i];
+        } else {
+            return TensorMathError.IncompatibleBroadcastShapes;
+        }
+        total_size *= out_shape[i];
+    }
+
+    // Calculate strides for input tensors
+    const strides1 = try calculateStrides(shape1, &pkg_allocator);
+    defer pkg_allocator.free(strides1);
+    const strides2 = try calculateStrides(shape2, &pkg_allocator);
+    defer pkg_allocator.free(strides2);
+    const out_strides = try calculateStrides(out_shape, &pkg_allocator);
+    defer pkg_allocator.free(out_strides);
+
+    // Allocate output tensor
+    var out_data = try pkg_allocator.alloc(outputType, total_size);
+    errdefer pkg_allocator.free(out_data);
+
+    // Perform subtraction with broadcasting
+    var indices = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(indices);
+    @memset(indices, 0);
+
+    var i: usize = 0;
+    while (i < total_size) : (i += 1) {
+        // Calculate indices for current position
+        var temp = i;
+        for (0..max_rank) |dim| {
+            const idx = max_rank - 1 - dim;
+            indices[idx] = temp / out_strides[idx];
+            temp = temp % out_strides[idx];
+        }
+
+        // Calculate input indices considering broadcasting
+        var idx1: usize = 0;
+        var idx2: usize = 0;
+        for (indices, 0..) |idx, dim| {
+            idx1 += (idx % shape1[dim]) * strides1[dim];
+            idx2 += (idx % shape2[dim]) * strides2[dim];
+        }
+
+        out_data[i] = t1.data[idx1] - t2.data[idx2];
+    }
+
+    return Tensor(outputType){
+        .data = out_data,
+        .shape = out_shape,
+        .size = total_size,
+        .allocator = &pkg_allocator,
+    };
+}
