@@ -114,69 +114,10 @@ pub fn PoolingLayer(comptime T: type) type {
 
             self.input = try input.copy();
 
-            const batch_size = self.input.shape[0];
-            const channels = self.input.shape[1];
-            const input_rows = self.input.shape[2];
-            const input_cols = self.input.shape[3];
-
-            const out_rows = (input_rows - self.kernel[0] + 1) / self.stride[0];
-            const out_cols = (input_cols - self.kernel[1] + 1) / self.stride[1];
-
-            var output_shape = [_]usize{
-                batch_size,
-                channels,
-                out_rows,
-                out_cols,
-            };
-
-            self.output = try tensor.Tensor(T).fromShape(self.allocator, &output_shape);
-
-            var used_input_shape = [_]usize{
-                batch_size,
-                channels,
-                out_rows * out_cols,
-                input_rows,
-                input_cols,
-            };
-
-            self.used_input = try tensor.Tensor(u8).fromShape(self.allocator, &used_input_shape);
-
-            for (self.used_input.data) |*v| v.* = 0;
-
-            for (0..batch_size) |b| {
-                for (0..channels) |c| {
-                    for (0..out_rows) |out_r| {
-                        for (0..out_cols) |out_c| {
-                            const r_start = out_r * self.stride[0];
-                            const c_start = out_c * self.stride[1];
-
-                            const window_index = out_r * out_cols + out_c;
-
-                            var max_value: T = self.input.data[b * channels * input_rows * input_cols + c * input_rows * input_cols + r_start * input_cols + c_start];
-                            var max_pos: usize = 0;
-
-                            for (0..self.kernel[0]) |kr| {
-                                for (0..self.kernel[1]) |kc| {
-                                    const in_r = r_start + kr;
-                                    const in_c = c_start + kc;
-
-                                    if (in_r < input_rows and in_c < input_cols) {
-                                        const val = self.input.data[b * channels * input_rows * input_cols + c * input_rows * input_cols + in_r * input_cols + in_c];
-                                        if (val > max_value) {
-                                            max_value = val;
-                                            max_pos = in_r * input_cols + in_c;
-                                        }
-                                    }
-                                }
-                            }
-
-                            self.output.data[b * channels * out_rows * out_cols + c * out_rows * out_cols + out_r * out_cols + out_c] = max_value;
-
-                            self.used_input.data[b * channels * out_rows * out_cols * input_rows * input_cols + c * out_rows * out_cols * input_rows * input_cols + window_index * input_rows * input_cols + max_pos] = 1;
-                        }
-                    }
-                }
-            }
+            // Call tensor_math's pool_forward function
+            const result = try TensMath.pool_forward(T, &self.input, self.kernel, self.stride, self.poolingType);
+            self.output = result.output;
+            self.used_input = result.used_input;
 
             return self.output;
         }
@@ -184,44 +125,8 @@ pub fn PoolingLayer(comptime T: type) type {
         pub fn backward(ctx: *anyopaque, dValues: *tensor.Tensor(T)) !tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
-            var dInput = try tensor.Tensor(T).fromShape(self.allocator, self.input.shape);
-
-            for (dInput.data) |*val| val.* = 0;
-
-            const batch_size = self.input.shape[0];
-            const channels = self.input.shape[1];
-            const input_rows = self.input.shape[2];
-            const input_cols = self.input.shape[3];
-
-            const out_rows = self.output.shape[2];
-            const out_cols = self.output.shape[3];
-
-            for (0..batch_size) |b| {
-                for (0..channels) |c| {
-                    for (0..out_rows) |out_r| {
-                        for (0..out_cols) |out_c| {
-                            const grad = dValues.data[b * channels * out_rows * out_cols + c * out_rows * out_cols + out_r * out_cols + out_c];
-                            const window_index = out_r * out_cols + out_c;
-
-                            for (0..self.kernel[0]) |kr| {
-                                for (0..self.kernel[1]) |kc| {
-                                    const in_r = out_r * self.stride[0] + kr;
-                                    const in_c = out_c * self.stride[1] + kc;
-
-                                    if (in_r < input_rows and in_c < input_cols) {
-                                        const mask_val = self.used_input.data[b * channels * out_rows * out_cols * input_rows * input_cols + c * out_rows * out_cols * input_rows * input_cols + window_index * input_rows * input_cols + in_r * input_cols + in_c];
-                                        if (mask_val == 1) {
-                                            dInput.data[b * channels * input_rows * input_cols + c * input_rows * input_cols + in_r * input_cols + in_c] += grad;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            return dInput;
+            // Call tensor_math's pool_backward function
+            return TensMath.pool_backward(T, dValues, self.input.shape, &self.used_input, self.kernel, self.stride);
         }
 
         /// Print the layer (debug)
