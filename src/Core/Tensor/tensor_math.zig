@@ -1206,3 +1206,122 @@ pub fn calculateStrides(shape: []usize, allocator: *std.mem.Allocator) ![]usize 
     }
     return strides;
 }
+
+/// Performs pooling operation on a 4D tensor (batch, channels, height, width)
+pub fn pool_forward(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize, poolingType: PoolingType) !struct { output: Tensor(T), used_input: Tensor(u8) } {
+    // Currently only Max pooling is implemented
+    _ = poolingType;
+
+    const batch_size = input.shape[0];
+    const channels = input.shape[1];
+    const input_rows = input.shape[2];
+    const input_cols = input.shape[3];
+
+    const out_rows = (input_rows - kernel[0] + 1) / stride[0];
+    const out_cols = (input_cols - kernel[1] + 1) / stride[1];
+
+    var output_shape = [_]usize{
+        batch_size,
+        channels,
+        out_rows,
+        out_cols,
+    };
+
+    var output = try Tensor(T).fromShape(&pkg_allocator, &output_shape);
+
+    var used_input_shape = [_]usize{
+        batch_size,
+        channels,
+        out_rows * out_cols,
+        input_rows,
+        input_cols,
+    };
+
+    var used_input = try Tensor(u8).fromShape(&pkg_allocator, &used_input_shape);
+
+    for (used_input.data) |*v| v.* = 0;
+
+    for (0..batch_size) |b| {
+        for (0..channels) |c| {
+            for (0..out_rows) |out_r| {
+                for (0..out_cols) |out_c| {
+                    const r_start = out_r * stride[0];
+                    const c_start = out_c * stride[1];
+
+                    const window_index = out_r * out_cols + out_c;
+
+                    var max_value: T = input.data[b * channels * input_rows * input_cols + c * input_rows * input_cols + r_start * input_cols + c_start];
+                    var max_pos: usize = 0;
+
+                    for (0..kernel[0]) |kr| {
+                        for (0..kernel[1]) |kc| {
+                            const in_r = r_start + kr;
+                            const in_c = c_start + kc;
+
+                            if (in_r < input_rows and in_c < input_cols) {
+                                const val = input.data[b * channels * input_rows * input_cols + c * input_rows * input_cols + in_r * input_cols + in_c];
+                                if (val > max_value) {
+                                    max_value = val;
+                                    max_pos = in_r * input_cols + in_c;
+                                }
+                            }
+                        }
+                    }
+
+                    output.data[b * channels * out_rows * out_cols + c * out_rows * out_cols + out_r * out_cols + out_c] = max_value;
+
+                    used_input.data[b * channels * out_rows * out_cols * input_rows * input_cols + c * out_rows * out_cols * input_rows * input_cols + window_index * input_rows * input_cols + max_pos] = 1;
+                }
+            }
+        }
+    }
+
+    return .{ .output = output, .used_input = used_input };
+}
+
+/// Performs backward pass for pooling operation
+pub fn pool_backward(comptime T: type, dValues: *Tensor(T), input_shape: []const usize, used_input: *Tensor(u8), kernel: [2]usize, stride: [2]usize) !Tensor(T) {
+    // Create a mutable copy of input_shape
+    const shape = try pkg_allocator.alloc(usize, input_shape.len);
+    defer pkg_allocator.free(shape);
+    @memcpy(shape, input_shape);
+
+    var dInput = try Tensor(T).fromShape(&pkg_allocator, shape);
+
+    for (dInput.data) |*val| val.* = 0;
+
+    const batch_size = input_shape[0];
+    const channels = input_shape[1];
+    const input_rows = input_shape[2];
+    const input_cols = input_shape[3];
+
+    const out_rows = dValues.shape[2];
+    const out_cols = dValues.shape[3];
+
+    for (0..batch_size) |b| {
+        for (0..channels) |c| {
+            for (0..out_rows) |out_r| {
+                for (0..out_cols) |out_c| {
+                    const grad = dValues.data[b * channels * out_rows * out_cols + c * out_rows * out_cols + out_r * out_cols + out_c];
+                    const window_index = out_r * out_cols + out_c;
+
+                    for (0..kernel[0]) |kr| {
+                        for (0..kernel[1]) |kc| {
+                            const in_r = out_r * stride[0] + kr;
+                            const in_c = out_c * stride[1] + kc;
+
+                            if (in_r < input_rows and in_c < input_cols) {
+                                const mask_val = used_input.data[b * channels * out_rows * out_cols * input_rows * input_cols + c * out_rows * out_cols * input_rows * input_cols + window_index * input_rows * input_cols + in_r * input_cols + in_c];
+                                if (mask_val == 1) {
+                                    dInput.data[b * channels * input_rows * input_cols + c * input_rows * input_cols + in_r * input_cols + in_c] += grad;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return dInput;
+}
