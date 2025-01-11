@@ -8,6 +8,7 @@ const std = @import("std");
 const tMath = @import("tensor_m");
 const Architectures = @import("architectures").Architectures;
 const TensorError = @import("errorHandler").TensorError;
+const ArgumentError = @import("errorHandler").ArgumentError;
 
 ///Class Tensor.
 ///Return a generic type structure
@@ -484,6 +485,74 @@ pub fn Tensor(comptime T: type) type {
                 .shape = tensorShape,
                 .allocator = allocator,
             };
+        }
+
+        /// Returns a Tensor self transposed. Does not modify self.
+        /// By default, it transposes the tensor to the reverse shape.
+        pub fn transposeDefault(self: *@This()) !Tensor(T) {
+            // Reverse the shape of the tensor
+            const tensorShape = try self.allocator.alloc(usize, self.shape.len);
+            for (0..self.shape.len) |i| {
+                tensorShape[i] = self.shape.len - 1 - i;
+            }
+
+            return self.transpose(tensorShape);
+        }
+
+        /// Returns a Tensor self transposed. Does not modify self.
+        pub fn transpose(self: *@This(), perms: []usize) !Tensor(T) {
+            defer self.allocator.free(perms);
+            const num_dims = self.shape.len;
+            if (perms.len != num_dims) {
+                return error.InvalidDimension;
+            }
+
+            // Check that the permutation is valid
+            var bitmap = try self.allocator.alloc(bool, perms.len);
+            defer self.allocator.free(bitmap);
+
+            for (perms) |perm| {
+                if (perm >= perms.len) {
+                    return error.InvalidPermutation;
+                }
+                if (bitmap[perm] == true) {
+                    return error.InvalidPermutation;
+                }
+                bitmap[perm] = true;
+            }
+
+            // Allocate space for the new shape
+            const new_shape = try self.allocator.alloc(usize, num_dims);
+            for (0..num_dims) |i| {
+                new_shape[i] = self.shape[perms[i]];
+            }
+            defer self.allocator.free(new_shape);
+
+            // Create the new tensor
+            const new_tensor = try Tensor(T).fromShape(self.allocator, new_shape);
+
+            // Copy data to the new tensor
+            for (0..self.size) |i| {
+                new_tensor.data[i] = self.data[i];
+            }
+
+            return new_tensor;
+        }
+
+        /// Performs Element-wise Multiplication of two tensors.
+        pub fn mul(lhs: *@This(), rhs: *@This()) !Tensor(T) {
+            if (lhs.size != rhs.size) {
+                return TensorError.MismatchedShape;
+            }
+
+            const allocator = lhs.allocator;
+            const result = try Tensor(T).fromShape(allocator, lhs.shape);
+
+            for (0..lhs.size) |i| {
+                result.data[i] = lhs.data[i] * rhs.data[i];
+            }
+
+            return result;
         }
 
         /// Returns true if the Tensor is one-hot encoded
