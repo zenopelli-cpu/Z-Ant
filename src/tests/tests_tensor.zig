@@ -254,6 +254,68 @@ test "transpose" {
     try std.testing.expect(tensor_transposed.data[5] == 6);
 }
 
+test "transpose multi-dimensions default" {
+    std.debug.print("\n     test: transpose multi-dimensions ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Initialize input Array and shape
+    var inputArray: [2][3][4]u8 = [_][3][4]u8{
+        [_][4]u8{
+            [_]u8{ 1, 2, 3, 4 },
+            [_]u8{ 5, 6, 7, 8 },
+            [_]u8{ 9, 10, 11, 12 },
+        },
+        [_][4]u8{
+            [_]u8{ 13, 14, 15, 16 },
+            [_]u8{ 17, 18, 19, 20 },
+            [_]u8{ 21, 22, 23, 24 },
+        },
+    };
+    var shape: [3]usize = [_]usize{ 2, 3, 4 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+
+    defer tensor.deinit();
+
+    var tensor_transposed = try tensor.transposeDefault();
+    defer tensor_transposed.deinit();
+
+    for (0..tensor.size) |i| {
+        try std.testing.expect(tensor_transposed.data[i] == tensor.data[i]);
+    }
+}
+
+test "test tensor element-wise multiplication" {
+    std.debug.print("\n     test: tensor element-wise multiplication ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Inizializzazione degli array di input
+    var inputArray1: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+
+    var inputArray2: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor1 = try Tensor(u8).fromArray(&allocator, &inputArray1, &shape);
+    defer tensor1.deinit();
+
+    var tensor2 = try Tensor(u8).fromArray(&allocator, &inputArray2, &shape);
+    defer tensor2.deinit();
+
+    var tensor3 = try tensor1.mul(&tensor2);
+    defer tensor3.deinit();
+
+    for (0..tensor3.size) |i| {
+        try std.testing.expect(tensor3.data[i] == tensor1.data[i] * tensor2.data[i]);
+    }
+}
+
 test "tests isSafe() method" {
     std.debug.print("\n     test: isSafe() method ", .{});
 
