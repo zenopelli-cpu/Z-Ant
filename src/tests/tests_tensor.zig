@@ -316,6 +316,37 @@ test "test tensor element-wise multiplication" {
     }
 }
 
+test "test tensor element-wise divisio" {
+    std.debug.print("\n     test: tensor element-wise division ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Inizializzazione degli array di input
+    var inputArray1: [2][3]u8 = [_][3]u8{
+        [_]u8{ 2, 4, 6 },
+        [_]u8{ 8, 10, 12 },
+    };
+
+    var inputArray2: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor1 = try Tensor(u8).fromArray(&allocator, &inputArray1, &shape);
+    defer tensor1.deinit();
+
+    var tensor2 = try Tensor(u8).fromArray(&allocator, &inputArray2, &shape);
+    defer tensor2.deinit();
+
+    var tensor3 = try tensor1.div(&tensor2);
+    defer tensor3.deinit();
+
+    for (0..tensor3.size) |i| {
+        try std.testing.expect(tensor3.data[i] == tensor1.data[i] / tensor2.data[i]);
+    }
+}
+
 test "tests isSafe() method" {
     std.debug.print("\n     test: isSafe() method ", .{});
 
@@ -624,6 +655,8 @@ test "test flip() " {
     var resultShape: [3]usize = [_]usize{ 2, 3, 3 };
     var resultTensor = try Tensor(i8).fromArray(&allocator, &resultArray, &resultShape);
     defer resultTensor.deinit();
+    std.debug.print("TRY WITH THISSS: \n", .{});
+    resultTensor.printMultidim();
 
     //check on data
     for (0..resultTensor.data.len) |i| {
@@ -739,6 +772,61 @@ test "gather along axis 0 and axis 1" {
     const invalidAxis: usize = 3; // Input tensor has 2 dimensions
     const result0 = inputTensor0.gather(indicesTensor0, invalidAxis);
     try std.testing.expect(result0 == TensorError.InvalidAxis);
+}
+
+test "gather along negative axis" {
+    const allocator = pkgAllocator.allocator;
+
+    // -------------------------------------------------------------------------------------
+    // Test Case 1: Gather Along Axis 0
+    // -------------------------------------------------------------------------------------
+    std.debug.print("\n     test: gather along axis 1", .{});
+
+    var inputArray1: [2][4]u8 = [_][4]u8{
+        [_]u8{ 10, 20, 30, 40 },
+        [_]u8{ 50, 60, 70, 80 },
+    };
+    var inputShape1: [2]usize = [_]usize{ 2, 4 };
+    var inputTensor1 = try Tensor(u8).fromArray(&allocator, &inputArray1, &inputShape1);
+    defer inputTensor1.deinit();
+
+    var indicesArray1: [2][2]usize = [_][2]usize{
+        [_]usize{ 1, 3 },
+        [_]usize{ 0, 2 },
+    };
+    var indicesShape1: [2]usize = [_]usize{ 2, 2 };
+    var indicesTensor1 = try Tensor(usize).fromArray(&allocator, &indicesArray1, &indicesShape1);
+    defer indicesTensor1.deinit();
+
+    // Perform gather along axis 1
+    var gatheredTensor1 = try inputTensor1.gather(indicesTensor1, -1);
+    defer gatheredTensor1.deinit();
+
+    // Expected output tensor: [
+    //   [20, 40],
+    //   [10, 30],
+    //   [60, 80],
+    //   [50, 70]
+    // ], shape [2, 2, 2]
+    const expectedData1: [8]u8 = [_]u8{ 20, 40, 10, 30, 60, 80, 50, 70 };
+    const expectedShape1: [3]usize = [_]usize{ 2, 2, 2 };
+
+    // Check shape
+    try std.testing.expect(gatheredTensor1.shape.len == expectedShape1.len);
+    for (0..expectedShape1.len) |i| {
+        try std.testing.expect(gatheredTensor1.shape[i] == expectedShape1[i]);
+    }
+
+    // Check data
+    std.debug.print("\n     gatheredTensor1.size: {}\n", .{gatheredTensor1.size});
+    gatheredTensor1.print();
+
+    try std.testing.expect(gatheredTensor1.size == 8);
+    for (0..gatheredTensor1.size) |i| {
+        std.debug.print("\n     gatheredTensor1.data[i]: {}\n", .{expectedData1[i]});
+        std.debug.print("\n     expectedData1[i]: {}\n", .{gatheredTensor1.data[i]});
+        try std.testing.expect(gatheredTensor1.data[i] == expectedData1[i]);
+    }
 }
 
 test "resize with nearest neighbor interpolation" {
