@@ -6,6 +6,9 @@
 pub const add_bias = @import("basic_math").add_bias;
 pub const sum_tensors = @import("basic_math").sum_tensors;
 pub const sub_tensors = @import("basic_math").sub_tensors;
+pub const mul = @import("basic_math").mul;
+pub const isOneHot = @import("basic_math").isOneHot;
+pub const isSafe = @import("basic_math").isSafe;
 
 // ---------- importing standard reduction and logical methods ----------
 pub const equal = @import("basic_math").equal;
@@ -14,6 +17,8 @@ pub const mean = @import("basic_math").mean;
 // ---------- importing standard strucutal methods ----------
 pub const concatenate = @import("structural_math").concatenate;
 pub const calculateStrides = @import("structural_math").calculateStrides;
+pub const transpose2D = @import("structural_math").transpose2D;
+pub const transposeDefault = @import("structural_math").transposeDefault;
 
 // ---------- importing matrix algebra methods ----------
 pub const compute_dot_product = @import("algebraic_math").compute_dot_product;
