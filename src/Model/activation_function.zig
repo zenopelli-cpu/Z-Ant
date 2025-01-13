@@ -78,7 +78,7 @@ pub fn ReLU(comptime T: anytype) type {
 pub fn LeakyReLU(comptime T: anytype) type {
     return struct {
         const Self = @This();
-        pub fn forward(self: *Self, input: *Tensor(T)) !void {
+        pub fn forward(self: *Self, input: *Tensor(T), slope: T) !void {
             _ = self;
 
             //checks
@@ -87,12 +87,12 @@ pub fn LeakyReLU(comptime T: anytype) type {
             //apply Leaky ReLU suing relu self.relu() - (-neg_slope*self).relu()
             for (0..input.size) |i| {
                 if (input.data[i] <= 0) {
-                    input.data[i] = 0.01 * input.data[i];
+                    input.data[i] = slope * input.data[i];
                 }
             }
         }
 
-        pub fn derivate(self: *Self, gradient: *Tensor(T), act_relu_input: *Tensor(T)) !void {
+        pub fn derivate(self: *Self, gradient: *Tensor(T), act_relu_input: *Tensor(T), slope: T) !void {
             _ = self;
             //checks
             if (gradient.size <= 0 or act_relu_input.size <= 0) return TensorError.ZeroSizeTensor;
@@ -103,7 +103,7 @@ pub fn LeakyReLU(comptime T: anytype) type {
                 if (act_relu_input.data[i] > 0) {
                     gradient.data[i] *= 1;
                 } else {
-                    gradient.data[i] *= 0.01;
+                    gradient.data[i] *= slope;
                 }
             }
         }
