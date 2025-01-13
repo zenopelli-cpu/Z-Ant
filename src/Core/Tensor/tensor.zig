@@ -1105,6 +1105,232 @@ pub fn Tensor(comptime T: type) type {
             }
             return strides;
         }
+
+        /// Implements the ONNX slice operator (https://onnx.ai/onnx/operators/onnx__Slice.html)
+        /// Takes a tensor and extracts a slice along multiple axes.
+        /// starts: Starting indices for each axis
+        /// ends: Ending indices for each axis (exclusive)
+        /// axes: Which axes to slice (if null, assumes [0,1,2,...])
+        /// steps: Step sizes for each axis (if null, assumes all 1s)
+        pub fn slice_onnx(self: *Tensor(T), starts: []const i64, ends: []const i64, axes: ?[]const i64, steps: ?[]const i64) !Tensor(T) {
+            // Validate input lengths
+            if (starts.len != ends.len) return TensorError.InvalidSliceIndices;
+            if (axes) |a| {
+                if (a.len != starts.len) return TensorError.InvalidSliceIndices;
+            }
+            if (steps) |s| {
+                if (s.len != starts.len) return TensorError.InvalidSliceIndices;
+            }
+
+            // Create arrays to store the actual indices and steps for each dimension
+            var actual_starts = try self.allocator.alloc(i64, self.shape.len);
+            defer self.allocator.free(actual_starts);
+            var actual_ends = try self.allocator.alloc(i64, self.shape.len);
+            defer self.allocator.free(actual_ends);
+            var actual_steps = try self.allocator.alloc(i64, self.shape.len);
+            defer self.allocator.free(actual_steps);
+
+            // Initialize with defaults (full range, step 1)
+            for (0..self.shape.len) |i| {
+                actual_starts[i] = 0;
+                actual_ends[i] = @intCast(self.shape[i]);
+                actual_steps[i] = 1;
+            }
+
+            // Update with provided values
+            for (starts, 0..) |start, i| {
+                const axis = if (axes) |a| a[i] else @as(i64, @intCast(i));
+                const axis_usize = if (axis < 0) @as(usize, @intCast(axis + @as(i64, @intCast(self.shape.len)))) else @as(usize, @intCast(axis));
+                if (axis_usize >= self.shape.len) return TensorError.InvalidSliceIndices;
+
+                const dim_size = @as(i64, @intCast(self.shape[axis_usize]));
+
+                // Handle negative indices and clamp to valid range
+                var actual_start = if (start < 0) start + dim_size else start;
+                actual_start = @max(0, @min(actual_start, dim_size));
+                actual_starts[axis_usize] = actual_start;
+
+                var actual_end = if (ends[i] < 0) ends[i] + dim_size else ends[i];
+                if (steps) |s| {
+                    if (s[i] < 0) {
+                        // For negative steps, if end is negative, we want to include 0
+                        actual_end = if (ends[i] < 0) -1 else actual_end;
+                    } else {
+                        actual_end = @max(0, @min(actual_end, dim_size));
+                    }
+                } else {
+                    actual_end = @max(0, @min(actual_end, dim_size));
+                }
+                actual_ends[axis_usize] = actual_end;
+
+                if (steps) |s| {
+                    if (s[i] == 0) return TensorError.InvalidSliceStep;
+                    actual_steps[axis_usize] = s[i];
+                }
+            }
+
+            // Calculate output shape
+            var output_shape = try self.allocator.alloc(usize, self.shape.len);
+            errdefer self.allocator.free(output_shape);
+
+            var total_elements: usize = 1;
+            for (0..self.shape.len) |i| {
+                const start = actual_starts[i];
+                const end = actual_ends[i];
+                const step = actual_steps[i];
+
+                var dim_size: usize = 0;
+                if (step > 0) {
+                    if (end > start) {
+                        dim_size = @intCast(@divTrunc((@as(i64, @intCast(end - start)) + step - 1), step));
+                        std.debug.print("\nPositive step: start={}, end={}, step={}, dim_size={}", .{ start, end, step, dim_size });
+                    }
+                } else {
+                    if (start > end) {
+                        // For negative steps, we need to handle the range differently
+                        // Add 1 to end because end is exclusive
+                        const range = start - (end + 1);
+                        const abs_step = -step;
+                        dim_size = @intCast(@divTrunc(range + abs_step - 1, abs_step));
+                        std.debug.print("\nNegative step: start={}, end={}, step={}, range={}, abs_step={}, dim_size={}", .{ start, end, step, range, abs_step, dim_size });
+                    }
+                }
+                std.debug.print("\nDimension {}: dim_size={}", .{ i, dim_size });
+                output_shape[i] = dim_size;
+                total_elements *= dim_size;
+            }
+
+            // Allocate output data
+            var output_data = try self.allocator.alloc(T, total_elements);
+            errdefer self.allocator.free(output_data);
+
+            // Helper function to convert flat index to coordinates
+            var input_coords = try self.allocator.alloc(usize, self.shape.len);
+            defer self.allocator.free(input_coords);
+            var output_coords = try self.allocator.alloc(usize, self.shape.len);
+            defer self.allocator.free(output_coords);
+
+            // Copy data
+            var output_idx: usize = 0;
+            std.debug.print("\nTotal elements: {}", .{total_elements});
+            while (output_idx < total_elements) : (output_idx += 1) {
+                // Convert output_idx to coordinates
+                var temp = output_idx;
+                for (0..self.shape.len) |i| {
+                    const dim_i = self.shape.len - 1 - i;
+                    output_coords[dim_i] = temp % output_shape[dim_i];
+                    temp /= output_shape[dim_i];
+                }
+
+                // Calculate input coordinates
+                for (0..self.shape.len) |i| {
+                    const coord = @as(i64, @intCast(output_coords[i]));
+                    input_coords[i] = @intCast(actual_starts[i] + coord * actual_steps[i]);
+                    std.debug.print("\noutput_coord[{}]={}, input_coord[{}]={}", .{ i, output_coords[i], i, input_coords[i] });
+                }
+
+                // Get input value
+                const input_idx = try self.flatten_index(input_coords);
+                output_data[output_idx] = self.data[input_idx];
+                std.debug.print("\noutput_idx={}, input_idx={}, value={}", .{ output_idx, input_idx, output_data[output_idx] });
+            }
+
+            return Tensor(T){
+                .data = output_data,
+                .shape = output_shape,
+                .size = total_elements,
+                .allocator = self.allocator,
+            };
+        }
+
+        /// Split a tensor into multiple tensors along a specified axis.
+        /// If split_sizes is null, the tensor is split into equal parts.
+        /// If split_sizes is provided, it specifies the size of each split.
+        /// Negative axis values count from the back (-1 means last axis).
+        /// Returns an array of tensors that must be freed by the caller.
+        pub fn split(self: *@This(), axis: i64, split_sizes: ?[]const usize) ![]Tensor(T) {
+            // Handle negative axis
+            const positive_axis = @as(usize, @intCast(if (axis < 0) @as(i64, @intCast(self.shape.len)) + axis else axis));
+            if (positive_axis >= self.shape.len) return TensorError.InvalidAxis;
+
+            // Calculate split sizes
+            const dim_size = self.shape[positive_axis];
+            var sizes = std.ArrayList(usize).init(self.allocator.*);
+            defer sizes.deinit();
+
+            if (split_sizes) |s| {
+                // Validate and use provided split sizes
+                var total_size: usize = 0;
+                for (s) |size| {
+                    try sizes.append(size);
+                    total_size += size;
+                }
+                if (total_size != dim_size) return TensorError.InvalidSplitSize;
+            } else {
+                // Split into equal parts
+                if (dim_size == 0) return TensorError.InvalidSplitSize;
+                const split_size = dim_size;
+                try sizes.append(split_size);
+            }
+
+            // Create output tensors
+            var output_tensors = try self.allocator.alloc(Tensor(T), sizes.items.len);
+            errdefer {
+                for (output_tensors) |*tensor| {
+                    tensor.deinit();
+                }
+                self.allocator.free(output_tensors);
+            }
+
+            var offset: usize = 0;
+            for (sizes.items, 0..) |split_size, i| {
+                // Create shape for the split tensor
+                var new_shape = try self.allocator.alloc(usize, self.shape.len);
+                errdefer self.allocator.free(new_shape);
+                @memcpy(new_shape, self.shape);
+                new_shape[positive_axis] = split_size;
+
+                // Calculate total size for the split tensor
+                var total_size: usize = 1;
+                for (new_shape) |dim| {
+                    total_size *= dim;
+                }
+
+                // Allocate memory for the split tensor's data
+                var new_data = try self.allocator.alloc(T, total_size);
+                errdefer self.allocator.free(new_data);
+
+                // Calculate strides
+                var stride: usize = 1;
+                for (positive_axis + 1..self.shape.len) |j| {
+                    stride *= self.shape[j];
+                }
+
+                // Copy data to the split tensor
+                const block_size = split_size * stride;
+                const num_blocks = total_size / block_size;
+
+                var block_idx: usize = 0;
+                while (block_idx < num_blocks) : (block_idx += 1) {
+                    const src_start = offset + block_idx * dim_size * stride;
+                    const dst_start = block_idx * split_size * stride;
+                    const copy_size = split_size * stride;
+                    @memcpy(new_data[dst_start .. dst_start + copy_size], self.data[src_start .. src_start + copy_size]);
+                }
+
+                // Create the split tensor
+                output_tensors[i] = .{
+                    .data = new_data,
+                    .size = total_size,
+                    .shape = new_shape,
+                    .allocator = self.allocator,
+                };
+
+                offset += split_size * stride;
+            }
+
+            return output_tensors;
+        }
     };
 }
 

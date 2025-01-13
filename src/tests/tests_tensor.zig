@@ -977,3 +977,270 @@ test "resize error cases" {
         tensor.resize("nearest", null, null, "half_pixel"),
     );
 }
+
+test "slice_onnx basic slicing" {
+    std.debug.print("\n     test: slice_onnx basic slicing", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Test 1D tensor slicing
+    var input_array_1d = [_]i32{ 1, 2, 3, 4, 5 };
+    var shape_1d = [_]usize{5};
+    var tensor_1d = try Tensor(i32).fromArray(&allocator, &input_array_1d, &shape_1d);
+    defer tensor_1d.deinit();
+
+    // Basic slice [1:3]
+    var starts = [_]i64{1};
+    var ends = [_]i64{3};
+    var sliced_1d = try tensor_1d.slice_onnx(&starts, &ends, null, null);
+    defer sliced_1d.deinit();
+
+    try std.testing.expectEqual(@as(usize, 2), sliced_1d.size);
+    try std.testing.expectEqual(@as(i32, 2), sliced_1d.data[0]);
+    try std.testing.expectEqual(@as(i32, 3), sliced_1d.data[1]);
+
+    // Test 2D tensor slicing
+    var input_array_2d = [_][3]i32{
+        [_]i32{ 1, 2, 3 },
+        [_]i32{ 4, 5, 6 },
+        [_]i32{ 7, 8, 9 },
+    };
+    var shape_2d = [_]usize{ 3, 3 };
+    var tensor_2d = try Tensor(i32).fromArray(&allocator, &input_array_2d, &shape_2d);
+    defer tensor_2d.deinit();
+
+    // Slice [0:2, 1:3]
+    var starts_2d = [_]i64{ 0, 1 };
+    var ends_2d = [_]i64{ 2, 3 };
+    var sliced_2d = try tensor_2d.slice_onnx(&starts_2d, &ends_2d, null, null);
+    defer sliced_2d.deinit();
+
+    try std.testing.expectEqual(@as(usize, 4), sliced_2d.size);
+    try std.testing.expectEqual(@as(i32, 2), sliced_2d.data[0]);
+    try std.testing.expectEqual(@as(i32, 3), sliced_2d.data[1]);
+    try std.testing.expectEqual(@as(i32, 5), sliced_2d.data[2]);
+    try std.testing.expectEqual(@as(i32, 6), sliced_2d.data[3]);
+}
+
+test "slice_onnx negative indices" {
+    std.debug.print("\n     test: slice_onnx negative indices", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var input_array = [_]i32{ 1, 2, 3, 4, 5 };
+    var shape = [_]usize{5};
+    var tensor = try Tensor(i32).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Test negative indices [-3:-1]
+    var starts = [_]i64{-3};
+    var ends = [_]i64{-1};
+    var sliced = try tensor.slice_onnx(&starts, &ends, null, null);
+    defer sliced.deinit();
+
+    try std.testing.expectEqual(@as(usize, 2), sliced.size);
+    try std.testing.expectEqual(@as(i32, 3), sliced.data[0]);
+    try std.testing.expectEqual(@as(i32, 4), sliced.data[1]);
+}
+
+test "slice_onnx with steps" {
+    std.debug.print("\n     test: slice_onnx with steps", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var input_array = [_]i32{ 1, 2, 3, 4, 5, 6 };
+    var shape = [_]usize{6};
+    var tensor = try Tensor(i32).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Test with step 2
+    var starts = [_]i64{0};
+    var ends = [_]i64{6};
+    var steps = [_]i64{2};
+    var sliced = try tensor.slice_onnx(&starts, &ends, null, &steps);
+    defer sliced.deinit();
+
+    try std.testing.expectEqual(@as(usize, 3), sliced.size);
+    try std.testing.expectEqual(@as(i32, 1), sliced.data[0]);
+    try std.testing.expectEqual(@as(i32, 3), sliced.data[1]);
+    try std.testing.expectEqual(@as(i32, 5), sliced.data[2]);
+
+    // Test with negative step
+    steps[0] = -1;
+    starts[0] = 5;
+    ends[0] = -1;
+    var reversed = try tensor.slice_onnx(&starts, &ends, null, &steps);
+    defer reversed.deinit();
+
+    try std.testing.expectEqual(@as(usize, 5), reversed.size);
+    try std.testing.expectEqual(@as(i32, 6), reversed.data[0]);
+    try std.testing.expectEqual(@as(i32, 5), reversed.data[1]);
+    try std.testing.expectEqual(@as(i32, 4), reversed.data[2]);
+    try std.testing.expectEqual(@as(i32, 3), reversed.data[3]);
+    try std.testing.expectEqual(@as(i32, 2), reversed.data[4]);
+}
+
+test "slice_onnx with explicit axes" {
+    std.debug.print("\n     test: slice_onnx with explicit axes", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var input_array = [_][3]i32{
+        [_]i32{ 1, 2, 3 },
+        [_]i32{ 4, 5, 6 },
+        [_]i32{ 7, 8, 9 },
+    };
+    var shape = [_]usize{ 3, 3 };
+    var tensor = try Tensor(i32).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Test slicing only along axis 1
+    var starts = [_]i64{1};
+    var ends = [_]i64{3};
+    var axes = [_]i64{1};
+    var sliced = try tensor.slice_onnx(&starts, &ends, &axes, null);
+    defer sliced.deinit();
+
+    try std.testing.expectEqual(@as(usize, 2), sliced.shape[1]);
+    try std.testing.expectEqual(@as(usize, 3), sliced.shape[0]);
+    try std.testing.expectEqual(@as(i32, 2), sliced.data[0]);
+    try std.testing.expectEqual(@as(i32, 3), sliced.data[1]);
+    try std.testing.expectEqual(@as(i32, 5), sliced.data[2]);
+    try std.testing.expectEqual(@as(i32, 6), sliced.data[3]);
+    try std.testing.expectEqual(@as(i32, 8), sliced.data[4]);
+    try std.testing.expectEqual(@as(i32, 9), sliced.data[5]);
+}
+
+test "slice_onnx error cases" {
+    std.debug.print("\n     test: slice_onnx error cases", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var input_array = [_]i32{ 1, 2, 3, 4, 5 };
+    var shape = [_]usize{5};
+    var tensor = try Tensor(i32).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Test invalid step size
+    var starts = [_]i64{0};
+    var ends = [_]i64{5};
+    var steps = [_]i64{0}; // Step cannot be 0
+    try std.testing.expectError(TensorError.InvalidSliceStep, tensor.slice_onnx(&starts, &ends, null, &steps));
+
+    // Test mismatched lengths
+    var starts_2 = [_]i64{ 0, 0 };
+    var ends_1 = [_]i64{5};
+    try std.testing.expectError(TensorError.InvalidSliceIndices, tensor.slice_onnx(&starts_2, &ends_1, null, null));
+
+    // Test invalid axis
+    var axes = [_]i64{5}; // Axis 5 doesn't exist in a 1D tensor
+    try std.testing.expectError(TensorError.InvalidSliceIndices, tensor.slice_onnx(&starts, &ends, &axes, null));
+}
+
+test "split basic test" {
+    std.debug.print("\n     test: split basic test", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    const input_array = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape = [_]usize{ 2, 3 };
+    var tensor = try Tensor(u8).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Split along axis 0 (rows)
+    const split_tensors = try tensor.split(0, null);
+    defer {
+        for (split_tensors) |*t| {
+            t.deinit();
+        }
+        allocator.free(split_tensors);
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), split_tensors.len);
+    try std.testing.expectEqual(@as(usize, 2), split_tensors[0].shape[0]);
+    try std.testing.expectEqual(@as(usize, 3), split_tensors[0].shape[1]);
+    try std.testing.expectEqual(@as(u8, 1), split_tensors[0].data[0]);
+    try std.testing.expectEqual(@as(u8, 6), split_tensors[0].data[5]);
+}
+
+test "split with custom sizes" {
+    std.debug.print("\n     test: split with custom sizes", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 4x2 tensor
+    const input_array = [_][2]u8{
+        [_]u8{ 1, 2 },
+        [_]u8{ 3, 4 },
+        [_]u8{ 5, 6 },
+        [_]u8{ 7, 8 },
+    };
+    var shape = [_]usize{ 4, 2 };
+    var tensor = try Tensor(u8).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Split along axis 0 into [1,3] parts
+    const split_sizes = [_]usize{ 1, 3 };
+    const split_tensors = try tensor.split(0, &split_sizes);
+    defer {
+        for (split_tensors) |*t| {
+            t.deinit();
+        }
+        allocator.free(split_tensors);
+    }
+
+    try std.testing.expectEqual(@as(usize, 2), split_tensors.len);
+
+    // First split should be 1x2
+    try std.testing.expectEqual(@as(usize, 1), split_tensors[0].shape[0]);
+    try std.testing.expectEqual(@as(usize, 2), split_tensors[0].shape[1]);
+    try std.testing.expectEqual(@as(u8, 1), split_tensors[0].data[0]);
+    try std.testing.expectEqual(@as(u8, 2), split_tensors[0].data[1]);
+
+    // Second split should be 3x2
+    try std.testing.expectEqual(@as(usize, 3), split_tensors[1].shape[0]);
+    try std.testing.expectEqual(@as(usize, 2), split_tensors[1].shape[1]);
+    try std.testing.expectEqual(@as(u8, 3), split_tensors[1].data[0]);
+    try std.testing.expectEqual(@as(u8, 8), split_tensors[1].data[5]);
+}
+
+test "split with negative axis" {
+    std.debug.print("\n     test: split with negative axis", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x4 tensor
+    const input_array = [_][4]u8{
+        [_]u8{ 1, 2, 3, 4 },
+        [_]u8{ 5, 6, 7, 8 },
+    };
+    var shape = [_]usize{ 2, 4 };
+    var tensor = try Tensor(u8).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Split along axis -1 (last axis) into [2,2] parts
+    const split_sizes = [_]usize{ 2, 2 };
+    const split_tensors = try tensor.split(-1, &split_sizes);
+    defer {
+        for (split_tensors) |*t| {
+            t.deinit();
+        }
+        allocator.free(split_tensors);
+    }
+
+    try std.testing.expectEqual(@as(usize, 2), split_tensors.len);
+
+    // Both splits should be 2x2
+    for (split_tensors) |t| {
+        try std.testing.expectEqual(@as(usize, 2), t.shape[0]);
+        try std.testing.expectEqual(@as(usize, 2), t.shape[1]);
+    }
+
+    // Check first split
+    try std.testing.expectEqual(@as(u8, 1), split_tensors[0].data[0]);
+    try std.testing.expectEqual(@as(u8, 2), split_tensors[0].data[1]);
+    try std.testing.expectEqual(@as(u8, 5), split_tensors[0].data[2]);
+    try std.testing.expectEqual(@as(u8, 6), split_tensors[0].data[3]);
+
+    // Check second split
+    try std.testing.expectEqual(@as(u8, 3), split_tensors[1].data[0]);
+    try std.testing.expectEqual(@as(u8, 4), split_tensors[1].data[1]);
+    try std.testing.expectEqual(@as(u8, 7), split_tensors[1].data[2]);
+    try std.testing.expectEqual(@as(u8, 8), split_tensors[1].data[3]);
+}

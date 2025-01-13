@@ -57,6 +57,7 @@ pub const TensorError = error{
     InvalidSliceIndices,
     InvalidSliceShape,
     SliceOutOfBounds,
+    InvalidSliceStep,
     InvalidIndices,
     TooSmallToPadding,
     EmptyTensorList,
@@ -68,6 +69,7 @@ pub const TensorError = error{
     InvalidInput,
     UnsupportedMode,
     UnsupportedDimension,
+    InvalidSplitSize,
 };
 
 /// A union type to represent any of the errors
@@ -130,6 +132,7 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         TensorError.InvalidInput => "Tensor: invalid input parameters for operation",
         TensorError.UnsupportedMode => "Tensor: unsupported interpolation mode",
         TensorError.UnsupportedDimension => "Tensor: operation not supported for this tensor dimension",
+        TensorError.InvalidSplitSize => "Tensor: invalid split size for tensor dimension",
 
         else => "Unknown error type",
     };
