@@ -298,7 +298,7 @@ test "LeakyReLU from ActivationFunction()" {
     defer t1.deinit();
 
     var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
-    try leaky_relu.forward(&t1);
+    try leaky_relu.forward(&t1, 0.01);
 
     try std.testing.expect(t1.data[0] == 1.0);
     try std.testing.expect(@abs(t1.data[1] - (-0.02)) < 0.00001);
@@ -322,7 +322,7 @@ test "LeakyReLU all negative" {
     defer t1.deinit();
 
     var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
-    try leaky_relu.forward(&t1);
+    try leaky_relu.forward(&t1, 0.01);
 
     for (0..t1.data.len) |i| {
         try std.testing.expect(@abs(t1.data[i] - (0.01 * inputArray[i / shape[1]][i % shape[1]])) < 0.00001);
@@ -345,7 +345,7 @@ test "LeakyReLU all positive" {
     defer t1.deinit();
 
     var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
-    try leaky_relu.forward(&t1);
+    try leaky_relu.forward(&t1, 0.01);
 
     for (0..t1.data.len) |i| {
         try std.testing.expect(t1.data[i] == inputArray[i / shape[1]][i % shape[1]]);
@@ -371,7 +371,7 @@ test "LeakyReLU backward" {
     defer t_gradient.deinit();
 
     var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
-    try leaky_relu.forward(&t_input);
+    try leaky_relu.forward(&t_input, 0.01);
 
     var dValues: [2][2]f32 = [_][2]f32{
         [_]f32{ 10.0, -20.0 },
@@ -381,7 +381,7 @@ test "LeakyReLU backward" {
     var t_dValues = try Tensor(f32).fromArray(&allocator, &dValues, &shape);
     defer t_dValues.deinit();
 
-    try leaky_relu.derivate(&t_dValues, &t_input);
+    try leaky_relu.derivate(&t_dValues, &t_input, 0.01);
 
     try std.testing.expect(t_dValues.data[0] == 10.0);
     try std.testing.expect(@abs(t_dValues.data[1] - (-20.0 * 0.01)) < 0.00001);

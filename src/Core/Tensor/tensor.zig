@@ -440,15 +440,39 @@ pub fn Tensor(comptime T: type) type {
             std.debug.print("\n", .{});
         }
 
-        /// Print the Tensor() in the shape of a matrix
+        /// Print the Tensor() to console in a more readable way.
         pub fn printMultidim(self: *@This()) void {
-            const dim = self.shape.len;
-            for (0..self.shape[dim - 2]) |i| {
-                std.debug.print("\n[ ", .{});
-                for (0..self.shape[dim - 1]) |j| {
-                    std.debug.print("{} ", .{self.data[i * self.shape[dim - 1] + j]});
+            // Allocate array to store the indices
+            self._printMultidimHelper(0, 0);
+        }
+
+        fn _printMultidimHelper(self: *@This(), offset: usize, idx: usize) void {
+            // Print opening bracket with a number of tab that is equals to idx
+            for (0..idx) |_| {
+                std.debug.print("    ", .{});
+            }
+            std.debug.print("[", .{});
+
+            if (idx == self.shape.len - 1) {
+                for (0..self.shape[self.shape.len - 1]) |i| {
+                    const local_idx = offset + i;
+                    std.debug.print("{}, ", .{self.data[local_idx]});
+                }
+                std.debug.print("],\n", .{});
+            } else {
+                std.debug.print("\n", .{});
+                for (0..self.shape[idx]) |i| {
+                    self._printMultidimHelper(offset + self.shape[idx + 1] * i, idx + 1);
+                }
+                std.debug.print("\n", .{});
+
+                for (0..idx) |_| {
+                    std.debug.print("    ", .{});
                 }
                 std.debug.print("]", .{});
+                if (idx != 0) {
+                    std.debug.print(",\n", .{});
+                }
             }
         }
 
@@ -550,6 +574,22 @@ pub fn Tensor(comptime T: type) type {
 
             for (0..lhs.size) |i| {
                 result.data[i] = lhs.data[i] * rhs.data[i];
+            }
+
+            return result;
+        }
+
+        /// Performs Element-wise binary division of two tensors.
+        pub fn div(lhs: *@This(), rhs: *@This()) !Tensor(T) {
+            if (lhs.size != rhs.size) {
+                return TensorError.MismatchedShape;
+            }
+
+            const allocator = lhs.allocator;
+            const result = try Tensor(T).fromShape(allocator, lhs.shape);
+
+            for (0..lhs.size) |i| {
+                result.data[i] = lhs.data[i] / rhs.data[i];
             }
 
             return result;
@@ -723,11 +763,15 @@ pub fn Tensor(comptime T: type) type {
         /// The indices tensor must have the same number of dimensions as the input tensor, except for the axis dimension.
         /// The shape of the output tensor is the same as the shape of the indices tensor, with the axis dimension removed.
         /// The output tensor is created by copying elements from the input tensor using the indices tensor.
-        pub fn gather(self: *@This(), indices: Tensor(usize), axis: usize) !@This() {
+        pub fn gather(self: *@This(), indices: Tensor(usize), selected_axis: isize) !@This() {
             // Validate that the axis is within the tensor's dimensions
-            if (axis >= self.shape.len) {
+            const number_dimensions: isize = @intCast(self.shape.len);
+            if (selected_axis >= number_dimensions or selected_axis <= -1 * number_dimensions) {
                 return TensorError.InvalidAxis;
             }
+
+            // If axis is negative, convert it to a positive index
+            const axis: usize = @intCast(if (selected_axis < 0) number_dimensions + selected_axis else selected_axis);
 
             // Calculate the shape of the output tensor:
             // [data.shape[0..axis], indices.shape..., data.shape[axis+1..]]
