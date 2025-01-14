@@ -380,6 +380,7 @@ test "Complete test of the Flatten layer functionalities with first dimension un
         .input = undefined,
         .output = undefined,
         .allocator = allocator,
+        .original_shape = &[_]usize{},
     };
     var layer = flatten_layer.create();
 
