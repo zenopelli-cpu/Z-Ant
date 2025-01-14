@@ -13,8 +13,9 @@ const LayerError = @import("errorHandler").LayerError;
 pub fn FlattenLayer(comptime T: type) type {
     return struct {
         // Flatten layer parameters
-        input: Tensor.Tensor(T), // Stored input for backward pass
+        input: Tensor.Tensor(T), // Kept for compatibility with tests
         output: Tensor.Tensor(T), // Flattened output
+        original_shape: []usize, // Store original shape for backward pass
         allocator: *const std.mem.Allocator,
 
         const Self = @This();
@@ -49,20 +50,20 @@ pub fn FlattenLayer(comptime T: type) type {
             _ = argsStruct; // We don't really need the placeholder
 
             self.allocator = alloc;
-
-            return; // No errors expected
+            self.original_shape = &[_]usize{};
+            return;
         }
 
         /// Deallocate the Flatten layer resources
         pub fn deinit(ctx: *anyopaque) void {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
-            if (self.input.data.len > 0) {
-                self.input.deinit();
-            }
-
             if (self.output.data.len > 0) {
                 self.output.deinit();
+            }
+
+            if (self.original_shape.len > 0) {
+                self.allocator.free(self.original_shape);
             }
         }
 
@@ -76,54 +77,38 @@ pub fn FlattenLayer(comptime T: type) type {
                 return LayerError.InvalidParameters;
             }
 
-            // Save the input for backward pass
-            if (self.input.data.len > 0) {
-                self.input.deinit();
+            // Store original shape for backward pass
+            if (self.original_shape.len > 0) {
+                self.allocator.free(self.original_shape);
             }
-            self.input = try input.copy();
+            self.original_shape = try self.allocator.dupe(usize, input.shape);
 
             const batch_size = input.shape[0];
-
-            // Compute total size of the rest dimensions
             var total_size: usize = 1;
             for (input.shape[1..]) |dim| {
                 total_size *= dim;
             }
 
             // New shape: [N, total_size]
-            var output_shape: [2]usize = .{ batch_size, total_size };
+            var output_shape = [_]usize{ batch_size, total_size };
 
+            // Use reshape instead of copying
             if (self.output.data.len > 0) {
                 self.output.deinit();
             }
-            self.output = try Tensor.Tensor(T).fromArray(self.allocator, input.data, output_shape[0..]);
-            try self.output.isSafe();
-            //print output shape
-            //std.debug.print("Output shape: {any}\n", .{self.output.shape});
-            //print tensor out info
+            self.output = try input.copy();
+            try self.output.reshape(output_shape[0..]);
+
             std.debug.print("Shape Flatten is {any}", .{self.output.shape});
             return self.output;
         }
 
         /// Backward pass: Reshape the gradients to the original input shape
-        /// If forward input shape = [N, D1, D2, ..., Dk]
-        /// backward receives dValues of shape [N, D1*D2*...*Dk]
-        /// We must reshape back to [N, D1, D2, ..., Dk].
         pub fn backward(ctx: *anyopaque, dValues: *Tensor.Tensor(T)) !Tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
-            const input_shape_const = self.input.shape;
-
-            // Just reshape the dValues to original input shape
-            var input_shape = try self.allocator.alloc(usize, input_shape_const.len);
-            _ = &input_shape;
-            defer self.allocator.free(input_shape);
-
-            // Copy shape
-            @memcpy(input_shape, input_shape_const);
-
-            var dInput = try Tensor.Tensor(T).fromArray(self.allocator, dValues.data, input_shape);
-            _ = &dInput; // Unused
+            var dInput = try dValues.copy();
+            try dInput.reshape(self.original_shape);
             return dInput;
         }
 
@@ -132,7 +117,7 @@ pub fn FlattenLayer(comptime T: type) type {
             const self: *Self = @ptrCast(@alignCast(ctx));
             switch (choice) {
                 0 => std.debug.print("Flatten Layer\n", .{}),
-                1 => std.debug.print("Input shape: {any}, Output shape: {any}\n", .{ self.input.shape, self.output.shape }),
+                1 => std.debug.print("Original shape: {any}, Output shape: {any}\n", .{ self.original_shape, self.output.shape }),
                 else => {},
             }
         }
@@ -144,10 +129,10 @@ pub fn FlattenLayer(comptime T: type) type {
         pub fn get_n_inputs(ctx: *anyopaque) usize {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
-            if (self.input.shape.len < 2) return 0;
+            if (self.original_shape.len < 2) return 0;
 
             var total: usize = 1;
-            for (self.input.shape[1..]) |dim| {
+            for (self.original_shape[1..]) |dim| {
                 total *= dim;
             }
             return total;
