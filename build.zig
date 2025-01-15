@@ -18,8 +18,15 @@ pub fn build(b: *std.Build) void {
 
     // Create modules from the source files in the `src/Core/Tensor/` directory.
     const tensor_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/tensor.zig") });
-    const tensor_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/tensor_math.zig") });
     const architectures_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/architectures.zig") });
+
+    // Create modules from the source files in the `src/Core/Tensor/TensorMath` directory.
+    const tensor_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math.zig") });
+    const basic_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/basic_math.zig") });
+    const algebraic_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/algebraic_math.zig") });
+    const conv_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/convolution_math.zig") });
+    const pooling_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/pooling_math.zig") });
+    const structural_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/structural_math.zig") });
 
     // Create modules from the source files in the `src/Model/` directory.
     const loss_mod = b.createModule(.{ .root_source_file = b.path("src/Model/lossFunction.zig") });
@@ -60,7 +67,7 @@ pub fn build(b: *std.Build) void {
     model_mod.addImport("dataprocessor", dataProcessor_mod);
     model_mod.addImport("activation_function", activation_mod);
 
-    //************************************************LAYER DEPENDENCIES************************************************
+    // ************************************************LAYER DEPENDENCIES************************************************
 
     // Add necessary imports for the layers module.
     layer_mod.addImport("tensor", tensor_mod);
@@ -70,7 +77,7 @@ pub fn build(b: *std.Build) void {
     layer_mod.addImport("errorHandler", errorHandler_mod);
     layer_mod.addImport("pkgAllocator", allocator_mod);
 
-    //************************************************DENSELAYER DEPENDENCIES************************************************
+    // ************************************************DENSELAYER DEPENDENCIES************************************************
 
     // Add necessary imports for the denselayers module.
     denseLayer_mod.addImport("tensor", tensor_mod);
@@ -79,14 +86,14 @@ pub fn build(b: *std.Build) void {
     denseLayer_mod.addImport("architectures", architectures_mod);
     denseLayer_mod.addImport("errorHandler", errorHandler_mod);
 
-    //************************************************CONVLAYER DEPENDENCIES************************************************
+    // ************************************************CONVLAYER DEPENDENCIES************************************************
     convLayer_mod.addImport("Tensor", tensor_mod);
     convLayer_mod.addImport("tensor_m", tensor_math_mod);
     convLayer_mod.addImport("Layer", layer_mod);
     convLayer_mod.addImport("architectures", architectures_mod);
     convLayer_mod.addImport("errorHandler", errorHandler_mod);
 
-    //************************************************FLATTENLAYER DEPENDENCIES************************************************
+    // ************************************************FLATTENLAYER DEPENDENCIES************************************************
 
     flattenLayer_mod.addImport("Tensor", tensor_mod);
     flattenLayer_mod.addImport("tensor_m", tensor_math_mod);
@@ -94,14 +101,14 @@ pub fn build(b: *std.Build) void {
     flattenLayer_mod.addImport("architectures", architectures_mod);
     flattenLayer_mod.addImport("errorHandler", errorHandler_mod);
 
-    //************************************************POOLINGLAYER DEPENDENCIES************************************************
+    // ************************************************POOLINGLAYER DEPENDENCIES************************************************
     poolingLayer_mod.addImport("Tensor", tensor_mod);
     poolingLayer_mod.addImport("tensor_m", tensor_math_mod);
     poolingLayer_mod.addImport("Layer", layer_mod);
     poolingLayer_mod.addImport("architectures", architectures_mod);
     poolingLayer_mod.addImport("errorHandler", errorHandler_mod);
 
-    //************************************************ACTIVATIONLAYER DEPENDENCIES************************************************
+    // ************************************************ACTIVATIONLAYER DEPENDENCIES************************************************
 
     // Add necessary imports for the activationlayers module.
     activationLayer_mod.addImport("tensor", tensor_mod);
@@ -111,17 +118,17 @@ pub fn build(b: *std.Build) void {
     activationLayer_mod.addImport("activation_function", activation_mod);
     activationLayer_mod.addImport("errorHandler", errorHandler_mod);
 
-    //************************************************DATA LOADER DEPENDENCIES************************************************
+    // ************************************************DATA LOADER DEPENDENCIES************************************************
 
     // Add necessary imports for the data loader module.
     dataloader_mod.addImport("tensor", tensor_mod);
 
-    //************************************************DATA PROCESSOR DEPENDENCIES************************************************
+    // ************************************************DATA PROCESSOR DEPENDENCIES************************************************
 
     // Add necessary imports for the data processor module.
     dataProcessor_mod.addImport("tensor", tensor_mod);
 
-    //************************************************TRAINER DEPENDENCIES************************************************
+    // ************************************************TRAINER DEPENDENCIES************************************************
 
     // Add necessary imports for the trainer module.
     trainer_mod.addImport("tensor", tensor_mod);
@@ -132,15 +139,14 @@ pub fn build(b: *std.Build) void {
     trainer_mod.addImport("dataloader", dataloader_mod);
     trainer_mod.addImport("dataprocessor", dataProcessor_mod);
 
-    //************************************************TENSOR DEPENDENCIES************************************************
+    // ************************************************TENSOR DEPENDENCIES************************************************
 
     // Add necessary imports for the tensor module.
     tensor_mod.addImport("tensor_m", tensor_math_mod);
     tensor_mod.addImport("architectures", architectures_mod);
     tensor_mod.addImport("errorHandler", errorHandler_mod);
 
-    //************************************************TENSOR MATH DEPENDENCIES************************************************
-
+    // ************************************************TENSOR MATH DEPENDENCIES************************************************
     // Add necessary imports for the tensor math module.
     tensor_math_mod.addImport("tensor", tensor_mod);
     tensor_math_mod.addImport("typeC", typeConv_mod);
@@ -148,16 +154,49 @@ pub fn build(b: *std.Build) void {
     tensor_math_mod.addImport("errorHandler", errorHandler_mod);
     tensor_math_mod.addImport("Layer", layer_mod);
     tensor_math_mod.addImport("pkgAllocator", allocator_mod);
-    tensor_math_mod.addImport("poolingLayer", poolingLayer_mod);
+    tensor_math_mod.addImport("basic_math", basic_math_mod);
+    tensor_math_mod.addImport("structural_math", structural_math_mod);
+    tensor_math_mod.addImport("convolution_math", conv_math_mod);
+    tensor_math_mod.addImport("pooling_math", pooling_math_mod);
+    tensor_math_mod.addImport("algebraic_math", algebraic_math_mod);
 
-    //************************************************ACTIVATION DEPENDENCIES************************************************
+    // ***************** BASIC MATH *****************
+    basic_math_mod.addImport("tensor", tensor_mod);
+    basic_math_mod.addImport("pkgAllocator", allocator_mod);
+    basic_math_mod.addImport("errorHandler", errorHandler_mod);
+    basic_math_mod.addImport("architectures", architectures_mod);
+    basic_math_mod.addImport("typeC", typeConv_mod);
+
+    // ***************** ALGEBRAIC MATH *****************
+    algebraic_math_mod.addImport("tensor", tensor_mod);
+    algebraic_math_mod.addImport("pkgAllocator", allocator_mod);
+    algebraic_math_mod.addImport("errorHandler", errorHandler_mod);
+    algebraic_math_mod.addImport("architectures", architectures_mod);
+
+    // ***************** STRUCTURAL MATH *****************
+    structural_math_mod.addImport("tensor", tensor_mod);
+    structural_math_mod.addImport("pkgAllocator", allocator_mod);
+    structural_math_mod.addImport("errorHandler", errorHandler_mod);
+
+    // ***************** CONVOLUTION MATH *****************
+    conv_math_mod.addImport("tensor", tensor_mod);
+    conv_math_mod.addImport("pkgAllocator", allocator_mod);
+    conv_math_mod.addImport("errorHandler", errorHandler_mod);
+
+    // ***************** POOLING MATH *****************
+    pooling_math_mod.addImport("tensor", tensor_mod);
+    pooling_math_mod.addImport("pkgAllocator", allocator_mod);
+    pooling_math_mod.addImport("errorHandler", errorHandler_mod);
+    pooling_math_mod.addImport("poolingLayer", poolingLayer_mod);
+
+    // ************************************************ACTIVATION DEPENDENCIES************************************************
 
     // Add necessary imports for the activation module.
     activation_mod.addImport("tensor", tensor_mod);
     activation_mod.addImport("errorHandler", errorHandler_mod);
     activation_mod.addImport("pkgAllocator", allocator_mod);
 
-    //************************************************LOSS DEPENDENCIES************************************************
+    // ************************************************LOSS DEPENDENCIES************************************************
 
     // Add necessary imports for the loss function module.
     loss_mod.addImport("tensor", tensor_mod);
@@ -166,7 +205,7 @@ pub fn build(b: *std.Build) void {
     loss_mod.addImport("errorHandler", errorHandler_mod);
     loss_mod.addImport("pkgAllocator", allocator_mod);
 
-    //************************************************OPTIMIZER DEPENDENCIES************************************************
+    // ************************************************OPTIMIZER DEPENDENCIES************************************************
 
     // Add necessary imports for the optimizer module.
     optim_mod.addImport("tensor", tensor_mod);
@@ -176,7 +215,7 @@ pub fn build(b: *std.Build) void {
     optim_mod.addImport("denselayer", denseLayer_mod);
     optim_mod.addImport("convolutionallayer", convLayer_mod);
 
-    //************************************************IMPORT/EXPORT DEPENDENCIES************************************************
+    // ************************************************IMPORT/EXPORT DEPENDENCIES************************************************
 
     // Add necessary imports for the import/export module.
     modelImportExport_mod.addImport("tensor", tensor_mod);
@@ -190,7 +229,7 @@ pub fn build(b: *std.Build) void {
     modelImportExport_mod.addImport("flattenLayer", flattenLayer_mod);
     modelImportExport_mod.addImport("poolingLayer", poolingLayer_mod);
 
-    //************************************************MAIN EXECUTABLE************************************************
+    // ************************************************MAIN EXECUTABLE************************************************
 
     // Define the main executable with target architecture and optimization settings.
     const exe = b.addExecutable(.{
@@ -202,7 +241,7 @@ pub fn build(b: *std.Build) void {
 
     exe.linkLibC();
 
-    //************************************************EXE DEPENDENCIES************************************************
+    // ************************************************EXE DEPENDENCIES************************************************
 
     // Add necessary imports for the main executable.
     exe.root_module.addImport("tensor", tensor_mod);

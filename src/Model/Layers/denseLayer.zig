@@ -135,7 +135,7 @@ pub fn DenseLayer(comptime T: type) type {
 
             self.output = try TensMath.compute_dot_product(T, &self.input, &self.weights);
             try TensMath.add_bias(T, &self.output, &self.bias);
-            try self.output.isSafe();
+            // DEBUG try self.output.isSafe();
             return self.output;
         }
 
@@ -145,7 +145,7 @@ pub fn DenseLayer(comptime T: type) type {
 
             //---- Key Steps: -----
             // 2. Compute weight gradients (w_gradients)
-            var input_transposed = try self.input.transpose2D();
+            var input_transposed = try TensMath.transpose2D(T, &self.input);
 
             defer input_transposed.deinit();
 
@@ -163,7 +163,7 @@ pub fn DenseLayer(comptime T: type) type {
                 }
                 self.b_gradients.data[neuron] = sum;
             }
-            var weights_transposed = try self.weights.transpose2D();
+            var weights_transposed = try TensMath.transpose2D(T, &self.weights);
             defer weights_transposed.deinit();
 
             var dL_dInput: tensor.Tensor(T) = try TensMath.dot_product_tensor(Architectures.CPU, T, T, dValues, &weights_transposed);

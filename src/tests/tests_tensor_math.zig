@@ -3,6 +3,7 @@ const Tensor = @import("tensor").Tensor;
 const TensMath = @import("tensor_m");
 const Architectures = @import("architectures").Architectures;
 const TensorMathError = @import("errorHandler").TensorMathError;
+const TensorError = @import("errorHandler").TensorError;
 const ArchitectureError = @import("errorHandler").ArchitectureError;
 const ErrorHandler = @import("errorHandler");
 const PoolingType = @import("poolingLayer").PoolingType;
@@ -100,6 +101,37 @@ test "Error when input tensors have different sizes" {
 
     t1.deinit();
     t2.deinit();
+}
+
+test "test tensor element-wise multiplication" {
+    std.debug.print("\n     test: tensor element-wise multiplication ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Inizializzazione degli array di input
+    var inputArray1: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+
+    var inputArray2: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor1 = try Tensor(u8).fromArray(&allocator, &inputArray1, &shape);
+    defer tensor1.deinit();
+
+    var tensor2 = try Tensor(u8).fromArray(&allocator, &inputArray2, &shape);
+    defer tensor2.deinit();
+
+    var tensor3 = try TensMath.mul(u8, &tensor1, &tensor2);
+    defer tensor3.deinit();
+
+    for (0..tensor3.size) |i| {
+        try std.testing.expect(tensor3.data[i] == tensor1.data[i] * tensor2.data[i]);
+    }
 }
 
 test "Dot product 2x2" {
@@ -1272,4 +1304,118 @@ test "Subtraction with incompatible shapes" {
     defer t2.deinit();
 
     try std.testing.expectError(TensorMathError.IncompatibleBroadcastShapes, TensMath.sub_tensors(Architectures.CPU, f32, f32, &t1, &t2));
+}
+
+test "transpose" {
+    std.debug.print("\n     test: transpose ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Inizializzazione degli array di input
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    var tensor_transposed = try TensMath.transpose2D(u8, &tensor);
+    defer tensor_transposed.deinit();
+
+    try std.testing.expect(tensor_transposed.data[0] == 1);
+    try std.testing.expect(tensor_transposed.data[1] == 4);
+    try std.testing.expect(tensor_transposed.data[2] == 2);
+    try std.testing.expect(tensor_transposed.data[3] == 5);
+    try std.testing.expect(tensor_transposed.data[4] == 3);
+    try std.testing.expect(tensor_transposed.data[5] == 6);
+}
+
+test "transpose multi-dimensions default" {
+    std.debug.print("\n     test: transpose multi-dimensions ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Initialize input Array and shape
+    var inputArray: [2][3][4]u8 = [_][3][4]u8{
+        [_][4]u8{
+            [_]u8{ 1, 2, 3, 4 },
+            [_]u8{ 5, 6, 7, 8 },
+            [_]u8{ 9, 10, 11, 12 },
+        },
+        [_][4]u8{
+            [_]u8{ 13, 14, 15, 16 },
+            [_]u8{ 17, 18, 19, 20 },
+            [_]u8{ 21, 22, 23, 24 },
+        },
+    };
+    var shape: [3]usize = [_]usize{ 2, 3, 4 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+
+    defer tensor.deinit();
+
+    var tensor_transposed = try TensMath.transposeDefault(u8, &tensor);
+    defer tensor_transposed.deinit();
+
+    for (0..tensor.size) |i| {
+        try std.testing.expect(tensor_transposed.data[i] == tensor.data[i]);
+    }
+}
+
+test "tests isSafe() method" {
+    std.debug.print("\n     test: isSafe() method ", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Inizializzazione degli array di input
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    try TensMath.isSafe(u8, &tensor);
+}
+
+test "tests isSafe() -> TensorError.NotFiniteValue " {
+    std.debug.print("\n     test: isSafe()-> TensorError.NotFiniteValue", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Inizializzazione degli array di input
+    var inputArray: [2][3]f64 = [_][3]f64{
+        [_]f64{ 1.0, 2.0, 3.0 },
+        [_]f64{ 4.0, 8.0, 6.0 },
+    };
+    const zero: f64 = 1.0;
+    inputArray[1][1] = inputArray[1][1] / (zero - 1.0); //NaN here
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensore = try Tensor(f64).fromArray(&allocator, &inputArray, &shape);
+    defer tensore.deinit();
+    try std.testing.expect(std.math.isNan(inputArray[1][1]) == false);
+    try std.testing.expect(std.math.isFinite(inputArray[1][1]) == false);
+    try std.testing.expectError(TensorError.NotFiniteValue, TensMath.isSafe(f64, &tensore));
+}
+
+test "tests isSafe() -> TensorError.NanValue " {
+    std.debug.print("\n     test: isSafe()-> TensorError.NanValue", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Inizializzazione degli array di input
+    var inputArray: [2][3]f64 = [_][3]f64{
+        [_]f64{ 1.0, 2.0, 3.0 },
+        [_]f64{ 4.0, std.math.nan(f64), 6.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensore = try Tensor(f64).fromArray(&allocator, &inputArray, &shape);
+    defer tensore.deinit();
+    try std.testing.expect(std.math.isNan(inputArray[1][1]) == true);
+    try std.testing.expectError(TensorError.NanValue, TensMath.isSafe(f64, &tensore));
 }
