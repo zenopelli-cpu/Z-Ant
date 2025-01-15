@@ -1,0 +1,1406 @@
+//! Tensor math contains all the functions to perform operations on tensors
+const std = @import("std");
+const Tensor = @import("tensor").Tensor; // Import Tensor type
+const Architectures = @import("architectures").Architectures; //Import Architectures type
+const Converter = @import("typeC");
+const Layer = @import("Layer");
+
+const PoolingType = @import("poolingLayer").PoolingType;
+
+//import error libraries
+const TensorMathError = @import("errorHandler").TensorMathError;
+const ArchitectureError = @import("errorHandler").ArchitectureError;
+const TensorError = @import("errorHandler").TensorError;
+
+const pkg_allocator = @import("pkgAllocator").allocator;
+
+/// Function that add the bias for all the features in the tensor
+pub fn add_bias(comptime T: anytype, tensor: *Tensor(T), bias: *Tensor(T)) !void {
+    // Checks:
+    if (tensor.size == 0) {
+        return TensorError.EmptyTensor;
+    }
+    if (bias.size == 0) {
+        return TensorError.EmptyTensor;
+    }
+    if (bias.shape.len != 1) {
+        return TensorMathError.InputTensorsWrongShape;
+    }
+    const len = bias.shape[0];
+    if (len != tensor.shape[tensor.shape.len - 1]) {
+        return TensorMathError.InputTensorDimensionMismatch;
+    }
+
+    // Allocate an array for threads, one for each row of the tensor
+    const num_threads = tensor.size / bias.size;
+
+    var threads = try pkg_allocator.alloc(std.Thread, num_threads); //Array to save thread handles
+
+    var index: usize = 0;
+    var i: usize = 0;
+
+    // Start a thread for each row of the tensor
+    while (index < tensor.size) : (i += 1) {
+        threads[i] = try std.Thread.spawn(.{}, add_bias_thread, .{ T, tensor.data, index, len, bias });
+        index += len;
+    }
+
+    // Merges all threads
+    for (threads) |*thread| {
+        thread.join(); // Use try to catch any errors
+    }
+
+    // Free the thread array
+    pkg_allocator.free(threads);
+}
+
+fn add_bias_thread(comptime T: anytype, array: []T, start: usize, len: usize, bias: *Tensor(T)) void {
+    for (0..len) |i| {
+        array[start + i] += bias.data[i];
+    }
+}
+/// Performs the mean of a given tensor. It is a reduction operation, collapsing the whole tenosr into a single value.
+pub fn mean(comptime T: anytype, tensor: *Tensor(T)) f32 {
+    var res: f32 = 0;
+
+    for (tensor.data) |*d| {
+        res += Converter.convert(T, f32, d.*);
+    }
+    res = res / Converter.convert(usize, f32, tensor.size);
+    return res;
+}
+
+pub fn equal(comptime T: anytype, t1: *Tensor(T), t2: *Tensor(T)) bool {
+    //same size
+    if (t1.size != t2.size) {
+        std.debug.print("\n\n ERROR:WRONG SIZE t1.size:{} t2.size:{}", .{ t1.size, t2.size });
+        return false;
+    }
+
+    //same shape
+    for (0..t1.shape.len) |i| {
+        if (t1.shape[i] != t2.shape[i]) {
+            std.debug.print("\n\n ERROR: WRONG SHAPE t1.shape[{}]:{} t2.shape[{}]:{}", .{ i, t1.shape[i], i, t2.shape[i] });
+            return false;
+        }
+    }
+
+    //same data
+    if (!std.mem.eql(T, t1.data, t2.data)) {
+        std.debug.print("\n\n ERROR: WRONG DATA", .{});
+        return false;
+    }
+
+    return true;
+}
+
+///Returns a Tensor with the same shape pf t1 and t2, where each element --> out[location] = t1[location] + t2[location]
+pub fn sum_tensors(comptime arch: Architectures, comptime Tin: anytype, comptime Tout: anytype, t1: *Tensor(Tin), t2: *Tensor(Tin)) !Tensor(Tout) {
+
+    //selecting between all possible architectures
+    return switch (arch) {
+        Architectures.CPU => return CPU_sum_tensors(Tin, Tout, t1, t2),
+
+        Architectures.GPU => {
+            std.debug.print("{} is under developement \n", .{arch});
+            return ArchitectureError.UnderDevelopementArchitecture;
+        },
+        Architectures.SP32 => {
+            std.debug.print("{} is under developement \n", .{arch});
+            return ArchitectureError.UnderDevelopementArchitecture;
+        },
+        else => return ArchitectureError.UnknownArchitecture,
+    };
+}
+
+//Return the sum of the tensors inside another Tensor (t3)
+fn CPU_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
+    // CHECKS:
+    if (t1.size != t2.size) return TensorMathError.InputTensorDifferentSize;
+
+    if (@bitSizeOf(outputType) <= 16) { // quantized
+        if (@bitSizeOf(outputType) <= (@bitSizeOf(inputType) * 2)) return TensorMathError.TooSmallOutputType;
+    } else { // non-quant
+        if (@bitSizeOf(outputType) < @bitSizeOf(inputType)) return TensorMathError.TooSmallOutputType;
+    }
+
+    // Allocating the array for the sum
+    var out_sum = try t1.allocator.alloc(outputType, t1.size);
+    defer t1.allocator.free(out_sum); // Ensure out_sum gets freed in case of error
+
+    var i: usize = 0;
+    const unroll_factor: usize = 4;
+
+    // Loop unrolling
+    while (i + unroll_factor <= t1.size) : (i += 4) {
+        out_sum[i] = t1.data[i] + t2.data[i];
+        out_sum[i + 1] = t1.data[i + 1] + t2.data[i + 1];
+        out_sum[i + 2] = t1.data[i + 2] + t2.data[i + 2];
+        out_sum[i + 3] = t1.data[i + 3] + t2.data[i + 3];
+    }
+
+    // Handle any remaining elements
+    while (i < t1.size) : (i += 1) {
+        out_sum[i] = t1.data[i] + t2.data[i];
+    }
+
+    // Create output tensor
+    const out_tensor = try Tensor(outputType).fromArray(t1.allocator, out_sum, t1.shape);
+
+    // Remove the defer since the tensor will manage its own memory after creation
+    return out_tensor;
+}
+
+// DOT PRODUCT -----------------------------------------------------------------------------------------------------------------------
+
+/// Returns the dot product of two tensors. The dot product is the sum of the products of the corresponding entries of the two sequences of numbers.
+/// Deprecated: use dot_product_tensor instead
+pub fn compute_dot_product(comptime T: type, input: *Tensor(T), weights: *Tensor(T)) !Tensor(T) {
+    return try CPU_dot_product_tensors(T, T, input, weights);
+}
+
+/// Returns the dot product of two tensors. The dot product is the sum of the products of the corresponding entries of the two sequences of numbers.
+pub fn dot_product_tensor(comptime arch: Architectures, comptime Tin: anytype, comptime Tout: anytype, t1: *Tensor(Tin), t2: *Tensor(Tin)) !Tensor(Tout) {
+    return switch (arch) {
+        Architectures.CPU => return CPU_dot_product_tensors(Tin, Tout, t1, t2),
+        Architectures.GPU => {
+            std.debug.print("{} is under development\n", .{arch});
+            return ArchitectureError.UnderDevelopmentArchitecture;
+        },
+        Architectures.SP32 => {
+            std.debug.print("{} is under development\n", .{arch});
+            return ArchitectureError.UnderDevelopmentArchitecture;
+        },
+        else => return ArchitectureError.UnknownArchitecture,
+    };
+}
+/// Implementation of dot product for CPU architecture still not parallelized
+pub fn CPU_dot_product_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
+
+    //CHECKS :
+    const nDimT1 = t1.shape.len; //number of dimesion of tensor 1
+    const nDimT2 = t2.shape.len; //number of dimesion of tensor 2
+    // -imput shape:
+    if (nDimT1 != nDimT2) return TensorMathError.InputTensorDifferentShape;
+
+    //-dimensional compatibility:
+    // If you have two matrices A and B, to compute the product A×B, the number of columns in A must be equal to the number of rows in B.
+    // If A is a matrix of dimensions m×n and B is a matrix of dimensions n×p, then the product A×B is defined, and it results in a matrix of dimensions m×p.
+    if (t1.shape[nDimT1 - 1] != t2.shape[nDimT1 - 2]) return TensorMathError.InputTensorsWrongShape;
+
+    // -this check is necassary to avoid loss of information/ overflow when working with quantized tensors
+    // usually quantization reduce to a maximum of 16bit, to the next check is divided between quant and non-quant data
+    //bool (1 bit)
+    // u1 (1 bit)
+    // i8 (8 bits)
+    // u8 (8 bits)
+    // i16 (16 bits)
+    // u16 (16 bits)
+    // f16 (16 bits)
+    // i32 (32 bits)
+    // u32 (32 bits)
+    // f32 (32 bits)
+    // i64 (64 bits)
+    // u64 (64 bits)
+    // f64 (64 bits)
+    // i128 (128 bits)
+    // u128 (128 bits)
+    // f128 (128 bits)
+    if (@TypeOf(outputType) == @TypeOf(inputType)) {
+        // Se input e output sono dello stesso tipo, non eseguire il controllo
+        // Evitiamo l'errore in questo caso
+    } else {
+        if (@bitSizeOf(outputType) <= 16) { //quantized
+            if (@bitSizeOf(outputType) <= (@bitSizeOf(inputType) * 2)) return TensorMathError.TooSmallOutputType;
+        } else { //non-quant
+            if (@bitSizeOf(outputType) <= @bitSizeOf(inputType)) return TensorMathError.TooSmallOutputType;
+        }
+    }
+
+    //CREATING output_tensor :
+    const allocator = pkg_allocator;
+    var out_shape = try allocator.alloc(usize, nDimT1); //I had to use alloc() bacause nDimT1 is not known at comptime
+    defer pkg_allocator.free(out_shape);
+    //defining the resulting shape
+    for (0..(nDimT1 - 2)) |i| {
+        out_shape[i] = t1.shape[i];
+    }
+    out_shape[nDimT1 - 2] = t1.shape[nDimT1 - 2];
+    out_shape[nDimT1 - 1] = t2.shape[nDimT1 - 1];
+
+    var out_tensor = try Tensor(outputType).fromShape(&pkg_allocator, out_shape);
+    try out_tensor.set(0, 0);
+    //initialize the current location to all 0
+    const location = try pkg_allocator.alloc(usize, nDimT1);
+    defer pkg_allocator.free(location);
+    for (location) |*loc| {
+        loc.* = 0;
+    }
+
+    //call mutidim_mat_mul to handle multidimensionality
+    try multidim_multiplication(
+        inputType,
+        outputType,
+        t1,
+        t2,
+        &out_tensor,
+        0,
+        location,
+    );
+    //print output tensor shape
+
+    return out_tensor;
+}
+/// Function that performs the multiplication of two tensors used in a recursive way to handle multidimensional tensors
+fn multidim_multiplication(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType), t3: *Tensor(outputType), current_depth: usize, location: []usize) !void {
+    if (current_depth == (t1.shape.len - 2)) {
+
+        //declaring sum
+        var sum: outputType = 0;
+
+        //with the first two for loop I iterate over t3
+        for (0..t1.shape[current_depth]) |row| { //for each row of t1
+
+            for (0..t2.shape[current_depth + 1]) |col| { //for each col of t2
+
+                sum = 0;
+
+                for (0..t1.shape[current_depth + 1]) |i| {
+
+                    //compose the location on t1
+                    location[t1.shape.len - 1] = i; //location
+                    location[t1.shape.len - 2] = row; //location
+
+                    //getting the correct numbers in t1
+                    const a = try t1.get_at(location);
+
+                    //compose the location on t2
+                    location[t1.shape.len - 1] = col; //location
+                    location[t1.shape.len - 2] = i; //location
+
+                    //getting the correct numbers in t2
+                    const b = try t2.get_at(location);
+
+                    sum += a * b;
+                }
+
+                //compose the location on t3
+                location[t1.shape.len - 1] = col; //col on the out tensor matrix
+                location[t1.shape.len - 2] = row; //row on the out tensor matrix
+
+                try t3.set_at(location, sum);
+            }
+        }
+    } else {
+        for (0..t1.shape[current_depth]) |element_at_current_depth| {
+            //print location:
+            //std.debug.print("\n depth: {} element_at_current_depth: {}", .{ current_depth, element_at_current_depth });
+            location[current_depth] = element_at_current_depth;
+            //otherwise I have to go deeper
+            try multidim_multiplication(
+                inputType,
+                outputType,
+                t1,
+                t2,
+                t3,
+                current_depth + 1,
+                location,
+            );
+        }
+    }
+}
+
+// CONVOLVE -----------------------------------------------------------------------------------------------------------------------
+
+/// Multidim Conv
+/// INPUT:
+///     INPUT[input.shape.len - 4] -> batches
+///     INPUT[input.shape.len - 3] -> input channels
+///     INPUT[input.shape.len - 2] -> rows
+///     INPUT[input.shape.len - 1] -> cols
+/// KERNEL:
+///     KERNEL[kernel.shape.len - 4] -> filters
+///     KERNEL[kernel.shape.len - 3] -> channels
+///     KERNEL[kernel.shape.len - 2] -> rows
+///     KERNEL[kernel.shape.len - 1] -> cols
+/// OUTPUT:
+///     OUTPUT[output.shape.len - 4] -> input_batch
+///     OUTPUT[output.shape.len - 3] -> output channels (number_of_kernel_filters)
+///     OUTPUT[output.shape.len - 2] -> rows
+///     OUTPUT[output.shape.len - 1] -> cols
+fn multidim_convolution_with_bias(
+    comptime inputType: anytype,
+    comptime outputType: anytype,
+    input: *Tensor(inputType),
+    kernel: *Tensor(inputType),
+    output: *Tensor(outputType),
+    bias: *Tensor(outputType),
+    stride: []const usize,
+    current_dim: usize, //represent the dimension we are currently working in
+    location: []usize,
+) !void {
+    if (current_dim == input.shape.len - 3) { //
+        //std.debug.print("\n\n KERNEL:{any} \n stride:{any} \n ", .{ kernel.data, stride });
+        // std.debug.print("\n         input shape:{any} ", .{input.shape});
+        // std.debug.print("\n         kernel shape:{any} ", .{kernel.shape});
+        // std.debug.print("\n         output shape:{any} ", .{output.shape});
+        // std.debug.print("\n         stride:{any} ", .{stride});
+
+        const outDim = output.shape.len;
+        const inDim = input.shape.len;
+        const kernelDim = kernel.shape.len;
+        const biasDim = bias.shape.len;
+
+        const kernel_location = try pkg_allocator.alloc(usize, kernelDim); //coordinates in the kernel space
+        defer pkg_allocator.free(kernel_location);
+        const input_location = try pkg_allocator.alloc(usize, inDim); //coordinates in the input space
+        defer pkg_allocator.free(input_location);
+        const output_location = try pkg_allocator.alloc(usize, outDim); //coordinates in the output space
+        defer pkg_allocator.free(output_location);
+        const bias_location = try pkg_allocator.alloc(usize, biasDim); //coordinates in the bias space
+        defer pkg_allocator.free(bias_location);
+
+        //init kernel coordinates
+        @memset(kernel_location, 0);
+        for (0..kernelDim - 4) |i| { //copying the batches
+            kernel_location[i] = input_location[i];
+        }
+
+        //init input coordinates
+        @memcpy(input_location, location);
+
+        //init output coordinates
+        @memset(output_location, 0);
+        for (0..outDim - 3) |i| { //copying the batches
+            output_location[i] = input_location[i];
+        }
+
+        //init bias coordinates
+        @memset(bias_location, 0);
+        for (0..biasDim - 1) |i| { //copying the batches
+            bias_location[i] = input_location[i];
+        }
+
+        // std.debug.print("multidim_convolution_with_bias: location: {d}, sum: {}\n", .{ location, sum });
+
+        // for each filter in the kernel (remember, every filter must by applied to every input batch)
+        for (0..kernel.shape[kernelDim - 4]) |filter_number| {
+            output_location[outDim - 3] = filter_number; // set output channel
+            kernel_location[kernelDim - 4] = filter_number; //set kernel filter
+            bias_location[biasDim - 1] = filter_number; //set bias location, one bias for each kernel filter
+
+            // for each row of the output
+            for (0..output.shape[outDim - 2]) |out_row| {
+                output_location[outDim - 2] = out_row;
+
+                const startInputRow = out_row * stride[0]; //the corresponding starting imput row coordinates
+                input_location[inDim - 2] = startInputRow; //set the starting input location
+
+                // for each col of the output
+                for (0..output.shape[outDim - 1]) |out_col| {
+                    output_location[outDim - 1] = out_col;
+
+                    const startInputCol = out_col * stride[1]; //the corresponding starting imput cols coordinates
+                    input_location[inDim - 1] = startInputCol; //set the starting input location
+
+                    var sum: inputType = 0;
+                    // now iterate the same input submatrix in all the channels
+                    for (0..kernel.shape[kernelDim - 3]) |channel| { // kernel channels
+                        kernel_location[kernelDim - 3] = channel;
+                        input_location[inDim - 3] = channel;
+
+                        for (0..kernel.shape[kernelDim - 2]) |kernel_row| { //kernel rows
+                            kernel_location[kernelDim - 2] = kernel_row;
+                            input_location[inDim - 2] = startInputRow + kernel_row;
+
+                            for (0..kernel.shape[kernelDim - 1]) |kernel_cols| { //kernel cols
+                                kernel_location[kernelDim - 1] = kernel_cols;
+                                input_location[inDim - 1] = startInputCol + kernel_cols;
+
+                                const kernel_value = try kernel.get_at(kernel_location); // kernel_location = [filter_number, channel, kernel_row, kernel_cols]
+                                const input_value = input.get_at(input_location) catch |err| { //input_location = [batch, channel, startInputRow + kernel_row, startInputCol + kernel_cols]
+                                    // std.debug.print("\n\n  Error!!!  {any}", .{err});
+                                    // std.debug.print("\n         get INPUT at:  {any} ", .{input_location});
+                                    // std.debug.print("\n         get KERNEL at: {any} ", .{kernel_location});
+                                    // std.debug.print("\n         input shape:{any} ", .{input.shape});
+                                    // std.debug.print("\n         kernel shape:{any} ", .{kernel.shape});
+                                    // std.debug.print("\n         output shape:{any} ", .{output.shape});
+                                    // std.debug.print("\n         stride:{any} ", .{stride});
+
+                                    return err;
+                                };
+                                //std.debug.print("\n         get KERNEL at: {any} value:{any}", .{ kernel_location, kernel_value });
+                                //std.debug.print("\n         get INPUT at:  {any} value:{any}", .{ input_location, input_value });
+
+                                sum += kernel_value * input_value;
+                            }
+                            input_location[inDim - 1] = startInputCol;
+                        }
+                        input_location[inDim - 2] = startInputRow;
+                    }
+
+                    //adding the bias
+                    sum += try bias.get_at(bias_location);
+
+                    //set the result in the output tensor
+                    //std.debug.print("\n set OUTPUT at:{any} value:{}", .{ output_location, sum });
+                    try output.set_at(output_location, sum);
+                }
+                output_location[outDim - 1] = 0;
+            }
+        }
+    } else {
+
+        // itereate on all the elements at the current input depth
+        for (0..input.shape[current_dim]) |i| {
+            location[current_dim] = i;
+
+            if (location[current_dim] >= output.shape[current_dim]) {
+                std.debug.print("Error: location out of bounds: {d}, shape: {d}\n", .{ location, output.shape });
+                return error.IndexOutOfBounds;
+            }
+
+            //std.debug.print("multidim_convolution_with_bias: Recursing at dimension {d}, index {d}\n", .{ current_dim, i });
+
+            try multidim_convolution_with_bias(
+                inputType,
+                outputType,
+                input,
+                kernel,
+                output,
+                bias,
+                stride,
+                current_dim + 1,
+                location,
+            );
+        }
+    }
+}
+
+/// Convolution tensor with bias using im2col algorithm for better performance
+pub fn convolve_tensor_with_bias(
+    comptime T: type,
+    input: *const Tensor(T),
+    kernel: *const Tensor(T),
+    bias: *const Tensor(T),
+    stride: []const usize, // shape:[row_stride, column_stride]
+) !Tensor(T) {
+    const nDimInput = input.shape.len;
+    const nDimKernel = kernel.shape.len;
+    const nDimBias = bias.shape.len;
+
+    //chck on dimensions
+    if (nDimKernel > nDimInput) {
+        std.debug.print("Error: Kernel size must be smaller or equal to Input size, Kernel size:{}, Input size:{}\n", .{ nDimKernel, nDimInput });
+        return TensorMathError.InputTensorDifferentShape;
+    }
+
+    //check on input tensor and kernel number of channels, one channel for each filter
+    if (input.shape[nDimInput - 3] != kernel.shape[nDimKernel - 3]) {
+        std.debug.print("Error: Mismatched channels. Input: {d}, Kernel: {d}\n", .{ input.shape[nDimInput - 3], kernel.shape[nDimKernel - 3] });
+        return TensorMathError.InputTensorsWrongShape;
+    }
+
+    //check on input tensor and kernel number of rows
+    if (kernel.shape[nDimKernel - 2] > input.shape[nDimInput - 2]) {
+        std.debug.print("Error: Kernel too big, Input rows: {d}, Kernel rows: {d}\n", .{ input.shape[nDimInput - 2], kernel.shape[nDimKernel - 2] });
+        return TensorMathError.InputTensorsWrongShape;
+    }
+
+    //check on input tensor and kernel number of cols
+    if (kernel.shape[nDimKernel - 1] > input.shape[nDimInput - 1]) {
+        std.debug.print("Error: Kernel too big, Input cols: {d}, Kernel cols: {d}\n", .{ input.shape[nDimInput - 2], kernel.shape[nDimKernel - 2] });
+        return TensorMathError.InputTensorsWrongShape;
+    }
+
+    //check there is one bias for each kernel filter
+    if (bias.shape[nDimBias - 1] != kernel.shape[nDimKernel - 4]) {
+        std.debug.print("Error: wrong number of biases, # Biases:{}, # Kernel filters:{d}\n", .{ bias.shape.len, kernel.shape[nDimKernel - 3] });
+        return TensorMathError.InputTensorsWrongShape;
+    }
+
+    //check on the stride size
+    if (stride.len != 2) {
+        std.debug.print("Error: wrong stride size\n", .{});
+        return TensorMathError.WrongStride;
+    }
+    //check not zero stride
+    if (stride[0] == 0 or stride[1] == 0) {
+        std.debug.print("Error: stride cannot be zero\n", .{});
+        return TensorMathError.WrongStride;
+    }
+
+    // Convert input to im2col format
+    const kernel_size = [2]usize{ kernel.shape[2], kernel.shape[3] };
+    const stride_size = [2]usize{ stride[0], stride[1] };
+    var input_col = try im2col(T, input, kernel_size, stride_size);
+    defer input_col.deinit();
+
+    // Reshape kernel to 2D matrix [channels * kernel_h * kernel_w, num_filters]
+    const num_filters = kernel.shape[0];
+    const kernel_elements = kernel.shape[1] * kernel.shape[2] * kernel.shape[3];
+    var kernel_matrix_shape = [_]usize{ kernel_elements, num_filters };
+    var kernel_matrix = try Tensor(T).fromShape(&pkg_allocator, &kernel_matrix_shape);
+    defer kernel_matrix.deinit();
+
+    // Copy and transpose kernel data to reshaped matrix
+    for (0..num_filters) |f| {
+        for (0..kernel_elements) |i| {
+            try kernel_matrix.set_at(&[_]usize{ i, f }, kernel.data[f * kernel_elements + i]);
+        }
+    }
+
+    // Perform matrix multiplication
+    const batch_size = input.shape[0];
+    const out_height = (input.shape[2] - kernel.shape[2]) / stride[0] + 1;
+    const out_width = (input.shape[3] - kernel.shape[3]) / stride[1] + 1;
+
+    // Result will be [batch_size * out_height * out_width, num_filters]
+    var result = try dot_product_tensor(Architectures.CPU, T, T, &input_col, &kernel_matrix);
+    defer result.deinit();
+
+    // Reshape result to proper output format [batch_size, num_filters, out_height, out_width]
+    var output_shape = [_]usize{ batch_size, num_filters, out_height, out_width };
+    var output = try Tensor(T).fromShape(&pkg_allocator, &output_shape);
+    errdefer output.deinit();
+
+    // Copy data to output tensor and add bias
+    var idx: usize = 0;
+    for (0..batch_size) |b| {
+        for (0..out_height) |h| {
+            for (0..out_width) |w| {
+                for (0..num_filters) |f| {
+                    const val = try result.get_at(&[_]usize{ idx, f });
+                    const bias_val = bias.data[f]; // Direct access to bias data since we know it's a 1D tensor
+                    try output.set_at(&[_]usize{ b, f, h, w }, val + bias_val);
+                }
+                idx += 1;
+            }
+        }
+    }
+
+    return output;
+}
+
+pub fn convolution_backward_biases(comptime T: type, dValues: *Tensor(T)) !Tensor(T) {
+    // Compute gradients with respect to biases by summing over batch, height, and width dimensions
+    // Assumes dValues shape: [batch_size, out_channels (aka number of kernel filters), output_height, output_width]
+
+    // Check that dValues has at least 4 dimensions
+    if (dValues.shape.len < 4) return TensorMathError.InputTensorsWrongShape;
+
+    const out_channels = dValues.shape[1];
+    var bias_gradients_shape = [_]usize{out_channels};
+
+    // Allocate the bias_gradients tensor
+    var bias_gradients = try Tensor(T).fromShape(&pkg_allocator, &bias_gradients_shape);
+    errdefer bias_gradients.deinit();
+    try bias_gradients.set(0, 0); // Initialize to zero
+
+    const batch_size = dValues.shape[0];
+    const output_height = dValues.shape[2];
+    const output_width = dValues.shape[3];
+
+    // Sum over batch, height, and width dimensions
+    for (0..out_channels) |oc| {
+        for (0..batch_size) |b| {
+            for (0..output_height) |h| {
+                for (0..output_width) |w| {
+                    const val = try dValues.get_at(&[_]usize{ b, oc, h, w });
+                    const current = try bias_gradients.get_at(&[_]usize{oc});
+                    try bias_gradients.set_at(&[_]usize{oc}, current + val);
+                }
+            }
+        }
+    }
+
+    return bias_gradients;
+}
+
+pub fn convolution_backward_weights(comptime T: type, input: *const Tensor(T), dvalues: *const Tensor(T), kernel_shape: []const usize, stride: [2]usize) !Tensor(T) {
+    const batch_size = input.shape[0];
+    const num_filters = kernel_shape[0];
+    const kernel_height = kernel_shape[2];
+    const kernel_width = kernel_shape[3];
+
+    // Converte input in formato im2col
+    const kernel_size = [2]usize{ kernel_height, kernel_width };
+    var input_col = try im2col(T, input, kernel_size, stride);
+    defer input_col.deinit();
+
+    const out_height = dvalues.shape[2];
+    const out_width = dvalues.shape[3];
+    const total_spatial = out_height * out_width;
+
+    // Reshape ottimizzato di dValues
+    var dval_shape = [_]usize{ num_filters, batch_size * total_spatial };
+    var dval_reshaped = try Tensor(T).fromShape(&pkg_allocator, &dval_shape);
+    defer dval_reshaped.deinit();
+
+    // Copia dati in modo efficiente
+    for (0..batch_size) |b| {
+        for (0..num_filters) |f| {
+            for (0..total_spatial) |i| {
+                const src_idx = b * num_filters * total_spatial + f * total_spatial + i;
+                const dst_idx = f * batch_size * total_spatial + b * total_spatial + i;
+                try dval_reshaped.set_at(&[_]usize{ f, dst_idx % (batch_size * total_spatial) }, dvalues.data[src_idx]);
+            }
+        }
+    }
+
+    // Calcola gradiente e media sul batch
+    var dW = try dot_product_tensor(Architectures.CPU, T, T, &dval_reshaped, &input_col);
+    defer dW.deinit();
+
+    // IMPORTANTE: Media sul batch
+    const batch_size_f = @as(T, @floatFromInt(batch_size));
+    for (dW.data) |*val| {
+        val.* /= batch_size_f;
+    }
+
+    // Reshape al formato kernel originale
+    var dW_shape: [4]usize = undefined;
+    @memcpy(&dW_shape, kernel_shape);
+    const dW_reshaped = try Tensor(T).fromShape(&pkg_allocator, &dW_shape);
+    @memcpy(dW_reshaped.data, dW.data);
+
+    return dW_reshaped;
+}
+
+pub fn convolution_backward_input(comptime T: type, dvalues: *const Tensor(T), kernel: *const Tensor(T), input_shape: []const usize, stride: [2]usize) !Tensor(T) {
+    std.debug.print("\n=== Convolution Backward Input Debug ===\n", .{});
+    std.debug.print("Input shape: {any}\n", .{input_shape});
+    std.debug.print("dValues shape: {any}\n", .{dvalues.shape});
+    std.debug.print("Kernel shape: {any}\n", .{kernel.shape});
+    std.debug.print("Stride: {any}\n", .{stride});
+
+    const batch_size = input_shape[0];
+    const channels = input_shape[1];
+    const num_filters = kernel.shape[0];
+    const kernel_height = kernel.shape[2];
+    const kernel_width = kernel.shape[3];
+
+    const out_height = dvalues.shape[2];
+    const out_width = dvalues.shape[3];
+    const total_spatial = out_height * out_width;
+
+    // Reshape dValues to [batch_size * out_height * out_width, num_filters]
+    var dval_shape = [_]usize{ batch_size * total_spatial, num_filters };
+    std.debug.print("\ndValues reshape: {any}\n", .{dval_shape});
+    var dval_reshaped = try Tensor(T).fromShape(&pkg_allocator, &dval_shape);
+    defer dval_reshaped.deinit();
+
+    // Copy data efficiently
+    for (0..batch_size) |b| {
+        for (0..total_spatial) |i| {
+            for (0..num_filters) |f| {
+                const h = i / out_width;
+                const w = i % out_width;
+                const src_idx = b * num_filters * total_spatial + f * total_spatial + h * out_width + w;
+                const dst_idx = b * total_spatial + i;
+                try dval_reshaped.set_at(&[_]usize{ dst_idx, f }, dvalues.data[src_idx]);
+            }
+        }
+    }
+
+    // Create transposed kernel [num_filters, channels * kernel_height * kernel_width]
+    const kernel_spatial = kernel_height * kernel_width;
+    var transposed_shape = [_]usize{ num_filters, channels * kernel_spatial };
+    std.debug.print("\nKernel transposed shape: {any}\n", .{transposed_shape});
+    var kernel_transposed = try Tensor(T).fromShape(&pkg_allocator, &transposed_shape);
+    defer kernel_transposed.deinit();
+
+    // Copy and transpose kernel data
+    for (0..num_filters) |f| {
+        for (0..channels) |c| {
+            for (0..kernel_spatial) |k| {
+                const src_idx = f * channels * kernel_spatial + c * kernel_spatial + k;
+                const dst_idx = c * kernel_spatial + k;
+                try kernel_transposed.set_at(&[_]usize{ f, dst_idx }, kernel.data[src_idx]);
+            }
+        }
+    }
+
+    std.debug.print("\nDot product shapes:\ndval_reshaped: {any}\nkernel_transposed: {any}\n", .{ dval_reshaped.shape, kernel_transposed.shape });
+
+    // Calculate input gradient [batch_size * out_height * out_width, channels * kernel_height * kernel_width]
+    var dX_col = try dot_product_tensor(Architectures.CPU, T, T, &dval_reshaped, &kernel_transposed);
+    defer dX_col.deinit();
+
+    // Convert back to input format
+    const kernel_size = [2]usize{ kernel_height, kernel_width };
+    return try col2im(T, &dX_col, input_shape, kernel_size, stride);
+}
+
+// POOLING -----------------------------------------------------------------------------------------------------------------------
+//TODO: add padding
+pub fn pool_tensor(
+    comptime T: type,
+    input: *Tensor(T),
+    used_windows: *Tensor(u8), // Shape: [W, input_rows, input_cols]
+    kernel: []usize,
+    stride: []usize,
+    poolingType: PoolingType,
+) !Tensor(T) {
+    const allocator = pkg_allocator;
+
+    // Calcolo output shape
+    var outputTensorShape = try allocator.alloc(usize, input.shape.len);
+    defer allocator.free(outputTensorShape);
+    for (0..input.shape.len - 2) |i| {
+        outputTensorShape[i] = input.shape[i];
+    }
+    const height = input.shape.len - 2;
+    const width = input.shape.len - 1;
+
+    outputTensorShape[height] = (input.shape[height] - kernel[0] + 1) / stride[0];
+    outputTensorShape[width] = (input.shape[width] - kernel[1] + 1) / stride[1];
+
+    var output = try Tensor(T).fromShape(&allocator, outputTensorShape);
+
+    //const output_rows = outputTensorShape[height];
+    //const output_cols = outputTensorShape[width];
+
+    // Il tensor used_windows ha shape [W, input_rows, input_cols]
+    // W = output_rows * output_cols
+    // Assumiamo che used_windows sia già stato allocato e zero-inizializzato prima di chiamare questa funzione.
+
+    // location
+    const location = try allocator.alloc(usize, input.shape.len);
+    defer allocator.free(location);
+    for (location) |*loc| loc.* = 0;
+
+    try multidim_pooling(
+        T,
+        input,
+        used_windows,
+        &output,
+        0,
+        location,
+        kernel,
+        stride,
+        poolingType,
+    );
+
+    return output;
+}
+
+pub fn multidim_pooling(
+    comptime T: anytype,
+    input: *Tensor(T),
+    used_windows: *Tensor(u8), // Shape: [W, input_rows, input_cols]
+    output: *Tensor(T),
+    current_depth: usize,
+    location: []usize,
+    kernel: []usize,
+    stride: []usize,
+    poolingType: PoolingType,
+) !void {
+    if (current_depth == output.shape.len - 2) {
+        const allocator = pkg_allocator;
+
+        var temp_location = try allocator.alloc(usize, input.shape.len);
+        defer allocator.free(temp_location);
+        var window_location = try allocator.alloc(usize, input.shape.len);
+        defer allocator.free(window_location);
+        var window_values = try allocator.alloc(T, kernel[0] * kernel[1]);
+        defer allocator.free(window_values);
+
+        var output_row_counter: usize = 0;
+        var output_col_counter: usize = 0;
+
+        @memcpy(temp_location, location);
+        @memcpy(window_location, location);
+
+        temp_location[current_depth] = 0;
+        temp_location[current_depth + 1] = 0;
+
+        const input_rows = input.shape[current_depth];
+        const input_cols = input.shape[current_depth + 1];
+
+        const output_cols = output.shape[current_depth + 1];
+
+        while (temp_location[current_depth] + kernel[0] <= input.shape[current_depth]) : (temp_location[current_depth] += stride[0]) {
+            while (temp_location[current_depth + 1] + kernel[1] <= input.shape[current_depth + 1]) : (temp_location[current_depth + 1] += stride[1]) {
+                window_location[current_depth] = temp_location[current_depth];
+                window_location[current_depth + 1] = temp_location[current_depth + 1];
+
+                const kernel_rows = kernel[0];
+                const kernel_cols = kernel[1];
+
+                const w = output_row_counter * output_cols + output_col_counter;
+
+                for (0..kernel_rows) |i| {
+                    window_location[current_depth] += i;
+                    for (0..kernel_cols) |j| {
+                        window_location[current_depth + 1] += j;
+                        window_values[i * kernel_cols + j] = try input.get_at(window_location);
+                    }
+                    window_location[current_depth + 1] = temp_location[current_depth + 1];
+                }
+
+                switch (poolingType) {
+                    .Max => {
+                        var max = window_values[0];
+                        var max_idx: usize = 0;
+                        for (0..window_values.len) |i| {
+                            if (window_values[i] > max) {
+                                max = window_values[i];
+                                max_idx = i;
+                            }
+                        }
+
+                        const row = max_idx / kernel_cols;
+                        const col = max_idx % kernel_cols;
+
+                        const max_r = temp_location[current_depth] + row;
+                        const max_c = temp_location[current_depth + 1] + col;
+
+                        used_windows.data[w * (input_rows * input_cols) + max_r * input_cols + max_c] = 1;
+
+                        // Set output
+                        window_location[current_depth] = output_row_counter;
+                        window_location[current_depth + 1] = output_col_counter;
+                        try output.set_at(window_location, max);
+                    },
+                    .Min => {},
+                    .Avg => {},
+                }
+
+                output_col_counter += 1;
+            }
+            temp_location[current_depth + 1] = 0;
+            output_row_counter += 1;
+            output_col_counter = 0;
+        }
+    } else {
+        for (0..output.shape[current_depth]) |element_at_current_depth| {
+            location[current_depth] = element_at_current_depth;
+            try multidim_pooling(
+                T,
+                input,
+                used_windows,
+                output,
+                current_depth + 1,
+                location,
+                kernel,
+                stride,
+                poolingType,
+            );
+        }
+    }
+}
+
+/// Concatenates a list of tensors into a single tensor along the specified axis.
+/// All input tensors must have the same shape, except for the size of the concatenation axis.
+///
+/// Parameters:
+///     allocator - The memory allocator to use for the new tensor.
+///     tensors - An array of tensors to concatenate.
+///     axis - The axis along which to concatenate. Negative values count dimensions from the back.
+///
+/// Returns:
+///     A new tensor resulting from concatenation.
+///
+/// Errors:
+///     - TensorError.EmptyTensorList
+///     - TensorError.AxisOutOfBounds
+///     - TensorError.MismatchedRank
+///     - TensorError.MismatchedShape
+pub fn concatenate(comptime T: type, allocator: *std.mem.Allocator, tensors: []Tensor(T), axis: isize) !Tensor(T) {
+    // Ensure there is at least one tensor to concatenate
+    if (tensors.len == 0) return TensorError.EmptyTensorList;
+
+    // Determine the rank (number of dimensions) from the first tensor
+    const rank = tensors[0].shape.len;
+
+    var concat_axis = axis;
+    if (concat_axis < 0) {
+        concat_axis += @as(isize, @intCast(rank));
+    }
+
+    if (concat_axis < 0 or concat_axis >= @as(isize, @intCast(rank))) {
+        return TensorError.AxisOutOfBounds;
+    }
+
+    const concat_axis_usize = @as(usize, @intCast(concat_axis));
+
+    // Validate that all tensors have the same rank and matching shapes except along the concatenation axis
+    for (tensors) |tensor| {
+        if (tensor.shape.len != rank) {
+            return TensorError.MismatchedRank;
+        }
+        for (0..rank) |d| {
+            if (d != concat_axis_usize and tensor.shape[d] != tensors[0].shape[d]) {
+                return TensorError.MismatchedShape;
+            }
+        }
+    }
+
+    // Calculate the new shape after concatenation
+    var new_shape = try allocator.alloc(usize, rank);
+    for (0..rank) |d| {
+        if (d == concat_axis_usize) {
+            var sum: usize = 0;
+            for (tensors) |tensor| {
+                sum += tensor.shape[d];
+            }
+            new_shape[d] = sum;
+        } else {
+            new_shape[d] = tensors[0].shape[d];
+        }
+    }
+
+    // Calculate the total number of elements in the new tensor
+    var total_size: usize = 1;
+    for (new_shape) |dim| {
+        total_size *= dim;
+    }
+
+    // Allocate memory for the new tensor's data
+    var new_data = try allocator.alloc(T, total_size);
+
+    // Calculate the number of slices based on the concatenation axis
+    var num_slices: usize = 1;
+    for (0..concat_axis_usize) |d| {
+        num_slices *= new_shape[d];
+    }
+
+    // Calculate the slice size (number of elements to copy per concatenation dimension)
+    var slice_size: usize = 1;
+    if (concat_axis_usize + 1 < rank) {
+        for ((concat_axis_usize + 1)..rank) |d| {
+            slice_size *= new_shape[d];
+        }
+    } else {
+        slice_size = 1;
+    }
+
+    // Initialize the offset for copying data into new_data
+    var offset: usize = 0;
+
+    // Iterate over each slice
+    for (0..num_slices) |slice_idx| {
+        for (tensors, 0..) |tensor, tensor_idx| {
+            const concat_dim = tensor.shape[concat_axis_usize];
+            const copy_size = concat_dim * slice_size;
+
+            std.debug.print("\n  Copying Tensor {}: slice_idx={} concat_dim={} slice_size={} copy_size={} to new_data[{}..{}]", .{ tensor_idx, slice_idx, concat_dim, slice_size, copy_size, offset, offset + copy_size });
+
+            // Calculate the start and end indices in the source tensor
+            const src_start = slice_idx * concat_dim * slice_size;
+            const src_end = src_start + copy_size;
+
+            // Check bounds for the source tensor's data
+            if (src_end > tensor.data.len) {
+                std.debug.print("\n  Out of bounds error for tensor idx:{} src_end:{} tensor.data.len:{}", .{ tensor_idx, src_end, tensor.data.len });
+                return TensorError.IndexOutOfBounds;
+            }
+
+            // Calculate the destination indices in new_data
+            const dest_start = offset;
+            const dest_end = offset + copy_size;
+
+            // Check bounds for the new_data buffer
+            if (dest_end > new_data.len) {
+                std.debug.print("\n  Out of bounds error for new_data dest_end:{} new_data.len:{}", .{ dest_end, new_data.len });
+                return TensorError.IndexOutOfBounds;
+            }
+
+            @memcpy(new_data[dest_start..dest_end], tensor.data[src_start..src_end]);
+
+            // Update the offset for the next copy
+            offset += copy_size;
+        }
+    }
+
+    // Return the concatenated tensor
+    return Tensor(T){
+        .data = new_data,
+        .size = total_size,
+        .shape = new_shape,
+        .allocator = allocator,
+    };
+}
+
+/// Calculate strides for a given shape
+pub fn calculateStrides(shape: []usize, allocator: *const std.mem.Allocator) ![]usize {
+    const len = shape.len;
+    const strides = try allocator.alloc(usize, len);
+    if (len == 0) return strides; // Handle scalar tensor
+    strides[len - 1] = 1;
+    for (1..len) |i| {
+        strides[len - 1 - i] = strides[len - i] * shape[len - i];
+    }
+    return strides;
+}
+
+/// Performs pooling operation on a 4D tensor (batch, channels, height, width)
+pub fn pool_forward(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize, poolingType: PoolingType) !struct { output: Tensor(T), used_input: Tensor(u8) } {
+    // Currently only Max pooling is implemented
+    _ = poolingType;
+
+    const batch_size = input.shape[0];
+    const channels = input.shape[1];
+    const input_rows = input.shape[2];
+    const input_cols = input.shape[3];
+
+    const out_rows = (input_rows - kernel[0] + 1) / stride[0];
+    const out_cols = (input_cols - kernel[1] + 1) / stride[1];
+
+    var output_shape = [_]usize{
+        batch_size,
+        channels,
+        out_rows,
+        out_cols,
+    };
+
+    var output = try Tensor(T).fromShape(&pkg_allocator, &output_shape);
+
+    var used_input_shape = [_]usize{
+        batch_size,
+        channels,
+        out_rows * out_cols,
+        input_rows,
+        input_cols,
+    };
+
+    var used_input = try Tensor(u8).fromShape(&pkg_allocator, &used_input_shape);
+
+    for (used_input.data) |*v| v.* = 0;
+
+    for (0..batch_size) |b| {
+        for (0..channels) |c| {
+            for (0..out_rows) |out_r| {
+                for (0..out_cols) |out_c| {
+                    const r_start = out_r * stride[0];
+                    const c_start = out_c * stride[1];
+
+                    const window_index = out_r * out_cols + out_c;
+
+                    var max_value: T = input.data[b * channels * input_rows * input_cols + c * input_rows * input_cols + r_start * input_cols + c_start];
+                    var max_pos: usize = 0;
+
+                    for (0..kernel[0]) |kr| {
+                        for (0..kernel[1]) |kc| {
+                            const in_r = r_start + kr;
+                            const in_c = c_start + kc;
+
+                            if (in_r < input_rows and in_c < input_cols) {
+                                const val = input.data[b * channels * input_rows * input_cols + c * input_rows * input_cols + in_r * input_cols + in_c];
+                                if (val > max_value) {
+                                    max_value = val;
+                                    max_pos = in_r * input_cols + in_c;
+                                }
+                            }
+                        }
+                    }
+
+                    output.data[b * channels * out_rows * out_cols + c * out_rows * out_cols + out_r * out_cols + out_c] = max_value;
+
+                    used_input.data[b * channels * out_rows * out_cols * input_rows * input_cols + c * out_rows * out_cols * input_rows * input_cols + window_index * input_rows * input_cols + max_pos] = 1;
+                }
+            }
+        }
+    }
+
+    return .{ .output = output, .used_input = used_input };
+}
+
+/// Performs backward pass for pooling operation
+pub fn pool_backward(comptime T: type, dValues: *Tensor(T), input_shape: []const usize, used_input: *Tensor(u8), kernel: [2]usize, stride: [2]usize) !Tensor(T) {
+    var shape: [4]usize = undefined;
+    for (input_shape, 0..) |s, i| {
+        shape[i] = s;
+    }
+
+    var dInput = try Tensor(T).fromShape(&pkg_allocator, &shape);
+
+    for (dInput.data) |*val| val.* = 0;
+
+    const batch_size = input_shape[0];
+    const channels = input_shape[1];
+    const input_rows = input_shape[2];
+    const input_cols = input_shape[3];
+
+    const out_rows = dValues.shape[2];
+    const out_cols = dValues.shape[3];
+
+    for (0..batch_size) |b| {
+        for (0..channels) |c| {
+            for (0..out_rows) |out_r| {
+                for (0..out_cols) |out_c| {
+                    const grad = dValues.data[b * channels * out_rows * out_cols + c * out_rows * out_cols + out_r * out_cols + out_c];
+                    const window_index = out_r * out_cols + out_c;
+
+                    for (0..kernel[0]) |kr| {
+                        for (0..kernel[1]) |kc| {
+                            const in_r = out_r * stride[0] + kr;
+                            const in_c = out_c * stride[1] + kc;
+
+                            if (in_r < input_rows and in_c < input_cols) {
+                                const mask_val = used_input.data[b * channels * out_rows * out_cols * input_rows * input_cols + c * out_rows * out_cols * input_rows * input_cols + window_index * input_rows * input_cols + in_r * input_cols + in_c];
+                                if (mask_val == 1) {
+                                    dInput.data[b * channels * input_rows * input_cols + c * input_rows * input_cols + in_r * input_cols + in_c] += grad;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return dInput;
+}
+
+/// Performs element-wise binary subtraction with Numpy-style broadcasting support
+pub fn sub_tensors(comptime arch: Architectures, comptime Tin: anytype, comptime Tout: anytype, t1: *Tensor(Tin), t2: *Tensor(Tin)) !Tensor(Tout) {
+    //selecting between all possible architectures
+    return switch (arch) {
+        Architectures.CPU => return CPU_sub_tensors(Tin, Tout, t1, t2),
+        Architectures.GPU => {
+            std.debug.print("{} is under developement \n", .{arch});
+            return ArchitectureError.UnderDevelopementArchitecture;
+        },
+        Architectures.SP32 => {
+            std.debug.print("{} is under developement \n", .{arch});
+            return ArchitectureError.UnderDevelopementArchitecture;
+        },
+        else => return ArchitectureError.UnknownArchitecture,
+    };
+}
+
+fn CPU_sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
+    // CHECKS:
+    if (@TypeOf(outputType) == @TypeOf(inputType)) {
+        // If input and output are same type, no check needed
+    } else {
+        if (@bitSizeOf(outputType) <= 16) { //quantized
+            if (@bitSizeOf(outputType) <= (@bitSizeOf(inputType) * 2)) return TensorMathError.TooSmallOutputType;
+        } else { //non-quant
+            if (@bitSizeOf(outputType) < @bitSizeOf(inputType)) return TensorMathError.TooSmallOutputType;
+        }
+    }
+
+    // Handle broadcasting
+    const rank1 = t1.shape.len;
+    const rank2 = t2.shape.len;
+    const max_rank = @max(rank1, rank2);
+
+    // Pad shapes with 1s for broadcasting
+    var shape1 = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(shape1);
+    var shape2 = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(shape2);
+
+    // Initialize with 1s
+    @memset(shape1, 1);
+    @memset(shape2, 1);
+
+    // Copy original shapes from right to left
+    var i: usize = 0;
+    while (i < rank1) : (i += 1) {
+        shape1[max_rank - rank1 + i] = t1.shape[i];
+    }
+    i = 0;
+    while (i < rank2) : (i += 1) {
+        shape2[max_rank - rank2 + i] = t2.shape[i];
+    }
+
+    // Verify shapes are compatible for broadcasting
+    var out_shape = try pkg_allocator.alloc(usize, max_rank);
+    errdefer pkg_allocator.free(out_shape);
+
+    for (0..max_rank) |dim| {
+        if (shape1[dim] != shape2[dim] and shape1[dim] != 1 and shape2[dim] != 1) {
+            return TensorMathError.IncompatibleBroadcastShapes;
+        }
+        out_shape[dim] = @max(shape1[dim], shape2[dim]);
+    }
+
+    // Calculate total size and strides
+    var total_size: usize = 1;
+    var strides1 = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(strides1);
+    var strides2 = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(strides2);
+    var out_strides = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(out_strides);
+
+    // Calculate strides from right to left
+    var stride: usize = 1;
+    i = max_rank;
+    while (i > 0) {
+        i -= 1;
+        out_strides[i] = stride;
+        strides1[i] = if (shape1[i] > 1) stride else 0;
+        strides2[i] = if (shape2[i] > 1) stride else 0;
+        stride *= out_shape[i];
+    }
+    total_size = stride;
+
+    std.debug.print("\nshape1: {any}, strides1: {any}", .{ shape1, strides1 });
+    std.debug.print("\nshape2: {any}, strides2: {any}", .{ shape2, strides2 });
+    std.debug.print("\nout_shape: {any}, out_strides: {any}", .{ out_shape, out_strides });
+
+    // Allocate output tensor
+    var out_data = try pkg_allocator.alloc(outputType, total_size);
+    errdefer pkg_allocator.free(out_data);
+
+    // Perform subtraction with broadcasting
+    var indices = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(indices);
+    @memset(indices, 0);
+
+    i = 0;
+    while (i < total_size) : (i += 1) {
+        // Calculate indices for current position
+        var temp = i;
+        for (0..max_rank) |dim| {
+            const idx = max_rank - 1 - dim;
+            indices[idx] = temp / out_strides[idx];
+            temp = temp % out_strides[idx];
+        }
+
+        // Calculate input indices considering broadcasting
+        var idx1: usize = 0;
+        var idx2: usize = 0;
+
+        // For same shape tensors, use the same index calculation
+        if (std.mem.eql(usize, shape1, shape2)) {
+            idx1 = i;
+            idx2 = i;
+        } else {
+            // For broadcasting case
+            for (0..max_rank) |dim| {
+                const pos = indices[dim];
+                // For t1: if dimension is 1, don't increment index (broadcasting)
+                if (shape1[dim] > 1) {
+                    idx1 += pos * strides1[dim];
+                }
+                // For t2: if dimension is 1, don't increment index (broadcasting)
+                if (shape2[dim] > 1) {
+                    const t2_pos = pos % shape2[dim];
+                    idx2 += t2_pos * strides2[dim];
+                }
+            }
+        }
+
+        // Perform subtraction: t1 - t2
+        const val1 = t1.data[idx1];
+        const val2 = t2.data[idx2];
+        out_data[i] = val1 - val2;
+        std.debug.print("\nFinal: idx1={}, val1={}, idx2={}, val2={}, result={}", .{ idx1, val1, idx2, val2, out_data[i] });
+    }
+
+    return Tensor(outputType){
+        .data = out_data,
+        .shape = out_shape,
+        .size = total_size,
+        .allocator = &pkg_allocator,
+    };
+}
+
+/// Converts a 4D input tensor into a 2D matrix using im2col algorithm
+/// Input shape: [batch_size, channels, height, width]
+/// Output shape: [batch_size * out_height * out_width, channels * kernel_height * kernel_width]
+pub fn im2col(comptime T: type, input: *const Tensor(T), kernel: [2]usize, stride: [2]usize) !Tensor(T) {
+    const batch_size = input.shape[0];
+    const channels = input.shape[1];
+    const height = input.shape[2];
+    const width = input.shape[3];
+
+    const kernel_h = kernel[0];
+    const kernel_w = kernel[1];
+    const stride_h = stride[0];
+    const stride_w = stride[1];
+
+    const out_height = (height - kernel_h) / stride_h + 1;
+    const out_width = (width - kernel_w) / stride_w + 1;
+
+    // Output matrix dimensions
+    const rows = batch_size * out_height * out_width;
+    const cols = channels * kernel_h * kernel_w;
+
+    var col_shape = [_]usize{ rows, cols };
+    var col_matrix = try Tensor(T).fromShape(&pkg_allocator, &col_shape);
+
+    var row: usize = 0;
+    for (0..batch_size) |b| {
+        for (0..out_height) |oh| {
+            for (0..out_width) |ow| {
+                var col: usize = 0;
+                for (0..channels) |c| {
+                    for (0..kernel_h) |kh| {
+                        for (0..kernel_w) |kw| {
+                            const h_offset = oh * stride_h + kh;
+                            const w_offset = ow * stride_w + kw;
+                            const input_idx = b * channels * height * width +
+                                c * height * width +
+                                h_offset * width +
+                                w_offset;
+                            try col_matrix.set_at(&[_]usize{ row, col }, input.data[input_idx]);
+                            col += 1;
+                        }
+                    }
+                }
+                row += 1;
+            }
+        }
+    }
+
+    return col_matrix;
+}
+
+/// Converts a 2D matrix back to a 4D tensor using col2im algorithm
+/// Input shape: [batch_size * out_height * out_width, channels * kernel_height * kernel_width]
+/// Output shape: [batch_size, channels, height, width]
+pub fn col2im(comptime T: type, col_matrix: *Tensor(T), output_shape: []const usize, kernel: [2]usize, stride: [2]usize) !Tensor(T) {
+    const batch_size = output_shape[0];
+    const channels = output_shape[1];
+    const height = output_shape[2];
+    const width = output_shape[3];
+
+    const kernel_h = kernel[0];
+    const kernel_w = kernel[1];
+    const stride_h = stride[0];
+    const stride_w = stride[1];
+
+    const out_height = (height - kernel_h) / stride_h + 1;
+    const out_width = (width - kernel_w) / stride_w + 1;
+
+    var shape: [4]usize = undefined;
+    for (output_shape, 0..) |s, i| {
+        shape[i] = s;
+    }
+    var output = try Tensor(T).fromShape(&pkg_allocator, &shape);
+    try output.set(0, 0); // Initialize to zero
+
+    var row: usize = 0;
+    for (0..batch_size) |b| {
+        for (0..out_height) |oh| {
+            for (0..out_width) |ow| {
+                var col: usize = 0;
+                for (0..channels) |c| {
+                    for (0..kernel_h) |kh| {
+                        for (0..kernel_w) |kw| {
+                            const h_offset = oh * stride_h + kh;
+                            const w_offset = ow * stride_w + kw;
+                            const output_idx = b * channels * height * width +
+                                c * height * width +
+                                h_offset * width +
+                                w_offset;
+                            const val = try col_matrix.get_at(&[_]usize{ row, col });
+                            output.data[output_idx] += val;
+                            col += 1;
+                        }
+                    }
+                }
+                row += 1;
+            }
+        }
+    }
+
+    return output;
+}

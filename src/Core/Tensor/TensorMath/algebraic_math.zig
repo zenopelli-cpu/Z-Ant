@@ -31,82 +31,90 @@ pub fn dot_product_tensor(comptime arch: Architectures, comptime Tin: anytype, c
 }
 
 /// Implementation of dot product for CPU architecture still not parallelized
+/// This optimized version improves performance through:
+/// 1. Flat iteration instead of recursion (eliminates call stack overhead)
+/// 2. Direct memory access vs get/set methods (removes function call overhead)
+/// 3. Cache-friendly memory access patterns
+/// 4. SIMD-friendly inner loop structure
 fn CPU_dot_product_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
-
-    //CHECKS :
-    const nDimT1 = t1.shape.len; //number of dimesion of tensor 1
-    const nDimT2 = t2.shape.len; //number of dimesion of tensor 2
-    // -imput shape:
+    //CHECKS remain the same
+    const nDimT1 = t1.shape.len;
+    const nDimT2 = t2.shape.len;
     if (nDimT1 != nDimT2) return TensorMathError.InputTensorDifferentShape;
-
-    //-dimensional compatibility:
-    // If you have two matrices A and B, to compute the product A×B, the number of columns in A must be equal to the number of rows in B.
-    // If A is a matrix of dimensions m×n and B is a matrix of dimensions n×p, then the product A×B is defined, and it results in a matrix of dimensions m×p.
     if (t1.shape[nDimT1 - 1] != t2.shape[nDimT1 - 2]) return TensorMathError.InputTensorsWrongShape;
 
-    // -this check is necassary to avoid loss of information/ overflow when working with quantized tensors
-    // usually quantization reduce to a maximum of 16bit, to the next check is divided between quant and non-quant data
-    //bool (1 bit)
-    // u1 (1 bit)
-    // i8 (8 bits)
-    // u8 (8 bits)
-    // i16 (16 bits)
-    // u16 (16 bits)
-    // f16 (16 bits)
-    // i32 (32 bits)
-    // u32 (32 bits)
-    // f32 (32 bits)
-    // i64 (64 bits)
-    // u64 (64 bits)
-    // f64 (64 bits)
-    // i128 (128 bits)
-    // u128 (128 bits)
-    // f128 (128 bits)
     if (@TypeOf(outputType) == @TypeOf(inputType)) {
-        // Se input e output sono dello stesso tipo, non eseguire il controllo
-        // Evitiamo l'errore in questo caso
+        // Skip check if same type
     } else {
-        if (@bitSizeOf(outputType) <= 16) { //quantized
+        if (@bitSizeOf(outputType) <= 16) {
             if (@bitSizeOf(outputType) <= (@bitSizeOf(inputType) * 2)) return TensorMathError.TooSmallOutputType;
-        } else { //non-quant
+        } else {
             if (@bitSizeOf(outputType) <= @bitSizeOf(inputType)) return TensorMathError.TooSmallOutputType;
         }
     }
 
-    //CREATING output_tensor :
     const allocator = pkg_allocator;
-    var out_shape = try allocator.alloc(usize, nDimT1); //I had to use alloc() bacause nDimT1 is not known at comptime
-    defer pkg_allocator.free(out_shape);
-    //defining the resulting shape
+    var out_shape = try allocator.alloc(usize, nDimT1);
+    defer allocator.free(out_shape);
+
+    // Pre-calculate total iterations to avoid repeated multiplications in the loop
+    // This reduces runtime computation overhead
+    var total_outer_iterations: usize = 1;
     for (0..(nDimT1 - 2)) |i| {
         out_shape[i] = t1.shape[i];
+        total_outer_iterations *= t1.shape[i];
     }
     out_shape[nDimT1 - 2] = t1.shape[nDimT1 - 2];
     out_shape[nDimT1 - 1] = t2.shape[nDimT1 - 1];
+    total_outer_iterations *= t1.shape[nDimT1 - 2] * t2.shape[nDimT1 - 1];
 
-    var out_tensor = try Tensor(outputType).fromShape(&pkg_allocator, out_shape);
-    try out_tensor.set(0, 0);
-    //initialize the current location to all 0
-    const location = try pkg_allocator.alloc(usize, nDimT1);
-    defer pkg_allocator.free(location);
-    for (location) |*loc| {
-        loc.* = 0;
+    var out_tensor = try Tensor(outputType).fromShape(&allocator, out_shape);
+    errdefer out_tensor.deinit();
+
+    // Pre-calculate strides to:
+    // 1. Avoid repeated calculations in loops
+    // 2. Enable direct memory access with simple offset arithmetic
+    // 3. Make memory access patterns more predictable for CPU cache
+    const inner_dim = t1.shape[nDimT1 - 1];
+    const t1_stride = t1.shape[nDimT1 - 1];
+    const t2_stride = t2.shape[nDimT1 - 1];
+    const out_stride = out_tensor.shape[nDimT1 - 1];
+
+    // Single flat loop instead of nested loops reduces:
+    // 1. Branch prediction misses
+    // 2. Loop overhead
+    // 3. Stack frame management
+    var batch_idx: usize = 0;
+    while (batch_idx < total_outer_iterations) : (batch_idx += 1) {
+        // Efficient index calculation using modulo and division
+        // Replaces complex recursive index tracking
+        const out_row = (batch_idx / out_stride) % out_tensor.shape[nDimT1 - 2];
+        const out_col = batch_idx % out_stride;
+
+        var sum: outputType = 0;
+        // Pre-calculate offsets for inner loop efficiency
+        const row_offset = out_row * t1_stride;
+        const col_offset = out_col;
+
+        // Inner loop optimized for:
+        // 1. SIMD vectorization (simple increment, no complex indexing)
+        // 2. Cache locality (sequential memory access)
+        // 3. Branch prediction (simple condition)
+        var k: usize = 0;
+        while (k < inner_dim) : (k += 1) {
+            // Direct memory access instead of get_at() calls
+            // Eliminates function call overhead and bounds checking
+            const t1_val = t1.data[row_offset + k];
+            const t2_val = t2.data[k * t2_stride + col_offset];
+            sum += t1_val * t2_val;
+        }
+
+        out_tensor.data[batch_idx] = sum;
     }
-
-    //call mutidim_mat_mul to handle multidimensionality
-    try multidim_multiplication(
-        inputType,
-        outputType,
-        t1,
-        t2,
-        &out_tensor,
-        0,
-        location,
-    );
-    //print output tensor shape
 
     return out_tensor;
 }
+
 /// Function that performs the multiplication of two tensors used in a recursive way to handle multidimensional tensors
 fn multidim_multiplication(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType), t3: *Tensor(outputType), current_depth: usize, location: []usize) !void {
     if (current_depth == (t1.shape.len - 2)) {
