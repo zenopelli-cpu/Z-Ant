@@ -184,7 +184,7 @@ pub fn ConvolutionalLayer(comptime T: type) type {
             if (self.output.data.len > 0) {
                 self.output.deinit();
             }
-            self.output = try TensMath.convolve_tensor_with_bias(T, T, &self.input, &self.weights, &self.bias, &self.stride);
+            self.output = try TensMath.convolve_tensor_with_bias(T, &self.input, &self.weights, &self.bias, &self.stride);
 
             return self.output;
         }
@@ -209,13 +209,13 @@ pub fn ConvolutionalLayer(comptime T: type) type {
                 self.w_gradients.deinit();
             }
             // --- Compute gradients with respect to weights
-            self.w_gradients = TensMath.convolution_backward_weights(T, &self.input, dValues, &self.weights, self.stride) catch |err| {
+            self.w_gradients = TensMath.convolution_backward_weights(T, &self.input, dValues, &self.kernel_shape, self.stride) catch |err| {
                 std.debug.print("\nError during conv backward_weights {any}", .{err});
                 return err;
             };
 
             // // Compute gradients with respect to input
-            var dInput = TensMath.convolution_backward_input(T, dValues, &self.weights, &self.input, self.stride) catch |err| {
+            var dInput = TensMath.convolution_backward_input(T, dValues, &self.weights, self.input.shape, self.stride) catch |err| {
                 std.debug.print("\nError during conv backward_input {any}", .{err});
                 return err;
             };

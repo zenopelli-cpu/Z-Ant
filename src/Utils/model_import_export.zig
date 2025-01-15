@@ -273,7 +273,7 @@ pub fn importLayerDense(
     const w_grad_tens = try Tensor(T).fromShape(allocator, weights_tens.shape);
     const b_grad_tens = try Tensor(T).fromShape(allocator, bias_tens.shape);
 
-    return DenseLayer(f64){
+    return DenseLayer(T){
         .weights = weights_tens,
         .bias = bias_tens,
         .input = undefined,
@@ -310,7 +310,7 @@ pub fn importLayerConvolutional(
     const w_grad_tens = try Tensor(T).fromShape(allocator, &kernel_shape);
     const b_grad_tens = try Tensor(T).fromShape(allocator, bias_tens.shape);
 
-    return ConvolutionalLayer(f64){
+    return ConvolutionalLayer(T){
         .weights = weights_tens,
         .bias = bias_tens,
         .input = undefined,
@@ -330,10 +330,11 @@ pub fn importLayerFlatten(
 ) !FlattenLayer(T) {
     std.debug.print(" flatten ", .{});
 
-    return FlattenLayer(f64){
+    return FlattenLayer(T){
         .input = undefined,
         .output = undefined,
         .allocator = allocator,
+        .original_shape = &[_]usize{},
     };
 }
 
@@ -351,8 +352,8 @@ pub fn importLayerActivation(
     _ = try reader.read(&activation_type_string);
 
     var layerActiv = ActivationLayer(T){
-        .input = undefined, //input_tens,
-        .output = undefined, //output_tens,
+        .input = undefined,
+        .output = undefined,
         .n_inputs = n_inputs,
         .n_neurons = n_neurons,
         .activationFunction = undefined,
@@ -391,8 +392,8 @@ pub fn importLayerPooling(
     _ = try reader.read(&pooling_type_string);
 
     var layerPooling = PoolingLayer(T){
-        .input = undefined, //input_tens,
-        .output = undefined, //output_tens,
+        .input = undefined,
+        .output = undefined,
         .used_input = undefined,
         .kernel = .{ kernel[0], kernel[1] },
         .stride = .{ stride[0], stride[1] },
