@@ -19,6 +19,9 @@ pub const concatenate = @import("structural_math").concatenate;
 pub const calculateStrides = @import("structural_math").calculateStrides;
 pub const transpose2D = @import("structural_math").transpose2D;
 pub const transposeDefault = @import("structural_math").transposeDefault;
+pub const addPaddingAndDilation = @import("structural_math").addPaddingAndDilation;
+pub const flip = @import("structural_math").flip;
+pub const resize = @import("structural_math").resize;
 
 // ---------- importing matrix algebra methods ----------
 pub const compute_dot_product = @import("algebraic_math").compute_dot_product;
