@@ -96,8 +96,10 @@ pub fn FlattenLayer(comptime T: type) type {
             if (self.output.data.len > 0) {
                 self.output.deinit();
             }
+
             self.output = try input.copy();
             try self.output.reshape(output_shape[0..]);
+
 
             std.debug.print("Shape Flatten is {any}", .{self.output.shape});
             return self.output;
