@@ -740,6 +740,7 @@ test "Export/Import of a COMPLEX model" {
         .input = undefined,
         .output = undefined,
         .allocator = &allocator,
+        .original_shape = &[_]usize{},
     };
     var Flattenlayer = flatten_layer.create();
 
