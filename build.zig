@@ -182,6 +182,7 @@ pub fn build(b: *std.Build) void {
     conv_math_mod.addImport("tensor", tensor_mod);
     conv_math_mod.addImport("pkgAllocator", allocator_mod);
     conv_math_mod.addImport("errorHandler", errorHandler_mod);
+    conv_math_mod.addImport("algebraic_math", algebraic_math_mod);
 
     // ***************** POOLING MATH *****************
     pooling_math_mod.addImport("tensor", tensor_mod);
