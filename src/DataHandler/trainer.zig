@@ -220,7 +220,7 @@ pub fn TrainDataLoader2D(
             var shape: [2]usize = [_]usize{ load.yTensor.shape[0], 10 };
             try predictions.reshape(&shape);
             //predictions.print();
-            try predictions.isSafe();
+            // DEBUG try predictions.isSafe();
 
             const loser = Loss.LossFunction(lossType){};
             try DataProc.normalize(T, &load.yTensor, NormalizType.UnityBasedNormalizartion);

@@ -12,6 +12,5 @@ test {
     _ = @import("tests_optim.zig");
     _ = @import("tests_dataLoader.zig");
     _ = @import("tests_trainer.zig");
-    _ = @import("tests_modelExport.zig"); //TODO: Leaks
-
+    _ = @import("tests_modelExport.zig");
 }
