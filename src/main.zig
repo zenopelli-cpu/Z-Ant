@@ -12,6 +12,7 @@ const loader = @import("dataloader");
 const ActivationType = @import("activation_function").ActivationType;
 const LossType = @import("loss").LossType;
 const Trainer = @import("trainer");
+const BatchNormLayer = @import("batchNormLayer").BatchNormLayer;
 
 pub fn main() !void {
     const allocator = @import("pkgAllocator").allocator;
@@ -50,6 +51,33 @@ pub fn main() !void {
         }),
     );
     try model.addLayer(layer_);
+
+    // After first conv layer
+    var batch_norm1 = BatchNormLayer(f64){
+        .gamma = undefined,
+        .beta = undefined,
+        .input = undefined,
+        .output = undefined,
+        .running_mean = undefined,
+        .running_var = undefined,
+        .epsilon = undefined,
+        .momentum = undefined,
+        .is_training = undefined,
+        .allocator = &allocator,
+        .gamma_grad = undefined,
+        .beta_grad = undefined,
+        .normalized = undefined,
+        .std_dev = undefined,
+        .var_ = undefined,
+        .mean = undefined,
+    };
+    var bn1 = batch_norm1.create();
+    try bn1.init(&allocator, @constCast(&BatchNormLayer(f64).BatchNormInitArgs{
+        .num_features = 16, // Match number of filters from conv1
+        .epsilon = 1e-5,
+        .momentum = 0.1,
+    }));
+    try model.addLayer(bn1);
 
     //layer 1: ReLU Activation ----------------------------------------------------------------------------
     // var conv1_activ = activationlayer(f64){
@@ -98,6 +126,33 @@ pub fn main() !void {
     );
     try model.addLayer(layer2_);
 
+    // After second conv layer
+    var batch_norm2 = BatchNormLayer(f64){
+        .gamma = undefined,
+        .beta = undefined,
+        .input = undefined,
+        .output = undefined,
+        .running_mean = undefined,
+        .running_var = undefined,
+        .epsilon = undefined,
+        .momentum = undefined,
+        .is_training = undefined,
+        .allocator = &allocator,
+        .gamma_grad = undefined,
+        .beta_grad = undefined,
+        .normalized = undefined,
+        .std_dev = undefined,
+        .var_ = undefined,
+        .mean = undefined,
+    };
+    var bn2 = batch_norm2.create();
+    try bn2.init(&allocator, @constCast(&BatchNormLayer(f64).BatchNormInitArgs{
+        .num_features = 16, // Match number of filters from conv2
+        .epsilon = 1e-5,
+        .momentum = 0.1,
+    }));
+    try model.addLayer(bn2);
+
     //layer 3: Third Convolutional Layer ----------------------------------------------------------------------------
     var conv_layer3 = convlayer(f64){
         .weights = undefined,
@@ -120,11 +175,38 @@ pub fn main() !void {
             stride: [2]usize,
         }{
             .input_channels = 16,
-            .kernel_shape = .{ 32, 16, 2, 2 }, // 32 filters, 16 channels, 2x2 kernel
+            .kernel_shape = .{ 16, 16, 2, 2 }, // 32 filters, 16 channels, 2x2 kernel
             .stride = .{ 1, 1 },
         }),
     );
     try model.addLayer(layer3_);
+
+    // After third conv layer
+    var batch_norm3 = BatchNormLayer(f64){
+        .gamma = undefined,
+        .beta = undefined,
+        .input = undefined,
+        .output = undefined,
+        .running_mean = undefined,
+        .running_var = undefined,
+        .epsilon = undefined,
+        .momentum = undefined,
+        .is_training = undefined,
+        .allocator = &allocator,
+        .gamma_grad = undefined,
+        .beta_grad = undefined,
+        .normalized = undefined,
+        .std_dev = undefined,
+        .var_ = undefined,
+        .mean = undefined,
+    };
+    var bn3 = batch_norm3.create();
+    try bn3.init(&allocator, @constCast(&BatchNormLayer(f64).BatchNormInitArgs{
+        .num_features = 16, // Match number of filters from conv3
+        .epsilon = 1e-5,
+        .momentum = 0.1,
+    }));
+    try model.addLayer(bn3);
 
     //layer 4: Pooling Layer ----------------------------------------------------------------------------
     var pooling_layer = PoolingLayer(f64){
@@ -205,7 +287,7 @@ pub fn main() !void {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 4608, // Calculated from previous layer output
+        .n_inputs = 2304, // Calculated from previous layer output
         .n_neurons = 256,
     }));
     try model.addLayer(dense1_);
