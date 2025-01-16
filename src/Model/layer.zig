@@ -21,6 +21,7 @@ pub const LayerType = enum {
     PoolingLayer,
     ActivationLayer,
     FlattenLayer,
+    BatchNormLayer,
     null,
 };
 

@@ -41,6 +41,7 @@ pub fn build(b: *std.Build) void {
     const convLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/convLayer.zig") });
     const flattenLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/flattenLayer.zig") });
     const poolingLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/poolingLayer.zig") });
+    const batchNormLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/batchNormLayer.zig") });
 
     // Create modules from the source files in the `src/DataHandler/` directory.
     const dataloader_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataLoader.zig") });
@@ -328,4 +329,20 @@ pub fn build(b: *std.Build) void {
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test_all", "Run all unit tests");
     test_step.dependOn(&run_unit_tests.step);
+
+    // ************************************************BATCHNORMLAYER DEPENDENCIES************************************************
+    batchNormLayer_mod.addImport("Tensor", tensor_mod);
+    batchNormLayer_mod.addImport("tensor_m", tensor_math_mod);
+    batchNormLayer_mod.addImport("Layer", layer_mod);
+    batchNormLayer_mod.addImport("architectures", architectures_mod);
+    batchNormLayer_mod.addImport("errorHandler", errorHandler_mod);
+
+    // Add BatchNormLayer to unit tests dependencies
+    unit_tests.root_module.addImport("batchNormLayer", batchNormLayer_mod);
+
+    // Add BatchNormLayer to exe dependencies
+    exe.root_module.addImport("batchNormLayer", batchNormLayer_mod);
+
+    // Add BatchNormLayer to model import/export dependencies
+    modelImportExport_mod.addImport("batchNormLayer", batchNormLayer_mod);
 }
