@@ -122,20 +122,22 @@ pub fn DenseLayer(comptime T: type) type {
         pub fn forward(ctx: *anyopaque, input: *tensor.Tensor(T)) !tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
-            // Dealloca self.input se già allocato
+            // Dealloc self.input if already allocated
             if (self.input.data.len > 0) {
                 self.input.deinit();
             }
             self.input = try input.copy();
 
-            // Dealloca self.output se già allocato prima di riassegnarlo
+            // Dealloc self.output if already allocated
             if (self.output.data.len > 0) {
                 self.output.deinit();
             }
 
+            // Compute dot product and store result directly in self.output
             self.output = try TensMath.compute_dot_product(T, &self.input, &self.weights);
+            errdefer self.output.deinit();
+
             try TensMath.add_bias(T, &self.output, &self.bias);
-            // DEBUG try self.output.isSafe();
             return self.output;
         }
 

@@ -40,6 +40,7 @@ pub const TensorMathError = error{
     InputTensorDimensionMismatch,
     WrongStride,
     IncompatibleBroadcastShapes,
+    InvalidDimensions,
 };
 
 /// Tensor errors
@@ -117,6 +118,7 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         TensorMathError.TooSmallOutputType => "TensorMath: output tensor type may lose information",
         TensorMathError.InputTensorDimensionMismatch => "TensorMath: input tensor dimension mismatch",
         TensorMathError.IncompatibleBroadcastShapes => "TensorMath: tensors have incompatible shapes for broadcasting",
+        TensorMathError.InvalidDimensions => "TensorMath: invalid dimensions",
 
         //TENSOR
         TensorError.TensorNotInitialized => "Tensor: tensor not initialized",
