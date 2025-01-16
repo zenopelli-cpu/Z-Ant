@@ -98,6 +98,61 @@ pub fn main() !void {
     );
     try model.addLayer(layer2_);
 
+    //layer 3: Third Convolutional Layer ----------------------------------------------------------------------------
+    var conv_layer3 = convlayer(f64){
+        .weights = undefined,
+        .bias = undefined,
+        .input = undefined,
+        .output = undefined,
+        .input_channels = 0,
+        .kernel_shape = undefined,
+        .stride = undefined,
+        .w_gradients = undefined,
+        .b_gradients = undefined,
+        .allocator = &allocator,
+    };
+    var layer3_ = conv_layer3.create();
+    try layer3_.init(
+        &allocator,
+        @constCast(&struct {
+            input_channels: usize,
+            kernel_shape: [4]usize,
+            stride: [2]usize,
+        }{
+            .input_channels = 16,
+            .kernel_shape = .{ 32, 16, 2, 2 }, // 32 filters, 16 channels, 2x2 kernel
+            .stride = .{ 1, 1 },
+        }),
+    );
+    try model.addLayer(layer3_);
+
+    //layer 4: Pooling Layer ----------------------------------------------------------------------------
+    var pooling_layer = PoolingLayer(f64){
+        .input = undefined,
+        .output = undefined,
+        .used_input = undefined,
+        .kernel = .{ 3, 3 },
+        .stride = .{ 2, 2 },
+        .poolingType = .Max,
+        .allocator = &allocator,
+    };
+    var pool_layer = try pooling_layer.create();
+
+    const PoolInitArgs = struct {
+        kernel: [2]usize,
+        stride: [2]usize,
+        poolingType: PoolingType,
+    };
+
+    var pool_init_args = PoolInitArgs{
+        .kernel = .{ 3, 3 },
+        .stride = .{ 2, 2 },
+        .poolingType = .Max,
+    };
+
+    try pool_layer.init(&allocator, &pool_init_args);
+    try model.addLayer(pool_layer);
+
     //layer 3: ReLU Activation ----------------------------------------------------------------------------
     // var conv2_activ = activationlayer(f64){
     //     .input = undefined,
@@ -150,7 +205,7 @@ pub fn main() !void {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 10816, // Calculated from previous layer output
+        .n_inputs = 4608, // Calculated from previous layer output
         .n_neurons = 256,
     }));
     try model.addLayer(dense1_);
@@ -159,7 +214,7 @@ pub fn main() !void {
     var dense1_activ = activationlayer(f64){
         .input = undefined,
         .output = undefined,
-        .n_inputs = 10816,
+        .n_inputs = 10000,
         .n_neurons = 256,
         .activationFunction = ActivationType.ReLU,
         .allocator = &allocator,
@@ -169,7 +224,7 @@ pub fn main() !void {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 10816,
+        .n_inputs = 10000,
         .n_neurons = 256,
     }));
     try model.addLayer(dense1_act);

@@ -112,7 +112,20 @@ pub fn PoolingLayer(comptime T: type) type {
         pub fn forward(ctx: *anyopaque, input: *tensor.Tensor(T)) !tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
+            // Dealloc previous input if exists
+            if (self.input.data.len > 0) {
+                self.input.deinit();
+            }
             self.input = try input.copy();
+            errdefer self.input.deinit();
+
+            // Dealloc previous output and used_input if they exist
+            if (self.output.data.len > 0) {
+                self.output.deinit();
+            }
+            if (self.used_input.data.len > 0) {
+                self.used_input.deinit();
+            }
 
             // Call tensor_math's pool_forward function
             const result = try TensMath.pool_forward(T, &self.input, self.kernel, self.stride, self.poolingType);

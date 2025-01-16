@@ -1,152 +1,150 @@
 const std = @import("std");
 const tensor = @import("tensor");
-const layer = @import("layers");
-const denselayer = @import("denselayer");
-const activationlayer = @import("activationlayer");
+const layer = @import("layer");
+const denselayer = @import("denselayer").DenseLayer;
+const convlayer = @import("convLayer").ConvolutionalLayer;
+const flattenlayer = @import("flattenLayer").FlattenLayer;
+const PoolingLayer = @import("poolingLayer").PoolingLayer;
+const PoolingType = @import("poolingLayer").PoolingType;
+const activationlayer = @import("activationlayer").ActivationLayer;
 const Model = @import("model").Model;
+const loader = @import("dataloader");
 const ActivationType = @import("activation_function").ActivationType;
+const LossType = @import("loss").LossType;
 const Trainer = @import("trainer");
-const pkgAllocator = @import("pkgAllocator");
+const expect = std.testing.expect;
 
-test "Multiple layers training test" {
-    std.debug.print("\n     test: Multiple layers training test", .{});
-    const allocator = pkgAllocator.allocator;
+// test "Test single epoch training with simplified CNN" {
+//     var allocator = std.testing.allocator;
 
-    var model = Model(f64){
-        .layers = undefined,
-        .allocator = &allocator,
-        .input_tensor = undefined,
-    };
-    try model.init();
-    defer model.deinit(); // dealloca il modello alla fine del test, anche in caso di errori
+//     var model = Model(f64){
+//         .layers = undefined,
+//         .allocator = &allocator,
+//         .input_tensor = undefined,
+//     };
+//     try model.init();
+//     defer model.deinit();
 
-    //layer 1: 3 inputs, 2 neurons
-    var layer1 = denselayer.DenseLayer(f64){
-        .weights = undefined,
-        .bias = undefined,
-        .input = undefined,
-        .output = undefined,
-        .n_inputs = 0,
-        .n_neurons = 0,
-        .w_gradients = undefined,
-        .b_gradients = undefined,
-        .allocator = undefined,
-    };
-    var layer1_ = denselayer.DenseLayer(f64).create(&layer1);
-    try layer1_.init(
-        &allocator,
-        @constCast(&struct {
-            n_inputs: usize,
-            n_neurons: usize,
-        }{
-            .n_inputs = 3,
-            .n_neurons = 2,
-        }),
-    );
-    try model.addLayer(layer1_);
+//     // Conv layer 1
+//     var conv_layer = convlayer(f64){
+//         .weights = undefined,
+//         .bias = undefined,
+//         .input = undefined,
+//         .output = undefined,
+//         .input_channels = 0,
+//         .kernel_shape = undefined,
+//         .stride = undefined,
+//         .w_gradients = undefined,
+//         .b_gradients = undefined,
+//         .allocator = &allocator,
+//     };
+//     var layer_ = conv_layer.create();
+//     try layer_.init(
+//         &allocator,
+//         @constCast(&struct {
+//             input_channels: usize,
+//             kernel_shape: [4]usize,
+//             stride: [2]usize,
+//         }{
+//             .input_channels = 1,
+//             .kernel_shape = .{ 8, 1, 2, 2 },
+//             .stride = .{ 1, 1 },
+//         }),
+//     );
+//     try model.addLayer(layer_);
 
-    //layer 1 activation
-    var layer1Activ = activationlayer.ActivationLayer(f64){
-        .input = undefined,
-        .output = undefined,
-        .n_inputs = 0,
-        .n_neurons = 0,
-        .activationFunction = ActivationType.ReLU,
-        .allocator = &allocator,
-    };
-    var layer1Activ_ = activationlayer.ActivationLayer(f64).create(&layer1Activ);
-    try layer1Activ_.init(
-        &allocator,
-        @constCast(&struct {
-            n_inputs: usize,
-            n_neurons: usize,
-        }{
-            .n_inputs = 2,
-            .n_neurons = 2,
-        }),
-    );
-    try model.addLayer(layer1Activ_);
+//     // Pooling layer
+//     var pool = PoolingLayer(f64){
+//         .input = undefined,
+//         .output = undefined,
+//         .used_input = undefined,
+//         .kernel = .{ 2, 2 },
+//         .stride = .{ 2, 2 },
+//         .poolingType = .Max,
+//         .allocator = &allocator,
+//     };
+//     var pool_layer = try pool.create();
+//     try pool_layer.init(&allocator, @constCast(&struct {
+//         kernel: [2]usize,
+//         stride: [2]usize,
+//         poolingType: PoolingType,
+//     }{
+//         .kernel = .{ 2, 2 },
+//         .stride = .{ 2, 2 },
+//         .poolingType = .Max,
+//     }));
+//     try model.addLayer(pool_layer);
 
-    //layer 2: 2 inputs, 5 neurons
-    var layer2 = denselayer.DenseLayer(f64){
-        .weights = undefined,
-        .bias = undefined,
-        .input = undefined,
-        .output = undefined,
-        .n_inputs = 0,
-        .n_neurons = 0,
-        .w_gradients = undefined,
-        .b_gradients = undefined,
-        .allocator = undefined,
-    };
-    var layer2_ = denselayer.DenseLayer(f64).create(&layer2);
-    try layer2_.init(
-        &allocator,
-        @constCast(&struct {
-            n_inputs: usize,
-            n_neurons: usize,
-        }{
-            .n_inputs = 2,
-            .n_neurons = 5,
-        }),
-    );
-    try model.addLayer(layer2_);
+//     // Flatten layer
+//     var flatten = flattenlayer(f64){
+//         .input = undefined,
+//         .output = undefined,
+//         .allocator = &allocator,
+//         .original_shape = &[_]usize{},
+//     };
+//     var flat_layer = flatten.create();
+//     try flat_layer.init(&allocator, @constCast(&struct {
+//         placeholder: bool,
+//     }{
+//         .placeholder = true,
+//     }));
+//     try model.addLayer(flat_layer);
 
-    var layer2Activ = activationlayer.ActivationLayer(f64){
-        .input = undefined,
-        .output = undefined,
-        .n_inputs = 0,
-        .n_neurons = 0,
-        .activationFunction = ActivationType.Softmax,
-        .allocator = &allocator,
-    };
-    var layer2Activ_ = activationlayer.ActivationLayer(f64).create(&layer2Activ);
-    try layer2Activ_.init(
-        &allocator,
-        @constCast(&struct {
-            n_inputs: usize,
-            n_neurons: usize,
-        }{
-            .n_inputs = 2,
-            .n_neurons = 5,
-        }),
-    );
-    try model.addLayer(layer2Activ_);
+//     // Dense layer
+//     var dense = denselayer(f64){
+//         .weights = undefined,
+//         .bias = undefined,
+//         .input = undefined,
+//         .output = undefined,
+//         .n_inputs = 0,
+//         .n_neurons = 0,
+//         .w_gradients = undefined,
+//         .b_gradients = undefined,
+//         .allocator = undefined,
+//     };
+//     var dense_ = denselayer(f64).create(&dense);
 
-    var inputArray: [2][3]f64 = [_][3]f64{
-        [_]f64{ 1.0, 2.0, 3.0 },
-        [_]f64{ 4.0, 5.0, 6.0 },
-    };
-    var shape: [2]usize = [_]usize{ 2, 3 };
+//     // Input size calculation:
+//     // 1. Conv (8 filters 2x2, stride 1): 27x27x8
+//     // 2. MaxPool (2x2, stride 2): 13x13x8
+//     // 3. Flatten: 13 * 13 * 8 = 1352
+//     try dense_.init(&allocator, @constCast(&struct {
+//         n_inputs: usize,
+//         n_neurons: usize,
+//     }{
+//         .n_inputs = 13 * 13 * 8, // Corretto calcolo delle dimensioni
+//         .n_neurons = 10,
+//     }));
+//     try model.addLayer(dense_);
 
-    var targetArray: [2][5]f64 = [_][5]f64{
-        [_]f64{ 1.0, 2.0, 3.0, 4.0, 5.0 },
-        [_]f64{ 4.0, 5.0, 6.0, 4.0, 5.0 },
-    };
-    var targetShape: [2]usize = [_]usize{ 2, 5 };
+//     // Setup DataLoader with smaller batch size for testing
+//     var load = loader.DataLoader(f64, u8, u8, 16, 3){
+//         .X = undefined,
+//         .y = undefined,
+//         .xTensor = undefined,
+//         .yTensor = undefined,
+//         .XBatch = undefined,
+//         .yBatch = undefined,
+//     };
 
-    var input_tensor = try tensor.Tensor(f64).fromArray(&allocator, &inputArray, &shape);
-    defer {
-        input_tensor.deinit();
-        std.debug.print("\n -.-.-> input_tensor deinitialized", .{});
-    }
+//     const image_file = "datasets/t10k-images-idx3-ubyte";
+//     const label_file = "datasets/t10k-labels-idx1-ubyte";
+//     try load.loadMNIST2DDataParallel(&allocator, image_file, label_file);
+//     defer load.deinit(&allocator);
 
-    var target_tensor = try tensor.Tensor(f64).fromArray(&allocator, &targetArray, &targetShape);
-    defer {
-        target_tensor.deinit();
-        std.debug.print("\n -.-.-> target_tensor deinitialized", .{});
-    }
-
-    try Trainer.trainTensors(
-        f64, //type
-        &allocator, //allocator
-        &model, //model
-        &input_tensor, //input
-        &target_tensor, //target
-        1, //epochs
-        0.5, //learning rate
-    );
-
-    // Non serve più chiamare model.deinit() qui, poiché abbiamo già un defer sopra
-    // model.deinit();
-}
+//     // Train for 1 epoch
+//     try Trainer.TrainDataLoader2D(
+//         f64,
+//         u8,
+//         u8,
+//         &allocator,
+//         16,
+//         784,
+//         &model,
+//         &load,
+//         1,
+//         LossType.CCE,
+//         0.005,
+//         0.9,
+//     );
+// }

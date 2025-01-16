@@ -24,34 +24,15 @@ pub fn add_bias(comptime T: anytype, tensor: *Tensor(T), bias: *Tensor(T)) !void
         return TensorMathError.InputTensorDimensionMismatch;
     }
 
-    // Allocate an array for threads, one for each row of the tensor
-    const num_threads = tensor.size / bias.size;
-
-    var threads = try pkg_allocator.alloc(std.Thread, num_threads); //Array to save thread handles
-
+    // Instead of using threads, just do it directly
     var index: usize = 0;
-    var i: usize = 0;
-
-    // Start a thread for each row of the tensor
-    while (index < tensor.size) : (i += 1) {
-        threads[i] = try std.Thread.spawn(.{}, add_bias_thread, .{ T, tensor.data, index, len, bias });
-        index += len;
-    }
-
-    // Merges all threads
-    for (threads) |*thread| {
-        thread.join(); // Use try to catch any errors
-    }
-
-    // Free the thread array
-    pkg_allocator.free(threads);
-}
-
-fn add_bias_thread(comptime T: anytype, array: []T, start: usize, len: usize, bias: *Tensor(T)) void {
-    for (0..len) |i| {
-        array[start + i] += bias.data[i];
+    while (index < tensor.size) : (index += len) {
+        for (0..len) |i| {
+            tensor.data[index + i] += bias.data[i];
+        }
     }
 }
+
 ///Returns a Tensor with the same shape pf t1 and t2, where each element --> out[location] = t1[location] + t2[location]
 pub fn sum_tensors(comptime arch: Architectures, comptime Tin: anytype, comptime Tout: anytype, t1: *Tensor(Tin), t2: *Tensor(Tin)) !Tensor(Tout) {
 
