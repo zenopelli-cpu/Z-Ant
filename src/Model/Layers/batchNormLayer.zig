@@ -122,138 +122,174 @@ pub fn BatchNormLayer(comptime T: type) type {
         pub fn forward(ctx: *anyopaque, input: *Tensor.Tensor(T)) !Tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
-            // Store input for backward pass
             if (self.input.data.len > 0) {
                 self.input.deinit();
             }
             self.input = try input.copy();
 
-            // Calculate mean for each feature
-            var mean_data = try self.allocator.alloc(T, input.shape[1]);
+            const batch_size = input.shape[0];
+            const num_features = input.shape[1];
+            const m = @as(T, @floatFromInt(batch_size));
+
+            if (!self.is_training) {
+                // During inference, use running statistics
+                var output_data = try self.allocator.alloc(T, input.data.len);
+                defer self.allocator.free(output_data);
+
+                for (0..batch_size) |b| {
+                    for (0..num_features) |f| {
+                        const idx = b * num_features + f;
+                        const x_normalized = (input.data[idx] - self.running_mean.data[f]) /
+                            @sqrt(self.running_var.data[f] + self.epsilon);
+                        output_data[idx] = x_normalized * self.gamma.data[f] + self.beta.data[f];
+                    }
+                }
+
+                if (self.output.data.len > 0) self.output.deinit();
+                self.output = try Tensor.Tensor(T).fromArray(self.allocator, output_data, input.shape);
+                return self.output;
+            }
+
+            // Training mode
+            var mean_data = try self.allocator.alloc(T, num_features);
             defer self.allocator.free(mean_data);
             @memset(mean_data, 0);
 
-            const batch_size = @as(T, @floatFromInt(input.shape[0]));
-            for (0..input.shape[1]) |feature| {
+            // Step 1: Calculate mean
+            for (0..num_features) |f| {
                 var sum: T = 0;
-                for (0..input.shape[0]) |batch| {
-                    sum += input.data[batch * input.shape[1] + feature];
+                for (0..batch_size) |b| {
+                    const idx = b * num_features + f;
+                    sum += input.data[idx];
                 }
-                mean_data[feature] = sum / batch_size;
+                mean_data[f] = sum / m;
             }
 
-            // Calculate variance for each feature
-            var var_data = try self.allocator.alloc(T, input.shape[1]);
+            // Step 2: Calculate variance
+            var var_data = try self.allocator.alloc(T, num_features);
             defer self.allocator.free(var_data);
             @memset(var_data, 0);
 
-            for (0..input.shape[1]) |feature| {
+            for (0..num_features) |f| {
                 var sum_sq: T = 0;
-                const mean = mean_data[feature];
-                for (0..input.shape[0]) |batch| {
-                    const diff = input.data[batch * input.shape[1] + feature] - mean;
+                for (0..batch_size) |b| {
+                    const idx = b * num_features + f;
+                    const diff = input.data[idx] - mean_data[f];
                     sum_sq += diff * diff;
                 }
-                var_data[feature] = sum_sq / batch_size;
+                var_data[f] = sum_sq / m;
             }
 
-            // Normalize input and store for backward pass
-            if (self.normalized.data.len > 0) {
-                self.normalized.deinit();
-            }
-            self.normalized = try input.copy();
-            for (0..input.shape[0]) |batch| {
-                for (0..input.shape[1]) |feature| {
-                    const idx = batch * input.shape[1] + feature;
-                    self.normalized.data[idx] = (input.data[idx] - mean_data[feature]) /
-                        @sqrt(var_data[feature] + self.epsilon);
-                }
+            // Step 3: Normalize
+            var std_dev_data = try self.allocator.alloc(T, num_features);
+            defer self.allocator.free(std_dev_data);
+            for (0..num_features) |f| {
+                std_dev_data[f] = @sqrt(var_data[f] + self.epsilon);
             }
 
-            // Store mean and var for backward pass
-            if (self.mean.data.len > 0) {
-                self.mean.deinit();
-            }
-            var mean_shape = [_]usize{ 1, input.shape[1] };
-            self.mean = try Tensor.Tensor(T).fromArray(self.allocator, mean_data, &mean_shape);
-
-            if (self.var_.data.len > 0) {
-                self.var_.deinit();
-            }
-            var var_shape = [_]usize{ 1, input.shape[1] };
-            self.var_ = try Tensor.Tensor(T).fromArray(self.allocator, var_data, &var_shape);
-
-            // Scale and shift using gamma and beta
+            var normalized_data = try self.allocator.alloc(T, input.data.len);
+            defer self.allocator.free(normalized_data);
             var output_data = try self.allocator.alloc(T, input.data.len);
             defer self.allocator.free(output_data);
 
-            for (0..input.shape[0]) |batch| {
-                for (0..input.shape[1]) |feature| {
-                    const idx = batch * input.shape[1] + feature;
-                    output_data[idx] = self.normalized.data[idx] * self.gamma.data[feature] +
-                        self.beta.data[feature];
+            for (0..batch_size) |b| {
+                for (0..num_features) |f| {
+                    const idx = b * num_features + f;
+                    normalized_data[idx] = (input.data[idx] - mean_data[f]) / std_dev_data[f];
+                    output_data[idx] = normalized_data[idx] * self.gamma.data[f] + self.beta.data[f];
                 }
             }
 
-            // Update running statistics during training
-            if (self.is_training) {
-                for (0..input.shape[1]) |feature| {
-                    self.running_mean.data[feature] = (1 - self.momentum) * self.running_mean.data[feature] +
-                        self.momentum * mean_data[feature];
-                    self.running_var.data[feature] = (1 - self.momentum) * self.running_var.data[feature] +
-                        self.momentum * var_data[feature];
-                }
+            // Step 4: Update running statistics
+            for (0..num_features) |f| {
+                self.running_mean.data[f] = (1 - self.momentum) * self.running_mean.data[f] +
+                    self.momentum * mean_data[f];
+                self.running_var.data[f] = (1 - self.momentum) * self.running_var.data[f] +
+                    self.momentum * var_data[f];
             }
 
-            // Create and return output tensor
-            if (self.output.data.len > 0) {
-                self.output.deinit();
-            }
+            // Store for backward pass
+            if (self.mean.data.len > 0) self.mean.deinit();
+            if (self.var_.data.len > 0) self.var_.deinit();
+            if (self.std_dev.data.len > 0) self.std_dev.deinit();
+            if (self.normalized.data.len > 0) self.normalized.deinit();
+
+            var shape: [1]usize = [_]usize{num_features};
+            self.mean = try Tensor.Tensor(T).fromArray(self.allocator, mean_data, &shape);
+            self.var_ = try Tensor.Tensor(T).fromArray(self.allocator, var_data, &shape);
+            self.std_dev = try Tensor.Tensor(T).fromArray(self.allocator, std_dev_data, &shape);
+            self.normalized = try Tensor.Tensor(T).fromArray(self.allocator, normalized_data, input.shape);
+
+            if (self.output.data.len > 0) self.output.deinit();
             self.output = try Tensor.Tensor(T).fromArray(self.allocator, output_data, input.shape);
             return self.output;
         }
 
         pub fn backward(ctx: *anyopaque, dvalues: *Tensor.Tensor(T)) !Tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
+            const batch_size = dvalues.shape[0];
+            const num_features = dvalues.shape[1];
+            const m = @as(T, @floatFromInt(batch_size));
 
-            // Gradients with respect to gamma and beta
-            var dgamma_data = try self.allocator.alloc(T, self.input.shape[1]);
+            // Step 1: Gradients for gamma and beta
+            var dgamma_data = try self.allocator.alloc(T, num_features);
             defer self.allocator.free(dgamma_data);
-            var dbeta_data = try self.allocator.alloc(T, self.input.shape[1]);
+            var dbeta_data = try self.allocator.alloc(T, num_features);
             defer self.allocator.free(dbeta_data);
             @memset(dgamma_data, 0);
             @memset(dbeta_data, 0);
 
-            for (0..self.input.shape[1]) |feature| {
-                for (0..self.input.shape[0]) |batch| {
-                    const idx = batch * self.input.shape[1] + feature;
-                    dgamma_data[feature] += dvalues.data[idx] * self.normalized.data[idx];
-                    dbeta_data[feature] += dvalues.data[idx];
+            for (0..batch_size) |b| {
+                for (0..num_features) |f| {
+                    const idx = b * num_features + f;
+                    dgamma_data[f] += dvalues.data[idx] * self.normalized.data[idx];
+                    dbeta_data[f] += dvalues.data[idx];
                 }
             }
 
             // Store gradients
-            if (self.gamma_grad.data.len > 0) {
-                self.gamma_grad.deinit();
-            }
-            var dgamma_shape = [_]usize{self.input.shape[1]};
-            self.gamma_grad = try Tensor.Tensor(T).fromArray(self.allocator, dgamma_data, &dgamma_shape);
+            if (self.gamma_grad.data.len > 0) self.gamma_grad.deinit();
+            if (self.beta_grad.data.len > 0) self.beta_grad.deinit();
+            var shape: [1]usize = [_]usize{num_features};
+            self.gamma_grad = try Tensor.Tensor(T).fromArray(self.allocator, dgamma_data, &shape);
+            self.beta_grad = try Tensor.Tensor(T).fromArray(self.allocator, dbeta_data, &shape);
 
-            if (self.beta_grad.data.len > 0) {
-                self.beta_grad.deinit();
+            // Step 2: Intermediate calculations for input gradient
+            var dx_norm_data = try self.allocator.alloc(T, self.input.data.len);
+            defer self.allocator.free(dx_norm_data);
+            for (0..batch_size) |b| {
+                for (0..num_features) |f| {
+                    const idx = b * num_features + f;
+                    dx_norm_data[idx] = dvalues.data[idx] * self.gamma.data[f];
+                }
             }
-            var dbeta_shape = [_]usize{self.input.shape[1]};
-            self.beta_grad = try Tensor.Tensor(T).fromArray(self.allocator, dbeta_data, &dbeta_shape);
 
-            // Calculate gradients with respect to input
+            // Step 3: Calculate gradients for input
             var dx_data = try self.allocator.alloc(T, self.input.data.len);
             defer self.allocator.free(dx_data);
+            @memset(dx_data, 0);
 
-            for (0..self.input.shape[0]) |batch| {
-                for (0..self.input.shape[1]) |feature| {
-                    const idx = batch * self.input.shape[1] + feature;
-                    const std_dev = @sqrt(self.var_.data[feature] + self.epsilon);
-                    dx_data[idx] = dvalues.data[idx] * self.gamma.data[feature] / std_dev;
+            for (0..num_features) |f| {
+                var sum_dx_norm: T = 0;
+                var sum_dx_norm_x: T = 0;
+
+                for (0..batch_size) |b| {
+                    const idx = b * num_features + f;
+                    const x_centered = self.input.data[idx] - self.mean.data[f];
+                    sum_dx_norm += dx_norm_data[idx];
+                    sum_dx_norm_x += dx_norm_data[idx] * x_centered;
+                }
+
+                const inv_std = 1.0 / self.std_dev.data[f];
+                const inv_var = inv_std * inv_std;
+
+                for (0..batch_size) |b| {
+                    const idx = b * num_features + f;
+                    const x_centered = self.input.data[idx] - self.mean.data[f];
+
+                    dx_data[idx] = inv_std * (dx_norm_data[idx] -
+                        (sum_dx_norm / m) -
+                        (x_centered * sum_dx_norm_x * inv_var / m));
                 }
             }
 
