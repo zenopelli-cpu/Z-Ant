@@ -2,7 +2,7 @@ const std = @import("std");
 const Tensor = @import("tensor").Tensor; // Import Tensor type
 const pkg_allocator = @import("pkgAllocator").allocator;
 const TensorMathError = @import("errorHandler").TensorMathError;
-const dot_product_tensor = @import("algebraic_math").dot_product_tensor;
+const dot_product_tensor = @import("algebraic_math.zig").dot_product_tensor;
 
 // CONVOLVE -----------------------------------------------------------------------------------------------------------------------
 

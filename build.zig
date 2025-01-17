@@ -22,11 +22,6 @@ pub fn build(b: *std.Build) void {
 
     // Create modules from the source files in the `src/Core/Tensor/TensorMath` directory.
     const tensor_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math.zig") });
-    const basic_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/basic_math.zig") });
-    const algebraic_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/algebraic_math.zig") });
-    const conv_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/convolution_math.zig") });
-    const pooling_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/pooling_math.zig") });
-    const structural_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/structural_math.zig") });
 
     // Create modules from the source files in the `src/Model/` directory.
     const loss_mod = b.createModule(.{ .root_source_file = b.path("src/Model/lossFunction.zig") });
@@ -149,47 +144,15 @@ pub fn build(b: *std.Build) void {
 
     // ************************************************TENSOR MATH DEPENDENCIES************************************************
     // Add necessary imports for the tensor math module.
+    // OSS: Do not import file from the same folder ./TensorMath!! Directly use @import()"filename.zig")
+    // Import in tensor_math_mod all the modules needed for /TensorMath files
     tensor_math_mod.addImport("tensor", tensor_mod);
     tensor_math_mod.addImport("typeC", typeConv_mod);
     tensor_math_mod.addImport("architectures", architectures_mod);
     tensor_math_mod.addImport("errorHandler", errorHandler_mod);
     tensor_math_mod.addImport("Layer", layer_mod);
     tensor_math_mod.addImport("pkgAllocator", allocator_mod);
-    tensor_math_mod.addImport("basic_math", basic_math_mod);
-    tensor_math_mod.addImport("structural_math", structural_math_mod);
-    tensor_math_mod.addImport("convolution_math", conv_math_mod);
-    tensor_math_mod.addImport("pooling_math", pooling_math_mod);
-    tensor_math_mod.addImport("algebraic_math", algebraic_math_mod);
-
-    // ***************** BASIC MATH *****************
-    basic_math_mod.addImport("tensor", tensor_mod);
-    basic_math_mod.addImport("pkgAllocator", allocator_mod);
-    basic_math_mod.addImport("errorHandler", errorHandler_mod);
-    basic_math_mod.addImport("architectures", architectures_mod);
-    basic_math_mod.addImport("typeC", typeConv_mod);
-
-    // ***************** ALGEBRAIC MATH *****************
-    algebraic_math_mod.addImport("tensor", tensor_mod);
-    algebraic_math_mod.addImport("pkgAllocator", allocator_mod);
-    algebraic_math_mod.addImport("errorHandler", errorHandler_mod);
-    algebraic_math_mod.addImport("architectures", architectures_mod);
-
-    // ***************** STRUCTURAL MATH *****************
-    structural_math_mod.addImport("tensor", tensor_mod);
-    structural_math_mod.addImport("pkgAllocator", allocator_mod);
-    structural_math_mod.addImport("errorHandler", errorHandler_mod);
-
-    // ***************** CONVOLUTION MATH *****************
-    conv_math_mod.addImport("tensor", tensor_mod);
-    conv_math_mod.addImport("pkgAllocator", allocator_mod);
-    conv_math_mod.addImport("errorHandler", errorHandler_mod);
-    conv_math_mod.addImport("algebraic_math", algebraic_math_mod);
-
-    // ***************** POOLING MATH *****************
-    pooling_math_mod.addImport("tensor", tensor_mod);
-    pooling_math_mod.addImport("pkgAllocator", allocator_mod);
-    pooling_math_mod.addImport("errorHandler", errorHandler_mod);
-    pooling_math_mod.addImport("poolingLayer", poolingLayer_mod);
+    tensor_math_mod.addImport("poolingLayer", poolingLayer_mod);
 
     // ************************************************ACTIVATION DEPENDENCIES************************************************
 
