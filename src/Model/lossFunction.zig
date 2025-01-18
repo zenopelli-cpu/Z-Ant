@@ -248,48 +248,44 @@ pub fn CCELoss() type {
 
         fn multidim_CCE(comptime T: type, predictions: *Tensor(T), targets: *Tensor(T), out_tensor: *Tensor(T), current_depth: usize, location: []usize) !void {
             if (current_depth == (predictions.shape.len - 1)) {
-                //declaring res as the result of the sum of the MSE
                 var res: f64 = 0.0;
+                const epsilon = 1e-15; // Smaller epsilon for more precision
 
                 const allocator = @import("pkgAllocator").allocator;
-
                 const get_location = try allocator.alloc(usize, location.len);
                 defer allocator.free(get_location);
-                //initializing get location to the same values of location
+
                 for (0..get_location.len) |i| {
                     get_location[i] = location[i];
                 }
 
-                //calculating the loss
+                // Calculate loss with numerical stability
                 for (0..predictions.shape[current_depth]) |i| {
-                    get_location[current_depth] = i; //for each element of predictions vect and target vect
+                    get_location[current_depth] = i;
                     const target = try targets.get_at(get_location);
-                    const prediction = try predictions.get_at(get_location);
+                    var prediction = try predictions.get_at(get_location);
+
+                    // Clip predictions to avoid numerical instability
+                    prediction = @max(epsilon, @min(1.0 - epsilon, prediction));
+
+                    // Use log with clipped value
                     const log = std.math.log(f64, std.math.e, prediction);
                     res -= (target * log);
                 }
 
-                //declaring and initializing the landing location of the sum
                 const out_location = try allocator.alloc(usize, predictions.shape.len - 1);
                 defer allocator.free(out_location);
+
                 for (0..out_location.len) |i| {
                     out_location[i] = location[i];
                 }
 
                 const out_res: T = Convert.convert(f64, T, res);
-
                 try out_tensor.set_at(out_location, out_res);
-            } else { //otherwise I have to go deeper
+            } else {
                 for (0..predictions.shape[current_depth]) |element_at_current_depth| {
                     location[current_depth] = element_at_current_depth;
-                    try multidim_CCE(
-                        T,
-                        predictions,
-                        targets,
-                        out_tensor,
-                        current_depth + 1,
-                        location,
-                    );
+                    try multidim_CCE(T, predictions, targets, out_tensor, current_depth + 1, location);
                 }
             }
         }

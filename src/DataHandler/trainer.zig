@@ -16,6 +16,9 @@ const DataProc = @import("dataprocessor");
 const LossType = @import("loss").LossType;
 const NormalizType = @import("dataprocessor").NormalizationType;
 
+const denselayer = @import("denselayer").DenseLayer;
+const convlayer = @import("convLayer").ConvolutionalLayer;
+
 /// Defines the type of trainer used for model training.
 ///
 /// - `DataLoaderTrainer`: Uses a `DataLoader` to feed batches of data into the model during training.
@@ -103,6 +106,7 @@ pub fn TrainDataLoader(
 
             var grad: Tensor.Tensor(T) = try loser.computeGradient(T, &predictions, &load.yTensor);
             defer grad.deinit();
+
             _ = try model.backward(&grad);
 
             try optimizer.step(model);
@@ -157,8 +161,8 @@ pub fn TrainDataLoader(
 
 pub fn TrainDataLoader2D(
     comptime T: type,
-    comptime XType: type, // Input types
-    comptime YType: type, // Output type
+    comptime XType: type,
+    comptime YType: type,
     allocator: *const std.mem.Allocator,
     comptime batchSize: i16,
     features: usize,
@@ -168,6 +172,8 @@ pub fn TrainDataLoader2D(
     comptime lossType: LossType,
     comptime lr: f64,
     training_size: f32,
+    l2_lambda: T,
+    max_grad_norm: T,
 ) !void {
     var LossMeanRecord: []f32 = try allocator.alloc(f32, epochs);
     defer allocator.free(LossMeanRecord);
@@ -212,7 +218,7 @@ pub fn TrainDataLoader2D(
             try load.toTensor(allocator, &shapeX, &shapeY);
 
             try convertToOneHot(T, batchSize, &load.yTensor);
-            //try DataProc.normalize(T, &load.xTensor, NormalizType.UnityBasedNormalizartion);
+            try DataProc.normalize(T, &load.xTensor, NormalizType.UnityBasedNormalizartion);
             var predictions = try model.forward(&load.xTensor);
             //predictions.print();
             defer predictions.deinit();
@@ -238,6 +244,30 @@ pub fn TrainDataLoader2D(
             std.debug.print("\nACCURACY: {d}\n", .{AccuracyRecord[i]});
             var grad: Tensor.Tensor(T) = try loser.computeGradient(T, &predictions, &load.yTensor);
             defer grad.deinit();
+
+            // Apply L2 and gradient clipping before backward
+            for (model.layers.items) |layer_| {
+                if (layer_.layer_type == .DenseLayer) {
+                    const dense_layer = @as(*denselayer(T), @alignCast(@ptrCast(layer_.layer_ptr)));
+                    // Apply L2 regularization
+                    for (dense_layer.w_gradients.data, dense_layer.weights.data) |*grad_w, weight| {
+                        grad_w.* += l2_lambda * weight;
+                    }
+                    // Clip gradients
+                    try clipGradients(T, &dense_layer.w_gradients, max_grad_norm);
+                    try clipGradients(T, &dense_layer.b_gradients, max_grad_norm);
+                } else if (layer_.layer_type == .ConvolutionalLayer) {
+                    const conv_layer = @as(*convlayer(T), @alignCast(@ptrCast(layer_.layer_ptr)));
+                    // Apply L2 regularization
+                    for (conv_layer.w_gradients.data, conv_layer.weights.data) |*grad_w, weight| {
+                        grad_w.* += l2_lambda * weight;
+                    }
+                    // Clip gradients
+                    try clipGradients(T, &conv_layer.w_gradients, max_grad_norm);
+                    try clipGradients(T, &conv_layer.b_gradients, max_grad_norm);
+                }
+            }
+
             _ = try model.backward(&grad);
 
             var optimizer = Optim.Optimizer(T, XType, YType, Optim.optimizer_SGD, lr){};
@@ -432,11 +462,28 @@ fn print_end_training() void {
         \\    ______          __   __             _       _                   
         \\   / ____/___  ____/ /  / /__________ _(_)___  (_)___  ____ _       
         \\  / __/ / __ \/ __  /  / __/ ___/ __ `/ / __ \/ / __ \/ __ `/       
-        \\ / /___/ / / / /_/ /  / /_/ /  / /_/ / / / / / / / / / /_/ /  _ _ _ 
+        \\ / /___/ / / / /_/ /  / /_/ /  / /_/ / / / / / / / / /_/ /  _ _ _ 
         \\/_____/_/ /_/\__,_/   \__/_/   \__,_/_/_/ /_/_/_/ /_/\__, /  (_|_|_)
         \\                                                 /____/                 
         \\ 
     ;
 
     std.debug.print("{s}", .{str});
+}
+
+// Helper function for gradient clipping
+fn clipGradients(comptime T: type, gradients: *Tensor.Tensor(T), max_norm: T) !void {
+    var total_norm: T = 0;
+
+    for (gradients.data) |grad| {
+        total_norm += grad * grad;
+    }
+    total_norm = @sqrt(total_norm);
+
+    if (total_norm > max_norm) {
+        const scaling_factor = max_norm / (total_norm + 1e-6);
+        for (gradients.data) |*grad| {
+            grad.* *= scaling_factor;
+        }
+    }
 }
