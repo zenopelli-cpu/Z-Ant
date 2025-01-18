@@ -21,7 +21,8 @@ pub fn build(b: *std.Build) void {
     const architectures_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/architectures.zig") });
 
     // Create modules from the source files in the `src/Core/Tensor/TensorMath` directory.
-    const tensor_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math.zig") });
+    const tensor_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_standard.zig") });
+    // const tensor_math_lean_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_lean.zig") });
 
     // Create modules from the source files in the `src/Model/` directory.
     const loss_mod = b.createModule(.{ .root_source_file = b.path("src/Model/lossFunction.zig") });
