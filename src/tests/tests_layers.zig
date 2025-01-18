@@ -10,7 +10,6 @@ const Layer = @import("layer").Layer;
 const layer_ = @import("layer");
 const Tensor = @import("tensor").Tensor;
 const TensorMath = @import("tensor_m");
-const Architectures = @import("architectures").Architectures;
 const ConvLayer = @import("convLayer");
 const ActivationFunction = @import("activation_function");
 const LayerError = @import("errorHandler").LayerError;

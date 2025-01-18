@@ -2,7 +2,6 @@ const std = @import("std");
 const Tensor = @import("Tensor");
 const TensMath = @import("tensor_m");
 const Layer = @import("Layer");
-const Architectures = @import("architectures").Architectures;
 const LayerError = @import("errorHandler").LayerError;
 
 /// Represents a flattening layer in a neural network.
@@ -99,7 +98,6 @@ pub fn FlattenLayer(comptime T: type) type {
 
             self.output = try input.copy();
             try self.output.reshape(output_shape[0..]);
-
 
             std.debug.print("Shape Flatten is {any}", .{self.output.shape});
             return self.output;

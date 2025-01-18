@@ -1,7 +1,6 @@
 const std = @import("std");
 const Tensor = @import("tensor").Tensor;
 const TensMath = @import("tensor_m");
-const Architectures = @import("architectures").Architectures;
 const TensorMathError = @import("errorHandler").TensorMathError;
 const TensorError = @import("errorHandler").TensorError;
 const ArchitectureError = @import("errorHandler").ArchitectureError;
@@ -149,7 +148,7 @@ test "Dot product 2x2" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
 
-    var result_tensor = try TensMath.dot_product_tensor(Architectures.CPU, f32, f64, &t1, &t2);
+    var result_tensor = try TensMath.dot_product_tensor(f32, f64, &t1, &t2);
 
     try std.testing.expect(9.0 == result_tensor.data[0]);
     try std.testing.expect(12.0 == result_tensor.data[1]);
@@ -167,9 +166,9 @@ test "Error when input tensors have incompatible sizes for dot product" {
     var t1 = try Tensor(f32).fromShape(&allocator, &shape1);
     var t2 = try Tensor(f32).fromShape(&allocator, &shape2);
 
-    try std.testing.expectError(TensorMathError.InputTensorsWrongShape, TensMath.dot_product_tensor(Architectures.CPU, f32, f64, &t1, &t2));
+    try std.testing.expectError(TensorMathError.InputTensorsWrongShape, TensMath.dot_product_tensor(f32, f64, &t1, &t2));
 
-    _ = TensMath.dot_product_tensor(Architectures.CPU, f32, f64, &t1, &t2) catch |err| {
+    _ = TensMath.dot_product_tensor(f32, f64, &t1, &t2) catch |err| {
         std.debug.print("\n _______ {s} ______", .{ErrorHandler.errorDetails(err)});
     };
     t1.deinit();
@@ -185,7 +184,7 @@ test "Error when input tensors have incompatible shapes for dot product" {
     var t1 = try Tensor(f32).fromShape(&allocator, &shape1);
     var t2 = try Tensor(f32).fromShape(&allocator, &shape2);
 
-    try std.testing.expectError(TensorMathError.InputTensorsWrongShape, TensMath.dot_product_tensor(Architectures.CPU, f32, f64, &t1, &t2));
+    try std.testing.expectError(TensorMathError.InputTensorsWrongShape, TensMath.dot_product_tensor(f32, f64, &t1, &t2));
 
     t1.deinit();
     t2.deinit();
@@ -1196,7 +1195,7 @@ test "Subtraction with same shape tensors" {
     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape);
     defer t2.deinit();
 
-    var result = try TensMath.sub_tensors(Architectures.CPU, f32, f32, &t1, &t2);
+    var result = try TensMath.sub_tensors(f32, f32, &t1, &t2);
     defer result.deinit();
 
     try std.testing.expectEqual(result.data[0], 4.0);
@@ -1225,7 +1224,7 @@ test "Subtraction with broadcasting - scalar and matrix" {
     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
     defer t2.deinit();
 
-    var result = try TensMath.sub_tensors(Architectures.CPU, f32, f32, &t1, &t2);
+    var result = try TensMath.sub_tensors(f32, f32, &t1, &t2);
     defer result.deinit();
 
     try std.testing.expectEqual(result.data[0], 3.0);
@@ -1256,7 +1255,7 @@ test "Subtraction with broadcasting - row and matrix" {
     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
     defer t2.deinit();
 
-    var result = try TensMath.sub_tensors(Architectures.CPU, f32, f32, &t1, &t2);
+    var result = try TensMath.sub_tensors(f32, f32, &t1, &t2);
     defer result.deinit();
 
     try std.testing.expectEqual(result.data[0], 4.0);
@@ -1289,7 +1288,7 @@ test "Subtraction with incompatible shapes" {
     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
     defer t2.deinit();
 
-    try std.testing.expectError(TensorMathError.IncompatibleBroadcastShapes, TensMath.sub_tensors(Architectures.CPU, f32, f32, &t1, &t2));
+    try std.testing.expectError(TensorMathError.IncompatibleBroadcastShapes, TensMath.sub_tensors(f32, f32, &t1, &t2));
 }
 
 test "transpose" {

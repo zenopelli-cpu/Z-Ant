@@ -18,7 +18,6 @@ pub fn build(b: *std.Build) void {
 
     // Create modules from the source files in the `src/Core/Tensor/` directory.
     const tensor_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/tensor.zig") });
-    const architectures_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/architectures.zig") });
 
     // Create modules from the source files in the `src/Core/Tensor/TensorMath` directory.
     const tensor_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_standard.zig") });
@@ -70,7 +69,6 @@ pub fn build(b: *std.Build) void {
     layer_mod.addImport("tensor", tensor_mod);
     layer_mod.addImport("activation_function", activation_mod);
     layer_mod.addImport("tensor_m", tensor_math_mod);
-    layer_mod.addImport("architectures", architectures_mod);
     layer_mod.addImport("errorHandler", errorHandler_mod);
     layer_mod.addImport("pkgAllocator", allocator_mod);
 
@@ -80,14 +78,12 @@ pub fn build(b: *std.Build) void {
     denseLayer_mod.addImport("tensor", tensor_mod);
     denseLayer_mod.addImport("tensor_m", tensor_math_mod);
     denseLayer_mod.addImport("Layer", layer_mod);
-    denseLayer_mod.addImport("architectures", architectures_mod);
     denseLayer_mod.addImport("errorHandler", errorHandler_mod);
 
     // ************************************************CONVLAYER DEPENDENCIES************************************************
     convLayer_mod.addImport("Tensor", tensor_mod);
     convLayer_mod.addImport("tensor_m", tensor_math_mod);
     convLayer_mod.addImport("Layer", layer_mod);
-    convLayer_mod.addImport("architectures", architectures_mod);
     convLayer_mod.addImport("errorHandler", errorHandler_mod);
 
     // ************************************************FLATTENLAYER DEPENDENCIES************************************************
@@ -95,14 +91,12 @@ pub fn build(b: *std.Build) void {
     flattenLayer_mod.addImport("Tensor", tensor_mod);
     flattenLayer_mod.addImport("tensor_m", tensor_math_mod);
     flattenLayer_mod.addImport("Layer", layer_mod);
-    flattenLayer_mod.addImport("architectures", architectures_mod);
     flattenLayer_mod.addImport("errorHandler", errorHandler_mod);
 
     // ************************************************POOLINGLAYER DEPENDENCIES************************************************
     poolingLayer_mod.addImport("Tensor", tensor_mod);
     poolingLayer_mod.addImport("tensor_m", tensor_math_mod);
     poolingLayer_mod.addImport("Layer", layer_mod);
-    poolingLayer_mod.addImport("architectures", architectures_mod);
     poolingLayer_mod.addImport("errorHandler", errorHandler_mod);
 
     // ************************************************ACTIVATIONLAYER DEPENDENCIES************************************************
@@ -111,7 +105,6 @@ pub fn build(b: *std.Build) void {
     activationLayer_mod.addImport("tensor", tensor_mod);
     activationLayer_mod.addImport("tensor_m", tensor_math_mod);
     activationLayer_mod.addImport("Layer", layer_mod);
-    activationLayer_mod.addImport("architectures", architectures_mod);
     activationLayer_mod.addImport("activation_function", activation_mod);
     activationLayer_mod.addImport("errorHandler", errorHandler_mod);
 
@@ -142,7 +135,6 @@ pub fn build(b: *std.Build) void {
 
     // Add necessary imports for the tensor module.
     tensor_mod.addImport("tensor_m", tensor_math_mod);
-    tensor_mod.addImport("architectures", architectures_mod);
     tensor_mod.addImport("errorHandler", errorHandler_mod);
 
     // ************************************************TENSOR MATH DEPENDENCIES************************************************
@@ -151,7 +143,6 @@ pub fn build(b: *std.Build) void {
     // Import in tensor_math_mod all the modules needed for /TensorMath files
     tensor_math_mod.addImport("tensor", tensor_mod);
     tensor_math_mod.addImport("typeC", typeConv_mod);
-    tensor_math_mod.addImport("architectures", architectures_mod);
     tensor_math_mod.addImport("errorHandler", errorHandler_mod);
     tensor_math_mod.addImport("Layer", layer_mod);
     tensor_math_mod.addImport("pkgAllocator", allocator_mod);
@@ -263,7 +254,6 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("activation_function", activation_mod);
     unit_tests.root_module.addImport("dataloader", dataloader_mod);
     unit_tests.root_module.addImport("dataprocessor", dataProcessor_mod);
-    unit_tests.root_module.addImport("architectures", architectures_mod);
     unit_tests.root_module.addImport("trainer", trainer_mod);
     unit_tests.root_module.addImport("typeConverter", typeConv_mod);
     unit_tests.root_module.addImport("errorHandler", errorHandler_mod);
@@ -300,7 +290,6 @@ pub fn build(b: *std.Build) void {
     batchNormLayer_mod.addImport("Tensor", tensor_mod);
     batchNormLayer_mod.addImport("tensor_m", tensor_math_mod);
     batchNormLayer_mod.addImport("Layer", layer_mod);
-    batchNormLayer_mod.addImport("architectures", architectures_mod);
     batchNormLayer_mod.addImport("errorHandler", errorHandler_mod);
 
     // Add BatchNormLayer to unit tests dependencies

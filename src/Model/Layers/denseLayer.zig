@@ -2,7 +2,6 @@ const std = @import("std");
 const tensor = @import("tensor");
 const TensMath = @import("tensor_m");
 const Layer = @import("Layer");
-const Architectures = @import("architectures").Architectures;
 const LayerError = @import("errorHandler").LayerError;
 
 /// Function to create a DenseLayer struct in future it will be possible to create other types of layers like convolutional, LSTM etc.
@@ -134,7 +133,7 @@ pub fn DenseLayer(comptime T: type) type {
             }
 
             // Compute dot product and store result directly in self.output
-            self.output = try TensMath.compute_dot_product(T, &self.input, &self.weights);
+            self.output = try TensMath.dot_product_tensor(T, T, &self.input, &self.weights);
             errdefer self.output.deinit();
 
             try TensMath.add_bias(T, &self.output, &self.bias);
@@ -152,7 +151,7 @@ pub fn DenseLayer(comptime T: type) type {
             defer input_transposed.deinit();
 
             self.w_gradients.deinit();
-            self.w_gradients = try TensMath.dot_product_tensor(Architectures.CPU, T, T, &input_transposed, dValues);
+            self.w_gradients = try TensMath.dot_product_tensor(T, T, &input_transposed, dValues);
             // 3. Compute bias gradients (b_gradients)
             // Equivalent of np.sum(dL_dOutput, axis=0, keepdims=True)
             var sum: T = 0;
@@ -168,7 +167,7 @@ pub fn DenseLayer(comptime T: type) type {
             var weights_transposed = try TensMath.transpose2D(T, &self.weights);
             defer weights_transposed.deinit();
 
-            var dL_dInput: tensor.Tensor(T) = try TensMath.dot_product_tensor(Architectures.CPU, T, T, dValues, &weights_transposed);
+            var dL_dInput: tensor.Tensor(T) = try TensMath.dot_product_tensor(T, T, dValues, &weights_transposed);
             _ = &dL_dInput;
             return dL_dInput;
         }

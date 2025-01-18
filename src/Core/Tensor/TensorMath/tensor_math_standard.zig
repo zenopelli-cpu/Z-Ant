@@ -17,7 +17,6 @@ pub const resize = shape_math_lib.resize;
 pub const split = shape_math_lib.split;
 
 // ---------- importing matrix algebra methods ----------
-pub const compute_dot_product = @import("op_dot_product.zig").compute_dot_product;
 pub const dot_product_tensor = @import("op_dot_product.zig").dot_product_tensor;
 
 // ---------- importing standard Convolution methods ----------

@@ -10,7 +10,6 @@ const Tensor = @import("tensor").Tensor; // Import Tensor type
 const pkg_allocator = @import("pkgAllocator").allocator;
 const TensorMathError = @import("errorHandler").TensorMathError;
 const TensorError = @import("errorHandler").TensorError;
-const Architectures = @import("architectures").Architectures; //Import Architectures type
 const Converter = @import("typeC");
 const ArchitectureError = @import("errorHandler").ArchitectureError;
 
@@ -70,23 +69,7 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
 }
 
 /// Performs element-wise binary subtraction with Numpy-style broadcasting support
-pub fn sub_tensors(comptime arch: Architectures, comptime Tin: anytype, comptime Tout: anytype, t1: *Tensor(Tin), t2: *Tensor(Tin)) !Tensor(Tout) {
-    //selecting between all possible architectures
-    return switch (arch) {
-        Architectures.CPU => return CPU_sub_tensors(Tin, Tout, t1, t2),
-        Architectures.GPU => {
-            std.debug.print("{} is under developement \n", .{arch});
-            return ArchitectureError.UnderDevelopementArchitecture;
-        },
-        Architectures.SP32 => {
-            std.debug.print("{} is under developement \n", .{arch});
-            return ArchitectureError.UnderDevelopementArchitecture;
-        },
-        else => return ArchitectureError.UnknownArchitecture,
-    };
-}
-
-fn CPU_sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
+pub fn sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
     // CHECKS:
     if (@TypeOf(outputType) == @TypeOf(inputType)) {
         // If input and output are same type, no check needed
