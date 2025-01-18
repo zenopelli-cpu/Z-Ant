@@ -52,6 +52,25 @@ pub fn main() !void {
     );
     try model.addLayer(layer_);
 
+    // After first conv layer
+    var conv1_activ = activationlayer(f64){
+        .input = undefined,
+        .output = undefined,
+        .n_inputs = 16 * 24 * 24, // Output size from conv1
+        .n_neurons = 16 * 24 * 24,
+        .activationFunction = ActivationType.ReLU,
+        .allocator = &allocator,
+    };
+    var conv1_act = activationlayer(f64).create(&conv1_activ);
+    try conv1_act.init(&allocator, @constCast(&struct {
+        n_inputs: usize,
+        n_neurons: usize,
+    }{
+        .n_inputs = 16 * 24 * 24,
+        .n_neurons = 16 * 24 * 24,
+    }));
+    try model.addLayer(conv1_act);
+
     //layer 1: Second Convolutional Layer ----------------------------------------------------------------------------
     var conv_layer2 = convlayer(f64){
         .weights = undefined,
@@ -79,6 +98,25 @@ pub fn main() !void {
         }),
     );
     try model.addLayer(layer2_);
+
+    // After second conv layer
+    var conv2_activ = activationlayer(f64){
+        .input = undefined,
+        .output = undefined,
+        .n_inputs = 32 * 20 * 20, // Output size from conv2
+        .n_neurons = 32 * 20 * 20,
+        .activationFunction = ActivationType.ReLU,
+        .allocator = &allocator,
+    };
+    var conv2_act = activationlayer(f64).create(&conv2_activ);
+    try conv2_act.init(&allocator, @constCast(&struct {
+        n_inputs: usize,
+        n_neurons: usize,
+    }{
+        .n_inputs = 32 * 20 * 20,
+        .n_neurons = 32 * 20 * 20,
+    }));
+    try model.addLayer(conv2_act);
 
     // MaxPool after convs
     var pool1 = PoolingLayer(f64){
@@ -230,10 +268,12 @@ pub fn main() !void {
         784,
         &model,
         &load,
-        15, // More epochs
+        15,
         LossType.CCE,
-        0.001, // Lower learning rate
-        0.9, // Higher momentum
+        0.001,
+        0.9,
+        0.00001,
+        1.0,
     );
 
     model.deinit();

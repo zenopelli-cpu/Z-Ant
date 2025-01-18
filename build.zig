@@ -134,6 +134,8 @@ pub fn build(b: *std.Build) void {
     trainer_mod.addImport("optim", optim_mod);
     trainer_mod.addImport("dataloader", dataloader_mod);
     trainer_mod.addImport("dataprocessor", dataProcessor_mod);
+    trainer_mod.addImport("denselayer", denseLayer_mod);
+    trainer_mod.addImport("convLayer", convLayer_mod);
 
     // ************************************************TENSOR DEPENDENCIES************************************************
 
