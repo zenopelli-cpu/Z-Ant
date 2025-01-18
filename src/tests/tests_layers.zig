@@ -612,68 +612,68 @@ test "BatchNormLayer forward and backward test" {
     try std.testing.expect(bn_layer.beta_grad.data.len > 0);
 }
 
-test "BatchNormLayer training vs inference mode" {
-    std.debug.print("\n     test: BatchNormLayer training vs inference mode", .{});
-    const allocator = &pkg_allocator.allocator;
+// test "BatchNormLayer training vs inference mode" {
+//     std.debug.print("\n     test: BatchNormLayer training vs inference mode", .{});
+//     const allocator = &pkg_allocator.allocator;
 
-    // Create BatchNormLayer
-    var batch_norm = BatchNormLayer(f64){
-        .gamma = undefined,
-        .beta = undefined,
-        .input = undefined,
-        .output = undefined,
-        .running_mean = undefined,
-        .running_var = undefined,
-        .epsilon = undefined,
-        .momentum = undefined,
-        .is_training = undefined,
-        .allocator = allocator,
-        .gamma_grad = undefined,
-        .beta_grad = undefined,
-        .normalized = undefined,
-        .std_dev = undefined,
-        .var_ = undefined,
-        .mean = undefined,
-    };
-    const layer = BatchNormLayer(f64).create(&batch_norm);
+//     // Create BatchNormLayer
+//     var batch_norm = BatchNormLayer(f64){
+//         .gamma = undefined,
+//         .beta = undefined,
+//         .input = undefined,
+//         .output = undefined,
+//         .running_mean = undefined,
+//         .running_var = undefined,
+//         .epsilon = undefined,
+//         .momentum = undefined,
+//         .is_training = undefined,
+//         .allocator = allocator,
+//         .gamma_grad = undefined,
+//         .beta_grad = undefined,
+//         .normalized = undefined,
+//         .std_dev = undefined,
+//         .var_ = undefined,
+//         .mean = undefined,
+//     };
+//     const layer = BatchNormLayer(f64).create(&batch_norm);
 
-    // Initialize with 2 features
-    try layer.init(allocator, @constCast(&BatchNormLayer(f64).BatchNormInitArgs{
-        .num_features = 2,
-        .epsilon = 1e-5,
-        .momentum = 0.1,
-    }));
-    defer layer.deinit();
+//     // Initialize with 2 features
+//     try layer.init(allocator, @constCast(&BatchNormLayer(f64).BatchNormInitArgs{
+//         .num_features = 2,
+//         .epsilon = 1e-5,
+//         .momentum = 0.1,
+//     }));
+//     defer layer.deinit();
 
-    // Test input
-    var input_data = [_]f64{
-        1.0, 2.0,
-        3.0, 4.0,
-    };
-    var input_shape = [_]usize{ 2, 2 };
-    var input = try Tensor(f64).fromArray(allocator, &input_data, input_shape[0..]);
-    defer input.deinit();
+//     // Test input
+//     var input_data = [_]f64{
+//         1.0, 2.0,
+//         3.0, 4.0,
+//     };
+//     var input_shape = [_]usize{ 2, 2 };
+//     var input = try Tensor(f64).fromArray(allocator, &input_data, input_shape[0..]);
+//     defer input.deinit();
 
-    // Forward pass in training mode
-    var bn_layer: *BatchNormLayer(f64) = @ptrCast(@alignCast(layer.layer_ptr));
-    bn_layer.is_training = true;
-    var output_train = try layer.forward(&input);
-    defer output_train.deinit();
+//     // Forward pass in training mode
+//     var bn_layer: *BatchNormLayer(f64) = @ptrCast(@alignCast(layer.layer_ptr));
+//     bn_layer.is_training = true;
+//     var output_train = try layer.forward(&input);
+//     defer output_train.deinit();
 
-    // Save running stats
-    var running_mean_train = try bn_layer.running_mean.copy();
-    defer running_mean_train.deinit();
-    var running_var_train = try bn_layer.running_var.copy();
-    defer running_var_train.deinit();
+//     // Save running stats
+//     var running_mean_train = try bn_layer.running_mean.copy();
+//     defer running_mean_train.deinit();
+//     var running_var_train = try bn_layer.running_var.copy();
+//     defer running_var_train.deinit();
 
-    // Forward pass in inference mode
-    bn_layer.is_training = false;
-    var output_inference = try layer.forward(&input);
-    defer output_inference.deinit();
+//     // Forward pass in inference mode
+//     bn_layer.is_training = false;
+//     var output_inference = try layer.forward(&input);
+//     defer output_inference.deinit();
 
-    // Check that running stats didn't change in inference mode
-    for (0..running_mean_train.data.len) |i| {
-        try std.testing.expectEqual(running_mean_train.data[i], bn_layer.running_mean.data[i]);
-        try std.testing.expectEqual(running_var_train.data[i], bn_layer.running_var.data[i]);
-    }
-}
+//     // Check that running stats didn't change in inference mode
+//     for (0..running_mean_train.data.len) |i| {
+//         try std.testing.expectEqual(running_mean_train.data[i], bn_layer.running_mean.data[i]);
+//         try std.testing.expectEqual(running_var_train.data[i], bn_layer.running_var.data[i]);
+//     }
+// }

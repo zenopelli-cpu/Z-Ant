@@ -62,8 +62,10 @@ test " Loss Function CCE using Interface, target==predictor" {
     var loss: Tensor(f32) = try cce.computeLoss(f32, &t2_PREDICTION, &t1_TARGET);
     defer loss.deinit();
 
+    // CCE should give very small values when target equals prediction
+    const epsilon = 1e-10;
     for (0..loss.size) |i| {
-        try std.testing.expect(0.0 != loss.data[i]);
+        try std.testing.expect(loss.data[i] < epsilon);
     }
 }
 
