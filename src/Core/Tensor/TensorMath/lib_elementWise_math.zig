@@ -1,3 +1,10 @@
+//! These operations are applied to each element of the tensor independently.
+//!
+//!    Arithmetic Operations: Addition, subtraction, multiplication, division, modulo, power.
+//!    Trigonometric Functions: Sine, cosine, tangent, arcsine, arccosine, etc.
+//!    Exponential and Logarithmic Functions: Exponentiation, natural log, log base 10.
+//!    Rounding Functions: Floor, ceil, round, truncation.
+
 const std = @import("std");
 const Tensor = @import("tensor").Tensor; // Import Tensor type
 const pkg_allocator = @import("pkgAllocator").allocator;
@@ -33,27 +40,12 @@ pub fn add_bias(comptime T: anytype, tensor: *Tensor(T), bias: *Tensor(T)) !void
     }
 }
 
+// -----------------------------------------------
+// --------------------- SUM ---------------------
+// -----------------------------------------------
+// --------- standard SUM
 ///Returns a Tensor with the same shape pf t1 and t2, where each element --> out[location] = t1[location] + t2[location]
-pub fn sum_tensors(comptime arch: Architectures, comptime Tin: anytype, comptime Tout: anytype, t1: *Tensor(Tin), t2: *Tensor(Tin)) !Tensor(Tout) {
-
-    //selecting between all possible architectures
-    return switch (arch) {
-        Architectures.CPU => return CPU_sum_tensors(Tin, Tout, t1, t2),
-
-        Architectures.GPU => {
-            std.debug.print("{} is under developement \n", .{arch});
-            return ArchitectureError.UnderDevelopementArchitecture;
-        },
-        Architectures.SP32 => {
-            std.debug.print("{} is under developement \n", .{arch});
-            return ArchitectureError.UnderDevelopementArchitecture;
-        },
-        else => return ArchitectureError.UnknownArchitecture,
-    };
-}
-
-//Return the sum of the tensors inside another Tensor (t3)
-fn CPU_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
+pub fn sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
     // CHECKS:
     if (t1.size != t2.size) return TensorMathError.InputTensorDifferentSize;
 
@@ -63,31 +55,18 @@ fn CPU_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
         if (@bitSizeOf(outputType) < @bitSizeOf(inputType)) return TensorMathError.TooSmallOutputType;
     }
 
-    // Allocating the array for the sum
-    var out_sum = try t1.allocator.alloc(outputType, t1.size);
-    defer t1.allocator.free(out_sum); // Ensure out_sum gets freed in case of error
+    // Create output tensor initialized to zero
+    var out_tensor = try Tensor(outputType).fromShape(t1.allocator, t2.shape);
 
-    var i: usize = 0;
-    const unroll_factor: usize = 4;
+    try lean_sum_tensors(inputType, outputType, t1, t2, &out_tensor);
 
-    // Loop unrolling
-    while (i + unroll_factor <= t1.size) : (i += 4) {
-        out_sum[i] = t1.data[i] + t2.data[i];
-        out_sum[i + 1] = t1.data[i + 1] + t2.data[i + 1];
-        out_sum[i + 2] = t1.data[i + 2] + t2.data[i + 2];
-        out_sum[i + 3] = t1.data[i + 3] + t2.data[i + 3];
-    }
-
-    // Handle any remaining elements
-    while (i < t1.size) : (i += 1) {
-        out_sum[i] = t1.data[i] + t2.data[i];
-    }
-
-    // Create output tensor
-    const out_tensor = try Tensor(outputType).fromArray(t1.allocator, out_sum, t1.shape);
-
-    // Remove the defer since the tensor will manage its own memory after creation
     return out_tensor;
+}
+// --------- lean SUM
+pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType), outputTensor: *Tensor(outputType)) !void {
+    for (0..t1.data.len) |i| {
+        outputTensor.data[i] = t1.data[i] + t2.data[i];
+    }
 }
 
 /// Performs element-wise binary subtraction with Numpy-style broadcasting support
@@ -238,97 +217,49 @@ fn CPU_sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
     };
 }
 
+// -----------------------------------------------
+// --------------------- MUL ---------------------
+// -----------------------------------------------
+// --------- standard MUL
 pub fn mul(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T)) !Tensor(T) {
     if (lhs.size != rhs.size) {
         return TensorError.MismatchedShape;
     }
 
     const allocator = lhs.allocator;
-    const result = try Tensor(T).fromShape(allocator, lhs.shape);
+    var result = try Tensor(T).fromShape(allocator, lhs.shape);
 
-    for (0..lhs.size) |i| {
-        result.data[i] = lhs.data[i] * rhs.data[i];
-    }
+    mul_lean(T, lhs, rhs, &result);
 
     return result;
 }
-
-/// Performs the mean of a given tensor. It is a reduction operation, collapsing the whole tenosr into a single value.
-pub fn mean(comptime T: anytype, tensor: *Tensor(T)) f32 {
-    var res: f32 = 0;
-
-    for (tensor.data) |*d| {
-        res += Converter.convert(T, f32, d.*);
+// --------- lean MUL
+pub inline fn mul_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), result: *Tensor(T)) void {
+    for (0..lhs.size) |i| {
+        result.data[i] = lhs.data[i] * rhs.data[i];
     }
-    res = res / Converter.convert(usize, f32, tensor.size);
-    return res;
 }
 
-pub fn equal(comptime T: anytype, t1: *Tensor(T), t2: *Tensor(T)) bool {
-    //same size
-    if (t1.size != t2.size) {
-        std.debug.print("\n\n ERROR:WRONG SIZE t1.size:{} t2.size:{}", .{ t1.size, t2.size });
-        return false;
+// -----------------------------------------------
+// --------------------- DIV ---------------------
+// -----------------------------------------------
+// --------- standard DIV
+/// Performs Element-wise binary division of two tensors.
+pub fn div(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T)) !Tensor(T) {
+    if (lhs.size != rhs.size) {
+        return TensorError.MismatchedShape;
     }
 
-    //same shape
-    for (0..t1.shape.len) |i| {
-        if (t1.shape[i] != t2.shape[i]) {
-            std.debug.print("\n\n ERROR: WRONG SHAPE t1.shape[{}]:{} t2.shape[{}]:{}", .{ i, t1.shape[i], i, t2.shape[i] });
-            return false;
-        }
-    }
+    const allocator = lhs.allocator;
+    var result = try Tensor(T).fromShape(allocator, lhs.shape);
 
-    //same data
-    if (!std.mem.eql(T, t1.data, t2.data)) {
-        std.debug.print("\n\n ERROR: WRONG DATA", .{});
-        return false;
-    }
+    div_lean(T, lhs, rhs, &result);
 
-    return true;
+    return result;
 }
-
-/// Returns true if the Tensor is one-hot encoded
-fn isOneHot(comptime T: anytype, t: *Tensor(T)) !bool {
-    const elems_row = t.shape[t.shape.len - 1];
-    if (elems_row == 0) {
-        return TensorError.EmptyTensor;
-    }
-    const numb_rows = t.size / elems_row;
-    if (numb_rows == 0) {
-        return TensorError.ZeroSizeTensor;
-    }
-
-    for (0..numb_rows) |row| {
-        var oneHotFound = false;
-        for (0..t.shape[t.shape.len - 1]) |i| {
-            if (t.data[row * elems_row + i] == 1 and !oneHotFound) {
-                if (!oneHotFound) oneHotFound = true else return TensorError.NotOneHotEncoded;
-            }
-        }
-    }
-
-    return true;
-}
-
-/// Returns true only if all the values of shape and data are valid numbers
-pub fn isSafe(comptime T: anytype, t: *Tensor(T)) !void {
-    switch (@typeInfo(T)) {
-        .Float => {
-            // Loop over tensor data
-            for (t.data) |*value| {
-                if (std.math.isNan(value.*)) return TensorError.NanValue;
-                if (!std.math.isFinite(value.*)) return TensorError.NotFiniteValue;
-            }
-
-            // Loop over tensor shape
-            for (t.shape) |*value| {
-                if (std.math.isNan(value.*)) return TensorError.NanValue;
-            }
-        },
-        else => {
-            // If T is not Float, skip isSafe checks
-            return;
-        },
+// --------- lean DIV
+pub inline fn div_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), result: *Tensor(T)) void {
+    for (0..lhs.size) |i| {
+        result.data[i] = lhs.data[i] / rhs.data[i];
     }
 }

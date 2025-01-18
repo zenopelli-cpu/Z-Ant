@@ -29,7 +29,7 @@ test "Sum two tensors on CPU architecture" {
     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t2.deinit();
 
-    var t3 = try TensMath.sum_tensors(Architectures.CPU, f32, f64, &t1, &t2); // Output tensor with larger type
+    var t3 = try TensMath.sum_tensors(f32, f64, &t1, &t2); // Output tensor with larger type
     defer t3.deinit();
 
     // Check if the values in t3 are as expected
@@ -97,7 +97,7 @@ test "Error when input tensors have different sizes" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape1);
     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
 
-    try std.testing.expectError(TensorMathError.InputTensorDifferentSize, TensMath.sum_tensors(Architectures.CPU, f32, f64, &t1, &t2));
+    try std.testing.expectError(TensorMathError.InputTensorDifferentSize, TensMath.sum_tensors(f32, f64, &t1, &t2));
 
     t1.deinit();
     t2.deinit();
@@ -189,22 +189,6 @@ test "Error when input tensors have incompatible shapes for dot product" {
 
     t1.deinit();
     t2.deinit();
-}
-
-test "GPU architecture under development error" {
-    std.debug.print("\n     test: GPU architecture under development error\n", .{});
-    const allocator = pkgAllocator.allocator;
-
-    var shape: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
-    var t1 = try Tensor(f32).fromShape(&allocator, &shape);
-    var t2 = try Tensor(f32).fromShape(&allocator, &shape);
-    var t3 = try Tensor(f64).fromShape(&allocator, &shape);
-
-    try std.testing.expectError(ArchitectureError.UnderDevelopementArchitecture, TensMath.sum_tensors(Architectures.GPU, f32, f64, &t1, &t2));
-
-    t1.deinit();
-    t2.deinit();
-    t3.deinit();
 }
 
 test "add bias" {
@@ -1802,4 +1786,148 @@ test "resize error cases" {
         TensorError.InvalidInput,
         TensMath.resize(u8, &tensor, "nearest", null, null, "half_pixel"),
     );
+}
+
+test "test tensor element-wise divisio" {
+    std.debug.print("\n     test: tensor element-wise division ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Inizializzazione degli array di input
+    var inputArray1: [2][3]u8 = [_][3]u8{
+        [_]u8{ 2, 4, 6 },
+        [_]u8{ 8, 10, 12 },
+    };
+
+    var inputArray2: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor1 = try Tensor(u8).fromArray(&allocator, &inputArray1, &shape);
+    defer tensor1.deinit();
+
+    var tensor2 = try Tensor(u8).fromArray(&allocator, &inputArray2, &shape);
+    defer tensor2.deinit();
+
+    var tensor3 = try TensMath.div(u8, &tensor1, &tensor2);
+    defer tensor3.deinit();
+
+    for (0..tensor3.size) |i| {
+        try std.testing.expect(tensor3.data[i] == tensor1.data[i] / tensor2.data[i]);
+    }
+}
+
+test "split basic test" {
+    std.debug.print("\n     test: split basic test", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    const input_array = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape = [_]usize{ 2, 3 };
+    var tensor = try Tensor(u8).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Split along axis 0 (rows)
+    const split_tensors = try TensMath.split(u8, &tensor, 0, null);
+    defer {
+        for (split_tensors) |*t| {
+            t.deinit();
+        }
+        allocator.free(split_tensors);
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), split_tensors.len);
+    try std.testing.expectEqual(@as(usize, 2), split_tensors[0].shape[0]);
+    try std.testing.expectEqual(@as(usize, 3), split_tensors[0].shape[1]);
+    try std.testing.expectEqual(@as(u8, 1), split_tensors[0].data[0]);
+    try std.testing.expectEqual(@as(u8, 6), split_tensors[0].data[5]);
+}
+
+test "split with custom sizes" {
+    std.debug.print("\n     test: split with custom sizes", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 4x2 tensor
+    const input_array = [_][2]u8{
+        [_]u8{ 1, 2 },
+        [_]u8{ 3, 4 },
+        [_]u8{ 5, 6 },
+        [_]u8{ 7, 8 },
+    };
+    var shape = [_]usize{ 4, 2 };
+    var tensor = try Tensor(u8).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Split along axis 0 into [1,3] parts
+    const split_sizes = [_]usize{ 1, 3 };
+    const split_tensors = try TensMath.split(u8, &tensor, 0, &split_sizes);
+    defer {
+        for (split_tensors) |*t| {
+            t.deinit();
+        }
+        allocator.free(split_tensors);
+    }
+
+    try std.testing.expectEqual(@as(usize, 2), split_tensors.len);
+
+    // First split should be 1x2
+    try std.testing.expectEqual(@as(usize, 1), split_tensors[0].shape[0]);
+    try std.testing.expectEqual(@as(usize, 2), split_tensors[0].shape[1]);
+    try std.testing.expectEqual(@as(u8, 1), split_tensors[0].data[0]);
+    try std.testing.expectEqual(@as(u8, 2), split_tensors[0].data[1]);
+
+    // Second split should be 3x2
+    try std.testing.expectEqual(@as(usize, 3), split_tensors[1].shape[0]);
+    try std.testing.expectEqual(@as(usize, 2), split_tensors[1].shape[1]);
+    try std.testing.expectEqual(@as(u8, 3), split_tensors[1].data[0]);
+    try std.testing.expectEqual(@as(u8, 8), split_tensors[1].data[5]);
+}
+
+test "split with negative axis" {
+    std.debug.print("\n     test: split with negative axis", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x4 tensor
+    const input_array = [_][4]u8{
+        [_]u8{ 1, 2, 3, 4 },
+        [_]u8{ 5, 6, 7, 8 },
+    };
+    var shape = [_]usize{ 2, 4 };
+    var tensor = try Tensor(u8).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    // Split along axis -1 (last axis) into [2,2] parts
+    const split_sizes = [_]usize{ 2, 2 };
+    const split_tensors = try TensMath.split(u8, &tensor, -1, &split_sizes);
+    defer {
+        for (split_tensors) |*t| {
+            t.deinit();
+        }
+        allocator.free(split_tensors);
+    }
+
+    try std.testing.expectEqual(@as(usize, 2), split_tensors.len);
+
+    // Both splits should be 2x2
+    for (split_tensors) |t| {
+        try std.testing.expectEqual(@as(usize, 2), t.shape[0]);
+        try std.testing.expectEqual(@as(usize, 2), t.shape[1]);
+    }
+
+    // Check first split
+    try std.testing.expectEqual(@as(u8, 1), split_tensors[0].data[0]);
+    try std.testing.expectEqual(@as(u8, 2), split_tensors[0].data[1]);
+    try std.testing.expectEqual(@as(u8, 5), split_tensors[0].data[2]);
+    try std.testing.expectEqual(@as(u8, 6), split_tensors[0].data[3]);
+
+    // Check second split
+    try std.testing.expectEqual(@as(u8, 3), split_tensors[1].data[0]);
+    try std.testing.expectEqual(@as(u8, 4), split_tensors[1].data[1]);
+    try std.testing.expectEqual(@as(u8, 7), split_tensors[1].data[2]);
+    try std.testing.expectEqual(@as(u8, 8), split_tensors[1].data[3]);
 }
