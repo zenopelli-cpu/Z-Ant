@@ -2,7 +2,6 @@ const std = @import("std");
 const tensor = @import("tensor");
 const TensMath = @import("tensor_m");
 const Layer = @import("Layer");
-const Architectures = @import("architectures").Architectures;
 const ActivationType = @import("activation_function").ActivationType;
 const ActivLib = @import("activation_function");
 const LayerError = @import("errorHandler").LayerError;

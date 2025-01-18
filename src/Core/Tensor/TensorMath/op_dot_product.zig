@@ -1,6 +1,5 @@
 const std = @import("std");
 const Tensor = @import("tensor").Tensor; // Import Tensor type
-const Architectures = @import("architectures").Architectures; //Import Architectures type
 const pkg_allocator = @import("pkgAllocator").allocator;
 
 const ArchitectureError = @import("errorHandler").ArchitectureError;
@@ -8,35 +7,13 @@ const TensorMathError = @import("errorHandler").TensorMathError;
 
 // DOT PRODUCT -----------------------------------------------------------------------------------------------------------------------
 
-/// Returns the dot product of two tensors. The dot product is the sum of the products of the corresponding entries of the two sequences of numbers.
-/// Deprecated: use dot_product_tensor instead
-pub fn compute_dot_product(comptime T: type, input: *Tensor(T), weights: *Tensor(T)) !Tensor(T) {
-    return try CPU_dot_product_tensors(T, T, input, weights);
-}
-
-/// Returns the dot product of two tensors. The dot product is the sum of the products of the corresponding entries of the two sequences of numbers.
-pub fn dot_product_tensor(comptime arch: Architectures, comptime Tin: anytype, comptime Tout: anytype, t1: *Tensor(Tin), t2: *Tensor(Tin)) !Tensor(Tout) {
-    return switch (arch) {
-        Architectures.CPU => return CPU_dot_product_tensors(Tin, Tout, t1, t2),
-        Architectures.GPU => {
-            std.debug.print("{} is under development\n", .{arch});
-            return ArchitectureError.UnderDevelopmentArchitecture;
-        },
-        Architectures.SP32 => {
-            std.debug.print("{} is under development\n", .{arch});
-            return ArchitectureError.UnderDevelopmentArchitecture;
-        },
-        else => return ArchitectureError.UnknownArchitecture,
-    };
-}
-
 /// Implementation of dot product for CPU architecture still not parallelized
 /// This optimized version improves performance through:
 /// 1. Flat iteration instead of recursion (eliminates call stack overhead)
 /// 2. Direct memory access vs get/set methods (removes function call overhead)
 /// 3. Cache-friendly memory access patterns
 /// 4. SIMD-friendly inner loop structure
-fn CPU_dot_product_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
+pub fn dot_product_tensor(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
     //CHECKS remain the same
     const nDimT1 = t1.shape.len;
     const nDimT2 = t2.shape.len;

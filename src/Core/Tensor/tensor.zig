@@ -6,7 +6,6 @@
 
 const std = @import("std");
 const tMath = @import("tensor_m");
-const Architectures = @import("architectures").Architectures;
 const TensorError = @import("errorHandler").TensorError;
 const ArgumentError = @import("errorHandler").ArgumentError;
 

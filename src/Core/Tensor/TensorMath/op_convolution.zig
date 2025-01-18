@@ -251,7 +251,7 @@ pub fn convolve_tensor_with_bias(
     const out_height = (input.shape[2] - kernel.shape[2]) / stride[0] + 1;
     const out_width = (input.shape[3] - kernel.shape[3]) / stride[1] + 1;
     // Result will be [batch_size * out_height * out_width, num_filters]
-    var result = try dot_product_tensor(.CPU, T, T, &input_col, &kernel_matrix);
+    var result = try dot_product_tensor(T, T, &input_col, &kernel_matrix);
     defer result.deinit();
 
     // Reshape result to proper output format [batch_size, num_filters, out_height, out_width]
@@ -343,7 +343,7 @@ pub fn convolution_backward_weights(comptime T: type, input: *const Tensor(T), d
         }
     }
     // Calcola gradiente e media sul batch
-    var dW = try dot_product_tensor(.CPU, T, T, &dval_reshaped, &input_col);
+    var dW = try dot_product_tensor(T, T, &dval_reshaped, &input_col);
     defer dW.deinit();
 
     // IMPORTANTE: Media sul batch
@@ -417,7 +417,7 @@ pub fn convolution_backward_input(comptime T: type, dvalues: *const Tensor(T), k
 
     std.debug.print("\nDot product shapes:\ndval_reshaped: {any}\nkernel_transposed: {any}\n", .{ dval_reshaped.shape, kernel_transposed.shape });
     // Calculate input gradient [batch_size * out_height * out_width, channels * kernel_height * kernel_width]
-    var dX_col = try dot_product_tensor(.CPU, T, T, &dval_reshaped, &kernel_transposed);
+    var dX_col = try dot_product_tensor(T, T, &dval_reshaped, &kernel_transposed);
     defer dX_col.deinit();
 
     // Convert back to input format
