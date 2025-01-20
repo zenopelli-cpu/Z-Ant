@@ -2,7 +2,7 @@ const std = @import("std");
 const Tensor = @import("tensor").Tensor; // Import Tensor type
 const pkg_allocator = @import("pkgAllocator").allocator;
 const TensorMathError = @import("errorHandler").TensorMathError;
-const PoolingType = @import("poolingLayer").PoolingType;
+const PoolingType = @import("layer").poolingLayer.PoolingType;
 
 // POOLING -----------------------------------------------------------------------------------------------------------------------
 pub fn pool_tensor(

@@ -2,11 +2,11 @@ const std = @import("std");
 const model_import_export = @import("model_import_export");
 const Model = @import("model").Model;
 const layer = @import("layer");
-const denselayer = @import("denselayer");
-const actlayer = @import("activationlayer");
-const convlayer = @import("convLayer");
-const flattenlayer = @import("flattenLayer");
-const PoolingLayer = @import("poolingLayer").PoolingLayer;
+const denselayer = layer.denseLayer;
+const actlayer = layer.activationLayer;
+const convlayer = layer.convLayer;
+const flattenlayer = layer.flattenLayer;
+const PoolingLayer = layer.poolingLayer.PoolingLayer;
 
 const Tensor = @import("tensor").Tensor;
 const ActivationType = @import("activation_function").ActivationType;

@@ -72,6 +72,15 @@ pub fn build(b: *std.Build) void {
     layer_mod.addImport("errorHandler", errorHandler_mod);
     layer_mod.addImport("pkgAllocator", allocator_mod);
 
+    // All layers are imported so that the layer module can be used as a layer library by other modules.
+    // New layers should be added here.
+    layer_mod.addImport("activationLayer", activationLayer_mod);
+    layer_mod.addImport("batchNormLayer", batchNormLayer_mod);
+    layer_mod.addImport("convLayer", convLayer_mod);
+    layer_mod.addImport("denseLayer", denseLayer_mod);
+    layer_mod.addImport("flattenLayer", flattenLayer_mod);
+    layer_mod.addImport("poolingLayer", poolingLayer_mod);
+
     // ************************************************DENSELAYER DEPENDENCIES************************************************
 
     // Add necessary imports for the denselayers module.
@@ -108,6 +117,12 @@ pub fn build(b: *std.Build) void {
     activationLayer_mod.addImport("activation_function", activation_mod);
     activationLayer_mod.addImport("errorHandler", errorHandler_mod);
 
+    // ************************************************BATCHNORMLAYER DEPENDENCIES************************************************
+    batchNormLayer_mod.addImport("Tensor", tensor_mod);
+    batchNormLayer_mod.addImport("tensor_m", tensor_math_mod);
+    batchNormLayer_mod.addImport("Layer", layer_mod);
+    batchNormLayer_mod.addImport("errorHandler", errorHandler_mod);
+
     // ************************************************DATA LOADER DEPENDENCIES************************************************
 
     // Add necessary imports for the data loader module.
@@ -128,8 +143,7 @@ pub fn build(b: *std.Build) void {
     trainer_mod.addImport("optim", optim_mod);
     trainer_mod.addImport("dataloader", dataloader_mod);
     trainer_mod.addImport("dataprocessor", dataProcessor_mod);
-    trainer_mod.addImport("denselayer", denseLayer_mod);
-    trainer_mod.addImport("convLayer", convLayer_mod);
+    trainer_mod.addImport("layer", layer_mod);
 
     // ************************************************TENSOR DEPENDENCIES************************************************
 
@@ -144,9 +158,8 @@ pub fn build(b: *std.Build) void {
     tensor_math_mod.addImport("tensor", tensor_mod);
     tensor_math_mod.addImport("typeC", typeConv_mod);
     tensor_math_mod.addImport("errorHandler", errorHandler_mod);
-    tensor_math_mod.addImport("Layer", layer_mod);
+    tensor_math_mod.addImport("layer", layer_mod);
     tensor_math_mod.addImport("pkgAllocator", allocator_mod);
-    tensor_math_mod.addImport("poolingLayer", poolingLayer_mod);
 
     // ************************************************ACTIVATION DEPENDENCIES************************************************
 
@@ -171,22 +184,15 @@ pub fn build(b: *std.Build) void {
     optim_mod.addImport("model", model_mod);
     optim_mod.addImport("layer", layer_mod);
     optim_mod.addImport("errorHandler", errorHandler_mod);
-    optim_mod.addImport("denselayer", denseLayer_mod);
-    optim_mod.addImport("convolutionallayer", convLayer_mod);
 
     // ************************************************IMPORT/EXPORT DEPENDENCIES************************************************
 
     // Add necessary imports for the import/export module.
     modelImportExport_mod.addImport("tensor", tensor_mod);
     modelImportExport_mod.addImport("layer", layer_mod);
-    modelImportExport_mod.addImport("activationlayer", activationLayer_mod);
-    modelImportExport_mod.addImport("denselayer", denseLayer_mod);
     modelImportExport_mod.addImport("model", model_mod);
     modelImportExport_mod.addImport("errorHandler", errorHandler_mod);
     modelImportExport_mod.addImport("activation_function", activation_mod);
-    modelImportExport_mod.addImport("convolutionallayer", convLayer_mod);
-    modelImportExport_mod.addImport("flattenLayer", flattenLayer_mod);
-    modelImportExport_mod.addImport("poolingLayer", poolingLayer_mod);
 
     // ************************************************MAIN EXECUTABLE************************************************
 
@@ -211,11 +217,6 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("activation_function", activation_mod);
     exe.root_module.addImport("loss", loss_mod);
     exe.root_module.addImport("trainer", trainer_mod);
-    exe.root_module.addImport("denselayer", denseLayer_mod);
-    exe.root_module.addImport("activationlayer", activationLayer_mod);
-    exe.root_module.addImport("convLayer", convLayer_mod);
-    exe.root_module.addImport("flattenLayer", flattenLayer_mod);
-    exe.root_module.addImport("poolingLayer", poolingLayer_mod);
     exe.root_module.addImport("pkgAllocator", allocator_mod);
     exe.root_module.addImport("model_import_export", modelImportExport_mod);
 
@@ -258,11 +259,6 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("typeConverter", typeConv_mod);
     unit_tests.root_module.addImport("errorHandler", errorHandler_mod);
     unit_tests.root_module.addImport("model_import_export", modelImportExport_mod);
-    unit_tests.root_module.addImport("denselayer", denseLayer_mod);
-    unit_tests.root_module.addImport("activationlayer", activationLayer_mod);
-    unit_tests.root_module.addImport("convLayer", convLayer_mod);
-    unit_tests.root_module.addImport("flattenLayer", flattenLayer_mod);
-    unit_tests.root_module.addImport("poolingLayer", poolingLayer_mod);
     unit_tests.root_module.addImport("pkgAllocator", allocator_mod);
 
     unit_tests.linkLibC();
@@ -285,19 +281,4 @@ pub fn build(b: *std.Build) void {
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test_all", "Run all unit tests");
     test_step.dependOn(&run_unit_tests.step);
-
-    // ************************************************BATCHNORMLAYER DEPENDENCIES************************************************
-    batchNormLayer_mod.addImport("Tensor", tensor_mod);
-    batchNormLayer_mod.addImport("tensor_m", tensor_math_mod);
-    batchNormLayer_mod.addImport("Layer", layer_mod);
-    batchNormLayer_mod.addImport("errorHandler", errorHandler_mod);
-
-    // Add BatchNormLayer to unit tests dependencies
-    unit_tests.root_module.addImport("batchNormLayer", batchNormLayer_mod);
-
-    // Add BatchNormLayer to exe dependencies
-    exe.root_module.addImport("batchNormLayer", batchNormLayer_mod);
-
-    // Add BatchNormLayer to model import/export dependencies
-    modelImportExport_mod.addImport("batchNormLayer", batchNormLayer_mod);
 }
