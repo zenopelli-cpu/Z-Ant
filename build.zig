@@ -237,8 +237,8 @@ pub fn build(b: *std.Build) void {
 
     // Define unified tests for the project.
     const unit_tests = b.addTest(.{
-        .name = "lib_test",
-        .root_source_file = b.path("src/tests/lib_test.zig"),
+        .name = "lib",
+        .root_source_file = b.path("tests/lib.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -266,7 +266,7 @@ pub fn build(b: *std.Build) void {
     // Add tests for the optimizer module.
     const optim_tests = b.addTest(.{
         .name = "optim_test",
-        .root_source_file = b.path("src/tests/tests_optim.zig"),
+        .root_source_file = b.path("tests/tests_optim.zig"),
         .target = target,
         .optimize = optimize,
     });
