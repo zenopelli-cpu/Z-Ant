@@ -1,11 +1,12 @@
 const std = @import("std");
+const layer = @import("layer");
 const Tensor = @import("tensor").Tensor;
 const TensMath = @import("tensor_m");
 const TensorMathError = @import("errorHandler").TensorMathError;
 const TensorError = @import("errorHandler").TensorError;
 const ArchitectureError = @import("errorHandler").ArchitectureError;
 const ErrorHandler = @import("errorHandler");
-const PoolingType = @import("poolingLayer").PoolingType;
+const PoolingType = layer.poolingLayer.PoolingType;
 const pkgAllocator = @import("pkgAllocator");
 
 test "tests description" {
