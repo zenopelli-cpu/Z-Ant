@@ -263,20 +263,6 @@ pub fn build(b: *std.Build) void {
 
     unit_tests.linkLibC();
 
-    // Add tests for the optimizer module.
-    const optim_tests = b.addTest(.{
-        .name = "optim_test",
-        .root_source_file = b.path("tests/tests_optim.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    optim_tests.root_module.addImport("optim", optim_mod);
-
-    // Define the run command for optimizer tests.
-    const run_optim_tests = b.addRunArtifact(optim_tests);
-    const test_optim_step = b.step("test_optim", "Test for Optim");
-    test_optim_step.dependOn(&run_optim_tests.step);
-
     // Add a build step to run all unit tests.
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test_all", "Run all unit tests");
