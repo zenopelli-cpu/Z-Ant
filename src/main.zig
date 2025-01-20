@@ -1,18 +1,18 @@
 const std = @import("std");
 const tensor = @import("tensor");
 const layer = @import("layer");
-const denselayer = @import("denselayer").DenseLayer;
-const convlayer = @import("convLayer").ConvolutionalLayer;
-const flattenlayer = @import("flattenLayer").FlattenLayer;
-const PoolingLayer = @import("poolingLayer").PoolingLayer;
-const PoolingType = @import("poolingLayer").PoolingType;
-const activationlayer = @import("activationlayer").ActivationLayer;
+const denselayer = layer.denseLayer.DenseLayer;
+const convlayer = layer.convLayer.ConvolutionalLayer;
+const flattenlayer = layer.flattenLayer.FlattenLayer;
+const PoolingLayer = layer.poolingLayer.PoolingLayer;
+const PoolingType = layer.poolingLayer.PoolingType;
+const activationlayer = layer.activationLayer.ActivationLayer;
+const BatchNormLayer = layer.batchNormLayer.BatchNormLayer;
 const Model = @import("model").Model;
 const loader = @import("dataloader");
 const ActivationType = @import("activation_function").ActivationType;
 const LossType = @import("loss").LossType;
 const Trainer = @import("trainer");
-const BatchNormLayer = @import("batchNormLayer").BatchNormLayer;
 
 pub fn main() !void {
     const allocator = @import("pkgAllocator").allocator;

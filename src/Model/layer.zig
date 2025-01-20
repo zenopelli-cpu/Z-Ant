@@ -14,6 +14,15 @@ const ActivationType = @import("activation_function").ActivationType;
 //import error libraries
 const LayerError = @import("errorHandler").LayerError;
 
+// All existing layers are imported so that the layer module can be used as a layer library by other modules.
+// New layers should be imported here.
+pub const activationLayer = @import("activationLayer");
+pub const batchNormLayer = @import("batchNormLayer");
+pub const convLayer = @import("convLayer");
+pub const denseLayer = @import("denseLayer");
+pub const flattenLayer = @import("flattenLayer");
+pub const poolingLayer = @import("poolingLayer");
+
 pub const LayerType = enum {
     DenseLayer,
     DefaultLayer,

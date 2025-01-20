@@ -2,16 +2,16 @@ const std = @import("std");
 const cwd = std.fs.cwd();
 const Model = @import("model").Model;
 const Layer = @import("layer");
-const DenseLayer = @import("denselayer").DenseLayer;
-const ActivationLayer = @import("activationlayer").ActivationLayer;
-const ConvolutionalLayer = @import("convolutionallayer").ConvolutionalLayer;
-const FlattenLayer = @import("flattenLayer").FlattenLayer;
-const PoolingLayer = @import("poolingLayer").PoolingLayer;
+const DenseLayer = Layer.denseLayer.DenseLayer;
+const ActivationLayer = Layer.activationLayer.ActivationLayer;
+const ConvolutionalLayer = Layer.convLayer.ConvolutionalLayer;
+const FlattenLayer = Layer.flattenLayer.FlattenLayer;
+const PoolingLayer = Layer.poolingLayer.PoolingLayer;
 
 const LayerType = @import("layer").LayerType;
 const Tensor = @import("tensor").Tensor;
 const ActivationType = @import("activation_function").ActivationType;
-const PoolingType = @import("poolingLayer").PoolingType;
+const PoolingType = Layer.poolingLayer.PoolingType;
 
 // ----------------------------------------------------------------------------
 // ---------------------------------- Export ----------------------------------
