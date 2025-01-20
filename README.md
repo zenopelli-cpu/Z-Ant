@@ -45,7 +45,7 @@ zig build run
 2. Run:
    ```sh
    zig build
-   zig build test_all --summary all
+   zig build test --summary all
    ```
    *(Ignore stderr warnings.)*
 
