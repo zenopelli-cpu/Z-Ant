@@ -1,11 +1,12 @@
 //! These operations change the structure or organization of a tensor.
 //!
 //!    Reshape: Change the shape without changing the data.
-//!    Expand/Squeeze: Add or remove dimensions of size 1.
+//!    Expand/Squeeze: like Padding and dilatation.
 //!    Transpose/Permute: Change the order of dimensions.
 //!    Flatten: Convert a multi-dimensional tensor into 1D.
 //!    Concatenation: Combine tensors along a specified dimension.
 //!    Split: Divide a tensor into smaller tensors.
+//!    Flip: used to flip the kernel in some convolution operations.
 
 const std = @import("std");
 const Tensor = @import("tensor").Tensor; // Import Tensor type
@@ -385,18 +386,6 @@ pub fn concatenate(comptime T: type, allocator: *std.mem.Allocator, tensors: []T
         .shape = new_shape,
         .allocator = allocator,
     };
-}
-
-/// Calculate strides for a given shape
-pub fn calculateStrides(shape: []usize, allocator: *const std.mem.Allocator) ![]usize {
-    const len = shape.len;
-    const strides = try allocator.alloc(usize, len);
-    if (len == 0) return strides; // Handle scalar tensor
-    strides[len - 1] = 1;
-    for (1..len) |i| {
-        strides[len - 1 - i] = strides[len - i] * shape[len - i];
-    }
-    return strides;
 }
 
 /// Returns a Tensor self transposed. Does not modify self.
