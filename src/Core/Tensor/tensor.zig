@@ -576,19 +576,6 @@ pub fn Tensor(comptime T: type) type {
             };
         }
 
-        fn calculateStrides(shape: []const usize) ![]usize {
-            const allocator = std.heap.page_allocator;
-            const strides = try allocator.alloc(usize, shape.len);
-            var stride: usize = 1;
-            var i: usize = shape.len;
-            while (i > 0) {
-                i -= 1;
-                strides[i] = stride;
-                stride *= shape[i];
-            }
-            return strides;
-        }
-
         /// Implements the ONNX slice operator (https://onnx.ai/onnx/operators/onnx__Slice.html)
         /// Takes a tensor and extracts a slice along multiple axes.
         /// starts: Starting indices for each axis
