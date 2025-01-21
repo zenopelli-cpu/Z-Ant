@@ -49,6 +49,13 @@ zig build run
    ```
    *(Ignore stderr warnings.)*
 
+This will run all tests except some that require heavy computations.
+
+If you really wanna run all tests, including heavy ones, use:
+```sh
+zig build test -Dheavy --summary all
+```
+
 ### Documentation
 Generated using [Zig's standard documentation format](https://ziglang.org/documentation/master/#Doc-Comments).
 
