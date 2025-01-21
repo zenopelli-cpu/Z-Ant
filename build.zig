@@ -243,6 +243,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Define test options
+    const test_options = b.addOptions();
+    test_options.addOption(bool, "heavy", b.option(bool, "heavy", "Run heavy tests") orelse false);
+    unit_tests.root_module.addOptions("test_options", test_options);
+
     //************************************************UNIT TEST DEPENDENCIES************************************************
 
     // Add necessary imports for the unit test module.
@@ -267,36 +272,4 @@ pub fn build(b: *std.Build) void {
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run all unit tests");
     test_step.dependOn(&run_unit_tests.step);
-
-    //************************************************HEAVY TESTS************************************************
-
-    // Define heavy tests for the project.
-    const heavy_tests = b.addTest(.{
-        .name = "heavy",
-        .root_source_file = b.path("tests/heavy.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    //************************************************HEAVY TEST DEPENDENCIES************************************************
-
-    // Add necessary imports for the unit test module.
-    heavy_tests.root_module.addImport("tensor", tensor_mod);
-    heavy_tests.root_module.addImport("model", model_mod);
-    heavy_tests.root_module.addImport("layer", layer_mod);
-    heavy_tests.root_module.addImport("optim", optim_mod);
-    heavy_tests.root_module.addImport("loss", loss_mod);
-    heavy_tests.root_module.addImport("tensor_m", tensor_math_mod);
-    heavy_tests.root_module.addImport("activation_function", activation_mod);
-    heavy_tests.root_module.addImport("dataloader", dataloader_mod);
-    heavy_tests.root_module.addImport("dataprocessor", dataProcessor_mod);
-    heavy_tests.root_module.addImport("trainer", trainer_mod);
-    heavy_tests.root_module.addImport("typeConverter", typeConv_mod);
-    heavy_tests.root_module.addImport("errorHandler", errorHandler_mod);
-    heavy_tests.root_module.addImport("pkgAllocator", allocator_mod);
-
-    // Add a build step to run all heavy tests.
-    const run_heavy_tests = b.addRunArtifact(heavy_tests);
-    const heavy_test_step = b.step("heavy_test", "Run all heavy tests");
-    heavy_test_step.dependOn(&run_heavy_tests.step);
 }

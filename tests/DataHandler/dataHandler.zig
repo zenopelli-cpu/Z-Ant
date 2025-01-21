@@ -1,7 +1,11 @@
 const std = @import("std");
+const test_options = @import("test_options");
 
 test {
     _ = @import("dataLoader.zig");
     _ = @import("dataProcessor.zig");
-    // _ = @import("trainer.zig"); // This test is added as a separate test in tests/Trainer/trainer.zig
+
+    if (test_options.heavy) {
+        _ = @import("trainer.zig");
+    }
 }
