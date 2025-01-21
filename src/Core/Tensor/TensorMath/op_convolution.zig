@@ -176,7 +176,7 @@ fn multidim_convolution_with_bias(
 /// TODO: add better check on output size wrt input and kernel
 pub fn convolve_tensor_with_bias(
     comptime T: type,
-    input: *const Tensor(T),
+    input: *Tensor(T),
     kernel: *const Tensor(T),
     bias: *const Tensor(T),
     stride: []const usize, // shape:[row_stride, column_stride]
@@ -312,7 +312,7 @@ pub fn convolution_backward_biases(comptime T: type, dValues: *Tensor(T)) !Tenso
     return bias_gradients;
 }
 
-pub fn convolution_backward_weights(comptime T: type, input: *const Tensor(T), dvalues: *const Tensor(T), kernel_shape: []const usize, stride: [2]usize) !Tensor(T) {
+pub fn convolution_backward_weights(comptime T: type, input: *Tensor(T), dvalues: *Tensor(T), kernel_shape: []const usize, stride: [2]usize) !Tensor(T) {
     const batch_size = input.shape[0];
     const num_filters = kernel_shape[0];
     const kernel_height = kernel_shape[2];
@@ -425,7 +425,18 @@ pub fn convolution_backward_input(comptime T: type, dvalues: *const Tensor(T), k
     return try col2im(T, &dX_col, input_shape, kernel_size, stride);
 }
 
-pub fn im2col(comptime T: type, input: *const Tensor(T), kernel: [2]usize, stride: [2]usize) !Tensor(T) {
+// --------------------------------------------------
+// --------------------- im2col ---------------------
+// --------------------------------------------------
+// --------- standard im2col
+pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize) !Tensor(T) {
+
+    //check on dimensions
+    if (input.shape.len != 4) {
+        return TensorMathError.InputTensorsWrongShape;
+    }
+
+    // Output matrix dimensions
     const batch_size = input.shape[0];
     const channels = input.shape[1];
     const height = input.shape[2];
@@ -439,12 +450,30 @@ pub fn im2col(comptime T: type, input: *const Tensor(T), kernel: [2]usize, strid
     const out_height = (height - kernel_h) / stride_h + 1;
     const out_width = (width - kernel_w) / stride_w + 1;
 
-    // Output matrix dimensions
     const rows = batch_size * out_height * out_width;
     const cols = channels * kernel_h * kernel_w;
 
     var col_shape = [_]usize{ rows, cols };
     var col_matrix = try Tensor(T).fromShape(&pkg_allocator, &col_shape);
+
+    try lean_im2col(T, input, kernel, stride, &col_matrix);
+
+    return col_matrix;
+}
+// --------- lean im2col
+pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize, output: *Tensor(T)) !void {
+    const batch_size = input.shape[0];
+    const channels = input.shape[1];
+    const height = input.shape[2];
+    const width = input.shape[3];
+
+    const kernel_h = kernel[0];
+    const kernel_w = kernel[1];
+    const stride_h = stride[0];
+    const stride_w = stride[1];
+
+    const out_height = (height - kernel_h) / stride_h + 1;
+    const out_width = (width - kernel_w) / stride_w + 1;
 
     var row: usize = 0;
     for (0..batch_size) |b| {
@@ -460,7 +489,7 @@ pub fn im2col(comptime T: type, input: *const Tensor(T), kernel: [2]usize, strid
                                 c * height * width +
                                 h_offset * width +
                                 w_offset;
-                            try col_matrix.set_at(&[_]usize{ row, col }, input.data[input_idx]);
+                            try output.set_at(&[_]usize{ row, col }, input.data[input_idx]);
                             col += 1;
                         }
                     }
@@ -469,14 +498,33 @@ pub fn im2col(comptime T: type, input: *const Tensor(T), kernel: [2]usize, strid
             }
         }
     }
-
-    return col_matrix;
 }
 
 /// Converts a 2D matrix back to a 4D tensor using col2im algorithm
 /// Input shape: [batch_size * out_height * out_width, channels * kernel_height * kernel_width]
 /// Output shape: [batch_size, channels, height, width]
 pub fn col2im(comptime T: type, col_matrix: *Tensor(T), output_shape: []const usize, kernel: [2]usize, stride: [2]usize) !Tensor(T) {
+
+    //checks
+    if (output_shape.len != 4) {
+        std.debug.print("ERROR: wrong output shape len. Your output shape len is {} but only 4 is accepted \n", .{output_shape.len});
+        return TensorMathError.InvalidDimensions;
+    }
+
+    var shape: [4]usize = undefined;
+    for (0..4) |i| {
+        shape[i] = output_shape[i];
+    }
+
+    // Create and Initialize to zero
+    var output = try Tensor(T).fromShape(&pkg_allocator, &shape);
+
+    try lean_col2im(T, col_matrix, output_shape, kernel, stride, &output);
+
+    return output;
+}
+
+pub inline fn lean_col2im(comptime T: type, col_matrix: *Tensor(T), output_shape: []const usize, kernel: [2]usize, stride: [2]usize, output: *Tensor(T)) !void {
     const batch_size = output_shape[0];
     const channels = output_shape[1];
     const height = output_shape[2];
@@ -489,13 +537,6 @@ pub fn col2im(comptime T: type, col_matrix: *Tensor(T), output_shape: []const us
 
     const out_height = (height - kernel_h) / stride_h + 1;
     const out_width = (width - kernel_w) / stride_w + 1;
-
-    var shape: [4]usize = undefined;
-    for (output_shape, 0..) |s, i| {
-        shape[i] = s;
-    }
-    var output = try Tensor(T).fromShape(&pkg_allocator, &shape);
-    try output.set(0, 0); // Initialize to zero
 
     var row: usize = 0;
     for (0..batch_size) |b| {
@@ -521,6 +562,4 @@ pub fn col2im(comptime T: type, col_matrix: *Tensor(T), output_shape: []const us
             }
         }
     }
-
-    return output;
 }

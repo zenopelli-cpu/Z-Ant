@@ -86,5 +86,5 @@ test {
     _ = @import("lossFunction.zig");
     _ = @import("activation_function.zig");
     _ = @import("lossFunction.zig");
-    _ = @import("layers/layers.zig");
+    _ = @import("Layers/layers.zig");
 }
