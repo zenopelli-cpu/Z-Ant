@@ -538,7 +538,7 @@ pub fn parseFromFile(allocator: std.mem.Allocator, file_path: []const u8) !Model
 
 pub fn printStructure(model: *ModelProto) void {
     // Print model info
-    std.debug.print("Model Info:\n", .{});
+    std.debug.print("\n=== Model Info ===\n", .{});
     std.debug.print("IR Version: {}\n", .{model.ir_version});
     if (model.producer_name) |name| {
         std.debug.print("Producer: {s}\n", .{name});
@@ -549,31 +549,53 @@ pub fn printStructure(model: *ModelProto) void {
 
     // Print graph info
     if (model.graph) |*graph| {
-        std.debug.print("\nGraph Info:\n", .{});
+        std.debug.print("\n=== Graph Info ===\n", .{});
         if (graph.name) |name| {
             std.debug.print("Name: {s}\n", .{name});
         }
         std.debug.print("Nodes: {d}\n", .{graph.nodes.len});
         std.debug.print("Initializers: {d}\n", .{graph.initializers.len});
 
-        // Print node details
-        std.debug.print("\nNodes:\n", .{});
+        // First, print a high-level view of the graph structure
+        std.debug.print("\n=== Graph Structure ===\n", .{});
         for (graph.nodes, 0..) |*node, i| {
-            std.debug.print("\nNode {d}:\n", .{i});
+            // Print current node
+            std.debug.print("\n[{d}] {s}", .{ i, node.op_type });
             if (node.name) |name| {
-                std.debug.print("  Name: {s}\n", .{name});
+                std.debug.print(" ({s})", .{name});
             }
-            std.debug.print("  Op Type: {s}\n", .{node.op_type});
+            std.debug.print("\n", .{});
+
+            // Print inputs with arrows
+            std.debug.print("  Inputs:\n", .{});
+            for (node.input) |input| {
+                std.debug.print("    ← {s}\n", .{input});
+            }
+
+            // Print outputs with arrows
+            std.debug.print("  Outputs:\n", .{});
+            for (node.output) |output| {
+                std.debug.print("    → {s}\n", .{output});
+            }
+        }
+
+        // Then print detailed node information
+        std.debug.print("\n=== Detailed Node Info ===\n", .{});
+        for (graph.nodes, 0..) |*node, i| {
+            std.debug.print("\n[Node {d}]\n", .{i});
+            if (node.name) |name| {
+                std.debug.print("Name: {s}\n", .{name});
+            }
+            std.debug.print("Type: {s}\n", .{node.op_type});
             if (node.domain) |domain| {
-                std.debug.print("  Domain: {s}\n", .{domain});
+                std.debug.print("Domain: {s}\n", .{domain});
             }
-            std.debug.print("  Inputs: {d}, Outputs: {d}\n", .{ node.input.len, node.output.len });
 
             // Print attributes
             if (node.attribute.len > 0) {
-                std.debug.print("  Attributes:\n", .{});
+                std.debug.print("Attributes:\n", .{});
                 for (node.attribute) |attr| {
-                    std.debug.print("    {s}: ", .{attr.name});
+                    std.debug.print("  {s}: ", .{attr.name});
                     switch (attr.type) {
                         .FLOAT => std.debug.print("float = {d}\n", .{attr.f}),
                         .INT => std.debug.print("int = {d}\n", .{attr.i}),
@@ -606,18 +628,19 @@ pub fn printStructure(model: *ModelProto) void {
         }
 
         // Print initializer details
-        std.debug.print("\nInitializers:\n", .{});
+        std.debug.print("\n=== Initializers ===\n", .{});
         for (graph.initializers, 0..) |*init, i| {
             std.debug.print("\nInitializer {d}:\n", .{i});
             if (init.name) |name| {
-                std.debug.print("  Name: {s}\n", .{name});
+                std.debug.print("Name: {s}\n", .{name});
             }
-            std.debug.print("  Type: {}\n", .{init.data_type});
-            std.debug.print("  Dims: ", .{});
-            for (init.dims) |dim| {
-                std.debug.print("{d} ", .{dim});
+            std.debug.print("Type: {}\n", .{init.data_type});
+            std.debug.print("Shape: [", .{});
+            for (init.dims, 0..) |dim, j| {
+                if (j > 0) std.debug.print(", ", .{});
+                std.debug.print("{d}", .{dim});
             }
-            std.debug.print("\n", .{});
+            std.debug.print("]\n", .{});
         }
     }
 }
