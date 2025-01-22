@@ -13,13 +13,15 @@ const ActivationType = @import("activation_function").ActivationType;
 const LossType = @import("loss").LossType;
 const Trainer = @import("trainer");
 const BatchNormLayer = @import("batchNormLayer").BatchNormLayer;
-const OnnxParser = @import("DataHandler/onnx_parser.zig");
+const onnx = @import("DataHandler/onnx.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    // Parse and print the ONNX model structure
-    try OnnxParser.parseOnnxFile(allocator, "./datasets/best.onnx");
+    var model = try onnx.parseFromFile(allocator, "/home/marco/TheTinyBook/datasets/best.onnx");
+    defer model.deinit(allocator);
+
+    onnx.printStructure(&model);
 }
