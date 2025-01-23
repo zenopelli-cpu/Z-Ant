@@ -5,7 +5,6 @@ const Loss = @import("loss");
 const LossType = @import("loss").LossType;
 const TensMath = @import("tensor_m");
 const Optim = @import("optim");
-const loader = @import("dataloader").DataLoader;
 const NormalizType = @import("dataprocessor").NormalizationType;
 const DataProc = @import("dataprocessor");
 

@@ -1,13 +1,12 @@
 const std = @import("std");
 const layer_ = @import("layer");
 const Layer = layer_.Layer;
-const DenseLayer = layer_.denseLayer.DenseLayer;
-const ConvLayer = layer_.convLayer;
-const ConvolutionalLayer = layer_.convLayer.ConvolutionalLayer;
-const FlattenLayer = layer_.flattenLayer.FlattenLayer;
-const ActivationLayer = layer_.activationLayer.ActivationLayer;
-const BatchNormLayer = layer_.batchNormLayer.BatchNormLayer;
-const PoolingLayer = layer_.poolingLayer.PoolingLayer;
+const DenseLayer = layer_.DenseLayer;
+const ConvolutionalLayer = layer_.ConvolutionalLayer;
+const FlattenLayer = layer_.FlattenLayer;
+const ActivationLayer = layer_.ActivationLayer;
+const BatchNormLayer = layer_.BatchNormLayer;
+const PoolingLayer = layer_.PoolingLayer;
 const PoolingType = layer_.poolingLayer.PoolingType;
 const Tensor = @import("tensor").Tensor;
 const TensorMath = @import("tensor_m");
@@ -282,7 +281,7 @@ test "Conv forward()" {
     defer input.deinit();
 
     // Create the convolutional layer
-    var conv_layer = ConvLayer.ConvolutionalLayer(f64){
+    var conv_layer = ConvolutionalLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,

@@ -238,7 +238,7 @@ pub fn build(b: *std.Build) void {
     // Define unified tests for the project.
     const unit_tests = b.addTest(.{
         .name = "lib",
-        .root_source_file = b.path("tests/lib.zig"),
+        .root_source_file = b.path("tests/test_lib.zig"),
         .target = target,
         .optimize = optimize,
     });

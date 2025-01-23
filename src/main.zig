@@ -1,13 +1,15 @@
 const std = @import("std");
 const tensor = @import("tensor");
+//--- layers
 const layer = @import("layer");
-const denselayer = layer.denseLayer.DenseLayer;
-const convlayer = layer.convLayer.ConvolutionalLayer;
-const flattenlayer = layer.flattenLayer.FlattenLayer;
-const PoolingLayer = layer.poolingLayer.PoolingLayer;
+const DenseLayer = layer.DenseLayer;
+const ConvolutionalLayer = layer.ConvolutionalLayer;
+const FlattenLayer = layer.FlattenLayer;
+const PoolingLayer = layer.PoolingLayer;
 const PoolingType = layer.poolingLayer.PoolingType;
-const activationlayer = layer.activationLayer.ActivationLayer;
-const BatchNormLayer = layer.batchNormLayer.BatchNormLayer;
+const ActivationLayer = layer.ActivationLayer;
+const BatchNormLayer = layer.BatchNormLayer;
+//--- other
 const Model = @import("model").Model;
 const loader = @import("dataloader");
 const ActivationType = @import("activation_function").ActivationType;
@@ -25,7 +27,7 @@ pub fn main() !void {
     try model.init();
 
     //layer 0: First Convolutional Layer ----------------------------------------------------------------------------
-    var conv_layer = convlayer(f64){
+    var conv_layer = ConvolutionalLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -53,7 +55,7 @@ pub fn main() !void {
     try model.addLayer(layer_);
 
     // After first conv layer
-    var conv1_activ = activationlayer(f64){
+    var conv1_activ = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 16 * 24 * 24, // Output size from conv1
@@ -61,7 +63,7 @@ pub fn main() !void {
         .activationFunction = ActivationType.ReLU,
         .allocator = &allocator,
     };
-    var conv1_act = activationlayer(f64).create(&conv1_activ);
+    var conv1_act = ActivationLayer(f64).create(&conv1_activ);
     try conv1_act.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
@@ -72,7 +74,7 @@ pub fn main() !void {
     try model.addLayer(conv1_act);
 
     //layer 1: Second Convolutional Layer ----------------------------------------------------------------------------
-    var conv_layer2 = convlayer(f64){
+    var conv_layer2 = ConvolutionalLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -100,7 +102,7 @@ pub fn main() !void {
     try model.addLayer(layer2_);
 
     // After second conv layer
-    var conv2_activ = activationlayer(f64){
+    var conv2_activ = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 32 * 20 * 20, // Output size from conv2
@@ -108,7 +110,7 @@ pub fn main() !void {
         .activationFunction = ActivationType.ReLU,
         .allocator = &allocator,
     };
-    var conv2_act = activationlayer(f64).create(&conv2_activ);
+    var conv2_act = ActivationLayer(f64).create(&conv2_activ);
     try conv2_act.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
@@ -144,7 +146,7 @@ pub fn main() !void {
     try model.addLayer(pool1_layer);
 
     //layer 5: Flatten Layer ----------------------------------------------------------------------------
-    var flatten_layer = flattenlayer(f64){
+    var flatten_layer = FlattenLayer(f64){
         .input = undefined,
         .output = undefined,
         .allocator = &allocator,
@@ -162,7 +164,7 @@ pub fn main() !void {
     try model.addLayer(Flattenlayer);
 
     //layer 6: Dense Layer (128 neurons) ----------------------------------------------------------------------------
-    var dense1 = denselayer(f64){
+    var dense1 = DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -173,7 +175,7 @@ pub fn main() !void {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var dense1_ = denselayer(f64).create(&dense1);
+    var dense1_ = DenseLayer(f64).create(&dense1);
     try dense1_.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
@@ -184,7 +186,7 @@ pub fn main() !void {
     try model.addLayer(dense1_);
 
     //layer 7: ReLU Activation ----------------------------------------------------------------------------
-    var dense1_activ = activationlayer(f64){
+    var dense1_activ = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 128,
@@ -192,7 +194,7 @@ pub fn main() !void {
         .activationFunction = ActivationType.ReLU,
         .allocator = &allocator,
     };
-    var dense1_act = activationlayer(f64).create(&dense1_activ);
+    var dense1_act = ActivationLayer(f64).create(&dense1_activ);
     try dense1_act.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
@@ -203,7 +205,7 @@ pub fn main() !void {
     try model.addLayer(dense1_act);
 
     //layer 8: Output Dense Layer (10 neurons for MNIST) ----------------------------------------------------------------------------
-    var dense2 = denselayer(f64){
+    var dense2 = DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -214,7 +216,7 @@ pub fn main() !void {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var dense2_ = denselayer(f64).create(&dense2);
+    var dense2_ = DenseLayer(f64).create(&dense2);
     try dense2_.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
@@ -225,7 +227,7 @@ pub fn main() !void {
     try model.addLayer(dense2_);
 
     //layer 9: Softmax Activation ----------------------------------------------------------------------------
-    var output_activ = activationlayer(f64){
+    var output_activ = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 10,
@@ -233,7 +235,7 @@ pub fn main() !void {
         .activationFunction = ActivationType.Softmax,
         .allocator = &allocator,
     };
-    var output_act = activationlayer(f64).create(&output_activ);
+    var output_act = ActivationLayer(f64).create(&output_activ);
     try output_act.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
