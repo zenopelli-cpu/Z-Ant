@@ -3,8 +3,8 @@ const tensor = @import("tensor");
 const layer = @import("layer");
 const Model = @import("model");
 const TensorMathError = @import("errorHandler").TensorMathError;
-const denseLayer = layer.denseLayer;
-const convLayer = layer.convLayer; // Make sure this is the correct import for your convolutional layer
+const DenseLayer = layer.DenseLayer;
+const ConvolutionalLayer = layer.ConvolutionalLayer; // Make sure this is the correct import for your convolutional layer
 
 pub const PoolingType = enum {
     Max,
@@ -46,7 +46,7 @@ pub fn optimizer_SGD(T: type, XType: type, YType: type, lr: f64) type {
             for (model.layers.items) |layer_| {
                 switch (layer_.layer_type) {
                     .DenseLayer => {
-                        const myDense: *denseLayer.DenseLayer(T) = @ptrCast(@alignCast(layer_.layer_ptr));
+                        const myDense: *DenseLayer(T) = @ptrCast(@alignCast(layer_.layer_ptr));
                         const weight_gradients = &myDense.w_gradients;
                         const bias_gradients = &myDense.b_gradients;
                         const weight = &myDense.weights;
@@ -58,7 +58,7 @@ pub fn optimizer_SGD(T: type, XType: type, YType: type, lr: f64) type {
                         try self.update_tensor(bias, bias_gradients);
                     },
                     .ConvolutionalLayer => {
-                        const myConv: *convLayer.ConvolutionalLayer(T) = @ptrCast(@alignCast(layer_.layer_ptr));
+                        const myConv: *ConvolutionalLayer(T) = @ptrCast(@alignCast(layer_.layer_ptr));
                         const kernel_gradients = &myConv.w_gradients;
                         const bias_gradients = &myConv.b_gradients;
                         const kernel = &myConv.weights;
@@ -102,11 +102,11 @@ pub fn optimizer_ADAMTEST(T: type, lr: f64) type {
                 // Assuming a certain layer structure with w_gradients
                 // This is just an example; adapt as needed.
                 if (some_layer.layer_type == layer.LayerType.DenseLayer) {
-                    const dense: *denseLayer.DenseLayer(T) = @ptrCast(@alignCast(some_layer.layer_ptr));
+                    const dense: *DenseLayer(T) = @ptrCast(@alignCast(some_layer.layer_ptr));
                     const weight_gradients = &dense.w_gradients;
                     try self.update_tensor(&dense.weights, weight_gradients);
                 } else if (some_layer.layer_type == layer.LayerType.ConvolutionalLayer) {
-                    const conv: *convLayer.ConvolutionalLayer(T) = @ptrCast(@alignCast(some_layer.layer_ptr));
+                    const conv: *ConvolutionalLayer(T) = @ptrCast(@alignCast(some_layer.layer_ptr));
                     const kernel_gradients = &conv.w_gradients;
                     try self.update_tensor(&conv.weights, kernel_gradients);
                 }

@@ -16,8 +16,8 @@ const DataProc = @import("dataprocessor");
 const LossType = @import("loss").LossType;
 const NormalizType = @import("dataprocessor").NormalizationType;
 
-const denseLayer = @import("layer").denseLayer.DenseLayer;
-const convLayer = @import("layer").convLayer.ConvolutionalLayer;
+const DenseLayer = @import("layer").DenseLayer;
+const ConvolutionalLayer = @import("layer").ConvolutionalLayer;
 
 /// Defines the type of trainer used for model training.
 ///
@@ -248,7 +248,7 @@ pub fn TrainDataLoader2D(
             // Apply L2 and gradient clipping before backward
             for (model.layers.items) |layer_| {
                 if (layer_.layer_type == .DenseLayer) {
-                    const dense_layer = @as(*denseLayer(T), @alignCast(@ptrCast(layer_.layer_ptr)));
+                    const dense_layer = @as(*DenseLayer(T), @alignCast(@ptrCast(layer_.layer_ptr)));
                     // Apply L2 regularization
                     for (dense_layer.w_gradients.data, dense_layer.weights.data) |*grad_w, weight| {
                         grad_w.* += l2_lambda * weight;
@@ -257,7 +257,7 @@ pub fn TrainDataLoader2D(
                     try clipGradients(T, &dense_layer.w_gradients, max_grad_norm);
                     try clipGradients(T, &dense_layer.b_gradients, max_grad_norm);
                 } else if (layer_.layer_type == .ConvolutionalLayer) {
-                    const conv_layer = @as(*convLayer(T), @alignCast(@ptrCast(layer_.layer_ptr)));
+                    const conv_layer = @as(*ConvolutionalLayer(T), @alignCast(@ptrCast(layer_.layer_ptr)));
                     // Apply L2 regularization
                     for (conv_layer.w_gradients.data, conv_layer.weights.data) |*grad_w, weight| {
                         grad_w.* += l2_lambda * weight;

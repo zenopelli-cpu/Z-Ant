@@ -1,7 +1,7 @@
 const std = @import("std");
 const tensor = @import("tensor");
-const layer = @import("layer");
-const denselayer = layer.denseLayer;
+const Layer = @import("layer");
+const DenseLayer = Layer.DenseLayer;
 const Model = @import("model").Model;
 const ActivationType = @import("activation_function").ActivationType;
 const Trainer = @import("trainer");
@@ -19,7 +19,7 @@ test "Model with multiple Denselayers forward test" {
     try model.init();
     defer model.deinit();
 
-    var dense_layer1 = denselayer.DenseLayer(f64){
+    var dense_layer1 = DenseLayer(f64){
         .weights = undefined,
         .input = undefined,
         .bias = undefined,
@@ -30,7 +30,7 @@ test "Model with multiple Denselayers forward test" {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var layer1_ = denselayer.DenseLayer(f64).create(&dense_layer1);
+    var layer1_ = DenseLayer(f64).create(&dense_layer1);
     try layer1_.init(
         &allocator,
         @constCast(&struct {
@@ -43,7 +43,7 @@ test "Model with multiple Denselayers forward test" {
     );
     try model.addLayer(layer1_);
 
-    var dense_layer2 = denselayer.DenseLayer(f64){
+    var dense_layer2 = DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -54,7 +54,7 @@ test "Model with multiple Denselayers forward test" {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var layer2_ = denselayer.DenseLayer(f64).create(&dense_layer2);
+    var layer2_ = DenseLayer(f64).create(&dense_layer2);
     try layer2_.init(
         &allocator,
         @constCast(&struct {
@@ -83,8 +83,8 @@ test "Model with multiple Denselayers forward test" {
 }
 
 test {
-    _ = @import("lossFunction.zig");
-    _ = @import("activation_function.zig");
-    _ = @import("lossFunction.zig");
-    _ = @import("Layers/layers.zig");
+    _ = @import("test_lossFunction.zig");
+    _ = @import("test_activation_function.zig");
+    _ = @import("test_lossFunction.zig");
+    _ = @import("Layers/test_layers.zig");
 }

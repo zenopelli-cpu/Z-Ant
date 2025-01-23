@@ -3,5 +3,5 @@
 const std = @import("std");
 
 test {
-    _ = @import("DataHandler/trainer.zig");
+    _ = @import("DataHandler/test_trainer.zig");
 }

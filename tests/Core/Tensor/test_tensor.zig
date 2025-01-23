@@ -6,6 +6,10 @@ const pkgAllocator = @import("pkgAllocator");
 
 const expect = std.testing.expect;
 
+test {
+    _ = @import("TensorMath/test_tensor_math.zig");
+}
+
 test "Tensor test description" {
     std.debug.print("\n--- Running tensor tests\n", .{});
 }
@@ -572,8 +576,4 @@ test "slice_onnx error cases" {
     // Test invalid axis
     var axes = [_]i64{5}; // Axis 5 doesn't exist in a 1D tensor
     try std.testing.expectError(TensorError.InvalidSliceIndices, tensor.slice_onnx(&starts, &ends, &axes, null));
-}
-
-test {
-    _ = @import("TensorMath/tensor_math.zig");
 }

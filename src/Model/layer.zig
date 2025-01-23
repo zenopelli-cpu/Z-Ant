@@ -4,7 +4,7 @@
 //! Layer can be stacked in a model and they implement proper forward and backward methods.
 
 const std = @import("std");
-const tensor = @import("tensor");
+const Tensor = @import("tensor").Tensor;
 const TensMath = @import("tensor_m");
 const Architectures = @import("architectures").Architectures;
 const TensorError = @import("tensor_m").TensorError;
@@ -16,11 +16,12 @@ const LayerError = @import("errorHandler").LayerError;
 
 // All existing layers are imported so that the layer module can be used as a layer library by other modules.
 // New layers should be imported here.
-pub const activationLayer = @import("activationLayer");
-pub const batchNormLayer = @import("batchNormLayer");
-pub const convLayer = @import("convLayer");
-pub const denseLayer = @import("denseLayer");
-pub const flattenLayer = @import("flattenLayer");
+pub const ActivationLayer = @import("activationLayer").ActivationLayer;
+pub const BatchNormLayer = @import("batchNormLayer").BatchNormLayer;
+pub const ConvolutionalLayer = @import("convLayer").ConvolutionalLayer;
+pub const DenseLayer = @import("denseLayer").DenseLayer;
+pub const FlattenLayer = @import("flattenLayer").FlattenLayer;
+pub const PoolingLayer = @import("poolingLayer").PoolingLayer;
 pub const poolingLayer = @import("poolingLayer");
 
 pub const LayerType = enum {
@@ -80,13 +81,13 @@ pub fn Layer(comptime T: type) type {
         pub const Basic_Layer_Interface = struct {
             init: *const fn (ctx: *anyopaque, allocator: *const std.mem.Allocator, args: *anyopaque) anyerror!void,
             deinit: *const fn (ctx: *anyopaque) void,
-            forward: *const fn (ctx: *anyopaque, input: *tensor.Tensor(T)) anyerror!tensor.Tensor(T),
-            backward: *const fn (ctx: *anyopaque, dValues: *tensor.Tensor(T)) anyerror!tensor.Tensor(T),
+            forward: *const fn (ctx: *anyopaque, input: *Tensor(T)) anyerror!Tensor(T),
+            backward: *const fn (ctx: *anyopaque, dValues: *Tensor(T)) anyerror!Tensor(T),
             printLayer: *const fn (ctx: *anyopaque, choice: u8) void,
             get_n_inputs: *const fn (ctx: *anyopaque) usize,
             get_n_neurons: *const fn (ctx: *anyopaque) usize,
-            get_input: *const fn (ctx: *anyopaque) *const tensor.Tensor(T),
-            get_output: *const fn (ctx: *anyopaque) *tensor.Tensor(T),
+            get_input: *const fn (ctx: *anyopaque) *const Tensor(T),
+            get_output: *const fn (ctx: *anyopaque) *Tensor(T),
         };
 
         pub fn init(self: Self, alloc: *const std.mem.Allocator, args: *anyopaque) anyerror!void {
@@ -101,10 +102,10 @@ pub fn Layer(comptime T: type) type {
         pub fn deinit(self: Self) void {
             return self.layer_impl.deinit(self.layer_ptr);
         }
-        pub fn forward(self: Self, input: *tensor.Tensor(T)) !tensor.Tensor(T) {
+        pub fn forward(self: Self, input: *Tensor(T)) !Tensor(T) {
             return self.layer_impl.forward(self.layer_ptr, input);
         }
-        pub fn backward(self: Self, dValues: *tensor.Tensor(T)) !tensor.Tensor(T) {
+        pub fn backward(self: Self, dValues: *Tensor(T)) !Tensor(T) {
             return self.layer_impl.backward(self.layer_ptr, dValues);
         }
         pub fn printLayer(self: Self, choice: u8) void {
@@ -116,10 +117,10 @@ pub fn Layer(comptime T: type) type {
         pub fn get_n_neurons(self: Self) usize {
             return self.layer_impl.get_n_neurons(self.layer_ptr);
         }
-        pub fn get_input(self: Self) *const tensor.Tensor(T) {
+        pub fn get_input(self: Self) *const Tensor(T) {
             return self.layer_impl.get_input(self.layer_ptr);
         }
-        pub fn get_output(self: Self) *tensor.Tensor(T) {
+        pub fn get_output(self: Self) *Tensor(T) {
             return self.layer_impl.get_output(self.layer_ptr);
         }
     };

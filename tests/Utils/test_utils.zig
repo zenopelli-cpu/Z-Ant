@@ -1,6 +1,10 @@
 const std = @import("std");
 const conv = @import("typeConverter");
 
+test {
+    _ = @import("test_modelExport.zig");
+}
+
 test "Utils description test" {
     std.debug.print("\n--- Running utils test\n", .{});
 }
@@ -69,8 +73,4 @@ test "convert comptime int to float" {
         try std.testing.expectEqual(123.0, result);
         try std.testing.expectEqual(f64, @TypeOf(result));
     }
-}
-
-test {
-    _ = @import("modelExport.zig");
 }

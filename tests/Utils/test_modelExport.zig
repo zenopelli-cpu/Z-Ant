@@ -1,12 +1,12 @@
 const std = @import("std");
 const model_import_export = @import("model_import_export");
 const Model = @import("model").Model;
-const layer = @import("layer");
-const denselayer = layer.denseLayer;
-const actlayer = layer.activationLayer;
-const convlayer = layer.convLayer;
-const flattenlayer = layer.flattenLayer;
-const PoolingLayer = layer.poolingLayer.PoolingLayer;
+const Layer = @import("layer");
+const DenseLayer = Layer.DenseLayer;
+const ActivationLayer = Layer.ActivationLayer;
+const ConvolutionalLayer = Layer.ConvolutionalLayer;
+const FlattenLayer = Layer.FlattenLayer;
+const PoolingLayer = Layer.poolingLayer.PoolingLayer;
 
 const Tensor = @import("tensor").Tensor;
 const ActivationType = @import("activation_function").ActivationType;
@@ -71,7 +71,7 @@ test "Import/Export of dense layer" {
     var file = try std.fs.cwd().createFile(file_path, .{});
     const writer = file.writer();
 
-    var dense_layer1 = denselayer.DenseLayer(f64){
+    var dense_layer1 = DenseLayer(f64){
         .weights = undefined,
         .input = undefined,
         .bias = undefined,
@@ -82,7 +82,7 @@ test "Import/Export of dense layer" {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var layer1_ = denselayer.DenseLayer(f64).create(&dense_layer1);
+    var layer1_ = DenseLayer(f64).create(&dense_layer1);
     try layer1_.init(
         &allocator,
         @constCast(&struct {
@@ -121,7 +121,7 @@ test "Import/Export of dense layer" {
     try std.testing.expect(layer_imported.get_n_inputs() == layer1_.get_n_inputs());
 
     //check layer
-    const denseImportedPtr: *denselayer.DenseLayer(f64) = @alignCast(@ptrCast(layer_imported.layer_ptr));
+    const denseImportedPtr: *DenseLayer(f64) = @alignCast(@ptrCast(layer_imported.layer_ptr));
     //same weights len
     try std.testing.expect(denseImportedPtr.weights.data.len == dense_layer1.weights.data.len);
     //same weights
@@ -147,7 +147,7 @@ test "Import/Export of convolutional layer" {
     var file = try std.fs.cwd().createFile(file_path, .{});
     const writer = file.writer();
 
-    var conv_layer0 = convlayer.ConvolutionalLayer(f64){
+    var conv_layer0 = ConvolutionalLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -192,7 +192,7 @@ test "Import/Export of convolutional layer" {
     try std.testing.expect(layer_imported.layer_type == layer0_.layer_type);
 
     // check layer
-    const convImportedPtr: *convlayer.ConvolutionalLayer(f64) = @alignCast(@ptrCast(layer_imported.layer_ptr));
+    const convImportedPtr: *ConvolutionalLayer(f64) = @alignCast(@ptrCast(layer_imported.layer_ptr));
 
     // same weights
     try std.testing.expect(TensMath.equal(f64, &conv_layer0.weights, &convImportedPtr.weights) == true);
@@ -224,7 +224,7 @@ test "Import/Export of activation layer" {
     var file = try std.fs.cwd().createFile(file_path, .{});
     const writer = file.writer();
 
-    var activ_layer = actlayer.ActivationLayer(f64){
+    var activ_layer = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 0,
@@ -232,7 +232,7 @@ test "Import/Export of activation layer" {
         .activationFunction = ActivationType.ReLU,
         .allocator = &allocator,
     };
-    const layer1_ = actlayer.ActivationLayer(f64).create(&activ_layer);
+    const layer1_ = ActivationLayer(f64).create(&activ_layer);
     // n_input = 5, n_neurons= 4
     try layer1_.init(
         &allocator,
@@ -264,7 +264,7 @@ test "Import/Export of activation layer" {
     std.debug.print("\n same type: {any}={any}", .{ layer_imported.layer_type, layer1_.layer_type });
     try std.testing.expect(layer_imported.layer_type == layer1_.layer_type);
 
-    const actImportedPtr: *actlayer.ActivationLayer(f64) = @alignCast(@ptrCast(layer_imported.layer_ptr));
+    const actImportedPtr: *ActivationLayer(f64) = @alignCast(@ptrCast(layer_imported.layer_ptr));
     //same type activation
     std.debug.print("\n same type: {any}={any}", .{ actImportedPtr.activationFunction, activ_layer.activationFunction });
     try std.testing.expect(actImportedPtr.activationFunction == activ_layer.activationFunction);
@@ -295,7 +295,7 @@ test "Export of a DENSE model" {
     defer model.deinit();
 
     //layer 0: 3 inputs, 2 neurons
-    var layer0 = denselayer.DenseLayer(f64){
+    var layer0 = DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -306,7 +306,7 @@ test "Export of a DENSE model" {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var layer0_ = denselayer.DenseLayer(f64).create(&layer0);
+    var layer0_ = DenseLayer(f64).create(&layer0);
     try layer0_.init(
         &allocator,
         @constCast(&struct {
@@ -320,7 +320,7 @@ test "Export of a DENSE model" {
     try model.addLayer(layer0_);
 
     //layer 1: 2 inputs, 5 neurons
-    var layer1 = denselayer.DenseLayer(f64){
+    var layer1 = DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -331,7 +331,7 @@ test "Export of a DENSE model" {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var layer1_ = denselayer.DenseLayer(f64).create(&layer1);
+    var layer1_ = DenseLayer(f64).create(&layer1);
     try layer1_.init(
         &allocator,
         @constCast(&struct {
@@ -391,8 +391,8 @@ test "Export of a DENSE model" {
     }
 
     //same layer 0
-    const l0_export: *denselayer.DenseLayer(f64) = @ptrCast(@alignCast(model.layers.items[0].layer_ptr));
-    const l0_import: *denselayer.DenseLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[0].layer_ptr));
+    const l0_export: *DenseLayer(f64) = @ptrCast(@alignCast(model.layers.items[0].layer_ptr));
+    const l0_import: *DenseLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[0].layer_ptr));
 
     //  same n_inputs
     try std.testing.expect(l0_export.n_inputs == l0_import.n_inputs);
@@ -407,8 +407,8 @@ test "Export of a DENSE model" {
     try std.testing.expect(TensMath.equal(f64, &l0_export.bias, &l0_import.bias) == true);
 
     //same layer 1
-    const l1_export: *denselayer.DenseLayer(f64) = @ptrCast(@alignCast(model.layers.items[1].layer_ptr));
-    const l1_import: *denselayer.DenseLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[1].layer_ptr));
+    const l1_export: *DenseLayer(f64) = @ptrCast(@alignCast(model.layers.items[1].layer_ptr));
+    const l1_import: *DenseLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[1].layer_ptr));
 
     //  same n_inputs
     try std.testing.expect(l1_export.n_inputs == l1_import.n_inputs);
@@ -453,7 +453,7 @@ test "Export/Import of a DENSE+ACTIVATION model" {
     // }
 
     //layer 0: 3 inputs, 2 neurons
-    var layer0 = denselayer.DenseLayer(f64){
+    var layer0 = DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -464,7 +464,7 @@ test "Export/Import of a DENSE+ACTIVATION model" {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var layer0_ = denselayer.DenseLayer(f64).create(&layer0);
+    var layer0_ = DenseLayer(f64).create(&layer0);
     try layer0_.init(
         &allocator,
         @constCast(&struct {
@@ -478,7 +478,7 @@ test "Export/Import of a DENSE+ACTIVATION model" {
     try model.addLayer(layer0_);
 
     //layer 1: 3 inputs, 2 neurons
-    var layer1 = actlayer.ActivationLayer(f64){
+    var layer1 = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 0,
@@ -486,7 +486,7 @@ test "Export/Import of a DENSE+ACTIVATION model" {
         .activationFunction = ActivationType.ReLU,
         .allocator = &allocator,
     };
-    var layer1_ = actlayer.ActivationLayer(f64).create(&layer1);
+    var layer1_ = ActivationLayer(f64).create(&layer1);
     try layer1_.init(
         &allocator,
         @constCast(&struct {
@@ -500,7 +500,7 @@ test "Export/Import of a DENSE+ACTIVATION model" {
     try model.addLayer(layer1_);
 
     //layer 2: 2 inputs, 5 neurons
-    var layer2 = denselayer.DenseLayer(f64){
+    var layer2 = DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -511,7 +511,7 @@ test "Export/Import of a DENSE+ACTIVATION model" {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var layer2_ = denselayer.DenseLayer(f64).create(&layer2);
+    var layer2_ = DenseLayer(f64).create(&layer2);
     try layer2_.init(
         &allocator,
         @constCast(&struct {
@@ -524,7 +524,7 @@ test "Export/Import of a DENSE+ACTIVATION model" {
     );
     try model.addLayer(layer2_);
 
-    var layer3 = actlayer.ActivationLayer(f64){
+    var layer3 = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 0,
@@ -532,7 +532,7 @@ test "Export/Import of a DENSE+ACTIVATION model" {
         .activationFunction = ActivationType.Softmax,
         .allocator = &allocator,
     };
-    var layer3_ = actlayer.ActivationLayer(f64).create(&layer3);
+    var layer3_ = ActivationLayer(f64).create(&layer3);
     try layer3_.init(
         &allocator,
         @constCast(&struct {
@@ -596,8 +596,8 @@ test "Export/Import of a DENSE+ACTIVATION model" {
     }
 
     // --------same layer 0
-    const l0_export: *denselayer.DenseLayer(f64) = @ptrCast(@alignCast(model.layers.items[0].layer_ptr));
-    const l0_import: *denselayer.DenseLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[0].layer_ptr));
+    const l0_export: *DenseLayer(f64) = @ptrCast(@alignCast(model.layers.items[0].layer_ptr));
+    const l0_import: *DenseLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[0].layer_ptr));
 
     //  same n_inputs
     try std.testing.expect(l0_export.n_inputs == l0_import.n_inputs);
@@ -612,8 +612,8 @@ test "Export/Import of a DENSE+ACTIVATION model" {
     try std.testing.expect(TensMath.equal(f64, &l0_export.bias, &l0_import.bias) == true);
 
     // --------same layer 1
-    const l1_export: *actlayer.ActivationLayer(f64) = @ptrCast(@alignCast(model.layers.items[1].layer_ptr));
-    const l1_import: *actlayer.ActivationLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[1].layer_ptr));
+    const l1_export: *ActivationLayer(f64) = @ptrCast(@alignCast(model.layers.items[1].layer_ptr));
+    const l1_import: *ActivationLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[1].layer_ptr));
 
     //  same n_inputs
     try std.testing.expect(l1_export.n_inputs == l1_import.n_inputs);
@@ -625,8 +625,8 @@ test "Export/Import of a DENSE+ACTIVATION model" {
     try std.testing.expect(l1_export.activationFunction == l1_import.activationFunction);
 
     // --------same layer 2
-    const l2_export: *denselayer.DenseLayer(f64) = @ptrCast(@alignCast(model.layers.items[2].layer_ptr));
-    const l2_import: *denselayer.DenseLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[2].layer_ptr));
+    const l2_export: *DenseLayer(f64) = @ptrCast(@alignCast(model.layers.items[2].layer_ptr));
+    const l2_import: *DenseLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[2].layer_ptr));
 
     //  same n_inputs
     try std.testing.expect(l2_export.n_inputs == l2_import.n_inputs);
@@ -641,8 +641,8 @@ test "Export/Import of a DENSE+ACTIVATION model" {
     try std.testing.expect(TensMath.equal(f64, &l2_export.bias, &l2_import.bias) == true);
 
     // --------same layer 3
-    const l3_export: *actlayer.ActivationLayer(f64) = @ptrCast(@alignCast(model.layers.items[3].layer_ptr));
-    const l3_import: *actlayer.ActivationLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[3].layer_ptr));
+    const l3_export: *ActivationLayer(f64) = @ptrCast(@alignCast(model.layers.items[3].layer_ptr));
+    const l3_import: *ActivationLayer(f64) = @ptrCast(@alignCast(imported_model.layers.items[3].layer_ptr));
 
     //  same n_inputs
     try std.testing.expect(l3_export.n_inputs == l3_import.n_inputs);
@@ -680,7 +680,7 @@ test "Export/Import of a COMPLEX model" {
     }
 
     //layer 0 ----------------------------------------------------------------------------
-    var conv_layer = convlayer.ConvolutionalLayer(f64){
+    var conv_layer = ConvolutionalLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -708,7 +708,7 @@ test "Export/Import of a COMPLEX model" {
     try model.addLayer(layer_);
 
     //layer 1 ----------------------------------------------------------------------------
-    var conv_layer2 = convlayer.ConvolutionalLayer(f64){
+    var conv_layer2 = ConvolutionalLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -736,7 +736,7 @@ test "Export/Import of a COMPLEX model" {
     try model.addLayer(layer2_);
 
     //layer 2 ----------------------------------------------------------------------------
-    var flatten_layer = flattenlayer.FlattenLayer(f64){
+    var flatten_layer = FlattenLayer(f64){
         .input = undefined,
         .output = undefined,
         .allocator = &allocator,
@@ -745,7 +745,7 @@ test "Export/Import of a COMPLEX model" {
     var Flattenlayer = flatten_layer.create();
 
     // Initialize the Flatten layer with placeholder args
-    var init_argsF = flattenlayer.FlattenLayer(f64).FlattenInitArgs{
+    var init_argsF = FlattenLayer(f64).FlattenInitArgs{
         .placeholder = true,
     };
     try Flattenlayer.init(&allocator, &init_argsF);
@@ -753,7 +753,7 @@ test "Export/Import of a COMPLEX model" {
     try model.addLayer(Flattenlayer);
 
     //layer 3 ----------------------------------------------------------------------------
-    var layer3 = denselayer.DenseLayer(f64){
+    var layer3 = DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -764,7 +764,7 @@ test "Export/Import of a COMPLEX model" {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var layer3_ = denselayer.DenseLayer(f64).create(&layer3);
+    var layer3_ = DenseLayer(f64).create(&layer3);
     try layer3_.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
@@ -775,7 +775,7 @@ test "Export/Import of a COMPLEX model" {
     try model.addLayer(layer3_);
 
     //layer 4 ----------------------------------------------------------------------------
-    var layer3Activ = actlayer.ActivationLayer(f64){
+    var layer3Activ = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 0,
@@ -783,7 +783,7 @@ test "Export/Import of a COMPLEX model" {
         .activationFunction = ActivationType.ReLU,
         .allocator = &allocator,
     };
-    var layer3_act = actlayer.ActivationLayer(f64).create(&layer3Activ);
+    var layer3_act = ActivationLayer(f64).create(&layer3Activ);
     try layer3_act.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
@@ -796,7 +796,7 @@ test "Export/Import of a COMPLEX model" {
     //new dense layer
 
     //layer 5 ----------------------------------------------------------------------------
-    var layer4 = denselayer.DenseLayer(f64){
+    var layer4 = DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -808,7 +808,7 @@ test "Export/Import of a COMPLEX model" {
         .allocator = undefined,
     };
 
-    var layer4_ = denselayer.DenseLayer(f64).create(&layer4);
+    var layer4_ = DenseLayer(f64).create(&layer4);
     try layer4_.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
@@ -820,7 +820,7 @@ test "Export/Import of a COMPLEX model" {
     try model.addLayer(layer4_);
 
     //layer 6 ----------------------------------------------------------------------------
-    var layer4Activ = actlayer.ActivationLayer(f64){
+    var layer4Activ = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 0,
@@ -828,7 +828,7 @@ test "Export/Import of a COMPLEX model" {
         .activationFunction = ActivationType.Softmax,
         .allocator = &allocator,
     };
-    var layer4_act = actlayer.ActivationLayer(f64).create(&layer4Activ);
+    var layer4_act = ActivationLayer(f64).create(&layer4Activ);
     try layer4_act.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
