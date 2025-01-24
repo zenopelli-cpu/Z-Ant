@@ -30,7 +30,8 @@ Depending on the type of layer see the relative format. See [Layer tags](#Layer-
 - **[2]usize** : `stride`  
 
 ### Flatten Layer  
-- This layer has no relevant attributes to be saved
+- **usize** : `original_shape.len`
+- **[]usize** : `original_shape`
 
 ### Pooling Layer  
 - **[2]usize** : `kernel`  

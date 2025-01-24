@@ -1,6 +1,7 @@
 const std = @import("std");
 const cwd = std.fs.cwd();
 const Model = @import("model").Model;
+//------------layer libraries
 const Layer = @import("layer");
 const DenseLayer = Layer.DenseLayer;
 const ActivationLayer = Layer.ActivationLayer;
@@ -60,6 +61,7 @@ pub fn exportLayer(
     } else if (layer.layer_type == LayerType.FlattenLayer) { // ------ EXPORT FLATTEN
         _ = try writer.write("Flatten..."); //see #Tags in `import_export_guide.md`
         //OSS!! There is nothing to export. We just need to know that it exists to put it in the model
+        try exportLayerFlatten();
     } else if (layer.layer_type == LayerType.PoolingLayer) { // ------ EXPORT POOLING
         _ = try writer.write("Pooling..."); //see #Tags in `import_export_guide.md`
         const poolLayer: *PoolingLayer(T) = @alignCast(@ptrCast(layer.layer_ptr));
@@ -98,6 +100,10 @@ pub fn exportLayerConvolutional(
     try writer.writeInt(usize, layer.kernel_shape[3], std.builtin.Endian.big);
     try writer.writeInt(usize, layer.stride[0], std.builtin.Endian.big);
     try writer.writeInt(usize, layer.stride[1], std.builtin.Endian.big);
+}
+
+pub fn exportLayerFlatten() !void {
+    std.debug.print(" flatten ", .{});
 }
 
 pub fn exportLayerActivation(
