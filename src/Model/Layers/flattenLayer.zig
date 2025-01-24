@@ -76,11 +76,10 @@ pub fn FlattenLayer(comptime T: type) type {
                 return LayerError.InvalidParameters;
             }
 
-            // Store original shape for backward pass
-            if (self.original_shape.len > 0) {
-                self.allocator.free(self.original_shape);
+            // Store original shape for backward pass, only once, only for the first forward
+            if (self.original_shape.len == 0) {
+                self.original_shape = try self.allocator.dupe(usize, input.shape);
             }
-            self.original_shape = try self.allocator.dupe(usize, input.shape);
 
             const batch_size = input.shape[0];
             var total_size: usize = 1;
