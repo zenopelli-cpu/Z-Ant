@@ -64,6 +64,7 @@ pub const AttributeProto = struct {
     f: f32 = 0,
     i: i64 = 0,
     s: []const u8 = "",
+    t: ?TensorProto = null,
     floats: []f32 = &[_]f32{},
     ints: []i64 = &[_]i64{},
     strings: [][]const u8 = &[_][]const u8{},
@@ -76,6 +77,11 @@ pub const AttributeProto = struct {
                 allocator.free(str);
             }
             allocator.free(self.strings);
+        }
+        if (self.type == .TENSOR) {
+            if (self.t) |*tensor| {
+                tensor.deinit(allocator);
+            }
         }
         allocator.free(self.name);
         if (self.type == .STRING) allocator.free(self.s);
@@ -293,6 +299,11 @@ pub const NodeProto = struct {
                             4 => { // s
                                 attr.s = try attr_reader.readString(reader.allocator);
                                 attr.type = .STRING;
+                            },
+                            5 => { // t
+                                var tensor_reader = try attr_reader.readLengthDelimited();
+                                attr.t = try TensorProto.parse(&tensor_reader);
+                                attr.type = .TENSOR;
                             },
                             7 => { // floats
                                 var floats = std.ArrayList(f32).init(reader.allocator);
@@ -536,6 +547,44 @@ pub fn parseFromFile(allocator: std.mem.Allocator, file_path: []const u8) !Model
     return model;
 }
 
+fn printTensorData(data: []const u8, data_type: DataType) void {
+    switch (data_type) {
+        .FLOAT => {
+            const float_slice = @as([*]const f32, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 4)];
+            const num_to_print = @min(float_slice.len, 10);
+            for (float_slice[0..num_to_print]) |val| {
+                std.debug.print("{d:.3} ", .{val});
+            }
+            if (float_slice.len > 10) {
+                std.debug.print("...", .{});
+            }
+        },
+        .INT32 => {
+            const int_slice = @as([*]const i32, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 4)];
+            const num_to_print = @min(int_slice.len, 10);
+            for (int_slice[0..num_to_print]) |val| {
+                std.debug.print("{d} ", .{val});
+            }
+            if (int_slice.len > 10) {
+                std.debug.print("...", .{});
+            }
+        },
+        .INT64 => {
+            const int_slice = @as([*]const i64, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 8)];
+            const num_to_print = @min(int_slice.len, 10);
+            for (int_slice[0..num_to_print]) |val| {
+                std.debug.print("{d} ", .{val});
+            }
+            if (int_slice.len > 10) {
+                std.debug.print("...", .{});
+            }
+        },
+        else => {
+            std.debug.print("(data type {s} not supported for display)", .{@tagName(data_type)});
+        },
+    }
+}
+
 pub fn printStructure(model: *ModelProto) void {
     // Print model info
     std.debug.print("\n=== Model Info ===\n", .{});
@@ -600,6 +649,55 @@ pub fn printStructure(model: *ModelProto) void {
                         .FLOAT => std.debug.print("float = {d}\n", .{attr.f}),
                         .INT => std.debug.print("int = {d}\n", .{attr.i}),
                         .STRING => std.debug.print("string = {s}\n", .{attr.s}),
+                        .TENSOR => {
+                            std.debug.print("tensor = ", .{});
+                            if (attr.t) |t| {
+                                std.debug.print("type: {}, shape: [", .{t.data_type});
+                                for (t.dims, 0..) |dim, j| {
+                                    if (j > 0) std.debug.print(", ", .{});
+                                    std.debug.print("{d}", .{dim});
+                                }
+                                std.debug.print("]\n", .{});
+
+                                // Print tensor data if available
+                                if (t.float_data) |data| {
+                                    std.debug.print("    data = [", .{});
+                                    for (data[0..@min(data.len, 10)]) |val| {
+                                        std.debug.print("{d:.3} ", .{val});
+                                    }
+                                    if (data.len > 10) {
+                                        std.debug.print("...", .{});
+                                    }
+                                    std.debug.print("]\n", .{});
+                                } else if (t.raw_data) |data| {
+                                    std.debug.print("    raw_data = [", .{});
+                                    printTensorData(data, t.data_type);
+                                    std.debug.print("]\n", .{});
+                                } else if (t.int32_data) |data| {
+                                    std.debug.print("    int32_data = [", .{});
+                                    for (data[0..@min(data.len, 10)]) |val| {
+                                        std.debug.print("{d} ", .{val});
+                                    }
+                                    if (data.len > 10) {
+                                        std.debug.print("...", .{});
+                                    }
+                                    std.debug.print("]\n", .{});
+                                } else if (t.int64_data) |data| {
+                                    std.debug.print("    int64_data = [", .{});
+                                    for (data[0..@min(data.len, 10)]) |val| {
+                                        std.debug.print("{d} ", .{val});
+                                    }
+                                    if (data.len > 10) {
+                                        std.debug.print("...", .{});
+                                    }
+                                    std.debug.print("]\n", .{});
+                                } else {
+                                    std.debug.print("    (no data available)\n", .{});
+                                }
+                            } else {
+                                std.debug.print("null\n", .{});
+                            }
+                        },
                         .FLOATS => {
                             std.debug.print("floats = [", .{});
                             for (attr.floats) |f| {
@@ -628,11 +726,22 @@ pub fn printStructure(model: *ModelProto) void {
         }
 
         // Print initializer details
-        std.debug.print("\n=== Initializers ===\n", .{});
+        std.debug.print("\n=== Initializers (weights, biases, etc.) ===\n", .{});
         for (graph.initializers, 0..) |*init, i| {
             std.debug.print("\nInitializer {d}:\n", .{i});
             if (init.name) |name| {
-                std.debug.print("Name: {s}\n", .{name});
+                // Parse the name to understand what kind of parameter it is
+                if (std.mem.indexOf(u8, name, "weight")) |_| {
+                    std.debug.print("Name: {s} (weights/filters)\n", .{name});
+                } else if (std.mem.indexOf(u8, name, "bias")) |_| {
+                    std.debug.print("Name: {s} (bias values)\n", .{name});
+                } else if (std.mem.indexOf(u8, name, "running_mean")) |_| {
+                    std.debug.print("Name: {s} (batch norm mean)\n", .{name});
+                } else if (std.mem.indexOf(u8, name, "running_var")) |_| {
+                    std.debug.print("Name: {s} (batch norm variance)\n", .{name});
+                } else {
+                    std.debug.print("Name: {s}\n", .{name});
+                }
             }
             std.debug.print("Type: {}\n", .{init.data_type});
             std.debug.print("Shape: [", .{});
@@ -641,6 +750,45 @@ pub fn printStructure(model: *ModelProto) void {
                 std.debug.print("{d}", .{dim});
             }
             std.debug.print("]\n", .{});
+
+            // Print some data samples
+            std.debug.print("Data preview: ", .{});
+            if (init.float_data) |data| {
+                std.debug.print("[", .{});
+                for (data[0..@min(data.len, 5)]) |val| {
+                    std.debug.print("{d:.3} ", .{val});
+                }
+                if (data.len > 5) {
+                    std.debug.print("...", .{});
+                }
+                std.debug.print("]\n", .{});
+            } else if (init.raw_data) |data| {
+                std.debug.print("[", .{});
+                printTensorData(data, init.data_type);
+                std.debug.print("]\n", .{});
+            } else if (init.int32_data) |data| {
+                std.debug.print("[", .{});
+                for (data[0..@min(data.len, 5)]) |val| {
+                    std.debug.print("{d} ", .{val});
+                }
+                if (data.len > 5) {
+                    std.debug.print("...", .{});
+                }
+                std.debug.print("]\n", .{});
+            } else {
+                std.debug.print("(no data available)\n", .{});
+            }
+
+            // Add explanation based on shape
+            if (init.dims.len > 0) {
+                std.debug.print("Description: ", .{});
+                switch (init.dims.len) {
+                    1 => std.debug.print("1D tensor with {d} values (typically bias or batch norm parameter)\n", .{init.dims[0]}),
+                    2 => std.debug.print("2D matrix of size {d}x{d} (typically dense layer weights)\n", .{ init.dims[0], init.dims[1] }),
+                    4 => std.debug.print("4D tensor of size {d}x{d}x{d}x{d} (convolutional filters: out_channels x in_channels x height x width)\n", .{ init.dims[0], init.dims[1], init.dims[2], init.dims[3] }),
+                    else => std.debug.print("{d}D tensor\n", .{init.dims.len}),
+                }
+            }
         }
     }
 }
