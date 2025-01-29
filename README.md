@@ -67,3 +67,8 @@ Follow the [Docker Guide](How_TO_DOCKER_101.md) for containerized usage.
 ## Join Us!
 
 Contribute to Zant on [GitHub](#). Let’s make NN deployment on microcontrollers efficient, accessible, and open!
+
+## Contributors
+
+[View all contributors](https://github.com/ZIGTinyBook/Z-Ant/graphs/contributors)
+

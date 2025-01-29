@@ -34,7 +34,7 @@ pub const multidim_pooling = pooling_math_lib.multidim_pooling;
 pub const pool_forward = pooling_math_lib.pool_forward;
 pub const pool_backward = pooling_math_lib.pool_backward;
 
-// *+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 const reduction_math_lib = @import("lib_reduction_math.zig");
 pub const mean = reduction_math_lib.mean;
