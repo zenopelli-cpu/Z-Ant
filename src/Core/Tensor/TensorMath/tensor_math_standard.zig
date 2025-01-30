@@ -52,3 +52,10 @@ const logical_math_lib = @import("lib_logical_math.zig");
 pub const isOneHot = logical_math_lib.isOneHot;
 pub const isSafe = logical_math_lib.isSafe;
 pub const equal = logical_math_lib.equal;
+
+// ---------- importing standard activation function methods ----------
+const activation_math_lib = @import("lib_activation_function_math.zig");
+pub const ReLU = activation_math_lib.ReLU_standard;
+pub const leakyReLU = activation_math_lib.leakyReLU;
+pub const sigmoid = activation_math_lib.sigmoid;
+pub const softmax = activation_math_lib.softmax;

@@ -3,6 +3,7 @@ const Tensor = @import("tensor").Tensor;
 //import error libraries
 const TensorError = @import("errorHandler").TensorError;
 const TensorMathError = @import("errorHandler").TensorMathError;
+const TensMath = @import("tensor_m");
 
 pub const ActivationType = enum {
     ReLU,
@@ -38,14 +39,7 @@ pub fn ReLU(comptime T: anytype) type {
         pub fn forward(self: *Self, input: *Tensor(T)) !void {
             _ = self;
 
-            //checks
-            if (input.size <= 0) return TensorError.ZeroSizeTensor;
-
-            //apply ReLU
-            //OSS: can be improved, see how did I parallelized CPU Tensor Sum
-            for (0..input.size) |i| {
-                if (input.data[i] <= 0) input.data[i] = 0;
-            }
+            try TensMath.ReLU(T, input);
         }
 
         pub fn derivate(self: *Self, gradient: *Tensor(T), act_relu_input: *Tensor(T)) !void {
@@ -81,15 +75,7 @@ pub fn LeakyReLU(comptime T: anytype) type {
         pub fn forward(self: *Self, input: *Tensor(T), slope: T) !void {
             _ = self;
 
-            //checks
-            if (input.size <= 0) return TensorError.ZeroSizeTensor;
-
-            //apply Leaky ReLU suing relu self.relu() - (-neg_slope*self).relu()
-            for (0..input.size) |i| {
-                if (input.data[i] <= 0) {
-                    input.data[i] = slope * input.data[i];
-                }
-            }
+            try TensMath.leakyReLU(T, input, slope);
         }
 
         pub fn derivate(self: *Self, gradient: *Tensor(T), act_relu_input: *Tensor(T), slope: T) !void {
@@ -120,13 +106,7 @@ pub fn Sigmoid(comptime T: anytype) type {
         //it directly modify the input tensor
         pub fn forward(self: *Self, input: *Tensor(T)) !void {
             _ = self;
-            //checks
-            if (input.size <= 0) return TensorError.ZeroSizeTensor;
-
-            //apply Sigmoid
-            for (0..input.size) |i| {
-                input.data[i] = 1.0 / (1.0 + @exp(-input.data[i]));
-            }
+            try TensMath.sigmoid(T, input);
         }
 
         pub fn derivate(self: *Self, gradient: *Tensor(T), act_forward_out: *Tensor(T)) !void {
@@ -154,105 +134,9 @@ pub fn Softmax(comptime T: anytype) type {
         //it directly modify the input tensor
         pub fn forward(self: *Self, input: *Tensor(T)) !void {
             _ = self;
-            const allocator = pkg_allocator;
-
-            const location = try allocator.alloc(usize, input.shape.len);
-            defer allocator.free(location);
-
-            //fill starting location to all zeros
-            for (0..input.shape.len) |i| {
-                location[i] = 0;
-            }
 
             //try compute_mutidim_softmax(input, 0, location);
-            try compute_2D_softmax(input);
-        }
-
-        fn compute_2D_softmax(input: *Tensor(T)) !void {
-            const rows = input.shape[0];
-            const cols = input.shape[1];
-
-            var max_val: T = undefined;
-            var sum_of_exp: T = 0.0;
-            var val: T = undefined;
-
-            // For each row
-            for (0..rows) |i| {
-                // Find the maximum value in the row to stabilize the computation
-                max_val = input.data[i * cols];
-                for (0..cols) |j| {
-                    val = input.data[i * cols + j];
-                    if (val > max_val) {
-                        max_val = val;
-                    }
-                }
-
-                // Compute stabilized exponentials and their sum
-                sum_of_exp = 0.0;
-                for (0..cols) |j| {
-                    val = input.data[i * cols + j] - max_val; // Stabilization
-                    val = @exp(val);
-                    input.data[i * cols + j] = val;
-                    sum_of_exp += val;
-                }
-
-                // Normalize to calculate the softmax
-                for (0..cols) |j| {
-                    input.data[i * cols + j] /= sum_of_exp;
-                }
-            }
-        }
-
-        //TODO: now scan the rows of the matrix, it must scan the columns
-        fn compute_mutidim_softmax(input: *Tensor(T), current_depth: usize, location: []usize) !void {
-            if (current_depth == (input.shape.len - 1)) {
-                //declaring res as the result of the sum of the MSE
-                const allocator = pkg_allocator;
-
-                //get location is used just to manage the gets and sets relative to the current depth
-                const get_location = try allocator.alloc(usize, location.len);
-                defer allocator.free(get_location);
-                //initializing get location to the same values of location
-                for (0..get_location.len) |i| {
-                    get_location[i] = location[i];
-                }
-
-                //input.info();
-
-                //allocating space for the exponent of each value
-                var sum_of_exp: T = 0.0;
-                var val: T = undefined;
-                var exp: T = undefined;
-
-                //calculating the value of the exponential for each element
-                for (0..input.shape[current_depth]) |i| {
-                    get_location[current_depth] = i; //for each element of predictions vect and target vect
-                    val = try input.get_at(get_location);
-                    exp = @exp(val);
-                    try input.set_at(get_location, exp);
-                    sum_of_exp += exp;
-                }
-
-                //set the value of current_elem/sum_of_exp
-                for (0..input.shape[current_depth]) |i| {
-                    get_location[current_depth] = i; //for each element of predictions vect and target vect
-                    val = try input.get_at(get_location);
-                    val = val / sum_of_exp;
-                    try input.set_at(get_location, val);
-                }
-            } else {
-                for (0..input.shape[current_depth]) |element_at_current_depth| {
-                    //print depth:
-                    //std.debug.print("\n depth: {} element_at_current_depth: {}", .{ current_depth, element_at_current_depth });
-                    location[current_depth] = element_at_current_depth;
-                    //otherwise I have to go deeper
-                    try compute_mutidim_softmax(
-                        input,
-                        current_depth + 1,
-                        location,
-                    );
-                }
-            }
+            try TensMath.softmax(T, input);
         }
 
         pub fn derivate(self: *Self, dL_dX: *Tensor(T), softmax_output: *Tensor(T)) !void {
