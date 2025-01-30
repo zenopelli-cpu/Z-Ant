@@ -167,6 +167,7 @@ pub fn build(b: *std.Build) void {
     activation_mod.addImport("tensor", tensor_mod);
     activation_mod.addImport("errorHandler", errorHandler_mod);
     activation_mod.addImport("pkgAllocator", allocator_mod);
+    activation_mod.addImport("tensor_m", tensor_math_mod);
 
     // ************************************************LOSS DEPENDENCIES************************************************
 
