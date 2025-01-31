@@ -86,7 +86,11 @@ pub const ProtoReader = struct {
         }
         const bytes = self.buffer[self.pos..][0..4];
         self.pos += 4;
-        return std.mem.bytesToValue(u32, bytes[0..4]);
+        return std.mem.bytesToValue(u32, bytes);
+    }
+
+    pub fn available(self: *ProtoReader) usize {
+        return self.buffer.len - self.pos;
     }
 
     pub fn readFixed64(self: *ProtoReader) !u64 {
@@ -167,40 +171,14 @@ pub const ProtoReader = struct {
 
     pub fn skipField(self: *ProtoReader, wire_type: WireType) !void {
         switch (wire_type) {
-            .Varint => {
-                _ = try self.readVarint();
-            },
-            .Fixed64 => {
-                if (self.pos + 8 > self.buffer.len) {
-                    return error.EndOfBuffer;
-                }
-                self.pos += 8;
-            },
+            .Varint => _ = try self.readVarint(),
+            .Fixed64 => try self.skip(8),
             .LengthDelimited => {
                 const len = try self.readVarint();
-                if (len > std.math.maxInt(usize)) {
-                    return error.LengthTooLong;
-                }
-                const size: usize = @intCast(len);
-                if (self.pos + size > self.buffer.len) {
-                    return error.EndOfBuffer;
-                }
-                self.pos += size;
+                try self.skip(len);
             },
-            .StartGroup, .EndGroup => {
-                // Groups are deprecated in proto3, but we'll skip them without error
-                return;
-            },
-            .Fixed32 => {
-                if (self.pos + 4 > self.buffer.len) {
-                    return error.EndOfBuffer;
-                }
-                self.pos += 4;
-            },
-            .Unknown, .Reserved => {
-                // Skip unknown or reserved wire types as Varint
-                _ = try self.readVarint();
-            },
+            .Fixed32 => try self.skip(4),
+            else => return error.UnsupportedWireType,
         }
     }
 
