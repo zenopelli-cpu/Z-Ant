@@ -20,7 +20,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var model = try onnx.parseFromFile(allocator, "/home/marco/TheTinyBook/datasets/best.onnx");
+    var model = try onnx.parseFromFile(allocator, "/home/marco/TheTinyBook/datasets/mnist-8.onnx");
     defer model.deinit(allocator);
 
     onnx.printStructure(&model);

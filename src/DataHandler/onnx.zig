@@ -64,7 +64,7 @@ pub const AttributeProto = struct {
     f: f32 = 0,
     i: i64 = 0,
     s: []const u8 = "",
-    t: ?TensorProto = null,
+    t: ?*TensorProto = null,
     floats: []f32 = &[_]f32{},
     ints: []i64 = &[_]i64{},
     strings: [][]const u8 = &[_][]const u8{},
@@ -76,7 +76,10 @@ pub const AttributeProto = struct {
             .FLOAT => {},
             .INT => {},
             .STRING => allocator.free(self.s),
-            .TENSOR => if (self.t) |*t| t.deinit(allocator),
+            .TENSOR => if (self.t) |t| {
+                t.deinit(allocator);
+                allocator.destroy(t);
+            },
             .FLOATS => allocator.free(self.floats),
             .INTS => allocator.free(self.ints),
             .STRINGS => {
@@ -151,7 +154,15 @@ pub const TensorProto = struct {
                 },
                 4 => { // float_data
                     var data = std.ArrayList(f32).init(reader.allocator);
-                    while (reader.hasMore()) {
+                    defer data.deinit();
+                    if (tag.wire_type == .LengthDelimited) {
+                        var float_reader = try reader.readLengthDelimited();
+                        while (float_reader.hasMore()) {
+                            if (float_reader.available() < 4) break;
+                            const value = try float_reader.readFixed32();
+                            try data.append(@bitCast(value));
+                        }
+                    } else {
                         const value = try reader.readFixed32();
                         try data.append(@bitCast(value));
                     }
@@ -159,7 +170,14 @@ pub const TensorProto = struct {
                 },
                 5 => { // int32_data
                     var data = std.ArrayList(i32).init(reader.allocator);
-                    while (reader.hasMore()) {
+                    defer data.deinit();
+                    if (tag.wire_type == .LengthDelimited) {
+                        var int_reader = try reader.readLengthDelimited();
+                        while (int_reader.hasMore()) {
+                            const value = try int_reader.readVarint();
+                            try data.append(@intCast(value));
+                        }
+                    } else {
                         const value = try reader.readVarint();
                         try data.append(@intCast(value));
                     }
@@ -167,7 +185,14 @@ pub const TensorProto = struct {
                 },
                 7 => { // int64_data
                     var data = std.ArrayList(i64).init(reader.allocator);
-                    while (reader.hasMore()) {
+                    defer data.deinit();
+                    if (tag.wire_type == .LengthDelimited) {
+                        var int_reader = try reader.readLengthDelimited();
+                        while (int_reader.hasMore()) {
+                            const value = try int_reader.readVarint();
+                            try data.append(@intCast(value));
+                        }
+                    } else {
                         const value = try reader.readVarint();
                         try data.append(@intCast(value));
                     }
@@ -175,7 +200,15 @@ pub const TensorProto = struct {
                 },
                 10 => { // double_data
                     var data = std.ArrayList(f64).init(reader.allocator);
-                    while (reader.hasMore()) {
+                    defer data.deinit();
+                    if (tag.wire_type == .LengthDelimited) {
+                        var double_reader = try reader.readLengthDelimited();
+                        while (double_reader.hasMore()) {
+                            if (double_reader.available() < 8) break;
+                            const value = try double_reader.readFixed64();
+                            try data.append(@bitCast(value));
+                        }
+                    } else {
                         const value = try reader.readFixed64();
                         try data.append(@bitCast(value));
                     }
@@ -183,7 +216,14 @@ pub const TensorProto = struct {
                 },
                 11 => { // uint64_data
                     var data = std.ArrayList(u64).init(reader.allocator);
-                    while (reader.hasMore()) {
+                    defer data.deinit();
+                    if (tag.wire_type == .LengthDelimited) {
+                        var uint_reader = try reader.readLengthDelimited();
+                        while (uint_reader.hasMore()) {
+                            const value = try uint_reader.readVarint();
+                            try data.append(value);
+                        }
+                    } else {
                         const value = try reader.readVarint();
                         try data.append(value);
                     }
@@ -204,7 +244,7 @@ pub const NodeProto = struct {
     domain: ?[]const u8,
     input: [][]const u8,
     output: [][]const u8,
-    attribute: []AttributeProto,
+    attribute: []*AttributeProto,
 
     pub fn deinit(self: *NodeProto, allocator: std.mem.Allocator) void {
         if (self.name) |name| allocator.free(name);
@@ -218,8 +258,9 @@ pub const NodeProto = struct {
             allocator.free(output);
         }
         allocator.free(self.output);
-        for (self.attribute) |*attr| {
+        for (self.attribute) |attr| {
             attr.deinit(allocator);
+            allocator.destroy(attr);
         }
         allocator.free(self.attribute);
     }
@@ -231,14 +272,14 @@ pub const NodeProto = struct {
             .domain = null,
             .input = &[_][]const u8{},
             .output = &[_][]const u8{},
-            .attribute = &[_]AttributeProto{},
+            .attribute = &[_]*AttributeProto{},
         };
 
         var inputs = std.ArrayList([]const u8).init(reader.allocator);
         defer inputs.deinit();
         var outputs = std.ArrayList([]const u8).init(reader.allocator);
         defer outputs.deinit();
-        var attributes = std.ArrayList(AttributeProto).init(reader.allocator);
+        var attributes = std.ArrayList(*AttributeProto).init(reader.allocator);
         defer attributes.deinit();
 
         errdefer {
@@ -248,7 +289,10 @@ pub const NodeProto = struct {
 
             for (inputs.items) |i| reader.allocator.free(i);
             for (outputs.items) |o| reader.allocator.free(o);
-            for (attributes.items) |*a| a.deinit(reader.allocator);
+            for (attributes.items) |attr| {
+                attr.deinit(reader.allocator);
+                reader.allocator.destroy(attr);
+            }
         }
 
         while (reader.hasMore()) {
@@ -270,8 +314,9 @@ pub const NodeProto = struct {
                 },
                 5 => { // attribute (repeated)
                     var attr_reader = try reader.readLengthDelimited();
-                    const attr = try parseSingleAttribute(&attr_reader, reader.allocator);
-                    try attributes.append(attr);
+                    const attr_ptr = try reader.allocator.create(AttributeProto);
+                    attr_ptr.* = try parseSingleAttribute(&attr_reader, reader.allocator);
+                    try attributes.append(attr_ptr);
                 },
                 7 => { // domain
                     node.domain = try reader.readString(reader.allocator);
@@ -291,27 +336,33 @@ pub const NodeProto = struct {
 
 pub const GraphProto = struct {
     name: ?[]const u8,
-    nodes: []NodeProto,
-    initializers: []TensorProto,
+    nodes: []*NodeProto,
+    initializers: []*TensorProto,
 
     pub fn deinit(self: *GraphProto, allocator: std.mem.Allocator) void {
         if (self.name) |n| allocator.free(n);
-        for (self.nodes) |*node| node.deinit(allocator);
+        for (self.nodes) |node| {
+            node.deinit(allocator);
+            allocator.destroy(node);
+        }
         allocator.free(self.nodes);
-        for (self.initializers) |*init| init.deinit(allocator);
+        for (self.initializers) |init| {
+            init.deinit(allocator);
+            allocator.destroy(init);
+        }
         allocator.free(self.initializers);
     }
 
     pub fn parse(reader: *protobuf.ProtoReader) !GraphProto {
         var graph = GraphProto{
             .name = null,
-            .nodes = &[_]NodeProto{},
-            .initializers = &[_]TensorProto{},
+            .nodes = &[_]*NodeProto{},
+            .initializers = &[_]*TensorProto{},
         };
 
-        var nodes = std.ArrayList(NodeProto).init(reader.allocator);
+        var nodes = std.ArrayList(*NodeProto).init(reader.allocator);
         defer nodes.deinit();
-        var initializers = std.ArrayList(TensorProto).init(reader.allocator);
+        var initializers = std.ArrayList(*TensorProto).init(reader.allocator);
         defer initializers.deinit();
 
         while (reader.hasMore()) {
@@ -319,25 +370,22 @@ pub const GraphProto = struct {
             switch (tag.field_number) {
                 1 => { // node
                     var node_reader = try reader.readLengthDelimited();
-                    const node = try NodeProto.parse(&node_reader);
-                    try nodes.append(node);
+                    const node_ptr = try reader.allocator.create(NodeProto);
+                    node_ptr.* = try NodeProto.parse(&node_reader);
+                    try nodes.append(node_ptr);
                 },
                 2 => { // name
                     graph.name = try reader.readString(reader.allocator);
                 },
-                3 => { // initializer
+                3, 5 => { // initializer (repeated)
                     var tensor_reader = try reader.readLengthDelimited();
-                    const tensor = try TensorProto.parse(&tensor_reader);
-                    try initializers.append(tensor);
+                    const tensor_ptr = try reader.allocator.create(TensorProto);
+                    tensor_ptr.* = try TensorProto.parse(&tensor_reader);
+                    try initializers.append(tensor_ptr);
                 },
                 4 => { // doc_string
                     var str_reader = try reader.readLengthDelimited();
                     _ = try str_reader.readString(reader.allocator);
-                },
-                5 => { // initializer (repeated)
-                    var tensor_reader = try reader.readLengthDelimited();
-                    const tensor = try TensorProto.parse(&tensor_reader);
-                    try initializers.append(tensor);
                 },
                 6 => { // sparse_initializer
                     var sparse_reader = try reader.readLengthDelimited();
@@ -433,7 +481,9 @@ fn parseSingleAttribute(
             },
             5 => { // single tensor (t)
                 var tensor_reader = try attr_reader.readLengthDelimited();
-                attr.t = try TensorProto.parse(&tensor_reader);
+                const tensor_ptr = try allocator.create(TensorProto);
+                tensor_ptr.* = try TensorProto.parse(&tensor_reader);
+                attr.t = tensor_ptr;
                 if (attr.type != .INTS) attr.type = .TENSOR;
             },
             6 => { // repeated float (floats)
@@ -479,14 +529,17 @@ pub const ModelProto = struct {
     domain: ?[]const u8,
     model_version: ?i64,
     doc_string: ?[]const u8,
-    graph: ?GraphProto,
+    graph: ?*GraphProto,
 
     pub fn deinit(self: *ModelProto, allocator: std.mem.Allocator) void {
         if (self.producer_name) |n| allocator.free(n);
         if (self.producer_version) |v| allocator.free(v);
         if (self.domain) |d| allocator.free(d);
         if (self.doc_string) |d| allocator.free(d);
-        if (self.graph) |*g| g.deinit(allocator);
+        if (self.graph) |g| {
+            g.deinit(allocator);
+            allocator.destroy(g);
+        }
     }
 
     pub fn parse(reader: *protobuf.ProtoReader) !ModelProto {
@@ -504,7 +557,7 @@ pub const ModelProto = struct {
             if (model.producer_version) |v| reader.allocator.free(v);
             if (model.domain) |d| reader.allocator.free(d);
             if (model.doc_string) |d| reader.allocator.free(d);
-            if (model.graph) |*g| g.deinit(reader.allocator);
+            if (model.graph) |g| g.deinit(reader.allocator);
         }
 
         while (reader.hasMore()) {
@@ -539,9 +592,14 @@ pub const ModelProto = struct {
                     model.doc_string = str;
                 },
                 7 => { // graph
-                    if (model.graph) |*g| g.deinit(reader.allocator);
+                    if (model.graph) |g| {
+                        g.deinit(reader.allocator);
+                        reader.allocator.destroy(g);
+                    }
                     var graph_reader = try reader.readLengthDelimited();
-                    model.graph = try GraphProto.parse(&graph_reader);
+                    const graph_ptr = try reader.allocator.create(GraphProto);
+                    graph_ptr.* = try GraphProto.parse(&graph_reader);
+                    model.graph = graph_ptr;
                 },
                 else => try reader.skipField(tag.wire_type),
             }
@@ -621,7 +679,7 @@ pub fn printStructure(model: *ModelProto) void {
     }
 
     // Print graph info
-    if (model.graph) |*graph| {
+    if (model.graph) |graph| {
         std.debug.print("\n=== Graph Info ===\n", .{});
         if (graph.name) |name| {
             std.debug.print("Name: {s}\n", .{name});
@@ -631,43 +689,43 @@ pub fn printStructure(model: *ModelProto) void {
 
         // First, print a high-level view of the graph structure
         std.debug.print("\n=== Graph Structure ===\n", .{});
-        for (graph.nodes, 0..) |*node, i| {
+        for (graph.nodes, 0..) |node_ptr, i| {
             // Print current node
-            std.debug.print("\n[{d}] {s}", .{ i, node.op_type });
-            if (node.name) |name| {
+            std.debug.print("\n[{d}] {s}", .{ i, node_ptr.op_type });
+            if (node_ptr.name) |name| {
                 std.debug.print(" ({s})", .{name});
             }
             std.debug.print("\n", .{});
 
             // Print inputs with arrows
             std.debug.print("  Inputs:\n", .{});
-            for (node.input) |input| {
+            for (node_ptr.input) |input| {
                 std.debug.print("    ← {s}\n", .{input});
             }
 
             // Print outputs with arrows
             std.debug.print("  Outputs:\n", .{});
-            for (node.output) |output| {
+            for (node_ptr.output) |output| {
                 std.debug.print("    → {s}\n", .{output});
             }
         }
 
         // Then print detailed node information
         std.debug.print("\n=== Detailed Node Info ===\n", .{});
-        for (graph.nodes, 0..) |*node, i| {
+        for (graph.nodes, 0..) |node_ptr, i| {
             std.debug.print("\n[Node {d}]\n", .{i});
-            if (node.name) |name| {
+            if (node_ptr.name) |name| {
                 std.debug.print("Name: {s}\n", .{name});
             }
-            std.debug.print("Type: {s}\n", .{node.op_type});
-            if (node.domain) |domain| {
+            std.debug.print("Type: {s}\n", .{node_ptr.op_type});
+            if (node_ptr.domain) |domain| {
                 std.debug.print("Domain: {s}\n", .{domain});
             }
 
             // Print attributes
-            if (node.attribute.len > 0) {
+            if (node_ptr.attribute.len > 0) {
                 std.debug.print("Attributes:\n", .{});
-                for (node.attribute) |attr| {
+                for (node_ptr.attribute) |attr| {
                     std.debug.print("  {s}: ", .{attr.name});
                     switch (attr.type) {
                         .FLOAT => std.debug.print("float = {d}\n", .{attr.f}),
@@ -751,9 +809,9 @@ pub fn printStructure(model: *ModelProto) void {
 
         // Print initializer details
         std.debug.print("\n=== Initializers (weights, biases, etc.) ===\n", .{});
-        for (graph.initializers, 0..) |*init, i| {
+        for (graph.initializers, 0..) |init_ptr, i| {
             std.debug.print("\nInitializer {d}:\n", .{i});
-            if (init.name) |name| {
+            if (init_ptr.name) |name| {
                 if (std.mem.indexOf(u8, name, "weight")) |_| {
                     std.debug.print("Name: {s} (weights/filters)\n", .{name});
                 } else if (std.mem.indexOf(u8, name, "bias")) |_| {
@@ -766,9 +824,9 @@ pub fn printStructure(model: *ModelProto) void {
                     std.debug.print("Name: {s}\n", .{name});
                 }
             }
-            std.debug.print("Type: {}\n", .{init.data_type});
+            std.debug.print("Type: {}\n", .{init_ptr.data_type});
             std.debug.print("Shape: [", .{});
-            for (init.dims, 0..) |dim, j| {
+            for (init_ptr.dims, 0..) |dim, j| {
                 if (j > 0) std.debug.print(", ", .{});
                 std.debug.print("{d}", .{dim});
             }
@@ -776,7 +834,7 @@ pub fn printStructure(model: *ModelProto) void {
 
             // Print some data samples
             std.debug.print("Data preview: ", .{});
-            if (init.float_data) |data| {
+            if (init_ptr.float_data) |data| {
                 std.debug.print("[", .{});
                 for (data[0..@min(data.len, 5)]) |val| {
                     std.debug.print("{d:.3} ", .{val});
@@ -785,11 +843,11 @@ pub fn printStructure(model: *ModelProto) void {
                     std.debug.print("...", .{});
                 }
                 std.debug.print("]\n", .{});
-            } else if (init.raw_data) |data| {
+            } else if (init_ptr.raw_data) |data| {
                 std.debug.print("[", .{});
-                printTensorData(data, init.data_type);
+                printTensorData(data, init_ptr.data_type);
                 std.debug.print("]\n", .{});
-            } else if (init.int32_data) |data| {
+            } else if (init_ptr.int32_data) |data| {
                 std.debug.print("[", .{});
                 for (data[0..@min(data.len, 5)]) |val| {
                     std.debug.print("{d} ", .{val});
@@ -803,13 +861,13 @@ pub fn printStructure(model: *ModelProto) void {
             }
 
             // Add explanation based on shape
-            if (init.dims.len > 0) {
+            if (init_ptr.dims.len > 0) {
                 std.debug.print("Description: ", .{});
-                switch (init.dims.len) {
-                    1 => std.debug.print("1D tensor with {d} values (typically bias or batch norm parameter)\n", .{init.dims[0]}),
-                    2 => std.debug.print("2D matrix of size {d}x{d} (typically dense layer weights)\n", .{ init.dims[0], init.dims[1] }),
-                    4 => std.debug.print("4D tensor of size {d}x{d}x{d}x{d} (convolutional filters: out_channels x in_channels x height x width)\n", .{ init.dims[0], init.dims[1], init.dims[2], init.dims[3] }),
-                    else => std.debug.print("{d}D tensor\n", .{init.dims.len}),
+                switch (init_ptr.dims.len) {
+                    1 => std.debug.print("1D tensor with {d} values (typically bias or batch norm parameter)\n", .{init_ptr.dims[0]}),
+                    2 => std.debug.print("2D matrix of size {d}x{d} (typically dense layer weights)\n", .{ init_ptr.dims[0], init_ptr.dims[1] }),
+                    4 => std.debug.print("4D tensor of size {d}x{d}x{d}x{d} (convolutional filters: out_channels x in_channels x height x width)\n", .{ init_ptr.dims[0], init_ptr.dims[1], init_ptr.dims[2], init_ptr.dims[3] }),
+                    else => std.debug.print("{d}D tensor\n", .{init_ptr.dims.len}),
                 }
             }
         }
