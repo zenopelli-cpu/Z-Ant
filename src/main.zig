@@ -15,15 +15,16 @@ const ActivationType = @import("activation_function").ActivationType;
 const LossType = @import("loss").LossType;
 const Trainer = @import("trainer");
 const BatchNormLayer = @import("batchNormLayer").BatchNormLayer;
-const onnx = @import("DataHandler/onnx.zig");
+const onnx = @import("onnx/onnx.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var model = try onnx.parseFromFile(allocator, "/home/mirko/Documents/zig/Tiny/TheTinyBook/datasets/best.onnx");
-    defer model.deinit(allocator);
+    var model1 = try onnx.parseFromFile(allocator, "/home/mirko/Documents/zig/Tiny/TheTinyBook/datasets/models/mnist-8/mnist-8.onnx");
+    defer model1.deinit(allocator);
 
-    onnx.printStructure(&model);
+    //onnx.printStructure(&model1);
+
 }
