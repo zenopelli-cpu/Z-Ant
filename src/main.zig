@@ -8,7 +8,6 @@ const FlattenLayer = layer.FlattenLayer;
 const PoolingLayer = layer.PoolingLayer;
 const PoolingType = layer.poolingLayer.PoolingType;
 const ActivationLayer = layer.ActivationLayer;
-const BatchNormLayer = layer.BatchNormLayer;
 //--- other
 const Model = @import("model").Model;
 const loader = @import("dataloader");
@@ -23,7 +22,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var model = try onnx.parseFromFile(allocator, "/home/marco/TheTinyBook/datasets/best.onnx");
+    var model = try onnx.parseFromFile(allocator, "/home/mirko/Documents/zig/Tiny/TheTinyBook/datasets/best.onnx");
     defer model.deinit(allocator);
 
     onnx.printStructure(&model);
