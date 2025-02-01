@@ -16,6 +16,7 @@ const LossType = @import("loss").LossType;
 const Trainer = @import("trainer");
 const BatchNormLayer = @import("batchNormLayer").BatchNormLayer;
 const onnx = @import("onnx/onnx.zig");
+const codeGen = @import("codeGen/skeleton.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -27,4 +28,12 @@ pub fn main() !void {
 
     //onnx.printStructure(&model1);
 
+    const file_path = "src/codeGen/firstTry.zig";
+    var file = try std.fs.cwd().createFile(file_path, .{});
+    std.debug.print("\n .......... file created, path:{s}", .{file_path});
+    defer file.close();
+
+    try codeGen.writeZigFile(
+        file,
+    );
 }
