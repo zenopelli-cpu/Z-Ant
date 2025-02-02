@@ -15,8 +15,8 @@ const ActivationType = @import("activation_function").ActivationType;
 const LossType = @import("loss").LossType;
 const Trainer = @import("trainer");
 const BatchNormLayer = @import("batchNormLayer").BatchNormLayer;
-const onnx = @import("onnx/onnx.zig");
-const codeGen = @import("codeGen/skeleton.zig");
+const onnx = @import("onnx");
+const codeGen = @import("codeGen");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -33,7 +33,5 @@ pub fn main() !void {
     std.debug.print("\n .......... file created, path:{s}", .{file_path});
     defer file.close();
 
-    try codeGen.writeZigFile(
-        file,
-    );
+    try codeGen.writeZigFile(file, model1);
 }

@@ -229,6 +229,8 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("trainer", trainer_mod);
     exe.root_module.addImport("pkgAllocator", allocator_mod);
     exe.root_module.addImport("model_import_export", modelImportExport_mod);
+    exe.root_module.addImport("onnx", onnx_mod);
+    exe.root_module.addImport("codeGen", codegen_mod);
 
     // Install the executable.
     b.installArtifact(exe);
