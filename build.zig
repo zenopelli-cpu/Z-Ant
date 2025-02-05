@@ -203,6 +203,7 @@ pub fn build(b: *std.Build) void {
 
     // ************************************************CODEGEN DEPENDENCIES************************************************
     codegen_mod.addImport("onnx", onnx_mod);
+    codegen_mod.addImport("pkgAllocator", allocator_mod);
 
     // ************************************************MAIN EXECUTABLE************************************************
 
