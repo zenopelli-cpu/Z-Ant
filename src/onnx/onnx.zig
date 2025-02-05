@@ -835,7 +835,7 @@ pub fn printStructure(model: *ModelProto) void {
             // Print some data samples
             std.debug.print("Data preview: ", .{});
             if (init_ptr.float_data) |data| {
-                std.debug.print("[", .{});
+                std.debug.print(" float_data [", .{});
                 for (data[0..@min(data.len, 5)]) |val| {
                     std.debug.print("{d:.3} ", .{val});
                 }
@@ -844,11 +844,11 @@ pub fn printStructure(model: *ModelProto) void {
                 }
                 std.debug.print("]\n", .{});
             } else if (init_ptr.raw_data) |data| {
-                std.debug.print("[", .{});
+                std.debug.print(" raw_data [", .{});
                 printTensorData(data, init_ptr.data_type);
                 std.debug.print("]\n", .{});
             } else if (init_ptr.int32_data) |data| {
-                std.debug.print("[", .{});
+                std.debug.print(" int32_data [", .{});
                 for (data[0..@min(data.len, 5)]) |val| {
                     std.debug.print("{d} ", .{val});
                 }
