@@ -34,8 +34,6 @@ pub fn dot_product_tensor(comptime inputType: anytype, comptime outputType: anyt
     var out_shape = try allocator.alloc(usize, nDimT1);
     defer allocator.free(out_shape);
 
-    // Pre-calculate total iterations to avoid repeated multiplications in the loop
-    // This reduces runtime computation overhead
     var total_outer_iterations: usize = 1;
     for (0..(nDimT1 - 2)) |i| {
         out_shape[i] = t1.shape[i];
@@ -48,39 +46,47 @@ pub fn dot_product_tensor(comptime inputType: anytype, comptime outputType: anyt
     var out_tensor = try Tensor(outputType).fromShape(&allocator, out_shape);
     errdefer out_tensor.deinit();
 
-    // Pre-calculate strides to:
-    // 1. Avoid repeated calculations in loops
-    // 2. Enable direct memory access with simple offset arithmetic
-    // 3. Make memory access patterns more predictable for CPU cache
     const inner_dim = t1.shape[nDimT1 - 1];
     const t1_stride = t1.shape[nDimT1 - 1];
     const t2_stride = t2.shape[nDimT1 - 1];
     const out_stride = out_tensor.shape[nDimT1 - 1];
 
-    // Single flat loop instead of nested loops reduces:
-    // 1. Branch prediction misses
-    // 2. Loop overhead
-    // 3. Stack frame management
+    // SIMD vector size - adjust based on your CPU architecture
+    const vec_size = 4;
+    const Vec = @Vector(vec_size, inputType);
+    const vec_iterations = inner_dim / vec_size;
+
     var batch_idx: usize = 0;
     while (batch_idx < total_outer_iterations) : (batch_idx += 1) {
-        // Efficient index calculation using modulo and division
-        // Replaces complex recursive index tracking
         const out_row = (batch_idx / out_stride) % out_tensor.shape[nDimT1 - 2];
         const out_col = batch_idx % out_stride;
 
         var sum: outputType = 0;
-        // Pre-calculate offsets for inner loop efficiency
         const row_offset = out_row * t1_stride;
         const col_offset = out_col;
 
-        // Inner loop optimized for:
-        // 1. SIMD vectorization (simple increment, no complex indexing)
-        // 2. Cache locality (sequential memory access)
-        // 3. Branch prediction (simple condition)
+        // SIMD vectorized part
+        var vec_sum: Vec = @splat(@as(inputType, 0));
         var k: usize = 0;
+        while (k < vec_iterations * vec_size) : (k += vec_size) {
+            const t1_slice = t1.data[row_offset + k .. row_offset + k + vec_size];
+
+            var t1_vec: Vec = undefined;
+            var t2_vec: Vec = undefined;
+            for (0..vec_size) |i| {
+                t1_vec[i] = t1_slice[i];
+                t2_vec[i] = t2.data[k * t2_stride + col_offset + i * t2_stride];
+            }
+            vec_sum += t1_vec * t2_vec;
+        }
+
+        // Reduce vector sum
+        for (0..vec_size) |i| {
+            sum += vec_sum[i];
+        }
+
+        // Handle remaining elements
         while (k < inner_dim) : (k += 1) {
-            // Direct memory access instead of get_at() calls
-            // Eliminates function call overhead and bounds checking
             const t1_val = t1.data[row_offset + k];
             const t2_val = t2.data[k * t2_stride + col_offset];
             sum += t1_val * t2_val;
