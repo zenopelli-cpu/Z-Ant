@@ -29,3 +29,56 @@ const tensor_layer2_weight = Tensor(f32).fromArray(&allocator, & array_layer2_we
 const shape_tensor_layer2_bias : [1]usize = [_]usize{ 5} ;
 const array_layer2_bias : [5]f32 = [_]f32{ 3.573904e-1, 3.3577403e-1, 1.3116845e-1, -3.886374e-1, -2.9121396e-1} ;
 const tensor_layer2_bias = Tensor(f32).fromArray(&allocator, & array_layer2_bias, &shape_tensor_layer2_bias);
+
+
+pub fn predict(comptime T: anytype, tensor_input: Tensor(T)) {
+
+const shape_tensor__layer1_Gemm_output_0 : [4]usize = [_]usize{1, 1, 1, 1} ;
+const tensor__layer1_Gemm_output_0 = Tensor(f32).fromArray(&allocator, & array__layer1_Gemm_output_0, &shape_tensor__layer1_Gemm_output_0);
+ //forwarding operation : Gemm
+ //parameters:
+ //   inputs: 
+//      -> input 
+//      -> layer1.weight 
+//      -> layer1.bias 
+//    outputs: 
+//      <- /layer1/Gemm_output_0 
+
+const shape_tensor__relu_Relu_output_0 : [4]usize = [_]usize{1, 1, 1, 1} ;
+const tensor__relu_Relu_output_0 = Tensor(f32).fromArray(&allocator, & array__relu_Relu_output_0, &shape_tensor__relu_Relu_output_0);
+ //forwarding operation : Relu
+ //parameters:
+ //   inputs: 
+//      -> /layer1/Gemm_output_0 
+//    outputs: 
+//      <- /relu/Relu_output_0 
+
+const shape_tensor__layer2_Gemm_output_0 : [4]usize = [_]usize{1, 1, 1, 1} ;
+const tensor__layer2_Gemm_output_0 = Tensor(f32).fromArray(&allocator, & array__layer2_Gemm_output_0, &shape_tensor__layer2_Gemm_output_0);
+ //forwarding operation : Gemm
+ //parameters:
+ //   inputs: 
+//      -> /relu/Relu_output_0 
+//      -> layer2.weight 
+//      -> layer2.bias 
+//    outputs: 
+//      <- /layer2/Gemm_output_0 
+
+const shape_tensor__relu_1_Relu_output_0 : [4]usize = [_]usize{1, 1, 1, 1} ;
+const tensor__relu_1_Relu_output_0 = Tensor(f32).fromArray(&allocator, & array__relu_1_Relu_output_0, &shape_tensor__relu_1_Relu_output_0);
+ //forwarding operation : Relu
+ //parameters:
+ //   inputs: 
+//      -> /layer2/Gemm_output_0 
+//    outputs: 
+//      <- /relu_1/Relu_output_0 
+
+const shape_tensor_output : [4]usize = [_]usize{1, 1, 1, 1} ;
+const tensor_output = Tensor(f32).fromArray(&allocator, & array_output, &shape_tensor_output);
+ //forwarding operation : Softmax
+ //parameters:
+ //   inputs: 
+//      -> /relu_1/Relu_output_0 
+//    outputs: 
+//      <- output 
+}
