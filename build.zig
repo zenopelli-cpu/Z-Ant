@@ -42,7 +42,7 @@ pub fn build(b: *std.Build) void {
     const onnx_mod = b.createModule(.{ .root_source_file = b.path("src/onnx/onnx.zig") });
 
     // code generation module
-    const codegen_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/skeleton.zig") });
+    const codegen_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/codeGen_skeleton.zig") });
 
     // Create modules from the source files in the `src/DataHandler/` directory.
     const dataloader_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataLoader.zig") });
@@ -202,6 +202,7 @@ pub fn build(b: *std.Build) void {
     modelImportExport_mod.addImport("activation_function", activation_mod);
 
     // ************************************************CODEGEN DEPENDENCIES************************************************
+    codegen_mod.addImport("tensor", tensor_mod);
     codegen_mod.addImport("onnx", onnx_mod);
     codegen_mod.addImport("pkgAllocator", allocator_mod);
 
