@@ -44,6 +44,7 @@ pub inline fn getType(data_type: DataType) !type {
         else => return error.DataTypeNotAvailable,
     }
 }
+
 //Given an element from DataType Enum in onnx.zig returns the equivalent string of a zig type
 pub inline fn getTypeString(data_type: DataType) ![]const u8 {
     switch (data_type) {
@@ -88,11 +89,14 @@ pub inline fn getTypeString(data_type: DataType) ![]const u8 {
 pub inline fn getSanitizedName(name: []const u8) ![]const u8 {
     var sanitized = try allocator.alloc(u8, name.len);
 
-    for (0..name.len) |i| {
-        sanitized[i] = if (std.ascii.isAlphanumeric(name[i]) or name[i] == '_') name[i] else '_';
+    for (name, 0..) |char, i| {
+        sanitized[i] = if (std.ascii.isAlphanumeric(char) or char == '_')
+            std.ascii.toLower(char)
+        else
+            '_';
     }
 
-    std.debug.print("\nfrom {s} to {s} ", .{ name, sanitized });
+    //std.debug.print("\nfrom {s} to {s} ", .{ name, sanitized });
 
     return sanitized;
 }
@@ -100,15 +104,19 @@ pub inline fn getSanitizedName(name: []const u8) ![]const u8 {
 //Returns a List of Ready nodes where all the input Tensor are set as ready
 pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.ArrayList(*ReadyNode) {
     var set: std.ArrayList(*ReadyNode) = std.ArrayList(*ReadyNode).init(allocator);
+    var ready_input_counter: i8 = 0;
+    var ready_output_counter: i8 = 0;
 
     for (readyGraph.items) |*node| {
         for (node.inputs.items) |input| {
-            if (!input.ready) continue;
+            if (!input.ready) break else ready_input_counter += 1;
         }
         for (node.outputs.items) |output| {
-            if (output.ready) return error.OutputReadyTooEarly;
+            if (output.ready) return error.OutputReadyTooEarly else ready_output_counter += 1;
         }
-        try set.append(node);
+        if (ready_input_counter == node.inputs.items.len and ready_output_counter == node.outputs.items.len) try set.append(node);
+        ready_input_counter = 0;
+        ready_output_counter = 0;
     }
 
     return set;
@@ -140,4 +148,37 @@ pub fn getInitializer(name: []const u8, initializers: []*TensorProto) !*TensorPr
     }
 
     return error.NotExistingInitializer;
+}
+
+pub fn printNodeList(graph: std.ArrayList(ReadyNode)) !void {
+    for (graph.items) |node| {
+        std.debug.print("\n ----- node: {s}", .{node.nodeProto.name.?});
+        std.debug.print("\n          inputs: ", .{});
+        //write the inputs
+        for (node.inputs.items) |input| {
+            std.debug.print("\n              ->{s} {s}", .{ input.name, if (input.ready) "--->ready" else "" });
+        }
+        std.debug.print("\n          outputs:", .{});
+        //write the outputs
+        for (node.outputs.items) |output| {
+            std.debug.print("\n              -> {s} {s}", .{ output.name, if (output.ready) "--->ready" else "" });
+        }
+    }
+}
+
+pub fn printComputableNodes(computableNodes: std.ArrayList(*ReadyNode)) !void {
+    for (computableNodes.items) |node| {
+        std.debug.print("\n ----- node: {s}", .{node.nodeProto.name.?});
+        std.debug.print("\n          op_type: {s}", .{node.nodeProto.op_type});
+        std.debug.print("\n          inputs: ", .{});
+        //write the inputs
+        for (node.inputs.items) |input| {
+            std.debug.print("\n              -> {s} {s}", .{ input.name, if (input.ready) "--->ready" else "" });
+        }
+        std.debug.print("\n          outputs:", .{});
+        //write the outputs
+        for (node.outputs.items) |output| {
+            std.debug.print("\n              -> {s} {s}", .{ output.name, if (output.ready) "--->ready" else "" });
+        }
+    }
 }

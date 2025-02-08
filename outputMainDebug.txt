@@ -145,3 +145,56 @@ from layer2.bias to layer2_bias
   writeArray 
   from rawData to TypeData
   writeArrayData 
+ ReadyNode.create() --> /layer1/Gemm
+
+     ReadyTensor.create() --> input
+
+     ReadyTensor.create() --> layer1.weight
+
+     ReadyTensor.create() --> layer1.bias
+
+     ReadyTensor.create() --> /layer1/Gemm_output_0
+
+ ReadyNode.create() --> /relu/Relu
+
+     ReadyTensor.create() --> /layer1/Gemm_output_0
+
+     ReadyTensor.create() --> /relu/Relu_output_0
+
+ ReadyNode.create() --> /layer2/Gemm
+
+     ReadyTensor.create() --> /relu/Relu_output_0
+
+     ReadyTensor.create() --> layer2.weight
+
+     ReadyTensor.create() --> layer2.bias
+
+     ReadyTensor.create() --> /layer2/Gemm_output_0
+
+ ReadyNode.create() --> /relu_1/Relu
+
+     ReadyTensor.create() --> /layer2/Gemm_output_0
+
+     ReadyTensor.create() --> /relu_1/Relu_output_0
+
+ ReadyNode.create() --> /Softmax
+
+     ReadyTensor.create() --> /relu_1/Relu_output_0
+
+     ReadyTensor.create() --> output
+
+from /layer1/Gemm_output_0 to _layer1_Gemm_output_0 
+from /layer1/Gemm_output_0 to _layer1_Gemm_output_0 
+from /relu/Relu_output_0 to _relu_Relu_output_0 
+from /relu/Relu_output_0 to _relu_Relu_output_0 
+from /layer2/Gemm_output_0 to _layer2_Gemm_output_0 
+from /layer2/Gemm_output_0 to _layer2_Gemm_output_0 
+from /relu_1/Relu_output_0 to _relu_1_Relu_output_0 
+from /relu_1/Relu_output_0 to _relu_1_Relu_output_0 
+from output to output 
+from output to output 
+removing node: /layer1/Gemm
+removing node: /Softmax
+removing node: /relu_1/Relu
+removing node: /layer2/Gemm
+removing node: /relu/Relu
