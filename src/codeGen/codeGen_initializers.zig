@@ -5,7 +5,13 @@ const TensorProto = @import("onnx").TensorProto;
 const DataType = @import("onnx").DataType;
 
 pub inline fn writeTensorsInit(writer: std.fs.File.Writer, model: ModelOnnx) !void {
-
+    try writer.print(
+        \\
+        \\
+        \\ // ---------------------------------------------------
+        \\ // +         initializing Weights and Biases         +
+        \\ // ---------------------------------------------------
+    , .{});
     //for each initializer of the onnx model we create the tensor
     for (model.graph.?.initializers) |tensorProtoInitializer| {
         // get the type and equivalent string

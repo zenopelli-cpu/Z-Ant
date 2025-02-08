@@ -85,6 +85,16 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
     std.debug.print("\n------------------------------------------------------------", .{});
     try utils.printNodeList(readyGraph);
 
+    try writer.print(
+        \\
+        \\
+        \\ // ---------------------------------------------------
+        \\ // +         initializing output Tensors             +
+        \\ // ---------------------------------------------------
+    , .{});
+
+    try writeInitOutputs(writer, &readyGraph);
+
     _ = try writer.print(
         \\
         \\
@@ -128,17 +138,6 @@ inline fn writeComputationGraph(writer: std.fs.File.Writer, readyGraph: *std.Arr
     try utils.printComputableNodes(computableNodes);
 
     for (computableNodes.items) |node_ptr| {
-        //writing the outputs
-        for (node_ptr.outputs.items) |*output| {
-            try writeOutputShape(
-                writer,
-                output,
-            );
-            try writeOutputTensor(
-                writer,
-                output.name,
-            );
-        }
 
         //writing the operation
         try writeOperation(writer, node_ptr);
@@ -151,6 +150,21 @@ inline fn writeComputationGraph(writer: std.fs.File.Writer, readyGraph: *std.Arr
     try removeCompletedNodes(readyGraph);
 }
 
+fn writeInitOutputs(writer: std.fs.File.Writer, readyGraph: *std.ArrayList(ReadyNode)) !void {
+    for (readyGraph.items) |node_ptr| {
+        //writing the outputs, OSS: two nodes shpuld never have the same output, so we don't need to check for duplicates
+        for (node_ptr.outputs.items) |*output| {
+            try writeOutputShape(
+                writer,
+                output,
+            );
+            try writeOutputTensor(
+                writer,
+                output.name,
+            );
+        }
+    }
+}
 fn writeOutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !void {
     try writer.print(
         \\
@@ -185,6 +199,7 @@ fn writeOutputTensor(writer: std.fs.File.Writer, name: []const u8) !void {
 
 fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
     try writer.print(
+        \\
         \\
         \\  //forwarding operation : {s}
         \\  //parameters:
