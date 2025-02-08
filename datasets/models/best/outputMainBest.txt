@@ -1,0 +1,4317 @@
+=== Model Info ===
+IR Version: DataHandler.onnx.Version.IR_VERSION_2021_7_30
+Producer: pytorch
+Version: 2.0.0
+
+=== Graph Info ===
+Name: torch_jit
+Nodes: 262
+Initializers: 127
+
+=== Graph Structure ===
+
+[0] Conv (/model.0/conv/Conv)
+  Inputs:
+    ← images
+    ← model.0.conv.weight
+    ← model.0.conv.bias
+  Outputs:
+    → /model.0/conv/Conv_output_0
+
+[1] Sigmoid (/model.0/act/Sigmoid)
+  Inputs:
+    ← /model.0/conv/Conv_output_0
+  Outputs:
+    → /model.0/act/Sigmoid_output_0
+
+[2] Mul (/model.0/act/Mul)
+  Inputs:
+    ← /model.0/conv/Conv_output_0
+    ← /model.0/act/Sigmoid_output_0
+  Outputs:
+    → /model.0/act/Mul_output_0
+
+[3] Conv (/model.1/conv/Conv)
+  Inputs:
+    ← /model.0/act/Mul_output_0
+    ← model.1.conv.weight
+    ← model.1.conv.bias
+  Outputs:
+    → /model.1/conv/Conv_output_0
+
+[4] Sigmoid (/model.1/act/Sigmoid)
+  Inputs:
+    ← /model.1/conv/Conv_output_0
+  Outputs:
+    → /model.1/act/Sigmoid_output_0
+
+[5] Mul (/model.1/act/Mul)
+  Inputs:
+    ← /model.1/conv/Conv_output_0
+    ← /model.1/act/Sigmoid_output_0
+  Outputs:
+    → /model.1/act/Mul_output_0
+
+[6] Conv (/model.2/cv1/conv/Conv)
+  Inputs:
+    ← /model.1/act/Mul_output_0
+    ← model.2.cv1.conv.weight
+    ← model.2.cv1.conv.bias
+  Outputs:
+    → /model.2/cv1/conv/Conv_output_0
+
+[7] Sigmoid (/model.2/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.2/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.2/cv1/act/Sigmoid_output_0
+
+[8] Mul (/model.2/cv1/act/Mul)
+  Inputs:
+    ← /model.2/cv1/conv/Conv_output_0
+    ← /model.2/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.2/cv1/act/Mul_output_0
+
+[9] Constant (Constant_9)
+  Inputs:
+  Outputs:
+    → onnx::Split_137
+
+[10] Split (/model.2/Split)
+  Inputs:
+    ← /model.2/cv1/act/Mul_output_0
+    ← onnx::Split_137
+  Outputs:
+    → /model.2/Split_output_0
+    → /model.2/Split_output_1
+
+[11] Conv (/model.2/m.0/cv1/conv/Conv)
+  Inputs:
+    ← /model.2/Split_output_1
+    ← model.2.m.0.cv1.conv.weight
+    ← model.2.m.0.cv1.conv.bias
+  Outputs:
+    → /model.2/m.0/cv1/conv/Conv_output_0
+
+[12] Sigmoid (/model.2/m.0/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.2/m.0/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.2/m.0/cv1/act/Sigmoid_output_0
+
+[13] Mul (/model.2/m.0/cv1/act/Mul)
+  Inputs:
+    ← /model.2/m.0/cv1/conv/Conv_output_0
+    ← /model.2/m.0/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.2/m.0/cv1/act/Mul_output_0
+
+[14] Conv (/model.2/m.0/cv2/conv/Conv)
+  Inputs:
+    ← /model.2/m.0/cv1/act/Mul_output_0
+    ← model.2.m.0.cv2.conv.weight
+    ← model.2.m.0.cv2.conv.bias
+  Outputs:
+    → /model.2/m.0/cv2/conv/Conv_output_0
+
+[15] Sigmoid (/model.2/m.0/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.2/m.0/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.2/m.0/cv2/act/Sigmoid_output_0
+
+[16] Mul (/model.2/m.0/cv2/act/Mul)
+  Inputs:
+    ← /model.2/m.0/cv2/conv/Conv_output_0
+    ← /model.2/m.0/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.2/m.0/cv2/act/Mul_output_0
+
+[17] Add (/model.2/m.0/Add)
+  Inputs:
+    ← /model.2/Split_output_1
+    ← /model.2/m.0/cv2/act/Mul_output_0
+  Outputs:
+    → /model.2/m.0/Add_output_0
+
+[18] Concat (/model.2/Concat)
+  Inputs:
+    ← /model.2/Split_output_0
+    ← /model.2/Split_output_1
+    ← /model.2/m.0/Add_output_0
+  Outputs:
+    → /model.2/Concat_output_0
+
+[19] Conv (/model.2/cv2/conv/Conv)
+  Inputs:
+    ← /model.2/Concat_output_0
+    ← model.2.cv2.conv.weight
+    ← model.2.cv2.conv.bias
+  Outputs:
+    → /model.2/cv2/conv/Conv_output_0
+
+[20] Sigmoid (/model.2/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.2/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.2/cv2/act/Sigmoid_output_0
+
+[21] Mul (/model.2/cv2/act/Mul)
+  Inputs:
+    ← /model.2/cv2/conv/Conv_output_0
+    ← /model.2/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.2/cv2/act/Mul_output_0
+
+[22] Conv (/model.3/conv/Conv)
+  Inputs:
+    ← /model.2/cv2/act/Mul_output_0
+    ← model.3.conv.weight
+    ← model.3.conv.bias
+  Outputs:
+    → /model.3/conv/Conv_output_0
+
+[23] Sigmoid (/model.3/act/Sigmoid)
+  Inputs:
+    ← /model.3/conv/Conv_output_0
+  Outputs:
+    → /model.3/act/Sigmoid_output_0
+
+[24] Mul (/model.3/act/Mul)
+  Inputs:
+    ← /model.3/conv/Conv_output_0
+    ← /model.3/act/Sigmoid_output_0
+  Outputs:
+    → /model.3/act/Mul_output_0
+
+[25] Conv (/model.4/cv1/conv/Conv)
+  Inputs:
+    ← /model.3/act/Mul_output_0
+    ← model.4.cv1.conv.weight
+    ← model.4.cv1.conv.bias
+  Outputs:
+    → /model.4/cv1/conv/Conv_output_0
+
+[26] Sigmoid (/model.4/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.4/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.4/cv1/act/Sigmoid_output_0
+
+[27] Mul (/model.4/cv1/act/Mul)
+  Inputs:
+    ← /model.4/cv1/conv/Conv_output_0
+    ← /model.4/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.4/cv1/act/Mul_output_0
+
+[28] Constant (Constant_28)
+  Inputs:
+  Outputs:
+    → onnx::Split_157
+
+[29] Split (/model.4/Split)
+  Inputs:
+    ← /model.4/cv1/act/Mul_output_0
+    ← onnx::Split_157
+  Outputs:
+    → /model.4/Split_output_0
+    → /model.4/Split_output_1
+
+[30] Conv (/model.4/m.0/cv1/conv/Conv)
+  Inputs:
+    ← /model.4/Split_output_1
+    ← model.4.m.0.cv1.conv.weight
+    ← model.4.m.0.cv1.conv.bias
+  Outputs:
+    → /model.4/m.0/cv1/conv/Conv_output_0
+
+[31] Sigmoid (/model.4/m.0/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.4/m.0/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.4/m.0/cv1/act/Sigmoid_output_0
+
+[32] Mul (/model.4/m.0/cv1/act/Mul)
+  Inputs:
+    ← /model.4/m.0/cv1/conv/Conv_output_0
+    ← /model.4/m.0/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.4/m.0/cv1/act/Mul_output_0
+
+[33] Conv (/model.4/m.0/cv2/conv/Conv)
+  Inputs:
+    ← /model.4/m.0/cv1/act/Mul_output_0
+    ← model.4.m.0.cv2.conv.weight
+    ← model.4.m.0.cv2.conv.bias
+  Outputs:
+    → /model.4/m.0/cv2/conv/Conv_output_0
+
+[34] Sigmoid (/model.4/m.0/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.4/m.0/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.4/m.0/cv2/act/Sigmoid_output_0
+
+[35] Mul (/model.4/m.0/cv2/act/Mul)
+  Inputs:
+    ← /model.4/m.0/cv2/conv/Conv_output_0
+    ← /model.4/m.0/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.4/m.0/cv2/act/Mul_output_0
+
+[36] Add (/model.4/m.0/Add)
+  Inputs:
+    ← /model.4/Split_output_1
+    ← /model.4/m.0/cv2/act/Mul_output_0
+  Outputs:
+    → /model.4/m.0/Add_output_0
+
+[37] Conv (/model.4/m.1/cv1/conv/Conv)
+  Inputs:
+    ← /model.4/m.0/Add_output_0
+    ← model.4.m.1.cv1.conv.weight
+    ← model.4.m.1.cv1.conv.bias
+  Outputs:
+    → /model.4/m.1/cv1/conv/Conv_output_0
+
+[38] Sigmoid (/model.4/m.1/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.4/m.1/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.4/m.1/cv1/act/Sigmoid_output_0
+
+[39] Mul (/model.4/m.1/cv1/act/Mul)
+  Inputs:
+    ← /model.4/m.1/cv1/conv/Conv_output_0
+    ← /model.4/m.1/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.4/m.1/cv1/act/Mul_output_0
+
+[40] Conv (/model.4/m.1/cv2/conv/Conv)
+  Inputs:
+    ← /model.4/m.1/cv1/act/Mul_output_0
+    ← model.4.m.1.cv2.conv.weight
+    ← model.4.m.1.cv2.conv.bias
+  Outputs:
+    → /model.4/m.1/cv2/conv/Conv_output_0
+
+[41] Sigmoid (/model.4/m.1/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.4/m.1/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.4/m.1/cv2/act/Sigmoid_output_0
+
+[42] Mul (/model.4/m.1/cv2/act/Mul)
+  Inputs:
+    ← /model.4/m.1/cv2/conv/Conv_output_0
+    ← /model.4/m.1/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.4/m.1/cv2/act/Mul_output_0
+
+[43] Add (/model.4/m.1/Add)
+  Inputs:
+    ← /model.4/m.0/Add_output_0
+    ← /model.4/m.1/cv2/act/Mul_output_0
+  Outputs:
+    → /model.4/m.1/Add_output_0
+
+[44] Concat (/model.4/Concat)
+  Inputs:
+    ← /model.4/Split_output_0
+    ← /model.4/Split_output_1
+    ← /model.4/m.0/Add_output_0
+    ← /model.4/m.1/Add_output_0
+  Outputs:
+    → /model.4/Concat_output_0
+
+[45] Conv (/model.4/cv2/conv/Conv)
+  Inputs:
+    ← /model.4/Concat_output_0
+    ← model.4.cv2.conv.weight
+    ← model.4.cv2.conv.bias
+  Outputs:
+    → /model.4/cv2/conv/Conv_output_0
+
+[46] Sigmoid (/model.4/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.4/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.4/cv2/act/Sigmoid_output_0
+
+[47] Mul (/model.4/cv2/act/Mul)
+  Inputs:
+    ← /model.4/cv2/conv/Conv_output_0
+    ← /model.4/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.4/cv2/act/Mul_output_0
+
+[48] Conv (/model.5/conv/Conv)
+  Inputs:
+    ← /model.4/cv2/act/Mul_output_0
+    ← model.5.conv.weight
+    ← model.5.conv.bias
+  Outputs:
+    → /model.5/conv/Conv_output_0
+
+[49] Sigmoid (/model.5/act/Sigmoid)
+  Inputs:
+    ← /model.5/conv/Conv_output_0
+  Outputs:
+    → /model.5/act/Sigmoid_output_0
+
+[50] Mul (/model.5/act/Mul)
+  Inputs:
+    ← /model.5/conv/Conv_output_0
+    ← /model.5/act/Sigmoid_output_0
+  Outputs:
+    → /model.5/act/Mul_output_0
+
+[51] Conv (/model.6/cv1/conv/Conv)
+  Inputs:
+    ← /model.5/act/Mul_output_0
+    ← model.6.cv1.conv.weight
+    ← model.6.cv1.conv.bias
+  Outputs:
+    → /model.6/cv1/conv/Conv_output_0
+
+[52] Sigmoid (/model.6/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.6/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.6/cv1/act/Sigmoid_output_0
+
+[53] Mul (/model.6/cv1/act/Mul)
+  Inputs:
+    ← /model.6/cv1/conv/Conv_output_0
+    ← /model.6/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.6/cv1/act/Mul_output_0
+
+[54] Constant (Constant_54)
+  Inputs:
+  Outputs:
+    → onnx::Split_184
+
+[55] Split (/model.6/Split)
+  Inputs:
+    ← /model.6/cv1/act/Mul_output_0
+    ← onnx::Split_184
+  Outputs:
+    → /model.6/Split_output_0
+    → /model.6/Split_output_1
+
+[56] Conv (/model.6/m.0/cv1/conv/Conv)
+  Inputs:
+    ← /model.6/Split_output_1
+    ← model.6.m.0.cv1.conv.weight
+    ← model.6.m.0.cv1.conv.bias
+  Outputs:
+    → /model.6/m.0/cv1/conv/Conv_output_0
+
+[57] Sigmoid (/model.6/m.0/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.6/m.0/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.6/m.0/cv1/act/Sigmoid_output_0
+
+[58] Mul (/model.6/m.0/cv1/act/Mul)
+  Inputs:
+    ← /model.6/m.0/cv1/conv/Conv_output_0
+    ← /model.6/m.0/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.6/m.0/cv1/act/Mul_output_0
+
+[59] Conv (/model.6/m.0/cv2/conv/Conv)
+  Inputs:
+    ← /model.6/m.0/cv1/act/Mul_output_0
+    ← model.6.m.0.cv2.conv.weight
+    ← model.6.m.0.cv2.conv.bias
+  Outputs:
+    → /model.6/m.0/cv2/conv/Conv_output_0
+
+[60] Sigmoid (/model.6/m.0/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.6/m.0/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.6/m.0/cv2/act/Sigmoid_output_0
+
+[61] Mul (/model.6/m.0/cv2/act/Mul)
+  Inputs:
+    ← /model.6/m.0/cv2/conv/Conv_output_0
+    ← /model.6/m.0/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.6/m.0/cv2/act/Mul_output_0
+
+[62] Add (/model.6/m.0/Add)
+  Inputs:
+    ← /model.6/Split_output_1
+    ← /model.6/m.0/cv2/act/Mul_output_0
+  Outputs:
+    → /model.6/m.0/Add_output_0
+
+[63] Conv (/model.6/m.1/cv1/conv/Conv)
+  Inputs:
+    ← /model.6/m.0/Add_output_0
+    ← model.6.m.1.cv1.conv.weight
+    ← model.6.m.1.cv1.conv.bias
+  Outputs:
+    → /model.6/m.1/cv1/conv/Conv_output_0
+
+[64] Sigmoid (/model.6/m.1/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.6/m.1/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.6/m.1/cv1/act/Sigmoid_output_0
+
+[65] Mul (/model.6/m.1/cv1/act/Mul)
+  Inputs:
+    ← /model.6/m.1/cv1/conv/Conv_output_0
+    ← /model.6/m.1/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.6/m.1/cv1/act/Mul_output_0
+
+[66] Conv (/model.6/m.1/cv2/conv/Conv)
+  Inputs:
+    ← /model.6/m.1/cv1/act/Mul_output_0
+    ← model.6.m.1.cv2.conv.weight
+    ← model.6.m.1.cv2.conv.bias
+  Outputs:
+    → /model.6/m.1/cv2/conv/Conv_output_0
+
+[67] Sigmoid (/model.6/m.1/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.6/m.1/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.6/m.1/cv2/act/Sigmoid_output_0
+
+[68] Mul (/model.6/m.1/cv2/act/Mul)
+  Inputs:
+    ← /model.6/m.1/cv2/conv/Conv_output_0
+    ← /model.6/m.1/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.6/m.1/cv2/act/Mul_output_0
+
+[69] Add (/model.6/m.1/Add)
+  Inputs:
+    ← /model.6/m.0/Add_output_0
+    ← /model.6/m.1/cv2/act/Mul_output_0
+  Outputs:
+    → /model.6/m.1/Add_output_0
+
+[70] Concat (/model.6/Concat)
+  Inputs:
+    ← /model.6/Split_output_0
+    ← /model.6/Split_output_1
+    ← /model.6/m.0/Add_output_0
+    ← /model.6/m.1/Add_output_0
+  Outputs:
+    → /model.6/Concat_output_0
+
+[71] Conv (/model.6/cv2/conv/Conv)
+  Inputs:
+    ← /model.6/Concat_output_0
+    ← model.6.cv2.conv.weight
+    ← model.6.cv2.conv.bias
+  Outputs:
+    → /model.6/cv2/conv/Conv_output_0
+
+[72] Sigmoid (/model.6/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.6/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.6/cv2/act/Sigmoid_output_0
+
+[73] Mul (/model.6/cv2/act/Mul)
+  Inputs:
+    ← /model.6/cv2/conv/Conv_output_0
+    ← /model.6/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.6/cv2/act/Mul_output_0
+
+[74] Conv (/model.7/conv/Conv)
+  Inputs:
+    ← /model.6/cv2/act/Mul_output_0
+    ← model.7.conv.weight
+    ← model.7.conv.bias
+  Outputs:
+    → /model.7/conv/Conv_output_0
+
+[75] Sigmoid (/model.7/act/Sigmoid)
+  Inputs:
+    ← /model.7/conv/Conv_output_0
+  Outputs:
+    → /model.7/act/Sigmoid_output_0
+
+[76] Mul (/model.7/act/Mul)
+  Inputs:
+    ← /model.7/conv/Conv_output_0
+    ← /model.7/act/Sigmoid_output_0
+  Outputs:
+    → /model.7/act/Mul_output_0
+
+[77] Conv (/model.8/cv1/conv/Conv)
+  Inputs:
+    ← /model.7/act/Mul_output_0
+    ← model.8.cv1.conv.weight
+    ← model.8.cv1.conv.bias
+  Outputs:
+    → /model.8/cv1/conv/Conv_output_0
+
+[78] Sigmoid (/model.8/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.8/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.8/cv1/act/Sigmoid_output_0
+
+[79] Mul (/model.8/cv1/act/Mul)
+  Inputs:
+    ← /model.8/cv1/conv/Conv_output_0
+    ← /model.8/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.8/cv1/act/Mul_output_0
+
+[80] Constant (Constant_80)
+  Inputs:
+  Outputs:
+    → onnx::Split_211
+
+[81] Split (/model.8/Split)
+  Inputs:
+    ← /model.8/cv1/act/Mul_output_0
+    ← onnx::Split_211
+  Outputs:
+    → /model.8/Split_output_0
+    → /model.8/Split_output_1
+
+[82] Conv (/model.8/m.0/cv1/conv/Conv)
+  Inputs:
+    ← /model.8/Split_output_1
+    ← model.8.m.0.cv1.conv.weight
+    ← model.8.m.0.cv1.conv.bias
+  Outputs:
+    → /model.8/m.0/cv1/conv/Conv_output_0
+
+[83] Sigmoid (/model.8/m.0/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.8/m.0/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.8/m.0/cv1/act/Sigmoid_output_0
+
+[84] Mul (/model.8/m.0/cv1/act/Mul)
+  Inputs:
+    ← /model.8/m.0/cv1/conv/Conv_output_0
+    ← /model.8/m.0/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.8/m.0/cv1/act/Mul_output_0
+
+[85] Conv (/model.8/m.0/cv2/conv/Conv)
+  Inputs:
+    ← /model.8/m.0/cv1/act/Mul_output_0
+    ← model.8.m.0.cv2.conv.weight
+    ← model.8.m.0.cv2.conv.bias
+  Outputs:
+    → /model.8/m.0/cv2/conv/Conv_output_0
+
+[86] Sigmoid (/model.8/m.0/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.8/m.0/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.8/m.0/cv2/act/Sigmoid_output_0
+
+[87] Mul (/model.8/m.0/cv2/act/Mul)
+  Inputs:
+    ← /model.8/m.0/cv2/conv/Conv_output_0
+    ← /model.8/m.0/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.8/m.0/cv2/act/Mul_output_0
+
+[88] Add (/model.8/m.0/Add)
+  Inputs:
+    ← /model.8/Split_output_1
+    ← /model.8/m.0/cv2/act/Mul_output_0
+  Outputs:
+    → /model.8/m.0/Add_output_0
+
+[89] Concat (/model.8/Concat)
+  Inputs:
+    ← /model.8/Split_output_0
+    ← /model.8/Split_output_1
+    ← /model.8/m.0/Add_output_0
+  Outputs:
+    → /model.8/Concat_output_0
+
+[90] Conv (/model.8/cv2/conv/Conv)
+  Inputs:
+    ← /model.8/Concat_output_0
+    ← model.8.cv2.conv.weight
+    ← model.8.cv2.conv.bias
+  Outputs:
+    → /model.8/cv2/conv/Conv_output_0
+
+[91] Sigmoid (/model.8/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.8/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.8/cv2/act/Sigmoid_output_0
+
+[92] Mul (/model.8/cv2/act/Mul)
+  Inputs:
+    ← /model.8/cv2/conv/Conv_output_0
+    ← /model.8/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.8/cv2/act/Mul_output_0
+
+[93] Conv (/model.9/cv1/conv/Conv)
+  Inputs:
+    ← /model.8/cv2/act/Mul_output_0
+    ← model.9.cv1.conv.weight
+    ← model.9.cv1.conv.bias
+  Outputs:
+    → /model.9/cv1/conv/Conv_output_0
+
+[94] Sigmoid (/model.9/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.9/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.9/cv1/act/Sigmoid_output_0
+
+[95] Mul (/model.9/cv1/act/Mul)
+  Inputs:
+    ← /model.9/cv1/conv/Conv_output_0
+    ← /model.9/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.9/cv1/act/Mul_output_0
+
+[96] MaxPool (/model.9/m/MaxPool)
+  Inputs:
+    ← /model.9/cv1/act/Mul_output_0
+  Outputs:
+    → /model.9/m/MaxPool_output_0
+
+[97] MaxPool (/model.9/m_1/MaxPool)
+  Inputs:
+    ← /model.9/m/MaxPool_output_0
+  Outputs:
+    → /model.9/m_1/MaxPool_output_0
+
+[98] MaxPool (/model.9/m_2/MaxPool)
+  Inputs:
+    ← /model.9/m_1/MaxPool_output_0
+  Outputs:
+    → /model.9/m_2/MaxPool_output_0
+
+[99] Concat (/model.9/Concat)
+  Inputs:
+    ← /model.9/cv1/act/Mul_output_0
+    ← /model.9/m/MaxPool_output_0
+    ← /model.9/m_1/MaxPool_output_0
+    ← /model.9/m_2/MaxPool_output_0
+  Outputs:
+    → /model.9/Concat_output_0
+
+[100] Conv (/model.9/cv2/conv/Conv)
+  Inputs:
+    ← /model.9/Concat_output_0
+    ← model.9.cv2.conv.weight
+    ← model.9.cv2.conv.bias
+  Outputs:
+    → /model.9/cv2/conv/Conv_output_0
+
+[101] Sigmoid (/model.9/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.9/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.9/cv2/act/Sigmoid_output_0
+
+[102] Mul (/model.9/cv2/act/Mul)
+  Inputs:
+    ← /model.9/cv2/conv/Conv_output_0
+    ← /model.9/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.9/cv2/act/Mul_output_0
+
+[103] Constant (/model.10/Constant)
+  Inputs:
+  Outputs:
+    → /model.10/Constant_output_0
+
+[104] Resize (/model.10/Resize)
+  Inputs:
+    ← /model.9/cv2/act/Mul_output_0
+    ← 
+    ← /model.10/Constant_output_0
+  Outputs:
+    → /model.10/Resize_output_0
+
+[105] Concat (/model.11/Concat)
+  Inputs:
+    ← /model.10/Resize_output_0
+    ← /model.6/cv2/act/Mul_output_0
+  Outputs:
+    → /model.11/Concat_output_0
+
+[106] Conv (/model.12/cv1/conv/Conv)
+  Inputs:
+    ← /model.11/Concat_output_0
+    ← model.12.cv1.conv.weight
+    ← model.12.cv1.conv.bias
+  Outputs:
+    → /model.12/cv1/conv/Conv_output_0
+
+[107] Sigmoid (/model.12/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.12/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.12/cv1/act/Sigmoid_output_0
+
+[108] Mul (/model.12/cv1/act/Mul)
+  Inputs:
+    ← /model.12/cv1/conv/Conv_output_0
+    ← /model.12/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.12/cv1/act/Mul_output_0
+
+[109] Split (/model.12/Split)
+  Inputs:
+    ← /model.12/cv1/act/Mul_output_0
+    ← onnx::Split_137
+  Outputs:
+    → /model.12/Split_output_0
+    → /model.12/Split_output_1
+
+[110] Conv (/model.12/m.0/cv1/conv/Conv)
+  Inputs:
+    ← /model.12/Split_output_1
+    ← model.12.m.0.cv1.conv.weight
+    ← model.12.m.0.cv1.conv.bias
+  Outputs:
+    → /model.12/m.0/cv1/conv/Conv_output_0
+
+[111] Sigmoid (/model.12/m.0/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.12/m.0/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.12/m.0/cv1/act/Sigmoid_output_0
+
+[112] Mul (/model.12/m.0/cv1/act/Mul)
+  Inputs:
+    ← /model.12/m.0/cv1/conv/Conv_output_0
+    ← /model.12/m.0/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.12/m.0/cv1/act/Mul_output_0
+
+[113] Conv (/model.12/m.0/cv2/conv/Conv)
+  Inputs:
+    ← /model.12/m.0/cv1/act/Mul_output_0
+    ← model.12.m.0.cv2.conv.weight
+    ← model.12.m.0.cv2.conv.bias
+  Outputs:
+    → /model.12/m.0/cv2/conv/Conv_output_0
+
+[114] Sigmoid (/model.12/m.0/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.12/m.0/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.12/m.0/cv2/act/Sigmoid_output_0
+
+[115] Mul (/model.12/m.0/cv2/act/Mul)
+  Inputs:
+    ← /model.12/m.0/cv2/conv/Conv_output_0
+    ← /model.12/m.0/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.12/m.0/cv2/act/Mul_output_0
+
+[116] Concat (/model.12/Concat)
+  Inputs:
+    ← /model.12/Split_output_0
+    ← /model.12/Split_output_1
+    ← /model.12/m.0/cv2/act/Mul_output_0
+  Outputs:
+    → /model.12/Concat_output_0
+
+[117] Conv (/model.12/cv2/conv/Conv)
+  Inputs:
+    ← /model.12/Concat_output_0
+    ← model.12.cv2.conv.weight
+    ← model.12.cv2.conv.bias
+  Outputs:
+    → /model.12/cv2/conv/Conv_output_0
+
+[118] Sigmoid (/model.12/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.12/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.12/cv2/act/Sigmoid_output_0
+
+[119] Mul (/model.12/cv2/act/Mul)
+  Inputs:
+    ← /model.12/cv2/conv/Conv_output_0
+    ← /model.12/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.12/cv2/act/Mul_output_0
+
+[120] Constant (/model.13/Constant)
+  Inputs:
+  Outputs:
+    → /model.13/Constant_output_0
+
+[121] Resize (/model.13/Resize)
+  Inputs:
+    ← /model.12/cv2/act/Mul_output_0
+    ← 
+    ← /model.13/Constant_output_0
+  Outputs:
+    → /model.13/Resize_output_0
+
+[122] Concat (/model.14/Concat)
+  Inputs:
+    ← /model.13/Resize_output_0
+    ← /model.4/cv2/act/Mul_output_0
+  Outputs:
+    → /model.14/Concat_output_0
+
+[123] Conv (/model.15/cv1/conv/Conv)
+  Inputs:
+    ← /model.14/Concat_output_0
+    ← model.15.cv1.conv.weight
+    ← model.15.cv1.conv.bias
+  Outputs:
+    → /model.15/cv1/conv/Conv_output_0
+
+[124] Sigmoid (/model.15/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.15/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.15/cv1/act/Sigmoid_output_0
+
+[125] Mul (/model.15/cv1/act/Mul)
+  Inputs:
+    ← /model.15/cv1/conv/Conv_output_0
+    ← /model.15/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.15/cv1/act/Mul_output_0
+
+[126] Constant (Constant_126)
+  Inputs:
+  Outputs:
+    → onnx::Split_265
+
+[127] Split (/model.15/Split)
+  Inputs:
+    ← /model.15/cv1/act/Mul_output_0
+    ← onnx::Split_265
+  Outputs:
+    → /model.15/Split_output_0
+    → /model.15/Split_output_1
+
+[128] Conv (/model.15/m.0/cv1/conv/Conv)
+  Inputs:
+    ← /model.15/Split_output_1
+    ← model.15.m.0.cv1.conv.weight
+    ← model.15.m.0.cv1.conv.bias
+  Outputs:
+    → /model.15/m.0/cv1/conv/Conv_output_0
+
+[129] Sigmoid (/model.15/m.0/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.15/m.0/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.15/m.0/cv1/act/Sigmoid_output_0
+
+[130] Mul (/model.15/m.0/cv1/act/Mul)
+  Inputs:
+    ← /model.15/m.0/cv1/conv/Conv_output_0
+    ← /model.15/m.0/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.15/m.0/cv1/act/Mul_output_0
+
+[131] Conv (/model.15/m.0/cv2/conv/Conv)
+  Inputs:
+    ← /model.15/m.0/cv1/act/Mul_output_0
+    ← model.15.m.0.cv2.conv.weight
+    ← model.15.m.0.cv2.conv.bias
+  Outputs:
+    → /model.15/m.0/cv2/conv/Conv_output_0
+
+[132] Sigmoid (/model.15/m.0/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.15/m.0/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.15/m.0/cv2/act/Sigmoid_output_0
+
+[133] Mul (/model.15/m.0/cv2/act/Mul)
+  Inputs:
+    ← /model.15/m.0/cv2/conv/Conv_output_0
+    ← /model.15/m.0/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.15/m.0/cv2/act/Mul_output_0
+
+[134] Concat (/model.15/Concat)
+  Inputs:
+    ← /model.15/Split_output_0
+    ← /model.15/Split_output_1
+    ← /model.15/m.0/cv2/act/Mul_output_0
+  Outputs:
+    → /model.15/Concat_output_0
+
+[135] Conv (/model.15/cv2/conv/Conv)
+  Inputs:
+    ← /model.15/Concat_output_0
+    ← model.15.cv2.conv.weight
+    ← model.15.cv2.conv.bias
+  Outputs:
+    → /model.15/cv2/conv/Conv_output_0
+
+[136] Sigmoid (/model.15/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.15/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.15/cv2/act/Sigmoid_output_0
+
+[137] Mul (/model.15/cv2/act/Mul)
+  Inputs:
+    ← /model.15/cv2/conv/Conv_output_0
+    ← /model.15/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.15/cv2/act/Mul_output_0
+
+[138] Conv (/model.16/conv/Conv)
+  Inputs:
+    ← /model.15/cv2/act/Mul_output_0
+    ← model.16.conv.weight
+    ← model.16.conv.bias
+  Outputs:
+    → /model.16/conv/Conv_output_0
+
+[139] Sigmoid (/model.16/act/Sigmoid)
+  Inputs:
+    ← /model.16/conv/Conv_output_0
+  Outputs:
+    → /model.16/act/Sigmoid_output_0
+
+[140] Mul (/model.16/act/Mul)
+  Inputs:
+    ← /model.16/conv/Conv_output_0
+    ← /model.16/act/Sigmoid_output_0
+  Outputs:
+    → /model.16/act/Mul_output_0
+
+[141] Concat (/model.17/Concat)
+  Inputs:
+    ← /model.16/act/Mul_output_0
+    ← /model.12/cv2/act/Mul_output_0
+  Outputs:
+    → /model.17/Concat_output_0
+
+[142] Conv (/model.18/cv1/conv/Conv)
+  Inputs:
+    ← /model.17/Concat_output_0
+    ← model.18.cv1.conv.weight
+    ← model.18.cv1.conv.bias
+  Outputs:
+    → /model.18/cv1/conv/Conv_output_0
+
+[143] Sigmoid (/model.18/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.18/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.18/cv1/act/Sigmoid_output_0
+
+[144] Mul (/model.18/cv1/act/Mul)
+  Inputs:
+    ← /model.18/cv1/conv/Conv_output_0
+    ← /model.18/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.18/cv1/act/Mul_output_0
+
+[145] Split (/model.18/Split)
+  Inputs:
+    ← /model.18/cv1/act/Mul_output_0
+    ← onnx::Split_157
+  Outputs:
+    → /model.18/Split_output_0
+    → /model.18/Split_output_1
+
+[146] Conv (/model.18/m.0/cv1/conv/Conv)
+  Inputs:
+    ← /model.18/Split_output_1
+    ← model.18.m.0.cv1.conv.weight
+    ← model.18.m.0.cv1.conv.bias
+  Outputs:
+    → /model.18/m.0/cv1/conv/Conv_output_0
+
+[147] Sigmoid (/model.18/m.0/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.18/m.0/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.18/m.0/cv1/act/Sigmoid_output_0
+
+[148] Mul (/model.18/m.0/cv1/act/Mul)
+  Inputs:
+    ← /model.18/m.0/cv1/conv/Conv_output_0
+    ← /model.18/m.0/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.18/m.0/cv1/act/Mul_output_0
+
+[149] Conv (/model.18/m.0/cv2/conv/Conv)
+  Inputs:
+    ← /model.18/m.0/cv1/act/Mul_output_0
+    ← model.18.m.0.cv2.conv.weight
+    ← model.18.m.0.cv2.conv.bias
+  Outputs:
+    → /model.18/m.0/cv2/conv/Conv_output_0
+
+[150] Sigmoid (/model.18/m.0/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.18/m.0/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.18/m.0/cv2/act/Sigmoid_output_0
+
+[151] Mul (/model.18/m.0/cv2/act/Mul)
+  Inputs:
+    ← /model.18/m.0/cv2/conv/Conv_output_0
+    ← /model.18/m.0/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.18/m.0/cv2/act/Mul_output_0
+
+[152] Concat (/model.18/Concat)
+  Inputs:
+    ← /model.18/Split_output_0
+    ← /model.18/Split_output_1
+    ← /model.18/m.0/cv2/act/Mul_output_0
+  Outputs:
+    → /model.18/Concat_output_0
+
+[153] Conv (/model.18/cv2/conv/Conv)
+  Inputs:
+    ← /model.18/Concat_output_0
+    ← model.18.cv2.conv.weight
+    ← model.18.cv2.conv.bias
+  Outputs:
+    → /model.18/cv2/conv/Conv_output_0
+
+[154] Sigmoid (/model.18/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.18/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.18/cv2/act/Sigmoid_output_0
+
+[155] Mul (/model.18/cv2/act/Mul)
+  Inputs:
+    ← /model.18/cv2/conv/Conv_output_0
+    ← /model.18/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.18/cv2/act/Mul_output_0
+
+[156] Conv (/model.19/conv/Conv)
+  Inputs:
+    ← /model.18/cv2/act/Mul_output_0
+    ← model.19.conv.weight
+    ← model.19.conv.bias
+  Outputs:
+    → /model.19/conv/Conv_output_0
+
+[157] Sigmoid (/model.19/act/Sigmoid)
+  Inputs:
+    ← /model.19/conv/Conv_output_0
+  Outputs:
+    → /model.19/act/Sigmoid_output_0
+
+[158] Mul (/model.19/act/Mul)
+  Inputs:
+    ← /model.19/conv/Conv_output_0
+    ← /model.19/act/Sigmoid_output_0
+  Outputs:
+    → /model.19/act/Mul_output_0
+
+[159] Concat (/model.20/Concat)
+  Inputs:
+    ← /model.19/act/Mul_output_0
+    ← /model.9/cv2/act/Mul_output_0
+  Outputs:
+    → /model.20/Concat_output_0
+
+[160] Conv (/model.21/cv1/conv/Conv)
+  Inputs:
+    ← /model.20/Concat_output_0
+    ← model.21.cv1.conv.weight
+    ← model.21.cv1.conv.bias
+  Outputs:
+    → /model.21/cv1/conv/Conv_output_0
+
+[161] Sigmoid (/model.21/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.21/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.21/cv1/act/Sigmoid_output_0
+
+[162] Mul (/model.21/cv1/act/Mul)
+  Inputs:
+    ← /model.21/cv1/conv/Conv_output_0
+    ← /model.21/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.21/cv1/act/Mul_output_0
+
+[163] Split (/model.21/Split)
+  Inputs:
+    ← /model.21/cv1/act/Mul_output_0
+    ← onnx::Split_157
+  Outputs:
+    → /model.21/Split_output_0
+    → /model.21/Split_output_1
+
+[164] Conv (/model.21/m.0/cv1/conv/Conv)
+  Inputs:
+    ← /model.21/Split_output_1
+    ← model.21.m.0.cv1.conv.weight
+    ← model.21.m.0.cv1.conv.bias
+  Outputs:
+    → /model.21/m.0/cv1/conv/Conv_output_0
+
+[165] Sigmoid (/model.21/m.0/cv1/act/Sigmoid)
+  Inputs:
+    ← /model.21/m.0/cv1/conv/Conv_output_0
+  Outputs:
+    → /model.21/m.0/cv1/act/Sigmoid_output_0
+
+[166] Mul (/model.21/m.0/cv1/act/Mul)
+  Inputs:
+    ← /model.21/m.0/cv1/conv/Conv_output_0
+    ← /model.21/m.0/cv1/act/Sigmoid_output_0
+  Outputs:
+    → /model.21/m.0/cv1/act/Mul_output_0
+
+[167] Conv (/model.21/m.0/cv2/conv/Conv)
+  Inputs:
+    ← /model.21/m.0/cv1/act/Mul_output_0
+    ← model.21.m.0.cv2.conv.weight
+    ← model.21.m.0.cv2.conv.bias
+  Outputs:
+    → /model.21/m.0/cv2/conv/Conv_output_0
+
+[168] Sigmoid (/model.21/m.0/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.21/m.0/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.21/m.0/cv2/act/Sigmoid_output_0
+
+[169] Mul (/model.21/m.0/cv2/act/Mul)
+  Inputs:
+    ← /model.21/m.0/cv2/conv/Conv_output_0
+    ← /model.21/m.0/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.21/m.0/cv2/act/Mul_output_0
+
+[170] Concat (/model.21/Concat)
+  Inputs:
+    ← /model.21/Split_output_0
+    ← /model.21/Split_output_1
+    ← /model.21/m.0/cv2/act/Mul_output_0
+  Outputs:
+    → /model.21/Concat_output_0
+
+[171] Conv (/model.21/cv2/conv/Conv)
+  Inputs:
+    ← /model.21/Concat_output_0
+    ← model.21.cv2.conv.weight
+    ← model.21.cv2.conv.bias
+  Outputs:
+    → /model.21/cv2/conv/Conv_output_0
+
+[172] Sigmoid (/model.21/cv2/act/Sigmoid)
+  Inputs:
+    ← /model.21/cv2/conv/Conv_output_0
+  Outputs:
+    → /model.21/cv2/act/Sigmoid_output_0
+
+[173] Mul (/model.21/cv2/act/Mul)
+  Inputs:
+    ← /model.21/cv2/conv/Conv_output_0
+    ← /model.21/cv2/act/Sigmoid_output_0
+  Outputs:
+    → /model.21/cv2/act/Mul_output_0
+
+[174] Conv (/model.22/cv2.0/cv2.0.0/conv/Conv)
+  Inputs:
+    ← /model.15/cv2/act/Mul_output_0
+    ← model.22.cv2.0.0.conv.weight
+    ← model.22.cv2.0.0.conv.bias
+  Outputs:
+    → /model.22/cv2.0/cv2.0.0/conv/Conv_output_0
+
+[175] Sigmoid (/model.22/cv2.0/cv2.0.0/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv2.0/cv2.0.0/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv2.0/cv2.0.0/act/Sigmoid_output_0
+
+[176] Mul (/model.22/cv2.0/cv2.0.0/act/Mul)
+  Inputs:
+    ← /model.22/cv2.0/cv2.0.0/conv/Conv_output_0
+    ← /model.22/cv2.0/cv2.0.0/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv2.0/cv2.0.0/act/Mul_output_0
+
+[177] Conv (/model.22/cv2.0/cv2.0.1/conv/Conv)
+  Inputs:
+    ← /model.22/cv2.0/cv2.0.0/act/Mul_output_0
+    ← model.22.cv2.0.1.conv.weight
+    ← model.22.cv2.0.1.conv.bias
+  Outputs:
+    → /model.22/cv2.0/cv2.0.1/conv/Conv_output_0
+
+[178] Sigmoid (/model.22/cv2.0/cv2.0.1/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv2.0/cv2.0.1/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv2.0/cv2.0.1/act/Sigmoid_output_0
+
+[179] Mul (/model.22/cv2.0/cv2.0.1/act/Mul)
+  Inputs:
+    ← /model.22/cv2.0/cv2.0.1/conv/Conv_output_0
+    ← /model.22/cv2.0/cv2.0.1/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv2.0/cv2.0.1/act/Mul_output_0
+
+[180] Conv (/model.22/cv2.0/cv2.0.2/Conv)
+  Inputs:
+    ← /model.22/cv2.0/cv2.0.1/act/Mul_output_0
+    ← model.22.cv2.0.2.weight
+    ← model.22.cv2.0.2.bias
+  Outputs:
+    → /model.22/cv2.0/cv2.0.2/Conv_output_0
+
+[181] Conv (/model.22/cv3.0/cv3.0.0/conv/Conv)
+  Inputs:
+    ← /model.15/cv2/act/Mul_output_0
+    ← model.22.cv3.0.0.conv.weight
+    ← model.22.cv3.0.0.conv.bias
+  Outputs:
+    → /model.22/cv3.0/cv3.0.0/conv/Conv_output_0
+
+[182] Sigmoid (/model.22/cv3.0/cv3.0.0/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv3.0/cv3.0.0/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv3.0/cv3.0.0/act/Sigmoid_output_0
+
+[183] Mul (/model.22/cv3.0/cv3.0.0/act/Mul)
+  Inputs:
+    ← /model.22/cv3.0/cv3.0.0/conv/Conv_output_0
+    ← /model.22/cv3.0/cv3.0.0/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv3.0/cv3.0.0/act/Mul_output_0
+
+[184] Conv (/model.22/cv3.0/cv3.0.1/conv/Conv)
+  Inputs:
+    ← /model.22/cv3.0/cv3.0.0/act/Mul_output_0
+    ← model.22.cv3.0.1.conv.weight
+    ← model.22.cv3.0.1.conv.bias
+  Outputs:
+    → /model.22/cv3.0/cv3.0.1/conv/Conv_output_0
+
+[185] Sigmoid (/model.22/cv3.0/cv3.0.1/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv3.0/cv3.0.1/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv3.0/cv3.0.1/act/Sigmoid_output_0
+
+[186] Mul (/model.22/cv3.0/cv3.0.1/act/Mul)
+  Inputs:
+    ← /model.22/cv3.0/cv3.0.1/conv/Conv_output_0
+    ← /model.22/cv3.0/cv3.0.1/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv3.0/cv3.0.1/act/Mul_output_0
+
+[187] Conv (/model.22/cv3.0/cv3.0.2/Conv)
+  Inputs:
+    ← /model.22/cv3.0/cv3.0.1/act/Mul_output_0
+    ← model.22.cv3.0.2.weight
+    ← model.22.cv3.0.2.bias
+  Outputs:
+    → /model.22/cv3.0/cv3.0.2/Conv_output_0
+
+[188] Concat (/model.22/Concat)
+  Inputs:
+    ← /model.22/cv2.0/cv2.0.2/Conv_output_0
+    ← /model.22/cv3.0/cv3.0.2/Conv_output_0
+  Outputs:
+    → /model.22/Concat_output_0
+
+[189] Conv (/model.22/cv2.1/cv2.1.0/conv/Conv)
+  Inputs:
+    ← /model.18/cv2/act/Mul_output_0
+    ← model.22.cv2.1.0.conv.weight
+    ← model.22.cv2.1.0.conv.bias
+  Outputs:
+    → /model.22/cv2.1/cv2.1.0/conv/Conv_output_0
+
+[190] Sigmoid (/model.22/cv2.1/cv2.1.0/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv2.1/cv2.1.0/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv2.1/cv2.1.0/act/Sigmoid_output_0
+
+[191] Mul (/model.22/cv2.1/cv2.1.0/act/Mul)
+  Inputs:
+    ← /model.22/cv2.1/cv2.1.0/conv/Conv_output_0
+    ← /model.22/cv2.1/cv2.1.0/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv2.1/cv2.1.0/act/Mul_output_0
+
+[192] Conv (/model.22/cv2.1/cv2.1.1/conv/Conv)
+  Inputs:
+    ← /model.22/cv2.1/cv2.1.0/act/Mul_output_0
+    ← model.22.cv2.1.1.conv.weight
+    ← model.22.cv2.1.1.conv.bias
+  Outputs:
+    → /model.22/cv2.1/cv2.1.1/conv/Conv_output_0
+
+[193] Sigmoid (/model.22/cv2.1/cv2.1.1/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv2.1/cv2.1.1/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv2.1/cv2.1.1/act/Sigmoid_output_0
+
+[194] Mul (/model.22/cv2.1/cv2.1.1/act/Mul)
+  Inputs:
+    ← /model.22/cv2.1/cv2.1.1/conv/Conv_output_0
+    ← /model.22/cv2.1/cv2.1.1/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv2.1/cv2.1.1/act/Mul_output_0
+
+[195] Conv (/model.22/cv2.1/cv2.1.2/Conv)
+  Inputs:
+    ← /model.22/cv2.1/cv2.1.1/act/Mul_output_0
+    ← model.22.cv2.1.2.weight
+    ← model.22.cv2.1.2.bias
+  Outputs:
+    → /model.22/cv2.1/cv2.1.2/Conv_output_0
+
+[196] Conv (/model.22/cv3.1/cv3.1.0/conv/Conv)
+  Inputs:
+    ← /model.18/cv2/act/Mul_output_0
+    ← model.22.cv3.1.0.conv.weight
+    ← model.22.cv3.1.0.conv.bias
+  Outputs:
+    → /model.22/cv3.1/cv3.1.0/conv/Conv_output_0
+
+[197] Sigmoid (/model.22/cv3.1/cv3.1.0/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv3.1/cv3.1.0/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv3.1/cv3.1.0/act/Sigmoid_output_0
+
+[198] Mul (/model.22/cv3.1/cv3.1.0/act/Mul)
+  Inputs:
+    ← /model.22/cv3.1/cv3.1.0/conv/Conv_output_0
+    ← /model.22/cv3.1/cv3.1.0/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv3.1/cv3.1.0/act/Mul_output_0
+
+[199] Conv (/model.22/cv3.1/cv3.1.1/conv/Conv)
+  Inputs:
+    ← /model.22/cv3.1/cv3.1.0/act/Mul_output_0
+    ← model.22.cv3.1.1.conv.weight
+    ← model.22.cv3.1.1.conv.bias
+  Outputs:
+    → /model.22/cv3.1/cv3.1.1/conv/Conv_output_0
+
+[200] Sigmoid (/model.22/cv3.1/cv3.1.1/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv3.1/cv3.1.1/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv3.1/cv3.1.1/act/Sigmoid_output_0
+
+[201] Mul (/model.22/cv3.1/cv3.1.1/act/Mul)
+  Inputs:
+    ← /model.22/cv3.1/cv3.1.1/conv/Conv_output_0
+    ← /model.22/cv3.1/cv3.1.1/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv3.1/cv3.1.1/act/Mul_output_0
+
+[202] Conv (/model.22/cv3.1/cv3.1.2/Conv)
+  Inputs:
+    ← /model.22/cv3.1/cv3.1.1/act/Mul_output_0
+    ← model.22.cv3.1.2.weight
+    ← model.22.cv3.1.2.bias
+  Outputs:
+    → /model.22/cv3.1/cv3.1.2/Conv_output_0
+
+[203] Concat (/model.22/Concat_1)
+  Inputs:
+    ← /model.22/cv2.1/cv2.1.2/Conv_output_0
+    ← /model.22/cv3.1/cv3.1.2/Conv_output_0
+  Outputs:
+    → /model.22/Concat_1_output_0
+
+[204] Conv (/model.22/cv2.2/cv2.2.0/conv/Conv)
+  Inputs:
+    ← /model.21/cv2/act/Mul_output_0
+    ← model.22.cv2.2.0.conv.weight
+    ← model.22.cv2.2.0.conv.bias
+  Outputs:
+    → /model.22/cv2.2/cv2.2.0/conv/Conv_output_0
+
+[205] Sigmoid (/model.22/cv2.2/cv2.2.0/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv2.2/cv2.2.0/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv2.2/cv2.2.0/act/Sigmoid_output_0
+
+[206] Mul (/model.22/cv2.2/cv2.2.0/act/Mul)
+  Inputs:
+    ← /model.22/cv2.2/cv2.2.0/conv/Conv_output_0
+    ← /model.22/cv2.2/cv2.2.0/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv2.2/cv2.2.0/act/Mul_output_0
+
+[207] Conv (/model.22/cv2.2/cv2.2.1/conv/Conv)
+  Inputs:
+    ← /model.22/cv2.2/cv2.2.0/act/Mul_output_0
+    ← model.22.cv2.2.1.conv.weight
+    ← model.22.cv2.2.1.conv.bias
+  Outputs:
+    → /model.22/cv2.2/cv2.2.1/conv/Conv_output_0
+
+[208] Sigmoid (/model.22/cv2.2/cv2.2.1/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv2.2/cv2.2.1/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv2.2/cv2.2.1/act/Sigmoid_output_0
+
+[209] Mul (/model.22/cv2.2/cv2.2.1/act/Mul)
+  Inputs:
+    ← /model.22/cv2.2/cv2.2.1/conv/Conv_output_0
+    ← /model.22/cv2.2/cv2.2.1/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv2.2/cv2.2.1/act/Mul_output_0
+
+[210] Conv (/model.22/cv2.2/cv2.2.2/Conv)
+  Inputs:
+    ← /model.22/cv2.2/cv2.2.1/act/Mul_output_0
+    ← model.22.cv2.2.2.weight
+    ← model.22.cv2.2.2.bias
+  Outputs:
+    → /model.22/cv2.2/cv2.2.2/Conv_output_0
+
+[211] Conv (/model.22/cv3.2/cv3.2.0/conv/Conv)
+  Inputs:
+    ← /model.21/cv2/act/Mul_output_0
+    ← model.22.cv3.2.0.conv.weight
+    ← model.22.cv3.2.0.conv.bias
+  Outputs:
+    → /model.22/cv3.2/cv3.2.0/conv/Conv_output_0
+
+[212] Sigmoid (/model.22/cv3.2/cv3.2.0/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv3.2/cv3.2.0/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv3.2/cv3.2.0/act/Sigmoid_output_0
+
+[213] Mul (/model.22/cv3.2/cv3.2.0/act/Mul)
+  Inputs:
+    ← /model.22/cv3.2/cv3.2.0/conv/Conv_output_0
+    ← /model.22/cv3.2/cv3.2.0/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv3.2/cv3.2.0/act/Mul_output_0
+
+[214] Conv (/model.22/cv3.2/cv3.2.1/conv/Conv)
+  Inputs:
+    ← /model.22/cv3.2/cv3.2.0/act/Mul_output_0
+    ← model.22.cv3.2.1.conv.weight
+    ← model.22.cv3.2.1.conv.bias
+  Outputs:
+    → /model.22/cv3.2/cv3.2.1/conv/Conv_output_0
+
+[215] Sigmoid (/model.22/cv3.2/cv3.2.1/act/Sigmoid)
+  Inputs:
+    ← /model.22/cv3.2/cv3.2.1/conv/Conv_output_0
+  Outputs:
+    → /model.22/cv3.2/cv3.2.1/act/Sigmoid_output_0
+
+[216] Mul (/model.22/cv3.2/cv3.2.1/act/Mul)
+  Inputs:
+    ← /model.22/cv3.2/cv3.2.1/conv/Conv_output_0
+    ← /model.22/cv3.2/cv3.2.1/act/Sigmoid_output_0
+  Outputs:
+    → /model.22/cv3.2/cv3.2.1/act/Mul_output_0
+
+[217] Conv (/model.22/cv3.2/cv3.2.2/Conv)
+  Inputs:
+    ← /model.22/cv3.2/cv3.2.1/act/Mul_output_0
+    ← model.22.cv3.2.2.weight
+    ← model.22.cv3.2.2.bias
+  Outputs:
+    → /model.22/cv3.2/cv3.2.2/Conv_output_0
+
+[218] Concat (/model.22/Concat_2)
+  Inputs:
+    ← /model.22/cv2.2/cv2.2.2/Conv_output_0
+    ← /model.22/cv3.2/cv3.2.2/Conv_output_0
+  Outputs:
+    → /model.22/Concat_2_output_0
+
+[219] Constant (/model.22/Constant)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_output_0
+
+[220] Constant (/model.22/Constant_1)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_1_output_0
+
+[221] Constant (/model.22/Constant_2)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_2_output_0
+
+[222] Reshape (/model.22/Reshape)
+  Inputs:
+    ← /model.22/Concat_output_0
+    ← /model.22/Constant_output_0
+  Outputs:
+    → /model.22/Reshape_output_0
+
+[223] Reshape (/model.22/Reshape_1)
+  Inputs:
+    ← /model.22/Concat_1_output_0
+    ← /model.22/Constant_1_output_0
+  Outputs:
+    → /model.22/Reshape_1_output_0
+
+[224] Reshape (/model.22/Reshape_2)
+  Inputs:
+    ← /model.22/Concat_2_output_0
+    ← /model.22/Constant_2_output_0
+  Outputs:
+    → /model.22/Reshape_2_output_0
+
+[225] Concat (/model.22/Concat_3)
+  Inputs:
+    ← /model.22/Reshape_output_0
+    ← /model.22/Reshape_1_output_0
+    ← /model.22/Reshape_2_output_0
+  Outputs:
+    → /model.22/Concat_3_output_0
+
+[226] Constant (Constant_226)
+  Inputs:
+  Outputs:
+    → onnx::Split_389
+
+[227] Split (/model.22/Split)
+  Inputs:
+    ← /model.22/Concat_3_output_0
+    ← onnx::Split_389
+  Outputs:
+    → /model.22/Split_output_0
+    → /model.22/Split_output_1
+
+[228] Constant (/model.22/dfl/Constant)
+  Inputs:
+  Outputs:
+    → /model.22/dfl/Constant_output_0
+
+[229] Reshape (/model.22/dfl/Reshape)
+  Inputs:
+    ← /model.22/Split_output_0
+    ← /model.22/dfl/Constant_output_0
+  Outputs:
+    → /model.22/dfl/Reshape_output_0
+
+[230] Transpose (/model.22/dfl/Transpose)
+  Inputs:
+    ← /model.22/dfl/Reshape_output_0
+  Outputs:
+    → /model.22/dfl/Transpose_output_0
+
+[231] Softmax (/model.22/dfl/Softmax)
+  Inputs:
+    ← /model.22/dfl/Transpose_output_0
+  Outputs:
+    → /model.22/dfl/Softmax_output_0
+
+[232] Conv (/model.22/dfl/conv/Conv)
+  Inputs:
+    ← /model.22/dfl/Softmax_output_0
+    ← model.22.dfl.conv.weight
+  Outputs:
+    → /model.22/dfl/conv/Conv_output_0
+
+[233] Constant (/model.22/dfl/Constant_1)
+  Inputs:
+  Outputs:
+    → /model.22/dfl/Constant_1_output_0
+
+[234] Reshape (/model.22/dfl/Reshape_1)
+  Inputs:
+    ← /model.22/dfl/conv/Conv_output_0
+    ← /model.22/dfl/Constant_1_output_0
+  Outputs:
+    → /model.22/dfl/Reshape_1_output_0
+
+[235] Shape (/model.22/Shape)
+  Inputs:
+    ← /model.22/dfl/Reshape_1_output_0
+  Outputs:
+    → /model.22/Shape_output_0
+
+[236] Constant (/model.22/Constant_3)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_3_output_0
+
+[237] Gather (/model.22/Gather)
+  Inputs:
+    ← /model.22/Shape_output_0
+    ← /model.22/Constant_3_output_0
+  Outputs:
+    → /model.22/Gather_output_0
+
+[238] Constant (/model.22/Constant_4)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_4_output_0
+
+[239] Constant (/model.22/Constant_5)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_5_output_0
+
+[240] Add (/model.22/Add)
+  Inputs:
+    ← /model.22/Gather_output_0
+    ← /model.22/Constant_5_output_0
+  Outputs:
+    → /model.22/Add_output_0
+
+[241] Constant (/model.22/Constant_6)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_6_output_0
+
+[242] Div (/model.22/Div)
+  Inputs:
+    ← /model.22/Add_output_0
+    ← /model.22/Constant_6_output_0
+  Outputs:
+    → /model.22/Div_output_0
+
+[243] Constant (/model.22/Constant_7)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_7_output_0
+
+[244] Mul (/model.22/Mul)
+  Inputs:
+    ← /model.22/Div_output_0
+    ← /model.22/Constant_7_output_0
+  Outputs:
+    → /model.22/Mul_output_0
+
+[245] Slice (/model.22/Slice)
+  Inputs:
+    ← /model.22/dfl/Reshape_1_output_0
+    ← /model.22/Constant_4_output_0
+    ← /model.22/Mul_output_0
+    ← /model.22/Constant_3_output_0
+  Outputs:
+    → /model.22/Slice_output_0
+
+[246] Constant (/model.22/Constant_8)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_8_output_0
+
+[247] Mul (/model.22/Mul_1)
+  Inputs:
+    ← /model.22/Div_output_0
+    ← /model.22/Constant_8_output_0
+  Outputs:
+    → /model.22/Mul_1_output_0
+
+[248] Slice (/model.22/Slice_1)
+  Inputs:
+    ← /model.22/dfl/Reshape_1_output_0
+    ← /model.22/Mul_output_0
+    ← /model.22/Mul_1_output_0
+    ← /model.22/Constant_3_output_0
+  Outputs:
+    → /model.22/Slice_1_output_0
+
+[249] Constant (/model.22/Constant_9)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_9_output_0
+
+[250] Sub (/model.22/Sub)
+  Inputs:
+    ← /model.22/Constant_9_output_0
+    ← /model.22/Slice_output_0
+  Outputs:
+    → /model.22/Sub_output_0
+
+[251] Constant (/model.22/Constant_10)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_10_output_0
+
+[252] Add (/model.22/Add_1)
+  Inputs:
+    ← /model.22/Constant_10_output_0
+    ← /model.22/Slice_1_output_0
+  Outputs:
+    → /model.22/Add_1_output_0
+
+[253] Add (/model.22/Add_2)
+  Inputs:
+    ← /model.22/Sub_output_0
+    ← /model.22/Add_1_output_0
+  Outputs:
+    → /model.22/Add_2_output_0
+
+[254] Constant (/model.22/Constant_11)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_11_output_0
+
+[255] Div (/model.22/Div_1)
+  Inputs:
+    ← /model.22/Add_2_output_0
+    ← /model.22/Constant_11_output_0
+  Outputs:
+    → /model.22/Div_1_output_0
+
+[256] Sub (/model.22/Sub_1)
+  Inputs:
+    ← /model.22/Add_1_output_0
+    ← /model.22/Sub_output_0
+  Outputs:
+    → /model.22/Sub_1_output_0
+
+[257] Concat (/model.22/Concat_4)
+  Inputs:
+    ← /model.22/Div_1_output_0
+    ← /model.22/Sub_1_output_0
+  Outputs:
+    → /model.22/Concat_4_output_0
+
+[258] Constant (/model.22/Constant_12)
+  Inputs:
+  Outputs:
+    → /model.22/Constant_12_output_0
+
+[259] Mul (/model.22/Mul_2)
+  Inputs:
+    ← /model.22/Concat_4_output_0
+    ← /model.22/Constant_12_output_0
+  Outputs:
+    → /model.22/Mul_2_output_0
+
+[260] Sigmoid (/model.22/Sigmoid)
+  Inputs:
+    ← /model.22/Split_output_1
+  Outputs:
+    → /model.22/Sigmoid_output_0
+
+[261] Concat (/model.22/Concat_5)
+  Inputs:
+    ← /model.22/Mul_2_output_0
+    ← /model.22/Sigmoid_output_0
+  Outputs:
+    → output0
+
+=== Detailed Node Info ===
+
+[Node 0]
+Name: /model.0/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [2 2 ]
+
+[Node 1]
+Name: /model.0/act/Sigmoid
+Type: Sigmoid
+
+[Node 2]
+Name: /model.0/act/Mul
+Type: Mul
+
+[Node 3]
+Name: /model.1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [2 2 ]
+
+[Node 4]
+Name: /model.1/act/Sigmoid
+Type: Sigmoid
+
+[Node 5]
+Name: /model.1/act/Mul
+Type: Mul
+
+[Node 6]
+Name: /model.2/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 7]
+Name: /model.2/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 8]
+Name: /model.2/cv1/act/Mul
+Type: Mul
+
+[Node 9]
+Name: Constant_9
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [2]
+    raw_data = [12 12 ]
+
+[Node 10]
+Name: /model.2/Split
+Type: Split
+Attributes:
+  axis: int = 1
+
+[Node 11]
+Name: /model.2/m.0/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 12]
+Name: /model.2/m.0/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 13]
+Name: /model.2/m.0/cv1/act/Mul
+Type: Mul
+
+[Node 14]
+Name: /model.2/m.0/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 15]
+Name: /model.2/m.0/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 16]
+Name: /model.2/m.0/cv2/act/Mul
+Type: Mul
+
+[Node 17]
+Name: /model.2/m.0/Add
+Type: Add
+
+[Node 18]
+Name: /model.2/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 19]
+Name: /model.2/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 20]
+Name: /model.2/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 21]
+Name: /model.2/cv2/act/Mul
+Type: Mul
+
+[Node 22]
+Name: /model.3/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [2 2 ]
+
+[Node 23]
+Name: /model.3/act/Sigmoid
+Type: Sigmoid
+
+[Node 24]
+Name: /model.3/act/Mul
+Type: Mul
+
+[Node 25]
+Name: /model.4/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 26]
+Name: /model.4/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 27]
+Name: /model.4/cv1/act/Mul
+Type: Mul
+
+[Node 28]
+Name: Constant_28
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [2]
+    raw_data = [24 24 ]
+
+[Node 29]
+Name: /model.4/Split
+Type: Split
+Attributes:
+  axis: int = 1
+
+[Node 30]
+Name: /model.4/m.0/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 31]
+Name: /model.4/m.0/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 32]
+Name: /model.4/m.0/cv1/act/Mul
+Type: Mul
+
+[Node 33]
+Name: /model.4/m.0/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 34]
+Name: /model.4/m.0/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 35]
+Name: /model.4/m.0/cv2/act/Mul
+Type: Mul
+
+[Node 36]
+Name: /model.4/m.0/Add
+Type: Add
+
+[Node 37]
+Name: /model.4/m.1/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 38]
+Name: /model.4/m.1/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 39]
+Name: /model.4/m.1/cv1/act/Mul
+Type: Mul
+
+[Node 40]
+Name: /model.4/m.1/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 41]
+Name: /model.4/m.1/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 42]
+Name: /model.4/m.1/cv2/act/Mul
+Type: Mul
+
+[Node 43]
+Name: /model.4/m.1/Add
+Type: Add
+
+[Node 44]
+Name: /model.4/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 45]
+Name: /model.4/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 46]
+Name: /model.4/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 47]
+Name: /model.4/cv2/act/Mul
+Type: Mul
+
+[Node 48]
+Name: /model.5/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [2 2 ]
+
+[Node 49]
+Name: /model.5/act/Sigmoid
+Type: Sigmoid
+
+[Node 50]
+Name: /model.5/act/Mul
+Type: Mul
+
+[Node 51]
+Name: /model.6/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 52]
+Name: /model.6/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 53]
+Name: /model.6/cv1/act/Mul
+Type: Mul
+
+[Node 54]
+Name: Constant_54
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [2]
+    raw_data = [48 48 ]
+
+[Node 55]
+Name: /model.6/Split
+Type: Split
+Attributes:
+  axis: int = 1
+
+[Node 56]
+Name: /model.6/m.0/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 57]
+Name: /model.6/m.0/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 58]
+Name: /model.6/m.0/cv1/act/Mul
+Type: Mul
+
+[Node 59]
+Name: /model.6/m.0/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 60]
+Name: /model.6/m.0/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 61]
+Name: /model.6/m.0/cv2/act/Mul
+Type: Mul
+
+[Node 62]
+Name: /model.6/m.0/Add
+Type: Add
+
+[Node 63]
+Name: /model.6/m.1/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 64]
+Name: /model.6/m.1/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 65]
+Name: /model.6/m.1/cv1/act/Mul
+Type: Mul
+
+[Node 66]
+Name: /model.6/m.1/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 67]
+Name: /model.6/m.1/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 68]
+Name: /model.6/m.1/cv2/act/Mul
+Type: Mul
+
+[Node 69]
+Name: /model.6/m.1/Add
+Type: Add
+
+[Node 70]
+Name: /model.6/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 71]
+Name: /model.6/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 72]
+Name: /model.6/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 73]
+Name: /model.6/cv2/act/Mul
+Type: Mul
+
+[Node 74]
+Name: /model.7/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [2 2 ]
+
+[Node 75]
+Name: /model.7/act/Sigmoid
+Type: Sigmoid
+
+[Node 76]
+Name: /model.7/act/Mul
+Type: Mul
+
+[Node 77]
+Name: /model.8/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 78]
+Name: /model.8/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 79]
+Name: /model.8/cv1/act/Mul
+Type: Mul
+
+[Node 80]
+Name: Constant_80
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [2]
+    raw_data = [96 96 ]
+
+[Node 81]
+Name: /model.8/Split
+Type: Split
+Attributes:
+  axis: int = 1
+
+[Node 82]
+Name: /model.8/m.0/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 83]
+Name: /model.8/m.0/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 84]
+Name: /model.8/m.0/cv1/act/Mul
+Type: Mul
+
+[Node 85]
+Name: /model.8/m.0/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 86]
+Name: /model.8/m.0/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 87]
+Name: /model.8/m.0/cv2/act/Mul
+Type: Mul
+
+[Node 88]
+Name: /model.8/m.0/Add
+Type: Add
+
+[Node 89]
+Name: /model.8/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 90]
+Name: /model.8/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 91]
+Name: /model.8/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 92]
+Name: /model.8/cv2/act/Mul
+Type: Mul
+
+[Node 93]
+Name: /model.9/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 94]
+Name: /model.9/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 95]
+Name: /model.9/cv1/act/Mul
+Type: Mul
+
+[Node 96]
+Name: /model.9/m/MaxPool
+Type: MaxPool
+Attributes:
+  ceil_mode: int = 0
+  kernel_shape: ints = [5 5 ]
+  pads: ints = [2 2 2 2 ]
+  strides: ints = [1 1 ]
+
+[Node 97]
+Name: /model.9/m_1/MaxPool
+Type: MaxPool
+Attributes:
+  ceil_mode: int = 0
+  kernel_shape: ints = [5 5 ]
+  pads: ints = [2 2 2 2 ]
+  strides: ints = [1 1 ]
+
+[Node 98]
+Name: /model.9/m_2/MaxPool
+Type: MaxPool
+Attributes:
+  ceil_mode: int = 0
+  kernel_shape: ints = [5 5 ]
+  pads: ints = [2 2 2 2 ]
+  strides: ints = [1 1 ]
+
+[Node 99]
+Name: /model.9/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 100]
+Name: /model.9/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 101]
+Name: /model.9/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 102]
+Name: /model.9/cv2/act/Mul
+Type: Mul
+
+[Node 103]
+Name: /model.10/Constant
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.FLOAT, shape: [4]
+    raw_data = [1.000 1.000 2.000 2.000 ]
+
+[Node 104]
+Name: /model.10/Resize
+Type: Resize
+Attributes:
+  coordinate_transformation_mode: string = asymmetric
+  cubic_coeff_a: float = -0.75
+  mode: string = nearest
+  nearest_mode: string = floor
+
+[Node 105]
+Name: /model.11/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 106]
+Name: /model.12/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 107]
+Name: /model.12/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 108]
+Name: /model.12/cv1/act/Mul
+Type: Mul
+
+[Node 109]
+Name: /model.12/Split
+Type: Split
+Attributes:
+  axis: int = 1
+
+[Node 110]
+Name: /model.12/m.0/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 111]
+Name: /model.12/m.0/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 112]
+Name: /model.12/m.0/cv1/act/Mul
+Type: Mul
+
+[Node 113]
+Name: /model.12/m.0/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 114]
+Name: /model.12/m.0/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 115]
+Name: /model.12/m.0/cv2/act/Mul
+Type: Mul
+
+[Node 116]
+Name: /model.12/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 117]
+Name: /model.12/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 118]
+Name: /model.12/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 119]
+Name: /model.12/cv2/act/Mul
+Type: Mul
+
+[Node 120]
+Name: /model.13/Constant
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.FLOAT, shape: [4]
+    raw_data = [1.000 1.000 2.000 2.000 ]
+
+[Node 121]
+Name: /model.13/Resize
+Type: Resize
+Attributes:
+  coordinate_transformation_mode: string = asymmetric
+  cubic_coeff_a: float = -0.75
+  mode: string = nearest
+  nearest_mode: string = floor
+
+[Node 122]
+Name: /model.14/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 123]
+Name: /model.15/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 124]
+Name: /model.15/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 125]
+Name: /model.15/cv1/act/Mul
+Type: Mul
+
+[Node 126]
+Name: Constant_126
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [2]
+    raw_data = [8 8 ]
+
+[Node 127]
+Name: /model.15/Split
+Type: Split
+Attributes:
+  axis: int = 1
+
+[Node 128]
+Name: /model.15/m.0/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 129]
+Name: /model.15/m.0/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 130]
+Name: /model.15/m.0/cv1/act/Mul
+Type: Mul
+
+[Node 131]
+Name: /model.15/m.0/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 132]
+Name: /model.15/m.0/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 133]
+Name: /model.15/m.0/cv2/act/Mul
+Type: Mul
+
+[Node 134]
+Name: /model.15/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 135]
+Name: /model.15/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 136]
+Name: /model.15/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 137]
+Name: /model.15/cv2/act/Mul
+Type: Mul
+
+[Node 138]
+Name: /model.16/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [2 2 ]
+
+[Node 139]
+Name: /model.16/act/Sigmoid
+Type: Sigmoid
+
+[Node 140]
+Name: /model.16/act/Mul
+Type: Mul
+
+[Node 141]
+Name: /model.17/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 142]
+Name: /model.18/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 143]
+Name: /model.18/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 144]
+Name: /model.18/cv1/act/Mul
+Type: Mul
+
+[Node 145]
+Name: /model.18/Split
+Type: Split
+Attributes:
+  axis: int = 1
+
+[Node 146]
+Name: /model.18/m.0/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 147]
+Name: /model.18/m.0/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 148]
+Name: /model.18/m.0/cv1/act/Mul
+Type: Mul
+
+[Node 149]
+Name: /model.18/m.0/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 150]
+Name: /model.18/m.0/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 151]
+Name: /model.18/m.0/cv2/act/Mul
+Type: Mul
+
+[Node 152]
+Name: /model.18/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 153]
+Name: /model.18/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 154]
+Name: /model.18/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 155]
+Name: /model.18/cv2/act/Mul
+Type: Mul
+
+[Node 156]
+Name: /model.19/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [2 2 ]
+
+[Node 157]
+Name: /model.19/act/Sigmoid
+Type: Sigmoid
+
+[Node 158]
+Name: /model.19/act/Mul
+Type: Mul
+
+[Node 159]
+Name: /model.20/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 160]
+Name: /model.21/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 161]
+Name: /model.21/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 162]
+Name: /model.21/cv1/act/Mul
+Type: Mul
+
+[Node 163]
+Name: /model.21/Split
+Type: Split
+Attributes:
+  axis: int = 1
+
+[Node 164]
+Name: /model.21/m.0/cv1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 165]
+Name: /model.21/m.0/cv1/act/Sigmoid
+Type: Sigmoid
+
+[Node 166]
+Name: /model.21/m.0/cv1/act/Mul
+Type: Mul
+
+[Node 167]
+Name: /model.21/m.0/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 168]
+Name: /model.21/m.0/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 169]
+Name: /model.21/m.0/cv2/act/Mul
+Type: Mul
+
+[Node 170]
+Name: /model.21/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 171]
+Name: /model.21/cv2/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 172]
+Name: /model.21/cv2/act/Sigmoid
+Type: Sigmoid
+
+[Node 173]
+Name: /model.21/cv2/act/Mul
+Type: Mul
+
+[Node 174]
+Name: /model.22/cv2.0/cv2.0.0/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 175]
+Name: /model.22/cv2.0/cv2.0.0/act/Sigmoid
+Type: Sigmoid
+
+[Node 176]
+Name: /model.22/cv2.0/cv2.0.0/act/Mul
+Type: Mul
+
+[Node 177]
+Name: /model.22/cv2.0/cv2.0.1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 178]
+Name: /model.22/cv2.0/cv2.0.1/act/Sigmoid
+Type: Sigmoid
+
+[Node 179]
+Name: /model.22/cv2.0/cv2.0.1/act/Mul
+Type: Mul
+
+[Node 180]
+Name: /model.22/cv2.0/cv2.0.2/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 181]
+Name: /model.22/cv3.0/cv3.0.0/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 182]
+Name: /model.22/cv3.0/cv3.0.0/act/Sigmoid
+Type: Sigmoid
+
+[Node 183]
+Name: /model.22/cv3.0/cv3.0.0/act/Mul
+Type: Mul
+
+[Node 184]
+Name: /model.22/cv3.0/cv3.0.1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 185]
+Name: /model.22/cv3.0/cv3.0.1/act/Sigmoid
+Type: Sigmoid
+
+[Node 186]
+Name: /model.22/cv3.0/cv3.0.1/act/Mul
+Type: Mul
+
+[Node 187]
+Name: /model.22/cv3.0/cv3.0.2/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 188]
+Name: /model.22/Concat
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 189]
+Name: /model.22/cv2.1/cv2.1.0/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 190]
+Name: /model.22/cv2.1/cv2.1.0/act/Sigmoid
+Type: Sigmoid
+
+[Node 191]
+Name: /model.22/cv2.1/cv2.1.0/act/Mul
+Type: Mul
+
+[Node 192]
+Name: /model.22/cv2.1/cv2.1.1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 193]
+Name: /model.22/cv2.1/cv2.1.1/act/Sigmoid
+Type: Sigmoid
+
+[Node 194]
+Name: /model.22/cv2.1/cv2.1.1/act/Mul
+Type: Mul
+
+[Node 195]
+Name: /model.22/cv2.1/cv2.1.2/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 196]
+Name: /model.22/cv3.1/cv3.1.0/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 197]
+Name: /model.22/cv3.1/cv3.1.0/act/Sigmoid
+Type: Sigmoid
+
+[Node 198]
+Name: /model.22/cv3.1/cv3.1.0/act/Mul
+Type: Mul
+
+[Node 199]
+Name: /model.22/cv3.1/cv3.1.1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 200]
+Name: /model.22/cv3.1/cv3.1.1/act/Sigmoid
+Type: Sigmoid
+
+[Node 201]
+Name: /model.22/cv3.1/cv3.1.1/act/Mul
+Type: Mul
+
+[Node 202]
+Name: /model.22/cv3.1/cv3.1.2/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 203]
+Name: /model.22/Concat_1
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 204]
+Name: /model.22/cv2.2/cv2.2.0/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 205]
+Name: /model.22/cv2.2/cv2.2.0/act/Sigmoid
+Type: Sigmoid
+
+[Node 206]
+Name: /model.22/cv2.2/cv2.2.0/act/Mul
+Type: Mul
+
+[Node 207]
+Name: /model.22/cv2.2/cv2.2.1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 208]
+Name: /model.22/cv2.2/cv2.2.1/act/Sigmoid
+Type: Sigmoid
+
+[Node 209]
+Name: /model.22/cv2.2/cv2.2.1/act/Mul
+Type: Mul
+
+[Node 210]
+Name: /model.22/cv2.2/cv2.2.2/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 211]
+Name: /model.22/cv3.2/cv3.2.0/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 212]
+Name: /model.22/cv3.2/cv3.2.0/act/Sigmoid
+Type: Sigmoid
+
+[Node 213]
+Name: /model.22/cv3.2/cv3.2.0/act/Mul
+Type: Mul
+
+[Node 214]
+Name: /model.22/cv3.2/cv3.2.1/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [3 3 ]
+  pads: ints = [1 1 1 1 ]
+  strides: ints = [1 1 ]
+
+[Node 215]
+Name: /model.22/cv3.2/cv3.2.1/act/Sigmoid
+Type: Sigmoid
+
+[Node 216]
+Name: /model.22/cv3.2/cv3.2.1/act/Mul
+Type: Mul
+
+[Node 217]
+Name: /model.22/cv3.2/cv3.2.2/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 218]
+Name: /model.22/Concat_2
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 219]
+Name: /model.22/Constant
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [3]
+    raw_data = [1 96 -1 ]
+
+[Node 220]
+Name: /model.22/Constant_1
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [3]
+    raw_data = [1 96 -1 ]
+
+[Node 221]
+Name: /model.22/Constant_2
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [3]
+    raw_data = [1 96 -1 ]
+
+[Node 222]
+Name: /model.22/Reshape
+Type: Reshape
+Attributes:
+  allowzero: int = 0
+
+[Node 223]
+Name: /model.22/Reshape_1
+Type: Reshape
+Attributes:
+  allowzero: int = 0
+
+[Node 224]
+Name: /model.22/Reshape_2
+Type: Reshape
+Attributes:
+  allowzero: int = 0
+
+[Node 225]
+Name: /model.22/Concat_3
+Type: Concat
+Attributes:
+  axis: int = 2
+
+[Node 226]
+Name: Constant_226
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [2]
+    raw_data = [16 80 ]
+
+[Node 227]
+Name: /model.22/Split
+Type: Split
+Attributes:
+  axis: int = 1
+
+[Node 228]
+Name: /model.22/dfl/Constant
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [4]
+    raw_data = [1 4 4 1344 ]
+
+[Node 229]
+Name: /model.22/dfl/Reshape
+Type: Reshape
+Attributes:
+  allowzero: int = 0
+
+[Node 230]
+Name: /model.22/dfl/Transpose
+Type: Transpose
+Attributes:
+  perm: ints = [0 2 1 3 ]
+
+[Node 231]
+Name: /model.22/dfl/Softmax
+Type: Softmax
+Attributes:
+  axis: int = 1
+
+[Node 232]
+Name: /model.22/dfl/conv/Conv
+Type: Conv
+Attributes:
+  dilations: ints = [1 1 ]
+  group: int = 1
+  kernel_shape: ints = [1 1 ]
+  pads: ints = [0 0 0 0 ]
+  strides: ints = [1 1 ]
+
+[Node 233]
+Name: /model.22/dfl/Constant_1
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [3]
+    raw_data = [1 4 1344 ]
+
+[Node 234]
+Name: /model.22/dfl/Reshape_1
+Type: Reshape
+Attributes:
+  allowzero: int = 0
+
+[Node 235]
+Name: /model.22/Shape
+Type: Shape
+
+[Node 236]
+Name: /model.22/Constant_3
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [1]
+    raw_data = [1 ]
+
+[Node 237]
+Name: /model.22/Gather
+Type: Gather
+Attributes:
+  axis: int = 0
+
+[Node 238]
+Name: /model.22/Constant_4
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [1]
+    raw_data = [0 ]
+
+[Node 239]
+Name: /model.22/Constant_5
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [1]
+    raw_data = [1 ]
+
+[Node 240]
+Name: /model.22/Add
+Type: Add
+
+[Node 241]
+Name: /model.22/Constant_6
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [1]
+    raw_data = [2 ]
+
+[Node 242]
+Name: /model.22/Div
+Type: Div
+
+[Node 243]
+Name: /model.22/Constant_7
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [1]
+    raw_data = [1 ]
+
+[Node 244]
+Name: /model.22/Mul
+Type: Mul
+
+[Node 245]
+Name: /model.22/Slice
+Type: Slice
+
+[Node 246]
+Name: /model.22/Constant_8
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.INT64, shape: [1]
+    raw_data = [2 ]
+
+[Node 247]
+Name: /model.22/Mul_1
+Type: Mul
+
+[Node 248]
+Name: /model.22/Slice_1
+Type: Slice
+
+[Node 249]
+Name: /model.22/Constant_9
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.FLOAT, shape: [1, 2, 1344]
+    raw_data = [0.500 1.500 2.500 3.500 4.500 5.500 6.500 7.500 8.500 9.500 ...]
+
+[Node 250]
+Name: /model.22/Sub
+Type: Sub
+
+[Node 251]
+Name: /model.22/Constant_10
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.FLOAT, shape: [1, 2, 1344]
+    raw_data = [0.500 1.500 2.500 3.500 4.500 5.500 6.500 7.500 8.500 9.500 ...]
+
+[Node 252]
+Name: /model.22/Add_1
+Type: Add
+
+[Node 253]
+Name: /model.22/Add_2
+Type: Add
+
+[Node 254]
+Name: /model.22/Constant_11
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.FLOAT, shape: []
+    raw_data = [2.000 ]
+
+[Node 255]
+Name: /model.22/Div_1
+Type: Div
+
+[Node 256]
+Name: /model.22/Sub_1
+Type: Sub
+
+[Node 257]
+Name: /model.22/Concat_4
+Type: Concat
+Attributes:
+  axis: int = 1
+
+[Node 258]
+Name: /model.22/Constant_12
+Type: Constant
+Attributes:
+  value: tensor = type: DataHandler.onnx.DataType.FLOAT, shape: [1, 1344]
+    raw_data = [8.000 8.000 8.000 8.000 8.000 8.000 8.000 8.000 8.000 8.000 ...]
+
+[Node 259]
+Name: /model.22/Mul_2
+Type: Mul
+
+[Node 260]
+Name: /model.22/Sigmoid
+Type: Sigmoid
+
+[Node 261]
+Name: /model.22/Concat_5
+Type: Concat
+Attributes:
+  axis: int = 1
+
+=== Initializers (weights, biases, etc.) ===
+
+Initializer 0:
+Name: model.0.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 3, 3, 3]
+Data preview: [-0.042 1.230 -1.114 -1.708 -0.591 1.276 -0.350 1.200 -0.009 0.135 ...]
+Description: 4D tensor of size 16x3x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 1:
+Name: model.0.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [1.320 0.463 0.051 0.429 1.779 1.574 1.502 1.626 0.952 0.690 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 2:
+Name: model.1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 16, 3, 3]
+Data preview: [0.160 0.052 -0.117 -0.098 0.003 -0.207 0.142 -0.157 -0.166 -0.192 ...]
+Description: 4D tensor of size 24x16x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 3:
+Name: model.1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [0.682 1.917 2.020 -0.381 1.463 1.604 -1.015 0.207 0.521 -1.016 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 4:
+Name: model.2.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 24, 1, 1]
+Data preview: [0.557 0.469 -0.138 0.044 0.072 -0.068 -0.197 -0.261 -0.291 0.265 ...]
+Description: 4D tensor of size 24x24x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 5:
+Name: model.2.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [-0.550 0.285 0.899 -0.036 0.259 -0.736 0.046 0.099 -0.077 0.182 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 6:
+Name: model.2.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 36, 1, 1]
+Data preview: [0.064 0.481 0.313 -0.261 0.284 0.459 0.024 -0.300 0.113 -0.079 ...]
+Description: 4D tensor of size 24x36x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 7:
+Name: model.2.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [-0.733 1.426 0.910 1.001 -0.174 0.975 0.456 1.216 -0.159 -0.986 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 8:
+Name: model.2.m.0.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [12, 12, 3, 3]
+Data preview: [0.030 0.023 -0.279 0.070 -0.192 -0.189 0.005 -0.255 0.293 0.250 ...]
+Description: 4D tensor of size 12x12x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 9:
+Name: model.2.m.0.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [12]
+Data preview: [0.732 0.592 1.247 -0.750 -0.240 1.223 -0.499 0.988 0.324 -0.452 ...]
+Description: 1D tensor with 12 values (typically bias or batch norm parameter)
+
+Initializer 10:
+Name: model.2.m.0.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [12, 12, 3, 3]
+Data preview: [0.165 0.230 0.040 -0.001 0.155 -0.190 -0.025 0.172 0.100 0.062 ...]
+Description: 4D tensor of size 12x12x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 11:
+Name: model.2.m.0.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [12]
+Data preview: [-0.096 0.198 0.933 -1.008 -0.000 -0.166 0.653 -0.794 -0.673 0.621 ...]
+Description: 1D tensor with 12 values (typically bias or batch norm parameter)
+
+Initializer 12:
+Name: model.3.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48, 24, 3, 3]
+Data preview: [-0.010 0.125 -0.078 0.107 0.082 -0.012 0.012 0.127 0.006 -0.006 ...]
+Description: 4D tensor of size 48x24x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 13:
+Name: model.3.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48]
+Data preview: [0.720 0.641 0.459 -0.191 0.555 -0.282 0.998 -0.275 0.474 0.415 ...]
+Description: 1D tensor with 48 values (typically bias or batch norm parameter)
+
+Initializer 14:
+Name: model.4.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48, 48, 1, 1]
+Data preview: [0.102 0.396 -0.232 -0.082 0.075 -0.026 0.303 0.273 -0.099 -0.360 ...]
+Description: 4D tensor of size 48x48x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 15:
+Name: model.4.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48]
+Data preview: [-0.792 -0.321 0.506 0.909 0.164 -0.139 0.719 0.768 -0.489 -0.611 ...]
+Description: 1D tensor with 48 values (typically bias or batch norm parameter)
+
+Initializer 16:
+Name: model.4.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48, 96, 1, 1]
+Data preview: [-0.100 0.125 0.081 0.038 0.060 0.117 -0.095 -0.069 0.024 -0.119 ...]
+Description: 4D tensor of size 48x96x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 17:
+Name: model.4.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48]
+Data preview: [0.115 0.557 0.768 0.166 0.797 -0.076 -0.765 1.053 1.033 0.774 ...]
+Description: 1D tensor with 48 values (typically bias or batch norm parameter)
+
+Initializer 18:
+Name: model.4.m.0.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 24, 3, 3]
+Data preview: [-0.062 -0.183 0.076 -0.076 0.074 -0.042 -0.142 0.029 -0.147 -0.130 ...]
+Description: 4D tensor of size 24x24x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 19:
+Name: model.4.m.0.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [0.656 -1.259 -0.055 0.437 1.308 -0.897 0.541 -0.506 0.681 1.217 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 20:
+Name: model.4.m.0.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 24, 3, 3]
+Data preview: [-0.093 0.019 -0.107 -0.020 0.012 -0.065 -0.124 -0.169 0.109 -0.095 ...]
+Description: 4D tensor of size 24x24x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 21:
+Name: model.4.m.0.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [0.580 -0.250 -0.228 -0.134 -0.081 -0.436 0.932 0.387 1.491 1.181 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 22:
+Name: model.4.m.1.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 24, 3, 3]
+Data preview: [0.144 -0.050 0.064 0.077 0.003 -0.109 0.017 0.045 0.133 -0.088 ...]
+Description: 4D tensor of size 24x24x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 23:
+Name: model.4.m.1.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [0.670 -0.610 1.114 0.452 1.410 1.298 -1.203 1.333 0.421 -1.250 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 24:
+Name: model.4.m.1.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 24, 3, 3]
+Data preview: [0.190 0.001 -0.156 0.086 0.015 -0.002 -0.106 -0.142 -0.169 -0.039 ...]
+Description: 4D tensor of size 24x24x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 25:
+Name: model.4.m.1.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [0.983 0.796 0.489 0.347 0.065 0.010 0.004 -0.304 -0.292 -0.236 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 26:
+Name: model.5.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96, 48, 3, 3]
+Data preview: [0.038 -0.064 -0.025 -0.097 0.113 -0.117 -0.019 0.125 0.135 -0.127 ...]
+Description: 4D tensor of size 96x48x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 27:
+Name: model.5.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96]
+Data preview: [-0.009 0.600 0.364 0.369 -0.142 0.015 0.298 0.590 0.547 -0.184 ...]
+Description: 1D tensor with 96 values (typically bias or batch norm parameter)
+
+Initializer 28:
+Name: model.6.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96, 96, 1, 1]
+Data preview: [0.099 0.144 -0.134 0.061 -0.043 0.154 0.115 -0.107 -0.111 -0.178 ...]
+Description: 4D tensor of size 96x96x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 29:
+Name: model.6.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96]
+Data preview: [0.087 -0.666 -0.032 0.439 0.820 0.006 -0.529 0.213 0.145 0.056 ...]
+Description: 1D tensor with 96 values (typically bias or batch norm parameter)
+
+Initializer 30:
+Name: model.6.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96, 192, 1, 1]
+Data preview: [-0.086 -0.133 -0.113 0.099 0.086 -0.038 0.078 -0.019 0.088 -0.100 ...]
+Description: 4D tensor of size 96x192x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 31:
+Name: model.6.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96]
+Data preview: [0.716 0.795 -0.421 0.387 -0.002 -0.412 0.548 0.835 0.207 -0.081 ...]
+Description: 1D tensor with 96 values (typically bias or batch norm parameter)
+
+Initializer 32:
+Name: model.6.m.0.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48, 48, 3, 3]
+Data preview: [0.100 -0.011 -0.022 0.030 0.019 0.097 -0.116 0.071 -0.119 0.118 ...]
+Description: 4D tensor of size 48x48x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 33:
+Name: model.6.m.0.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48]
+Data preview: [0.281 0.209 -0.317 0.132 0.133 -0.260 -0.530 -0.437 0.066 -0.145 ...]
+Description: 1D tensor with 48 values (typically bias or batch norm parameter)
+
+Initializer 34:
+Name: model.6.m.0.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48, 48, 3, 3]
+Data preview: [-0.115 -0.036 0.096 -0.008 0.090 0.022 -0.114 -0.010 -0.031 -0.153 ...]
+Description: 4D tensor of size 48x48x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 35:
+Name: model.6.m.0.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48]
+Data preview: [-0.245 0.394 0.853 0.629 0.191 0.248 -0.145 -0.099 -0.167 -0.322 ...]
+Description: 1D tensor with 48 values (typically bias or batch norm parameter)
+
+Initializer 36:
+Name: model.6.m.1.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48, 48, 3, 3]
+Data preview: [-0.009 -0.043 0.017 0.021 0.093 -0.028 0.090 -0.061 0.041 -0.067 ...]
+Description: 4D tensor of size 48x48x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 37:
+Name: model.6.m.1.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48]
+Data preview: [0.076 -0.267 0.290 -0.406 -0.247 -0.520 0.186 0.159 -0.011 0.294 ...]
+Description: 1D tensor with 48 values (typically bias or batch norm parameter)
+
+Initializer 38:
+Name: model.6.m.1.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48, 48, 3, 3]
+Data preview: [0.159 0.145 -0.014 0.036 0.057 -0.097 0.039 0.168 0.145 0.088 ...]
+Description: 4D tensor of size 48x48x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 39:
+Name: model.6.m.1.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48]
+Data preview: [0.161 0.008 -0.236 0.153 0.211 -0.210 0.317 -0.369 -0.161 0.266 ...]
+Description: 1D tensor with 48 values (typically bias or batch norm parameter)
+
+Initializer 40:
+Name: model.7.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [192, 96, 3, 3]
+Data preview: [-0.047 0.053 0.011 0.028 0.027 -0.031 0.008 -0.065 0.065 -0.006 ...]
+Description: 4D tensor of size 192x96x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 41:
+Name: model.7.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [192]
+Data preview: [-0.327 0.132 0.314 -0.056 0.410 -0.363 -0.197 -0.324 -0.294 0.139 ...]
+Description: 1D tensor with 192 values (typically bias or batch norm parameter)
+
+Initializer 42:
+Name: model.8.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [192, 192, 1, 1]
+Data preview: [0.163 -0.101 0.113 0.078 -0.064 -0.063 0.189 -0.172 0.034 -0.164 ...]
+Description: 4D tensor of size 192x192x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 43:
+Name: model.8.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [192]
+Data preview: [0.073 0.334 0.255 0.029 0.083 0.232 -0.132 0.208 0.040 0.008 ...]
+Description: 1D tensor with 192 values (typically bias or batch norm parameter)
+
+Initializer 44:
+Name: model.8.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [192, 288, 1, 1]
+Data preview: [0.058 0.025 0.001 0.071 0.046 0.049 -0.079 -0.006 -0.072 0.035 ...]
+Description: 4D tensor of size 192x288x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 45:
+Name: model.8.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [192]
+Data preview: [-0.209 0.135 0.321 0.047 -0.015 -0.171 -0.095 0.277 0.097 0.259 ...]
+Description: 1D tensor with 192 values (typically bias or batch norm parameter)
+
+Initializer 46:
+Name: model.8.m.0.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96, 96, 3, 3]
+Data preview: [-0.081 -0.049 0.084 0.026 -0.012 -0.019 -0.098 -0.101 -0.025 -0.046 ...]
+Description: 4D tensor of size 96x96x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 47:
+Name: model.8.m.0.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96]
+Data preview: [-0.026 -0.264 0.221 0.025 0.200 -0.203 -0.221 -0.266 -0.130 0.107 ...]
+Description: 1D tensor with 96 values (typically bias or batch norm parameter)
+
+Initializer 48:
+Name: model.8.m.0.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96, 96, 3, 3]
+Data preview: [0.021 -0.059 0.076 0.025 0.016 0.037 -0.041 0.027 0.071 0.007 ...]
+Description: 4D tensor of size 96x96x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 49:
+Name: model.8.m.0.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96]
+Data preview: [-0.022 0.223 0.052 -0.145 0.038 -0.048 0.200 0.143 0.112 -0.247 ...]
+Description: 1D tensor with 96 values (typically bias or batch norm parameter)
+
+Initializer 50:
+Name: model.9.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96, 192, 1, 1]
+Data preview: [-0.086 -0.066 0.062 0.118 -0.103 0.005 0.144 0.050 -0.110 0.019 ...]
+Description: 4D tensor of size 96x192x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 51:
+Name: model.9.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [96]
+Data preview: [0.183 0.138 -0.087 0.061 -0.022 -0.111 -0.112 0.154 0.020 0.188 ...]
+Description: 1D tensor with 96 values (typically bias or batch norm parameter)
+
+Initializer 52:
+Name: model.9.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [192, 384, 1, 1]
+Data preview: [0.013 0.011 0.004 0.006 0.008 0.020 0.006 -0.017 -0.011 0.002 ...]
+Description: 4D tensor of size 192x384x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 53:
+Name: model.9.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [192]
+Data preview: [0.190 -0.180 -0.089 -0.464 0.015 0.377 -0.598 -0.444 -0.206 -0.273 ...]
+Description: 1D tensor with 192 values (typically bias or batch norm parameter)
+
+Initializer 54:
+Name: model.12.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 288, 1, 1]
+Data preview: [0.089 0.077 -0.042 0.025 0.071 -0.119 0.065 0.113 -0.083 0.019 ...]
+Description: 4D tensor of size 24x288x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 55:
+Name: model.12.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [0.136 0.015 0.045 0.748 0.015 0.236 -0.126 -0.112 0.181 0.079 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 56:
+Name: model.12.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 36, 1, 1]
+Data preview: [0.144 -0.147 0.114 -0.408 -0.237 -0.219 0.029 0.001 0.101 0.191 ...]
+Description: 4D tensor of size 24x36x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 57:
+Name: model.12.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [0.475 -0.246 0.057 0.487 0.291 0.088 -0.660 -0.429 0.100 -0.563 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 58:
+Name: model.12.m.0.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [12, 12, 3, 3]
+Data preview: [-0.113 0.064 0.130 0.037 0.149 0.049 0.180 -0.120 -0.208 0.003 ...]
+Description: 4D tensor of size 12x12x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 59:
+Name: model.12.m.0.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [12]
+Data preview: [-0.466 -0.835 0.351 -0.570 0.442 0.009 -0.127 0.438 0.092 -0.530 ...]
+Description: 1D tensor with 12 values (typically bias or batch norm parameter)
+
+Initializer 60:
+Name: model.12.m.0.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [12, 12, 3, 3]
+Data preview: [0.228 0.054 0.295 -0.318 -0.112 -0.277 -0.070 0.236 -0.032 -0.207 ...]
+Description: 4D tensor of size 12x12x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 61:
+Name: model.12.m.0.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [12]
+Data preview: [0.728 0.059 -0.436 0.120 -0.520 0.581 0.368 0.464 0.247 -0.370 ...]
+Description: 1D tensor with 12 values (typically bias or batch norm parameter)
+
+Initializer 62:
+Name: model.15.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 72, 1, 1]
+Data preview: [0.219 -0.118 0.141 0.032 -0.013 0.189 -0.057 0.059 -0.115 -0.133 ...]
+Description: 4D tensor of size 16x72x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 63:
+Name: model.15.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [0.694 0.992 0.516 0.327 1.309 0.654 0.481 0.544 0.489 -0.304 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 64:
+Name: model.15.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 24, 1, 1]
+Data preview: [0.323 0.273 0.218 -0.253 -0.256 0.248 0.467 -0.196 -0.147 0.349 ...]
+Description: 4D tensor of size 16x24x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 65:
+Name: model.15.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [1.416 0.781 0.217 0.029 1.043 -0.103 0.013 0.838 0.583 -0.499 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 66:
+Name: model.15.m.0.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [8, 8, 3, 3]
+Data preview: [0.099 -0.124 -0.137 -0.173 -0.030 0.084 -0.096 0.180 -0.114 -0.102 ...]
+Description: 4D tensor of size 8x8x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 67:
+Name: model.15.m.0.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [8]
+Data preview: [0.014 -0.257 -0.342 1.328 -0.252 0.807 0.577 -0.503 ]
+Description: 1D tensor with 8 values (typically bias or batch norm parameter)
+
+Initializer 68:
+Name: model.15.m.0.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [8, 8, 3, 3]
+Data preview: [0.216 0.135 -0.084 -0.022 -0.218 -0.012 0.195 -0.174 -0.021 0.145 ...]
+Description: 4D tensor of size 8x8x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 69:
+Name: model.15.m.0.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [8]
+Data preview: [-0.512 0.351 -0.463 0.024 -0.333 -0.512 0.497 1.387 ]
+Description: 1D tensor with 8 values (typically bias or batch norm parameter)
+
+Initializer 70:
+Name: model.16.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [8, 16, 3, 3]
+Data preview: [-0.068 -0.084 -0.098 0.061 0.053 -0.008 0.002 -0.108 -0.031 0.010 ...]
+Description: 4D tensor of size 8x16x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 71:
+Name: model.16.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [8]
+Data preview: [1.117 2.534 -0.161 0.362 0.281 0.009 -0.077 1.465 ]
+Description: 1D tensor with 8 values (typically bias or batch norm parameter)
+
+Initializer 72:
+Name: model.18.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48, 32, 1, 1]
+Data preview: [0.159 -0.322 -0.102 0.563 -0.260 -0.465 0.317 -0.291 0.372 -0.003 ...]
+Description: 4D tensor of size 48x32x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 73:
+Name: model.18.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48]
+Data preview: [-0.083 -0.441 0.227 0.349 0.100 0.385 0.103 -0.438 0.375 -0.833 ...]
+Description: 1D tensor with 48 values (typically bias or batch norm parameter)
+
+Initializer 74:
+Name: model.18.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48, 72, 1, 1]
+Data preview: [-0.169 -0.172 -0.281 -0.174 -0.238 -0.014 0.147 0.089 -0.087 -0.241 ...]
+Description: 4D tensor of size 48x72x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 75:
+Name: model.18.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48]
+Data preview: [-0.511 0.187 0.916 -0.442 0.580 -0.101 -0.310 0.900 0.326 -0.126 ...]
+Description: 1D tensor with 48 values (typically bias or batch norm parameter)
+
+Initializer 76:
+Name: model.18.m.0.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 24, 3, 3]
+Data preview: [0.091 -0.137 -0.015 -0.035 0.058 0.015 -0.131 0.135 0.087 0.105 ...]
+Description: 4D tensor of size 24x24x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 77:
+Name: model.18.m.0.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [-0.455 0.111 0.787 -0.134 0.292 -0.975 0.618 0.451 0.316 -0.558 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 78:
+Name: model.18.m.0.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 24, 3, 3]
+Data preview: [-0.105 -0.190 -0.003 0.084 -0.130 0.110 0.048 -0.158 0.011 -0.087 ...]
+Description: 4D tensor of size 24x24x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 79:
+Name: model.18.m.0.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [0.219 0.667 -0.047 0.297 -0.139 0.352 -0.176 0.069 0.706 0.609 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 80:
+Name: model.19.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 48, 3, 3]
+Data preview: [0.045 0.053 0.060 -0.030 0.087 -0.105 -0.019 -0.079 -0.024 0.002 ...]
+Description: 4D tensor of size 24x48x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 81:
+Name: model.19.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [1.374 -0.621 0.301 -0.407 -0.506 -0.325 0.677 0.711 -0.680 1.116 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 82:
+Name: model.21.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48, 216, 1, 1]
+Data preview: [-0.142 -0.371 0.386 0.056 -0.296 -0.160 -0.310 0.254 0.182 0.297 ...]
+Description: 4D tensor of size 48x216x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 83:
+Name: model.21.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48]
+Data preview: [0.403 0.262 -0.122 -0.044 0.261 -0.034 -0.124 0.508 -0.000 0.148 ...]
+Description: 1D tensor with 48 values (typically bias or batch norm parameter)
+
+Initializer 84:
+Name: model.21.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48, 72, 1, 1]
+Data preview: [0.193 0.209 -0.012 0.119 -0.069 0.210 0.096 -0.029 0.276 0.007 ...]
+Description: 4D tensor of size 48x72x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 85:
+Name: model.21.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [48]
+Data preview: [-0.324 0.215 -0.094 -0.086 -0.553 0.540 0.043 0.401 -0.165 -0.265 ...]
+Description: 1D tensor with 48 values (typically bias or batch norm parameter)
+
+Initializer 86:
+Name: model.21.m.0.cv1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 24, 3, 3]
+Data preview: [-0.171 0.146 0.143 0.135 -0.198 0.160 0.108 -0.103 -0.020 0.169 ...]
+Description: 4D tensor of size 24x24x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 87:
+Name: model.21.m.0.cv1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [0.491 -0.034 0.135 -0.171 -0.119 -0.006 -0.289 0.197 -0.174 0.187 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 88:
+Name: model.21.m.0.cv2.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24, 24, 3, 3]
+Data preview: [0.229 0.170 -0.180 0.166 0.169 -0.273 0.120 -0.008 -0.185 0.022 ...]
+Description: 4D tensor of size 24x24x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 89:
+Name: model.21.m.0.cv2.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [24]
+Data preview: [0.541 -0.260 0.079 0.027 0.186 0.307 -0.424 0.291 -0.098 -0.433 ...]
+Description: 1D tensor with 24 values (typically bias or batch norm parameter)
+
+Initializer 90:
+Name: model.22.cv2.0.0.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 16, 3, 3]
+Data preview: [0.122 0.080 -0.031 0.142 -0.053 -0.008 -0.042 -0.054 0.075 0.090 ...]
+Description: 4D tensor of size 16x16x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 91:
+Name: model.22.cv2.0.0.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [-0.461 1.611 0.237 -0.148 -1.046 1.300 0.917 2.168 1.188 -0.702 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 92:
+Name: model.22.cv2.0.1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 16, 3, 3]
+Data preview: [-0.005 0.106 -0.102 -0.003 -0.028 0.001 0.146 0.022 -0.091 -0.003 ...]
+Description: 4D tensor of size 16x16x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 93:
+Name: model.22.cv2.0.1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [1.198 1.909 0.287 1.713 0.231 1.832 2.470 1.963 1.747 1.880 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 94:
+Name: model.22.cv2.0.2.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 16, 1, 1]
+Data preview: [-0.094 -0.102 0.145 -0.017 -0.172 0.175 -0.188 -0.101 0.339 -0.145 ...]
+Description: 4D tensor of size 16x16x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 95:
+Name: model.22.cv2.0.2.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [0.078 1.168 0.688 2.066 1.616 2.219 0.960 -0.794 0.945 1.585 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 96:
+Name: model.22.cv2.1.0.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 48, 3, 3]
+Data preview: [-0.004 -0.042 -0.070 -0.057 0.024 -0.033 0.064 0.040 0.034 0.032 ...]
+Description: 4D tensor of size 16x48x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 97:
+Name: model.22.cv2.1.0.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [0.961 -1.047 1.211 0.953 0.032 1.309 0.227 0.442 0.552 -1.055 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 98:
+Name: model.22.cv2.1.1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 16, 3, 3]
+Data preview: [-0.026 0.106 -0.026 -0.127 0.158 -0.083 -0.089 -0.143 -0.015 0.065 ...]
+Description: 4D tensor of size 16x16x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 99:
+Name: model.22.cv2.1.1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [1.564 1.625 1.023 -0.271 1.714 3.068 1.349 0.353 1.420 0.619 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 100:
+Name: model.22.cv2.1.2.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 16, 1, 1]
+Data preview: [-0.076 -0.037 -0.012 -0.156 -0.082 0.463 -0.243 0.021 0.400 -0.269 ...]
+Description: 4D tensor of size 16x16x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 101:
+Name: model.22.cv2.1.2.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [0.066 1.507 1.853 0.574 -0.153 0.315 1.115 2.723 1.114 1.860 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 102:
+Name: model.22.cv2.2.0.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 48, 3, 3]
+Data preview: [0.017 0.049 -0.002 -0.026 0.076 0.072 -0.027 -0.020 -0.101 -0.006 ...]
+Description: 4D tensor of size 16x48x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 103:
+Name: model.22.cv2.2.0.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [0.860 0.074 0.250 0.167 -0.040 -0.607 0.492 0.369 -0.772 0.086 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 104:
+Name: model.22.cv2.2.1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 16, 3, 3]
+Data preview: [0.164 0.007 0.127 -0.055 0.116 0.100 -0.125 -0.044 0.051 -0.103 ...]
+Description: 4D tensor of size 16x16x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 105:
+Name: model.22.cv2.2.1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [0.639 0.462 0.551 -0.213 0.456 0.391 1.002 1.397 0.225 0.891 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 106:
+Name: model.22.cv2.2.2.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16, 16, 1, 1]
+Data preview: [-0.265 0.168 0.092 -0.002 0.173 -0.117 -0.117 -0.238 0.248 -0.155 ...]
+Description: 4D tensor of size 16x16x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 107:
+Name: model.22.cv2.2.2.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [16]
+Data preview: [0.690 1.009 1.476 0.826 -0.123 1.864 1.555 0.704 -0.279 2.637 ...]
+Description: 1D tensor with 16 values (typically bias or batch norm parameter)
+
+Initializer 108:
+Name: model.22.cv3.0.0.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80, 16, 3, 3]
+Data preview: [-0.207 0.052 -0.155 0.048 -0.049 -0.257 0.058 -0.126 0.137 -0.025 ...]
+Description: 4D tensor of size 80x16x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 109:
+Name: model.22.cv3.0.0.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80]
+Data preview: [0.078 0.515 -0.643 0.101 1.421 1.888 -1.056 0.352 1.413 2.267 ...]
+Description: 1D tensor with 80 values (typically bias or batch norm parameter)
+
+Initializer 110:
+Name: model.22.cv3.0.1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80, 80, 3, 3]
+Data preview: [-0.051 0.020 0.017 -0.050 -0.041 -0.031 -0.050 0.041 0.055 -0.029 ...]
+Description: 4D tensor of size 80x80x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 111:
+Name: model.22.cv3.0.1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80]
+Data preview: [0.441 -0.237 -0.505 0.193 0.092 0.551 0.258 0.173 -0.353 0.284 ...]
+Description: 1D tensor with 80 values (typically bias or batch norm parameter)
+
+Initializer 112:
+Name: model.22.cv3.0.2.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80, 80, 1, 1]
+Data preview: [-0.063 0.087 -0.017 -0.128 -0.106 -0.009 -0.138 0.013 -0.002 0.073 ...]
+Description: 4D tensor of size 80x80x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 113:
+Name: model.22.cv3.0.2.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80]
+Data preview: [-9.211 -10.859 -10.078 -11.094 -10.836 -11.109 -11.219 -10.664 -10.539 -11.094 ...]
+Description: 1D tensor with 80 values (typically bias or batch norm parameter)
+
+Initializer 114:
+Name: model.22.cv3.1.0.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80, 48, 3, 3]
+Data preview: [0.050 0.120 0.103 -0.031 -0.011 -0.092 -0.035 0.074 0.110 0.001 ...]
+Description: 4D tensor of size 80x48x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 115:
+Name: model.22.cv3.1.0.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80]
+Data preview: [0.463 0.188 0.395 -0.298 0.170 -0.450 0.477 -0.317 1.261 0.016 ...]
+Description: 1D tensor with 80 values (typically bias or batch norm parameter)
+
+Initializer 116:
+Name: model.22.cv3.1.1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80, 80, 3, 3]
+Data preview: [0.031 0.038 0.046 -0.094 -0.100 0.008 0.087 -0.066 0.017 -0.087 ...]
+Description: 4D tensor of size 80x80x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 117:
+Name: model.22.cv3.1.1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80]
+Data preview: [0.110 0.893 0.019 -0.037 -0.036 -0.147 0.195 0.184 0.085 0.332 ...]
+Description: 1D tensor with 80 values (typically bias or batch norm parameter)
+
+Initializer 118:
+Name: model.22.cv3.1.2.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80, 80, 1, 1]
+Data preview: [-0.050 0.007 -0.020 0.072 -0.035 -0.010 -0.032 0.117 0.173 0.088 ...]
+Description: 4D tensor of size 80x80x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 119:
+Name: model.22.cv3.1.2.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80]
+Data preview: [-7.449 -9.695 -8.922 -9.352 -8.977 -9.078 -9.031 -9.156 -9.336 -10.289 ...]
+Description: 1D tensor with 80 values (typically bias or batch norm parameter)
+
+Initializer 120:
+Name: model.22.cv3.2.0.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80, 48, 3, 3]
+Data preview: [0.060 0.060 -0.001 -0.073 -0.070 0.072 0.070 0.044 -0.071 0.024 ...]
+Description: 4D tensor of size 80x48x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 121:
+Name: model.22.cv3.2.0.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80]
+Data preview: [-0.243 0.498 -0.023 0.459 0.259 0.232 -0.540 -0.339 0.186 0.529 ...]
+Description: 1D tensor with 80 values (typically bias or batch norm parameter)
+
+Initializer 122:
+Name: model.22.cv3.2.1.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80, 80, 3, 3]
+Data preview: [-0.067 -0.106 0.039 0.013 0.018 0.059 -0.041 0.049 0.038 0.038 ...]
+Description: 4D tensor of size 80x80x3x3 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 123:
+Name: model.22.cv3.2.1.conv.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80]
+Data preview: [0.367 -0.351 0.499 0.276 0.374 0.402 0.300 -0.246 0.639 -0.320 ...]
+Description: 1D tensor with 80 values (typically bias or batch norm parameter)
+
+Initializer 124:
+Name: model.22.cv3.2.2.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80, 80, 1, 1]
+Data preview: [0.033 0.092 0.084 -0.065 -0.003 0.024 -0.110 -0.038 -0.084 -0.064 ...]
+Description: 4D tensor of size 80x80x1x1 (convolutional filters: out_channels x in_channels x height x width)
+
+Initializer 125:
+Name: model.22.cv3.2.2.bias (bias values)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [80]
+Data preview: [-6.461 -8.773 -8.148 -7.922 -7.973 -7.848 -7.605 -7.887 -8.563 -9.156 ...]
+Description: 1D tensor with 80 values (typically bias or batch norm parameter)
+
+Initializer 126:
+Name: model.22.dfl.conv.weight (weights/filters)
+Type: DataHandler.onnx.DataType.FLOAT
+Shape: [1, 4, 1, 1]
+Data preview: [0.000 1.000 2.000 3.000 ]
+Description: 4D tensor of size 1x4x1x1 (convolutional filters: out_channels x in_channels x height x width)

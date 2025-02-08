@@ -1,0 +1,200 @@
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 2 with wire type protobuf.WireType.Fixed32
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 2 with wire type protobuf.WireType.Fixed32
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 3 with wire type protobuf.WireType.Varint
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 2 with wire type protobuf.WireType.Fixed32
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 2 with wire type protobuf.WireType.Fixed32
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 3 with wire type protobuf.WireType.Varint
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 3 with wire type protobuf.WireType.Varint
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+
+=== Model Info ===
+IR Version: onnx.Version.IR_VERSION_2019_9_19
+Producer: pytorch
+Version: 2.5.1
+
+=== Graph Info ===
+Name: main_graph
+Nodes: 5
+Initializers: 4
+
+=== Graph Structure ===
+
+[0] Gemm (/layer1/Gemm)
+  Inputs:
+    ← input
+    ← layer1.weight
+    ← layer1.bias
+  Outputs:
+    → /layer1/Gemm_output_0
+
+[1] Relu (/relu/Relu)
+  Inputs:
+    ← /layer1/Gemm_output_0
+  Outputs:
+    → /relu/Relu_output_0
+
+[2] Gemm (/layer2/Gemm)
+  Inputs:
+    ← /relu/Relu_output_0
+    ← layer2.weight
+    ← layer2.bias
+  Outputs:
+    → /layer2/Gemm_output_0
+
+[3] Relu (/relu_1/Relu)
+  Inputs:
+    ← /layer2/Gemm_output_0
+  Outputs:
+    → /relu_1/Relu_output_0
+
+[4] Softmax (/Softmax)
+  Inputs:
+    ← /relu_1/Relu_output_0
+  Outputs:
+    → output
+
+=== Detailed Node Info ===
+
+[Node 0]
+Name: /layer1/Gemm
+Type: Gemm
+Attributes:
+  alpha: float = 1
+  beta: float = 1
+  transB: int = 1
+
+[Node 1]
+Name: /relu/Relu
+Type: Relu
+
+[Node 2]
+Name: /layer2/Gemm
+Type: Gemm
+Attributes:
+  alpha: float = 1
+  beta: float = 1
+  transB: int = 1
+
+[Node 3]
+Name: /relu_1/Relu
+Type: Relu
+
+[Node 4]
+Name: /Softmax
+Type: Softmax
+Attributes:
+  axis: int = 1
+
+=== Initializers (weights, biases, etc.) ===
+
+Initializer 0:
+Name: layer1.weight (weights/filters)
+Type: onnx.DataType.FLOAT
+Shape: [5, 5]
+Data preview:  raw_data [-0.080 -0.371 -0.227 -0.241 -0.168 0.264 -0.179 0.372 0.159 -0.437 ...]
+Description: 2D matrix of size 5x5 (typically dense layer weights)
+
+Initializer 1:
+Name: layer1.bias (bias values)
+Type: onnx.DataType.FLOAT
+Shape: [5]
+Data preview:  raw_data [0.119 0.243 -0.039 0.135 -0.100 ]
+Description: 1D tensor with 5 values (typically bias or batch norm parameter)
+
+Initializer 2:
+Name: layer2.weight (weights/filters)
+Type: onnx.DataType.FLOAT
+Shape: [5, 5]
+Data preview:  raw_data [0.064 0.388 -0.110 0.322 0.055 0.118 0.287 -0.281 0.405 0.399 ...]
+Description: 2D matrix of size 5x5 (typically dense layer weights)
+
+Initializer 3:
+Name: layer2.bias (bias values)
+Type: onnx.DataType.FLOAT
+Shape: [5]
+Data preview:  raw_data [0.357 0.336 0.131 -0.389 -0.291 ]
+Description: 1D tensor with 5 values (typically bias or batch norm parameter)
+
+ .......... file created, path:src/codeGen/firstTry.zig
+from layer1.weight to layer1_weight 
+  writeArray 
+  from rawData to TypeData
+  writeArrayData 
+from layer1.bias to layer1_bias 
+  writeArray 
+  from rawData to TypeData
+  writeArrayData 
+from layer2.weight to layer2_weight 
+  writeArray 
+  from rawData to TypeData
+  writeArrayData 
+from layer2.bias to layer2_bias 
+  writeArray 
+  from rawData to TypeData
+  writeArrayData 
+ ReadyNode.create() --> /layer1/Gemm
+
+     ReadyTensor.create() --> input
+
+     ReadyTensor.create() --> layer1.weight
+
+     ReadyTensor.create() --> layer1.bias
+
+     ReadyTensor.create() --> /layer1/Gemm_output_0
+
+ ReadyNode.create() --> /relu/Relu
+
+     ReadyTensor.create() --> /layer1/Gemm_output_0
+
+     ReadyTensor.create() --> /relu/Relu_output_0
+
+ ReadyNode.create() --> /layer2/Gemm
+
+     ReadyTensor.create() --> /relu/Relu_output_0
+
+     ReadyTensor.create() --> layer2.weight
+
+     ReadyTensor.create() --> layer2.bias
+
+     ReadyTensor.create() --> /layer2/Gemm_output_0
+
+ ReadyNode.create() --> /relu_1/Relu
+
+     ReadyTensor.create() --> /layer2/Gemm_output_0
+
+     ReadyTensor.create() --> /relu_1/Relu_output_0
+
+ ReadyNode.create() --> /Softmax
+
+     ReadyTensor.create() --> /relu_1/Relu_output_0
+
+     ReadyTensor.create() --> output
+
+from /layer1/Gemm_output_0 to _layer1_Gemm_output_0 
+from /layer1/Gemm_output_0 to _layer1_Gemm_output_0 
+from /relu/Relu_output_0 to _relu_Relu_output_0 
+from /relu/Relu_output_0 to _relu_Relu_output_0 
+from /layer2/Gemm_output_0 to _layer2_Gemm_output_0 
+from /layer2/Gemm_output_0 to _layer2_Gemm_output_0 
+from /relu_1/Relu_output_0 to _relu_1_Relu_output_0 
+from /relu_1/Relu_output_0 to _relu_1_Relu_output_0 
+from output to output 
+from output to output 
+removing node: /layer1/Gemm
+removing node: /Softmax
+removing node: /relu_1/Relu
+removing node: /layer2/Gemm
+removing node: /relu/Relu
