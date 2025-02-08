@@ -1,0 +1,395 @@
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 5 to kernel_shape
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 5 to kernel_shape
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 1 to strides
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 1 to strides
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 4 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 3 with wire type protobuf.WireType.Varint
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 1 to dilations
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 1 to dilations
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 2 to kernel_shape
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 2 to kernel_shape
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 2 to strides
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 2 to strides
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 0 to pads
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 0 to pads
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 0 to pads
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 0 to pads
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 4 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 5 to kernel_shape
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 5 to kernel_shape
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 1 to strides
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 1 to strides
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 4 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 3 with wire type protobuf.WireType.Varint
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 1 to dilations
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 1 to dilations
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 3 to kernel_shape
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 3 to kernel_shape
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 3 to strides
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 3 to strides
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 0 to pads
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 0 to pads
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 0 to pads
+Parsing attribute field 8 with wire type protobuf.WireType.Varint
+Added int value 0 to pads
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+Parsing attribute field 1 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 4 with wire type protobuf.WireType.LengthDelimited
+Parsing attribute field 20 with wire type protobuf.WireType.Varint
+
+ .......... file created, path:src/codeGen/firstTry.zig
+ ReadyNode.create() --> Times212_reshape1
+
+     ReadyTensor.create() --> Parameter193
+
+     ReadyTensor.create() --> Parameter193_reshape1_shape
+
+     ReadyTensor.create() --> Parameter193_reshape1
+
+ ReadyNode.create() --> Convolution28
+
+     ReadyTensor.create() --> Input3
+
+     ReadyTensor.create() --> Parameter5
+
+     ReadyTensor.create() --> Convolution28_Output_0
+
+ ReadyNode.create() --> Plus30
+
+     ReadyTensor.create() --> Convolution28_Output_0
+
+     ReadyTensor.create() --> Parameter6
+
+     ReadyTensor.create() --> Plus30_Output_0
+
+ ReadyNode.create() --> ReLU32
+
+     ReadyTensor.create() --> Plus30_Output_0
+
+     ReadyTensor.create() --> ReLU32_Output_0
+
+ ReadyNode.create() --> Pooling66
+
+     ReadyTensor.create() --> ReLU32_Output_0
+
+     ReadyTensor.create() --> Pooling66_Output_0
+
+ ReadyNode.create() --> Convolution110
+
+     ReadyTensor.create() --> Pooling66_Output_0
+
+     ReadyTensor.create() --> Parameter87
+
+     ReadyTensor.create() --> Convolution110_Output_0
+
+ ReadyNode.create() --> Plus112
+
+     ReadyTensor.create() --> Convolution110_Output_0
+
+     ReadyTensor.create() --> Parameter88
+
+     ReadyTensor.create() --> Plus112_Output_0
+
+ ReadyNode.create() --> ReLU114
+
+     ReadyTensor.create() --> Plus112_Output_0
+
+     ReadyTensor.create() --> ReLU114_Output_0
+
+ ReadyNode.create() --> Pooling160
+
+     ReadyTensor.create() --> ReLU114_Output_0
+
+     ReadyTensor.create() --> Pooling160_Output_0
+
+ ReadyNode.create() --> Times212_reshape0
+
+     ReadyTensor.create() --> Pooling160_Output_0
+
+     ReadyTensor.create() --> Pooling160_Output_0_reshape0_shape
+
+     ReadyTensor.create() --> Pooling160_Output_0_reshape0
+
+ ReadyNode.create() --> Times212
+
+     ReadyTensor.create() --> Pooling160_Output_0_reshape0
+
+     ReadyTensor.create() --> Parameter193_reshape1
+
+     ReadyTensor.create() --> Times212_Output_0
+
+ ReadyNode.create() --> Plus214
+
+     ReadyTensor.create() --> Times212_Output_0
+
+     ReadyTensor.create() --> Parameter194
+
+     ReadyTensor.create() --> Plus214_Output_0
+
+------------------------------------------------------------
++                READY GRAPH after Creation                +
+------------------------------------------------------------
+ ----- node: Times212_reshape1
+          inputs: 
+              ->Parameter193 --->ready
+              ->Parameter193_reshape1_shape --->ready
+          outputs:
+              -> Parameter193_reshape1 
+ ----- node: Convolution28
+          inputs: 
+              ->input --->ready
+              ->Parameter5 --->ready
+          outputs:
+              -> Convolution28_Output_0 
+ ----- node: Plus30
+          inputs: 
+              ->Convolution28_Output_0 
+              ->Parameter6 --->ready
+          outputs:
+              -> Plus30_Output_0 
+ ----- node: ReLU32
+          inputs: 
+              ->Plus30_Output_0 
+          outputs:
+              -> ReLU32_Output_0 
+ ----- node: Pooling66
+          inputs: 
+              ->ReLU32_Output_0 
+          outputs:
+              -> Pooling66_Output_0 
+ ----- node: Convolution110
+          inputs: 
+              ->Pooling66_Output_0 
+              ->Parameter87 --->ready
+          outputs:
+              -> Convolution110_Output_0 
+ ----- node: Plus112
+          inputs: 
+              ->Convolution110_Output_0 
+              ->Parameter88 --->ready
+          outputs:
+              -> Plus112_Output_0 
+ ----- node: ReLU114
+          inputs: 
+              ->Plus112_Output_0 
+          outputs:
+              -> ReLU114_Output_0 
+ ----- node: Pooling160
+          inputs: 
+              ->ReLU114_Output_0 
+          outputs:
+              -> Pooling160_Output_0 
+ ----- node: Times212_reshape0
+          inputs: 
+              ->Pooling160_Output_0 
+              ->Pooling160_Output_0_reshape0_shape --->ready
+          outputs:
+              -> Pooling160_Output_0_reshape0 
+ ----- node: Times212
+          inputs: 
+              ->Pooling160_Output_0_reshape0 
+              ->Parameter193_reshape1 
+          outputs:
+              -> Times212_Output_0 
+ ----- node: Plus214
+          inputs: 
+              ->Times212_Output_0 
+              ->Parameter194 --->ready
+          outputs:
+              -> Plus214_Output_0 
+
+------------------------------------------------------------
++  COMPUTABLE NODES (aka nodes with all the inputs ready)  +
+------------------------------------------------------------
+ ----- node: Times212_reshape1
+          op_type: Reshape
+          inputs: 
+              -> Parameter193 --->ready
+              -> Parameter193_reshape1_shape --->ready
+          outputs:
+              -> Parameter193_reshape1 
+ ----- node: Convolution28
+          op_type: Conv
+          inputs: 
+              -> input --->ready
+              -> Parameter5 --->ready
+          outputs:
+              -> Convolution28_Output_0 
+removing node: Times212_reshape1
+removing node: Convolution28
+
+------------------------------------------------------------
++  COMPUTABLE NODES (aka nodes with all the inputs ready)  +
+------------------------------------------------------------
+ ----- node: Plus30
+          op_type: Add
+          inputs: 
+              -> Convolution28_Output_0 --->ready
+              -> Parameter6 --->ready
+          outputs:
+              -> Plus30_Output_0 
+removing node: Plus30
+
+------------------------------------------------------------
++  COMPUTABLE NODES (aka nodes with all the inputs ready)  +
+------------------------------------------------------------
+ ----- node: ReLU32
+          op_type: Relu
+          inputs: 
+              -> Plus30_Output_0 --->ready
+          outputs:
+              -> ReLU32_Output_0 
+removing node: ReLU32
+
+------------------------------------------------------------
++  COMPUTABLE NODES (aka nodes with all the inputs ready)  +
+------------------------------------------------------------
+ ----- node: Pooling66
+          op_type: MaxPool
+          inputs: 
+              -> ReLU32_Output_0 --->ready
+          outputs:
+              -> Pooling66_Output_0 
+removing node: Pooling66
+
+------------------------------------------------------------
++  COMPUTABLE NODES (aka nodes with all the inputs ready)  +
+------------------------------------------------------------
+ ----- node: Convolution110
+          op_type: Conv
+          inputs: 
+              -> Pooling66_Output_0 --->ready
+              -> Parameter87 --->ready
+          outputs:
+              -> Convolution110_Output_0 
+removing node: Convolution110
+
+------------------------------------------------------------
++  COMPUTABLE NODES (aka nodes with all the inputs ready)  +
+------------------------------------------------------------
+ ----- node: Plus112
+          op_type: Add
+          inputs: 
+              -> Convolution110_Output_0 --->ready
+              -> Parameter88 --->ready
+          outputs:
+              -> Plus112_Output_0 
+removing node: Plus112
+
+------------------------------------------------------------
++  COMPUTABLE NODES (aka nodes with all the inputs ready)  +
+------------------------------------------------------------
+ ----- node: ReLU114
+          op_type: Relu
+          inputs: 
+              -> Plus112_Output_0 --->ready
+          outputs:
+              -> ReLU114_Output_0 
+removing node: ReLU114
+
+------------------------------------------------------------
++  COMPUTABLE NODES (aka nodes with all the inputs ready)  +
+------------------------------------------------------------
+ ----- node: Pooling160
+          op_type: MaxPool
+          inputs: 
+              -> ReLU114_Output_0 --->ready
+          outputs:
+              -> Pooling160_Output_0 
+removing node: Pooling160
+
+------------------------------------------------------------
++  COMPUTABLE NODES (aka nodes with all the inputs ready)  +
+------------------------------------------------------------
+ ----- node: Times212_reshape0
+          op_type: Reshape
+          inputs: 
+              -> Pooling160_Output_0 --->ready
+              -> Pooling160_Output_0_reshape0_shape --->ready
+          outputs:
+              -> Pooling160_Output_0_reshape0 
+removing node: Times212_reshape0
+
+------------------------------------------------------------
++  COMPUTABLE NODES (aka nodes with all the inputs ready)  +
+------------------------------------------------------------
+ ----- node: Times212
+          op_type: MatMul
+          inputs: 
+              -> Pooling160_Output_0_reshape0 --->ready
+              -> Parameter193_reshape1 --->ready
+          outputs:
+              -> Times212_Output_0 
+removing node: Times212
+
+------------------------------------------------------------
++  COMPUTABLE NODES (aka nodes with all the inputs ready)  +
+------------------------------------------------------------
+ ----- node: Plus214
+          op_type: Add
+          inputs: 
+              -> Times212_Output_0 --->ready
+              -> Parameter194 --->ready
+          outputs:
+              -> Plus214_Output_0 
+removing node: Plus214

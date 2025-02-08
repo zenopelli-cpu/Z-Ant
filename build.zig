@@ -38,6 +38,12 @@ pub fn build(b: *std.Build) void {
     const poolingLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/poolingLayer.zig") });
     const batchNormLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/batchNormLayer.zig") });
 
+    // onnx module
+    const onnx_mod = b.createModule(.{ .root_source_file = b.path("src/onnx/onnx.zig") });
+
+    // code generation module
+    const codegen_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/codeGen_skeleton.zig") });
+
     // Create modules from the source files in the `src/DataHandler/` directory.
     const dataloader_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataLoader.zig") });
     const dataProcessor_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataProcessor.zig") });
@@ -195,6 +201,11 @@ pub fn build(b: *std.Build) void {
     modelImportExport_mod.addImport("errorHandler", errorHandler_mod);
     modelImportExport_mod.addImport("activation_function", activation_mod);
 
+    // ************************************************CODEGEN DEPENDENCIES************************************************
+    codegen_mod.addImport("tensor", tensor_mod);
+    codegen_mod.addImport("onnx", onnx_mod);
+    codegen_mod.addImport("pkgAllocator", allocator_mod);
+
     // ************************************************MAIN EXECUTABLE************************************************
 
     // Define the main executable with target architecture and optimization settings.
@@ -220,6 +231,8 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("trainer", trainer_mod);
     exe.root_module.addImport("pkgAllocator", allocator_mod);
     exe.root_module.addImport("model_import_export", modelImportExport_mod);
+    exe.root_module.addImport("onnx", onnx_mod);
+    exe.root_module.addImport("codeGen", codegen_mod);
 
     // Install the executable.
     b.installArtifact(exe);
