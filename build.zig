@@ -218,7 +218,7 @@ pub fn build(b: *std.Build) void {
 
     exe.linkLibC();
 
-    // ************************************************EXE DEPENDENCIES************************************************
+    // ************************************************MAIN DEPENDENCIES************************************************
 
     // Add necessary imports for the main executable.
     exe.root_module.addImport("tensor", tensor_mod);
@@ -231,8 +231,6 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("trainer", trainer_mod);
     exe.root_module.addImport("pkgAllocator", allocator_mod);
     exe.root_module.addImport("model_import_export", modelImportExport_mod);
-    exe.root_module.addImport("onnx", onnx_mod);
-    exe.root_module.addImport("codeGen", codegen_mod);
 
     // Install the executable.
     b.installArtifact(exe);
@@ -246,6 +244,37 @@ pub fn build(b: *std.Build) void {
     // Create a build step to run the application.
     const run_step = b.step("run", "Run the application");
     run_step.dependOn(&run_cmd.step);
+
+    // ************************************************CODEGEN EXECUTABLE************************************************
+
+    // Define the main executable with target architecture and optimization settings.
+    const codeGen_exe = b.addExecutable(.{
+        .name = "Codegen",
+        .root_source_file = b.path("src/codeGen/codeGen_main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    codeGen_exe.linkLibC();
+
+    // ************************************************CODEGEN DEPENDENCIES************************************************
+
+    // Add necessary imports for the executable.
+    codeGen_exe.root_module.addImport("onnx", onnx_mod);
+    codeGen_exe.root_module.addImport("codeGen", codegen_mod);
+
+    // Install the executable.
+    b.installArtifact(codeGen_exe);
+
+    // Define the run command for the main executable.
+    const codegen_cmd = b.addRunArtifact(codeGen_exe);
+    if (b.args) |args| {
+        codegen_cmd.addArgs(args);
+    }
+
+    // Create a build step to run the application.
+    const codegen_step = b.step("codegen", " code generation");
+    codegen_step.dependOn(&codegen_cmd.step);
 
     //************************************************UNIT TESTS************************************************
 
