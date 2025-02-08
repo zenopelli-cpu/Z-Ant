@@ -61,3 +61,42 @@ test "Error when input tensors have incompatible shapes for dot product" {
     t1.deinit();
     t2.deinit();
 }
+
+test "Compare dot product implementations with execution time" {
+    std.debug.print("\nTest: Compare dot product implementations with execution time\n", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create test tensors
+    var shape: [2]usize = [_]usize{ 4, 4 };
+    var inputArray: [4][4]f32 = [_][4]f32{
+        [_]f32{ 1.0, 2.0, 3.0, 4.0 },
+        [_]f32{ 5.0, 6.0, 7.0, 8.0 },
+        [_]f32{ 9.0, 10.0, 11.0, 12.0 },
+        [_]f32{ 13.0, 14.0, 15.0, 16.0 },
+    };
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer t1.deinit();
+    defer t2.deinit();
+
+    const start_simd = std.time.nanoTimestamp();
+    var result_simd = try TensMath.dot_product_tensor(f32, f32, &t1, &t2);
+    const end_simd = std.time.nanoTimestamp();
+    const duration_simd = end_simd - start_simd;
+    defer result_simd.deinit();
+
+    const start_flat = std.time.nanoTimestamp();
+    var result_flat = try TensMath.dot_product_tensor_flat(f32, f32, &t1, &t2);
+    const end_flat = std.time.nanoTimestamp();
+    const duration_flat = end_flat - start_flat;
+    defer result_flat.deinit();
+
+    std.debug.print("SIMD execution time: {d} ns\n", .{duration_simd});
+    std.debug.print("Flat execution time: {d} ns\n", .{duration_flat});
+
+    // Compare results
+    for (result_simd.data, result_flat.data) |v1, v2| {
+        try std.testing.expectApproxEqAbs(v1, v2, 0.001);
+    }
+}
