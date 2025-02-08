@@ -48,12 +48,12 @@ pub fn ReLU(comptime T: anytype) type {
             if (gradient.size <= 0 or act_relu_input.size <= 0) return TensorError.ZeroSizeTensor;
             if (gradient.size != act_relu_input.size) return TensorMathError.InputTensorDifferentSize;
 
-            //apply ReLU
-            //OSS: can be improved, see how did I parallelized CPU Tensor Sum
-            for (0..(gradient.size - 1)) |i| {
+            //apply ReLU derivative: f'(x) = 0 if x <= 0, 1 if x > 0
+            for (0..gradient.size) |i| {
                 if (act_relu_input.data[i] <= 0) {
                     gradient.data[i] = 0;
                 }
+                // else gradient remains unchanged since f'(x) = 1 for x > 0
             }
         }
     };
@@ -84,13 +84,9 @@ pub fn LeakyReLU(comptime T: anytype) type {
             if (gradient.size <= 0 or act_relu_input.size <= 0) return TensorError.ZeroSizeTensor;
             if (gradient.size != act_relu_input.size) return TensorMathError.InputTensorDifferentSize;
 
-            //apply Leaky ReLU
+            //apply Leaky ReLU derivative: f'(x) = 1 if x > 0, slope if x <= 0
             for (0..gradient.size) |i| {
-                if (act_relu_input.data[i] > 0) {
-                    gradient.data[i] *= 1;
-                } else {
-                    gradient.data[i] *= slope;
-                }
+                gradient.data[i] *= if (act_relu_input.data[i] > 0) 1 else slope;
             }
         }
     };
@@ -115,9 +111,10 @@ pub fn Sigmoid(comptime T: anytype) type {
             if (gradient.size <= 0 or act_forward_out.size <= 0) return TensorError.ZeroSizeTensor;
             if (gradient.size != act_forward_out.size) return TensorMathError.InputTensorDifferentSize;
 
-            //apply Sigmoid
+            //apply Sigmoid derivative: f'(x) = f(x) * (1 - f(x))
             for (0..gradient.size) |i| {
-                gradient.data[i] = gradient.data[i] * act_forward_out.data[i] * (1.0 - act_forward_out.data[i]);
+                const sigmoid_output = act_forward_out.data[i];
+                gradient.data[i] *= sigmoid_output * (1 - sigmoid_output);
             }
         }
     };
@@ -141,43 +138,37 @@ pub fn Softmax(comptime T: anytype) type {
 
         pub fn derivate(self: *Self, dL_dX: *Tensor(T), softmax_output: *Tensor(T)) !void {
             _ = self;
-            // softmax_output: The output matrix from the Softmax forward pass.
-            // dL_dS: The gradient of the loss with respect to the Softmax output (this is given to us during backpropagation).
-            // dL_dX: The gradient of the loss with respect to the input matrix (this is what we are computing in the backward pass).
-
             //checks
             if (dL_dX.size <= 0) return TensorError.ZeroSizeTensor;
+            if (dL_dX.size != softmax_output.size) return TensorMathError.InputTensorDifferentSize;
 
             const dim = dL_dX.shape.len;
             const rows = dL_dX.shape[dim - 2];
             const cols = dL_dX.shape[dim - 1];
 
-            var dL_dS = try dL_dX.copy(); //the copy is necessary since we are going to modify dL_dX
+            // Make a copy of incoming gradients since we'll modify dL_dX
+            var dL_dS = try dL_dX.copy();
             defer dL_dS.deinit();
 
-            // Loop over each row (assuming we apply Softmax across rows)
+            // For each sample in the batch
             for (0..rows) |i| {
-                // Loop over each element in the row
+                const row_offset = i * cols;
+                // For each output neuron j
                 for (0..cols) |j| {
-                    var dL_dX_ij: T = 0;
+                    var sum: T = 0;
+                    const sj = softmax_output.data[row_offset + j];
 
-                    // Calculate the gradient for input element x_ij
-                    const softmax_j = softmax_output.data[i * cols + j];
-
-                    // Sum over all elements in the row to compute dL/dX_ij
+                    // Compute sum of dL/dS_k * S_k for all k
                     for (0..cols) |k| {
-                        const softmax_k = softmax_output.data[i * cols + k];
-                        const dL_dS_k = dL_dS.data[i * cols + k];
-
+                        const sk = softmax_output.data[row_offset + k];
+                        const dL_dS_k = dL_dS.data[row_offset + k];
                         if (j == k) {
-                            dL_dX_ij += dL_dS_k * softmax_k * (1 - softmax_j);
+                            sum += dL_dS_k * sk * (1 - sj); // Diagonal term
                         } else {
-                            dL_dX_ij += dL_dS_k * -softmax_k * softmax_j;
+                            sum += dL_dS_k * (-sk * sj); // Off-diagonal term
                         }
                     }
-
-                    // Store the computed gradient for input x_ij
-                    dL_dX.data[i * cols + j] = dL_dX_ij;
+                    dL_dX.data[row_offset + j] = sum;
                 }
             }
         }
