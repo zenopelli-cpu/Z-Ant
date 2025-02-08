@@ -79,37 +79,40 @@ pub fn DenseLayer(comptime T: type) type {
             //initializing gradients to all zeros----------------------------------------
             self.w_gradients = try tensor.Tensor(T).fromShape(self.allocator, &weight_shape);
             self.b_gradients = try tensor.Tensor(T).fromShape(self.allocator, &bias_shape);
+
+            // Initialize input and output tensors with empty arrays
+            self.input = try tensor.Tensor(T).init(alloc);
+            self.output = try tensor.Tensor(T).init(alloc);
         }
 
         ///Deallocate the layer
         pub fn deinit(ctx: *anyopaque) void {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
-            //std.debug.print("Deallocating DenseLayer resources...\n", .{});
             std.debug.print("\nDENSE input.data.len : {}  size:{}", .{ self.input.data.len, self.input.size });
 
             // Dealloc tensors of weights, bias and output if allocated
-            if (self.weights.data.len > 0) {
+            if (self.weights.data.len > 0 and self.weights.size > 0) {
                 self.weights.deinit();
             }
 
-            if (self.bias.data.len > 0) {
+            if (self.bias.data.len > 0 and self.bias.size > 0) {
                 self.bias.deinit();
             }
 
-            if (self.w_gradients.data.len > 0) {
+            if (self.w_gradients.data.len > 0 and self.w_gradients.size > 0) {
                 self.w_gradients.deinit();
             }
 
-            if (self.b_gradients.data.len > 0) {
+            if (self.b_gradients.data.len > 0 and self.b_gradients.size > 0) {
                 self.b_gradients.deinit();
             }
 
-            if (self.input.data.len > 0) {
+            if (self.input.data.len > 0 and self.input.size > 0) {
                 self.input.deinit();
             }
 
-            if (self.output.data.len > 0) {
+            if (self.output.data.len > 0 and self.output.size > 0) {
                 self.output.deinit();
             }
 
@@ -122,13 +125,13 @@ pub fn DenseLayer(comptime T: type) type {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
             // Dealloc self.input if already allocated
-            if (self.input.data.len > 0) {
+            if (self.input.data.len > 0 and self.input.size > 0) {
                 self.input.deinit();
             }
             self.input = try input.copy();
 
             // Dealloc self.output if already allocated
-            if (self.output.data.len > 0) {
+            if (self.output.data.len > 0 and self.output.size > 0) {
                 self.output.deinit();
             }
 

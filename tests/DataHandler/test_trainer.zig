@@ -1,12 +1,12 @@
 const std = @import("std");
 const tensor = @import("tensor");
 const layer = @import("layer");
-const denselayer = layer.denseLayer.DenseLayer;
-const convlayer = layer.convLayer.ConvolutionalLayer;
-const flattenlayer = layer.flattenLayer.FlattenLayer;
-const PoolingLayer = layer.poolingLayer.PoolingLayer;
+const denselayer = layer.DenseLayer;
+const convlayer = layer.ConvolutionalLayer;
+const flattenlayer = layer.FlattenLayer;
+const PoolingLayer = layer.PoolingLayer;
 const PoolingType = layer.poolingLayer.PoolingType;
-const activationlayer = layer.activationLayer.ActivationLayer;
+const activationlayer = layer.ActivationLayer;
 const Model = @import("model").Model;
 const loader = @import("dataloader");
 const ActivationType = @import("activation_function").ActivationType;
@@ -112,7 +112,7 @@ test "Test single epoch training with simplified CNN" {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 13 * 13 * 8, // Corretto calcolo delle dimensioni
+        .n_inputs = 13 * 13 * 8,
         .n_neurons = 10,
     }));
     try model.addLayer(dense_);
@@ -130,7 +130,11 @@ test "Test single epoch training with simplified CNN" {
     const image_file = "datasets/t10k-images-idx3-ubyte";
     const label_file = "datasets/t10k-labels-idx1-ubyte";
     try load.loadMNIST2DDataParallel(&allocator, image_file, label_file);
-    defer load.deinit(&allocator);
+    defer {
+        load.deinit(&allocator);
+        load.xTensor.deinit();
+        load.yTensor.deinit();
+    }
 
     // Train for 1 epoch
     try Trainer.TrainDataLoader2D(
@@ -146,5 +150,7 @@ test "Test single epoch training with simplified CNN" {
         LossType.CCE,
         0.005,
         0.9,
+        0.0001,
+        1,
     );
 }
