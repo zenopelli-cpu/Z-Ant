@@ -150,29 +150,26 @@ pub fn DenseLayer(comptime T: type) type {
             //---- Key Steps: -----
             // 2. Compute weight gradients (w_gradients)
             var input_transposed = try TensMath.transpose2D(T, &self.input);
-
             defer input_transposed.deinit();
 
             self.w_gradients.deinit();
             self.w_gradients = try TensMath.dot_product_tensor(T, T, &input_transposed, dValues);
+
             // 3. Compute bias gradients (b_gradients)
-            // Equivalent of np.sum(dL_dOutput, axis=0, keepdims=True)
-            var sum: T = 0;
-            //summing all the values in each column(neuron) of dValue and putting it into b_gradint[neuron]
-            for (0..dValues.shape[1]) |neuron| {
-                //scanning all the inputs
-                sum = 0;
-                for (0..dValues.shape[0]) |input| {
-                    sum += dValues.data[input * self.n_neurons + neuron];
+            // Sum gradients for each neuron across all samples
+            for (0..self.n_neurons) |neuron| {
+                var sum: T = 0;
+                for (0..dValues.shape[0]) |sample| {
+                    sum += dValues.data[sample * self.n_neurons + neuron];
                 }
                 self.b_gradients.data[neuron] = sum;
             }
+
+            // 4. Compute input gradients (dL_dInput)
             var weights_transposed = try TensMath.transpose2D(T, &self.weights);
             defer weights_transposed.deinit();
 
-            var dL_dInput: tensor.Tensor(T) = try TensMath.dot_product_tensor(T, T, dValues, &weights_transposed);
-            _ = &dL_dInput;
-            return dL_dInput;
+            return try TensMath.dot_product_tensor(T, T, dValues, &weights_transposed);
         }
 
         ///Print the layer used for debug purposes it has 2 different verbosity levels
