@@ -27,8 +27,8 @@ pub const ReadyTensor = struct {
                 .ready = true,
                 .shape = init.dims,
             };
-        } else if (std.mem.eql(u8, name, "input")) return ReadyTensor{
-            .name = name,
+        } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "input")) |_| return ReadyTensor{
+            .name = "input",
             .ready = true,
             .shape = shape_array, //TODO: given the operation type (op_type) and the shape of the input return the shape of the output
         } else return ReadyTensor{
@@ -77,12 +77,19 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
 
     //create the ReadyGraph
     var readyGraph: std.ArrayList(ReadyNode) = try createReadyGraph(model);
+    _ = &readyGraph;
+
+    //DEBUG
+    std.debug.print("\n------------------------------------------------------------", .{});
+    std.debug.print("\n+                READY GRAPH after Creation                +", .{});
+    std.debug.print("\n------------------------------------------------------------", .{});
+    try utils.printNodeList(readyGraph);
 
     _ = try writer.print(
         \\
         \\
         \\
-        \\pub fn predict(comptime T: anytype, tensor_input: Tensor(T)) {{
+        \\pub fn predict(comptime T: anytype, tensor_input: Tensor(T)) !void {{
     , .{});
 
     while (readyGraph.items.len != 0) {
@@ -113,6 +120,12 @@ inline fn writeComputationGraph(writer: std.fs.File.Writer, readyGraph: *std.Arr
     //Create a list with all the nodes ready for the computation
     //A node is ready for the computation when all its input tensors are ready
     const computableNodes: std.ArrayList(*ReadyNode) = try utils.getComputableNodes(readyGraph);
+    //DEBUG
+    std.debug.print("\n", .{});
+    std.debug.print("\n------------------------------------------------------------", .{});
+    std.debug.print("\n+  COMPUTABLE NODES (aka nodes with all the inputs ready)  +", .{});
+    std.debug.print("\n------------------------------------------------------------", .{});
+    try utils.printComputableNodes(computableNodes);
 
     for (computableNodes.items) |node_ptr| {
         //writing the outputs
@@ -142,7 +155,7 @@ fn writeOutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !void {
     try writer.print(
         \\
         \\
-        \\const shape_tensor_{s} : [{}]usize = [_]usize{{
+        \\  const shape_tensor_{s} : [{}]usize = [_]usize{{
     , .{
         try utils.getSanitizedName(output.name),
         output.shape.len,
@@ -166,35 +179,35 @@ fn writeOutputTensor(writer: std.fs.File.Writer, name: []const u8) !void {
     const sanitized_name = try utils.getSanitizedName(name);
     try writer.print(
         \\
-        \\const tensor_{s} = Tensor({s}).fromArray(&allocator, & array_{s}, &shape_tensor_{s});
-    , .{ sanitized_name, "f32", sanitized_name, sanitized_name });
+        \\  const tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s});
+    , .{ sanitized_name, "f32", sanitized_name });
 }
 
 fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
     try writer.print(
         \\
-        \\ //forwarding operation : {s}
-        \\ //parameters:
-        \\ //   inputs: 
+        \\  //forwarding operation : {s}
+        \\  //parameters:
+        \\  //   inputs: 
     , .{readyNode.nodeProto.op_type});
 
     //write the inputs
     for (readyNode.inputs.items) |input| {
         try writer.print(
             \\
-            \\//      -> {s} 
+            \\  //      -> {s} 
         , .{input.name});
     }
 
     try writer.print(
         \\
-        \\//    outputs: 
+        \\  //    outputs: 
     , .{});
     //write the inputs
     for (readyNode.outputs.items) |output| {
         try writer.print(
             \\
-            \\//      <- {s} 
+            \\  //      <- {s} 
         , .{output.name});
     }
 }

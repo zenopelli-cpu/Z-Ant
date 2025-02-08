@@ -28,7 +28,7 @@ pub inline fn writeTensorsInit(writer: std.fs.File.Writer, model: ModelOnnx) !vo
         //------ creating the tensor try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
         try writer.print(
             \\
-            \\const tensor_{s} = Tensor({s}).fromArray(&allocator, & array_{s}, &shape_tensor_{s});
+            \\const tensor_{s} = Tensor({s}).fromArray(&allocator, &array_{s}, &shape_tensor_{s});
         , .{ name, dataTypeString, name, name });
     }
 }
@@ -40,12 +40,13 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, t: *TensorProto, nam
         \\const shape_tensor_{s} : [{}]usize = [_]usize{{ 
     , .{ name, t.dims.len });
 
-    try writer.print(
-        \\{}
-    , .{t.dims[0]});
-    for (1..t.dims.len) |i| {
+    for (0..t.dims.len) |i| {
+        if (i > 0) try writer.print(
+            \\, 
+        , .{});
+
         try writer.print(
-            \\, {}
+            \\ {}
         , .{t.dims[i]});
     }
 
@@ -55,7 +56,7 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, t: *TensorProto, nam
 }
 
 pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []const u8) !void {
-    std.debug.print("\n  writeArray ", .{});
+    //std.debug.print("\n  writeArray ", .{});
 
     const dataTypeString: []const u8 = try utils.getTypeString(t.data_type);
 
@@ -88,7 +89,7 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
 }
 
 pub inline fn writeArrayRawData(writer: std.fs.File.Writer, data_type: DataType, data: []const u8) !void {
-    std.debug.print("\n  from rawData to TypeData", .{});
+    //std.debug.print("\n  from rawData to TypeData", .{});
 
     switch (data_type) {
         .FLOAT => {
@@ -142,7 +143,7 @@ pub inline fn writeArrayRawData(writer: std.fs.File.Writer, data_type: DataType,
 }
 
 pub inline fn writeArrayData(writer: std.fs.File.Writer, comptime T: type, data: []const T) !void {
-    std.debug.print("\n  writeArrayData ", .{});
+    //std.debug.print("\n  writeArrayData ", .{});
 
     try writer.print(
         \\{}
