@@ -1,20 +1,15 @@
 const std = @import("std");
-const Tensor = @import("tensor").Tensor; // Import Tensor type
+const Tensor = @import("tensor").Tensor;
 const pkg_allocator = @import("pkgAllocator").allocator;
+const assert = std.debug.assert;
 
 const ArchitectureError = @import("errorHandler").ArchitectureError;
 const TensorMathError = @import("errorHandler").TensorMathError;
 
-// DOT PRODUCT -----------------------------------------------------------------------------------------------------------------------
+const DEFAULT_VECTOR_WIDTH: usize = std.simd.suggestVectorLength(f32) orelse 4;
+const BLOCK_SIZE: usize = 32; // Cache-friendly block size
 
-/// Implementation of dot product for CPU architecture still not parallelized
-/// This optimized version improves performance through:
-/// 1. Flat iteration instead of recursion (eliminates call stack overhead)
-/// 2. Direct memory access vs get/set methods (removes function call overhead)
-/// 3. Cache-friendly memory access patterns
-/// 4. SIMD-friendly inner loop structure
 pub fn dot_product_tensor(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
-    //CHECKS remain the same
     const nDimT1 = t1.shape.len;
     const nDimT2 = t2.shape.len;
     if (nDimT1 != nDimT2) return TensorMathError.InputTensorDifferentShape;
@@ -41,58 +36,78 @@ pub fn dot_product_tensor(comptime inputType: anytype, comptime outputType: anyt
     }
     out_shape[nDimT1 - 2] = t1.shape[nDimT1 - 2];
     out_shape[nDimT1 - 1] = t2.shape[nDimT1 - 1];
-    total_outer_iterations *= t1.shape[nDimT1 - 2] * t2.shape[nDimT1 - 1];
+
+    const M = t1.shape[nDimT1 - 2]; // Output rows
+    const N = t2.shape[nDimT1 - 1]; // Output cols
+    const K = t1.shape[nDimT1 - 1]; // Inner dimension
 
     var out_tensor = try Tensor(outputType).fromShape(&allocator, out_shape);
     errdefer out_tensor.deinit();
 
-    const inner_dim = t1.shape[nDimT1 - 1];
-    const t1_stride = t1.shape[nDimT1 - 1];
-    const t2_stride = t2.shape[nDimT1 - 1];
-    const out_stride = out_tensor.shape[nDimT1 - 1];
+    // Initialize output to zero
+    @memset(out_tensor.data, 0);
 
-    // SIMD vector size - adjust based on your CPU architecture
-    const vec_size = 4;
-    const Vec = @Vector(vec_size, inputType);
-    const vec_iterations = inner_dim / vec_size;
+    // Block sizes for tiling
+    const BM = BLOCK_SIZE;
+    const BN = BLOCK_SIZE;
+    const BK = BLOCK_SIZE;
 
-    var batch_idx: usize = 0;
-    while (batch_idx < total_outer_iterations) : (batch_idx += 1) {
-        const out_row = (batch_idx / out_stride) % out_tensor.shape[nDimT1 - 2];
-        const out_col = batch_idx % out_stride;
+    // SIMD vector type for fused operations
+    const Vec = @Vector(DEFAULT_VECTOR_WIDTH, inputType);
 
-        var sum: outputType = 0;
-        const row_offset = out_row * t1_stride;
-        const col_offset = out_col;
+    // Outer blocks
+    var i: usize = 0;
+    while (i < M) : (i += BM) {
+        const i_end = @min(i + BM, M);
 
-        // SIMD vectorized part
-        var vec_sum: Vec = @splat(@as(inputType, 0));
-        var k: usize = 0;
-        while (k < vec_iterations * vec_size) : (k += vec_size) {
-            const t1_slice = t1.data[row_offset + k .. row_offset + k + vec_size];
+        var j: usize = 0;
+        while (j < N) : (j += BN) {
+            const j_end = @min(j + BN, N);
 
-            var t1_vec: Vec = undefined;
-            var t2_vec: Vec = undefined;
-            for (0..vec_size) |i| {
-                t1_vec[i] = t1_slice[i];
-                t2_vec[i] = t2.data[k * t2_stride + col_offset + i * t2_stride];
+            var k: usize = 0;
+            while (k < K) : (k += BK) {
+                const k_end = @min(k + BK, K);
+
+                // Process block
+                var ii: usize = i;
+                while (ii < i_end) : (ii += 1) {
+                    var jj: usize = j;
+                    while (jj + DEFAULT_VECTOR_WIDTH <= j_end) : (jj += DEFAULT_VECTOR_WIDTH) {
+                        var acc: Vec = @splat(0);
+
+                        // Inner block with SIMD
+                        var kk: usize = k;
+                        while (kk < k_end) : (kk += 1) {
+                            const a = t1.data[ii * K + kk];
+                            const b_vec = blk: {
+                                var vec: Vec = undefined;
+                                for (0..DEFAULT_VECTOR_WIDTH) |v| {
+                                    vec[v] = t2.data[kk * N + (jj + v)];
+                                }
+                                break :blk vec;
+                            };
+                            // Fused multiply-add
+                            acc += @as(Vec, @splat(a)) * b_vec;
+                        }
+
+                        // Store result
+                        for (0..DEFAULT_VECTOR_WIDTH) |v| {
+                            out_tensor.data[ii * N + (jj + v)] += @as(outputType, acc[v]);
+                        }
+                    }
+
+                    // Handle remaining columns
+                    while (jj < j_end) : (jj += 1) {
+                        var sum: inputType = 0;
+                        var kk: usize = k;
+                        while (kk < k_end) : (kk += 1) {
+                            sum += t1.data[ii * K + kk] * t2.data[kk * N + jj];
+                        }
+                        out_tensor.data[ii * N + jj] += @as(outputType, sum);
+                    }
+                }
             }
-            vec_sum += t1_vec * t2_vec;
         }
-
-        // Reduce vector sum
-        for (0..vec_size) |i| {
-            sum += vec_sum[i];
-        }
-
-        // Handle remaining elements
-        while (k < inner_dim) : (k += 1) {
-            const t1_val = t1.data[row_offset + k];
-            const t2_val = t2.data[k * t2_stride + col_offset];
-            sum += t1_val * t2_val;
-        }
-
-        out_tensor.data[batch_idx] = sum;
     }
 
     return out_tensor;
