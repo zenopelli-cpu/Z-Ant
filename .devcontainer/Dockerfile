@@ -1,10 +1,10 @@
-# Usa l'immagine base di Ubuntu
+# Use the base image of Ubuntu
 FROM ubuntu:22.04
 
-# Imposta la variabile DEBIAN_FRONTEND per evitare prompt interattivi
+# Set the DEBIAN_FRONTEND variable to avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Aggiorna i pacchetti e installa le dipendenze
+# Update packages and install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     && rm -rf /var/lib/apt/lists/*
 
-# Installa Zig (sostituisci la versione con quella desiderata)
+# Install Zig (replace the version with the desired one)
 ENV ZIG_VERSION=0.13.0
 RUN wget https://ziglang.org/download/${ZIG_VERSION}/zig-linux-$(arch)-${ZIG_VERSION}.tar.xz \
     && tar xf zig-linux-$(arch)-${ZIG_VERSION}.tar.xz \
@@ -25,23 +25,25 @@ RUN wget https://ziglang.org/download/${ZIG_VERSION}/zig-linux-$(arch)-${ZIG_VER
     && ln -s /opt/zig/zig /usr/local/bin/zig \
     && rm zig-linux-$(arch)-${ZIG_VERSION}.tar.xz
 
-# Imposta la directory di lavoro
+# Set the working directory
 WORKDIR /workspace
 
-# Imposta l'utente non-root (opzionale ma consigliato)
+# Copy the folder into the container
+COPY ../datasets /workspace/datasets
+
+# Set a non-root user (optional but recommended)
 ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-# Crea l'utente
+# Create the user
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
     && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
-# Cambia all'utente non-root
+# Switch to the non-root user
 USER $USERNAME
 
-# Comando di default
+# Default command
 CMD [ "/bin/bash" ]
-
