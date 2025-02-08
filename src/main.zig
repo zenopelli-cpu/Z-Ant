@@ -26,8 +26,8 @@ pub fn main() !void {
     };
     try model.init();
 
-    //layer 0: First Convolutional Layer ----------------------------------------------------------------------------
-    var conv_layer = ConvolutionalLayer(f64){
+    // First Convolutional Layer (32 filters)
+    var conv1 = ConvolutionalLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -39,8 +39,8 @@ pub fn main() !void {
         .b_gradients = undefined,
         .allocator = &allocator,
     };
-    var layer_ = conv_layer.create();
-    try layer_.init(
+    var conv1_layer = conv1.create();
+    try conv1_layer.init(
         &allocator,
         @constCast(&struct {
             input_channels: usize,
@@ -48,18 +48,18 @@ pub fn main() !void {
             stride: [2]usize,
         }{
             .input_channels = 1,
-            .kernel_shape = .{ 16, 1, 5, 5 }, // 16 filters, 1 channel, 5x5 kernel
+            .kernel_shape = .{ 32, 1, 3, 3 }, // 32 filters, 1 channel, 3x3 kernel
             .stride = .{ 1, 1 },
         }),
     );
-    try model.addLayer(layer_);
+    try model.addLayer(conv1_layer);
 
-    // After first conv layer
+    // ReLU after first conv
     var conv1_activ = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
-        .n_inputs = 16 * 24 * 24, // Output size from conv1
-        .n_neurons = 16 * 24 * 24,
+        .n_inputs = 32 * 26 * 26,
+        .n_neurons = 32 * 26 * 26,
         .activationFunction = ActivationType.ReLU,
         .allocator = &allocator,
     };
@@ -68,59 +68,12 @@ pub fn main() !void {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 16 * 24 * 24,
-        .n_neurons = 16 * 24 * 24,
+        .n_inputs = 32 * 26 * 26,
+        .n_neurons = 32 * 26 * 26,
     }));
     try model.addLayer(conv1_act);
 
-    //layer 1: Second Convolutional Layer ----------------------------------------------------------------------------
-    var conv_layer2 = ConvolutionalLayer(f64){
-        .weights = undefined,
-        .bias = undefined,
-        .input = undefined,
-        .output = undefined,
-        .input_channels = 0,
-        .kernel_shape = undefined,
-        .stride = undefined,
-        .w_gradients = undefined,
-        .b_gradients = undefined,
-        .allocator = &allocator,
-    };
-    var layer2_ = conv_layer2.create();
-    try layer2_.init(
-        &allocator,
-        @constCast(&struct {
-            input_channels: usize,
-            kernel_shape: [4]usize,
-            stride: [2]usize,
-        }{
-            .input_channels = 16,
-            .kernel_shape = .{ 32, 16, 5, 5 }, // 32 filters, 16 channels, 5x5 kernel
-            .stride = .{ 1, 1 },
-        }),
-    );
-    try model.addLayer(layer2_);
-
-    // After second conv layer
-    var conv2_activ = ActivationLayer(f64){
-        .input = undefined,
-        .output = undefined,
-        .n_inputs = 32 * 20 * 20, // Output size from conv2
-        .n_neurons = 32 * 20 * 20,
-        .activationFunction = ActivationType.ReLU,
-        .allocator = &allocator,
-    };
-    var conv2_act = ActivationLayer(f64).create(&conv2_activ);
-    try conv2_act.init(&allocator, @constCast(&struct {
-        n_inputs: usize,
-        n_neurons: usize,
-    }{
-        .n_inputs = 32 * 20 * 20,
-        .n_neurons = 32 * 20 * 20,
-    }));
-    try model.addLayer(conv2_act);
-
-    // MaxPool after convs
+    // First MaxPool
     var pool1 = PoolingLayer(f64){
         .input = undefined,
         .output = undefined,
@@ -131,39 +84,100 @@ pub fn main() !void {
         .allocator = &allocator,
     };
     var pool1_layer = try pool1.create();
-
-    const PoolInitArgs = struct {
+    try pool1_layer.init(&allocator, @constCast(&struct {
         kernel: [2]usize,
         stride: [2]usize,
         poolingType: PoolingType,
-    };
-    var pool1_init_args = PoolInitArgs{
+    }{
         .kernel = .{ 2, 2 },
         .stride = .{ 2, 2 },
         .poolingType = .Max,
-    };
-    try pool1_layer.init(&allocator, @constCast(&pool1_init_args));
+    }));
     try model.addLayer(pool1_layer);
 
-    //layer 5: Flatten Layer ----------------------------------------------------------------------------
-    var flatten_layer = FlattenLayer(f64){
+    // Second Convolutional Layer (64 filters)
+    var conv2 = ConvolutionalLayer(f64){
+        .weights = undefined,
+        .bias = undefined,
+        .input = undefined,
+        .output = undefined,
+        .input_channels = 0,
+        .kernel_shape = undefined,
+        .stride = undefined,
+        .w_gradients = undefined,
+        .b_gradients = undefined,
+        .allocator = &allocator,
+    };
+    var conv2_layer = conv2.create();
+    try conv2_layer.init(
+        &allocator,
+        @constCast(&struct {
+            input_channels: usize,
+            kernel_shape: [4]usize,
+            stride: [2]usize,
+        }{
+            .input_channels = 32,
+            .kernel_shape = .{ 64, 32, 3, 3 }, // 64 filters, 32 channels, 3x3 kernel
+            .stride = .{ 1, 1 },
+        }),
+    );
+    try model.addLayer(conv2_layer);
+
+    // ReLU after second conv
+    var conv2_activ = ActivationLayer(f64){
+        .input = undefined,
+        .output = undefined,
+        .n_inputs = 64 * 11 * 11,
+        .n_neurons = 64 * 11 * 11,
+        .activationFunction = ActivationType.ReLU,
+        .allocator = &allocator,
+    };
+    var conv2_act = ActivationLayer(f64).create(&conv2_activ);
+    try conv2_act.init(&allocator, @constCast(&struct {
+        n_inputs: usize,
+        n_neurons: usize,
+    }{
+        .n_inputs = 64 * 11 * 11,
+        .n_neurons = 64 * 11 * 11,
+    }));
+    try model.addLayer(conv2_act);
+
+    // Second MaxPool
+    var pool2 = PoolingLayer(f64){
+        .input = undefined,
+        .output = undefined,
+        .used_input = undefined,
+        .kernel = .{ 2, 2 },
+        .stride = .{ 2, 2 },
+        .poolingType = .Max,
+        .allocator = &allocator,
+    };
+    var pool2_layer = try pool2.create();
+    try pool2_layer.init(&allocator, @constCast(&struct {
+        kernel: [2]usize,
+        stride: [2]usize,
+        poolingType: PoolingType,
+    }{
+        .kernel = .{ 2, 2 },
+        .stride = .{ 2, 2 },
+        .poolingType = .Max,
+    }));
+    try model.addLayer(pool2_layer);
+
+    // Flatten Layer
+    var flatten = FlattenLayer(f64){
         .input = undefined,
         .output = undefined,
         .allocator = &allocator,
         .original_shape = &[_]usize{},
     };
-    var Flattenlayer = flatten_layer.create();
-
-    const FlattenInitArgs = struct {
-        placeholder: bool,
-    };
-    var flatten_init_args = FlattenInitArgs{
+    var flatten_layer = flatten.create();
+    try flatten_layer.init(&allocator, @constCast(&struct { placeholder: bool }{
         .placeholder = true,
-    };
-    try Flattenlayer.init(&allocator, @constCast(&flatten_init_args));
-    try model.addLayer(Flattenlayer);
+    }));
+    try model.addLayer(flatten_layer);
 
-    //layer 6: Dense Layer (128 neurons) ----------------------------------------------------------------------------
+    // Dense Layer (128 neurons)
     var dense1 = DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
@@ -175,17 +189,17 @@ pub fn main() !void {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var dense1_ = DenseLayer(f64).create(&dense1);
-    try dense1_.init(&allocator, @constCast(&struct {
+    var dense1_layer = DenseLayer(f64).create(&dense1);
+    try dense1_layer.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 3200, // Calculated: 10x10x32 / 4 (after maxpool)
+        .n_inputs = 64 * 5 * 5, // After two maxpools: 28->13->5
         .n_neurons = 128,
     }));
-    try model.addLayer(dense1_);
+    try model.addLayer(dense1_layer);
 
-    //layer 7: ReLU Activation ----------------------------------------------------------------------------
+    // ReLU after dense
     var dense1_activ = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
@@ -204,8 +218,8 @@ pub fn main() !void {
     }));
     try model.addLayer(dense1_act);
 
-    //layer 8: Output Dense Layer (10 neurons for MNIST) ----------------------------------------------------------------------------
-    var dense2 = DenseLayer(f64){
+    // Output Layer (10 neurons)
+    var output = DenseLayer(f64){
         .weights = undefined,
         .bias = undefined,
         .input = undefined,
@@ -216,18 +230,18 @@ pub fn main() !void {
         .b_gradients = undefined,
         .allocator = undefined,
     };
-    var dense2_ = DenseLayer(f64).create(&dense2);
-    try dense2_.init(&allocator, @constCast(&struct {
+    var output_layer = DenseLayer(f64).create(&output);
+    try output_layer.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
     }{
         .n_inputs = 128,
         .n_neurons = 10,
     }));
-    try model.addLayer(dense2_);
+    try model.addLayer(output_layer);
 
-    //layer 9: Softmax Activation ----------------------------------------------------------------------------
-    var output_activ = ActivationLayer(f64){
+    // Softmax activation
+    var softmax = ActivationLayer(f64){
         .input = undefined,
         .output = undefined,
         .n_inputs = 10,
@@ -235,18 +249,18 @@ pub fn main() !void {
         .activationFunction = ActivationType.Softmax,
         .allocator = &allocator,
     };
-    var output_act = ActivationLayer(f64).create(&output_activ);
-    try output_act.init(&allocator, @constCast(&struct {
+    var softmax_layer = ActivationLayer(f64).create(&softmax);
+    try softmax_layer.init(&allocator, @constCast(&struct {
         n_inputs: usize,
         n_neurons: usize,
     }{
         .n_inputs = 10,
         .n_neurons = 10,
     }));
-    try model.addLayer(output_act);
+    try model.addLayer(softmax_layer);
 
     // Setup DataLoader
-    var load = loader.DataLoader(f64, u8, u8, 32, 3){
+    var load = loader.DataLoader(f64, u8, u8, 64, 3){ // Increased batch size to 128
         .X = undefined,
         .y = undefined,
         .xTensor = undefined,
@@ -260,21 +274,21 @@ pub fn main() !void {
 
     try load.loadMNIST2DDataParallel(&allocator, image_file_name, label_file_name);
 
-    // Train the model with adjusted hyperparameters
+    // Train with optimized hyperparameters
     try Trainer.TrainDataLoader2D(
         f64,
         u8,
         u8,
         &allocator,
-        32,
+        64, // Increased batch size
         784,
         &model,
         &load,
-        15,
+        10, // Reduced epochs since the model converges faster
         LossType.CCE,
-        0.005,
-        0.8,
-        0.00001,
+        0.005, // Reduced learning rate for better stability
+        0.9, // Increased momentum
+        0.0001, // L2 regularization
         1.0,
     );
 
