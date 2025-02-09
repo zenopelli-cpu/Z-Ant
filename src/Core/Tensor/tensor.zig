@@ -3,7 +3,6 @@
 //! the concept of scalars, vectors, and matrices to higher dimensions. A scalar is a 0-dimensional
 //! tensor, a vector is a 1-dimensional tensor, and a matrix is a 2-dimensional tensor. Tensors can extend
 //! to even higher dimensions (3D, 4D, etc.).
-
 const std = @import("std");
 const tMath = @import("tensor_m");
 const TensorError = @import("errorHandler").TensorError;

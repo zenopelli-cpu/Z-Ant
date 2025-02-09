@@ -1,5 +1,6 @@
 const std = @import("std");
 const Tensor = @import("tensor").Tensor;
+const tensorMath = @import("tensor_math");
 const ModelOnnx = @import("onnx").ModelProto;
 const DataType = @import("onnx").DataType;
 const TensorProto = @import("onnx").TensorProto;
@@ -51,9 +52,39 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 }
 
 inline fn write_Reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    _ = writer;
     _ = node;
-    try writer.writeAll(
-        \\
-        \\ TensMath.
-    , .{});
+}
+
+pub fn get_output_shape(node: *ReadyNode) ![4]i64 {
+    if (std.mem.eql(u8, node.nodeProto.op_type, "Add")) {
+        // try writer.writeAll("// Handle Add\n");
+        return node.inputs.items[1].shape;
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Conv")) {
+        // try writer.writeAll("// Handle Conv\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Flatten")) {
+        // try writer.writeAll("// Handle Flatten\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gather")) {
+        // try writer.writeAll("// Handle Gather\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gemm")) {
+        // try writer.writeAll("// Handle Gemm\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "LeakyRelu")) {
+        // try writer.writeAll("// Handle LeakyRelu\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "LogSoftmax")) {
+        // try writer.writeAll("// Handle LogSoftmax\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "MatMul")) {
+        // try writer.writeAll("// Handle MatMul\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "MaxPool")) {
+        // try writer.writeAll("// Handle MaxPool\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "OneHot")) {
+        // try writer.writeAll("// Handle OneHot\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
+        // try writer.writeAll("// Handle Relu\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Reshape")) {
+        // try write_Reshape(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Resize")) {
+        // try writer.writeAll("// Handle Resize\n");
+    } else {
+        return error.OperationNotSupported;
+    }
 }

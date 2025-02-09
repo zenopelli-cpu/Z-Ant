@@ -11,25 +11,27 @@ const codeGenInitializers = @import("codeGen_initializers.zig");
 const utils = @import("codeGen_utils.zig");
 const mathGen = @import("codeGen_math_handler.zig");
 
+// Struct to represent a tensor that is ready for computation
 pub const ReadyTensor = struct {
     name: []const u8,
     ready: bool,
     shape: []const i64,
 
+    // Creates a ReadyTensor by checking if it exists in the initializers or is an input
     pub fn create(name: []const u8, graph: *GraphProto, op_type: []const u8) !ReadyTensor {
         std.debug.print("\n     ReadyTensor.create() --> {s}\n", .{name});
         _ = op_type;
-        const shape_array: []const i64 = &[_]i64{ 1, 1, 1, 1 }; //TODO: given the operation type (op_type) and the shape of the input return the shape of the output
+        const shape_array: []const i64 = &[_]i64{ 1, 1, 1, 1 }; // Placeholder shape //TODO: infer the shape based on the inputs and the op_type
 
         //TODO: given the operation type and the shape of the input return the shape of the output
-        if (utils.isInitializer(name, graph.initializers)) {
+        if (utils.isInitializer(name, graph.initializers)) { // Check if tensor is an initializer
             const init: *TensorProto = try utils.getInitializer(name, graph.initializers);
             return ReadyTensor{
                 .name = name,
                 .ready = true,
                 .shape = init.dims,
             };
-        } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "input")) |_| return ReadyTensor{
+        } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "input")) |_| return ReadyTensor{ // Check if tensor is an input
             .name = "input",
             .ready = true,
             .shape = shape_array, //TODO: given the operation type (op_type) and the shape of the input return the shape of the output
@@ -41,12 +43,14 @@ pub const ReadyTensor = struct {
     }
 };
 
+// Struct representing a computational node in the ONNX model
 pub const ReadyNode = struct {
     nodeProto: *NodeProto,
     inputs: std.ArrayList(ReadyTensor),
     outputs: std.ArrayList(ReadyTensor),
     ready: bool,
 
+    // Creates a ReadyNode by preparing its input and output tensors
     pub fn create(nodeProto: *NodeProto, model: *const ModelOnnx) !ReadyNode {
         std.debug.print("\n ReadyNode.create() --> {s}\n", .{nodeProto.name.?});
 
@@ -75,6 +79,7 @@ pub const ReadyNode = struct {
     }
 };
 
+// Writes the computation function for predicting outputs
 pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
 
     //create the ReadyGraph
@@ -116,6 +121,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
     , .{});
 }
 
+// Creates a graph representation with all nodes in a ready-to-compute state
 fn createReadyGraph(model: ModelOnnx) !std.ArrayList(ReadyNode) {
     const graph = try if (model.graph) |graph| graph else error.GraphNotAvailable;
 
@@ -129,6 +135,7 @@ fn createReadyGraph(model: ModelOnnx) !std.ArrayList(ReadyNode) {
     return readyGraph;
 }
 
+// Processes and writes the computation graph
 inline fn writeComputationGraph(writer: std.fs.File.Writer, readyGraph: *std.ArrayList(ReadyNode)) !void {
 
     //Create a list with all the nodes ready for the computation
@@ -155,6 +162,7 @@ inline fn writeComputationGraph(writer: std.fs.File.Writer, readyGraph: *std.Arr
     try removeCompletedNodes(readyGraph);
 }
 
+// Initializes output tensors in the computation graph
 fn writeInitOutputs(writer: std.fs.File.Writer, readyGraph: *std.ArrayList(ReadyNode)) !void {
     for (readyGraph.items) |node_ptr| {
         //writing the outputs, OSS: two nodes shpuld never have the same output, so we don't need to check for duplicates
@@ -235,6 +243,7 @@ fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
     try mathGen.write_math_op(writer, readyNode);
 }
 
+// Marks output tensors as ready for computation in all the graph
 fn setOutputsReady(completedNode: *ReadyNode, readyGraph: *std.ArrayList(ReadyNode)) !void {
     for (completedNode.outputs.items) |*ready_output_tensor| { //for each output tensor of the completed node
         ready_output_tensor.ready = true;
@@ -248,6 +257,7 @@ fn setOutputsReady(completedNode: *ReadyNode, readyGraph: *std.ArrayList(ReadyNo
     }
 }
 
+// Removes nodes from the computation graph once they have been processed
 fn removeCompletedNodes(readyGraph: *std.ArrayList(ReadyNode)) !void {
     var i: usize = 0;
     while (i < readyGraph.items.len) {

@@ -9,13 +9,16 @@
 const shape_math_lib = @import("lib_shape_math.zig");
 pub const concatenate = shape_math_lib.concatenate;
 pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_shape;
+
 pub const calculateStrides = shape_math_lib.calculateStrides;
 pub const transpose2D = shape_math_lib.transpose2D;
 pub const transposeDefault = shape_math_lib.transposeDefault;
 pub const addPaddingAndDilation = shape_math_lib.addPaddingAndDilation;
 pub const flip = shape_math_lib.flip;
+
 pub const resize = shape_math_lib.resize;
 pub const get_resize_output_shape = shape_math_lib.get_resize_output_shape;
+
 pub const split = shape_math_lib.split;
 pub const get_split_output_shapes = shape_math_lib.get_split_output_shapes;
 

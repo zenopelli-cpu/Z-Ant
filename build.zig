@@ -261,6 +261,7 @@ pub fn build(b: *std.Build) void {
 
     // Add necessary imports for the executable.
     codeGen_exe.root_module.addImport("onnx", onnx_mod);
+    codeGen_exe.root_module.addImport("tensor_math", tensor_math_mod);
     codeGen_exe.root_module.addImport("codeGen", codegen_mod);
 
     // Install the executable.

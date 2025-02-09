@@ -4,34 +4,38 @@ const ModelOnnx = @import("onnx").ModelProto;
 const TensorProto = @import("onnx").TensorProto;
 const DataType = @import("onnx").DataType;
 
+/// Writes the Zig code required to initialize all tensor initializers in the ONNX model.
+/// This function generates declarations and definitions for each tensor.
+///
+/// - `writer`: The file writer to output generated code.
+/// - `model`: The ONNX model containing tensor initializers.
 pub inline fn writeTensorsInit(writer: std.fs.File.Writer, model: ModelOnnx) !void {
     try writer.print(
         \\
         \\
         \\ // ---------------------------------------------------
-        \\ // +         initializing Weights and Biases         +
+        \\ // +         Initializing Weights and Biases         +
         \\ // ---------------------------------------------------
     , .{});
-    //for each initializer of the onnx model we create the tensor
+
+    // Iterate over all initializers in the ONNX model and generate code
     for (model.graph.?.initializers) |tensorProtoInitializer| {
-        // get the type and equivalent string
         const dataTypeString: []const u8 = try utils.getTypeString(tensorProtoInitializer.data_type);
-        //const dataType: type = try getType(tensorProtoInitializer.data_type);
         const name: []const u8 = try utils.getSanitizedName(tensorProtoInitializer.name.?);
 
         try writer.print(
             \\
             \\
-            \\ // ----------- initializing tensor_{s};
+            \\ // ----------- Initializing tensor_{s};
         , .{name});
 
-        // ------ creating the shape
+        // Generate the shape array for the tensor
         try wrtiteTensorShape(writer, tensorProtoInitializer, name);
 
-        // ------ creating the array
+        // Generate the data array for the tensor
         try writeArray(writer, tensorProtoInitializer, name);
 
-        //------ creating the tensor try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+        // Create the tensor instance
         try writer.print(
             \\
             \\const tensor_{s} = Tensor({s}).fromArray(&allocator, &array_{s}, &shape_tensor_{s});
@@ -39,6 +43,11 @@ pub inline fn writeTensorsInit(writer: std.fs.File.Writer, model: ModelOnnx) !vo
     }
 }
 
+/// Writes the shape array for a tensor initializer.
+///
+/// - `writer`: The file writer to output generated code.
+/// - `t`: The tensor initializer.
+/// - `name`: The sanitized name of the tensor.
 pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, t: *TensorProto, name: []const u8) !void {
     try writer.print(
         \\
@@ -61,20 +70,24 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, t: *TensorProto, nam
     , .{});
 }
 
+/// Writes the array for a tensor initializer based on its data type.
+///
+/// - `writer`: The file writer to output generated code.
+/// - `t`: The tensor initializer.
+/// - `name`: The sanitized name of the tensor.
 pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []const u8) !void {
-    //std.debug.print("\n  writeArray ", .{});
-
     const dataTypeString: []const u8 = try utils.getTypeString(t.data_type);
 
     var size: i64 = 1;
     for (t.dims) |dims_i| {
-        size = size * dims_i;
+        size *= dims_i;
     }
     try writer.print(
         \\
         \\const array_{s} : [{d}]{s} = [_]{s}{{ 
     , .{ name, size, dataTypeString, dataTypeString });
 
+    // Select appropriate data storage format
     if (t.float_data) |d| {
         writeArrayData(writer, f32, d) catch return error.f32DataUnavailable;
     } else if (t.raw_data) |d| {
@@ -94,9 +107,12 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
     , .{});
 }
 
+/// Converts raw binary tensor data into typed array representation.
+///
+/// - `writer`: The file writer to output generated code.
+/// - `data_type`: The ONNX data type.
+/// - `data`: The raw binary tensor data.
 pub inline fn writeArrayRawData(writer: std.fs.File.Writer, data_type: DataType, data: []const u8) !void {
-    //std.debug.print("\n  from rawData to TypeData", .{});
-
     switch (data_type) {
         .FLOAT => {
             const float_slice = @as([*]const f32, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 4)];
@@ -143,14 +159,17 @@ pub inline fn writeArrayRawData(writer: std.fs.File.Writer, data_type: DataType,
             try writeArrayData(writer, u64, uint_slice);
         },
         else => {
-            std.debug.print("\n data type {s} not supported for raw data access \n", .{@tagName(data_type)});
+            std.debug.print("\n Data type {s} not supported for raw data access \n", .{@tagName(data_type)});
         },
     }
 }
 
+/// Writes an array of tensor data.
+///
+/// - `writer`: The file writer to output generated code.
+/// - `T`: The type of data in the tensor.
+/// - `data`: The data array.
 pub inline fn writeArrayData(writer: std.fs.File.Writer, comptime T: type, data: []const T) !void {
-    //std.debug.print("\n  writeArrayData ", .{});
-
     try writer.print(
         \\{}
     , .{data[0]});

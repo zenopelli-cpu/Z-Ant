@@ -141,7 +141,8 @@ pub fn isInitializer(name: []const u8, initializers: []*TensorProto) bool {
     return false;
 }
 
-//return the relative TensorProto else error
+// Returns the corresponding TensorProto for the given name if it exists in the initializers list.
+// Returns an error if the initializer is not found.
 pub fn getInitializer(name: []const u8, initializers: []*TensorProto) !*TensorProto {
     for (initializers) |init| {
         if (std.mem.eql(u8, init.name.?, name)) return init;
@@ -150,39 +151,45 @@ pub fn getInitializer(name: []const u8, initializers: []*TensorProto) !*TensorPr
     return error.NotExistingInitializer;
 }
 
+// Prints the list of nodes in the given computation graph.
+// Outputs each node's name along with its input and output tensors and their readiness status.
 pub fn printNodeList(graph: std.ArrayList(ReadyNode)) !void {
     for (graph.items) |node| {
         std.debug.print("\n ----- node: {s}", .{node.nodeProto.name.?});
         std.debug.print("\n          inputs: ", .{});
-        //write the inputs
+        // Write the inputs
         for (node.inputs.items) |input| {
             std.debug.print("\n              ->{s} {s}", .{ input.name, if (input.ready) "--->ready" else "" });
         }
         std.debug.print("\n          outputs:", .{});
-        //write the outputs
+        // Write the outputs
         for (node.outputs.items) |output| {
             std.debug.print("\n              -> {s} {s}", .{ output.name, if (output.ready) "--->ready" else "" });
         }
     }
 }
 
+// Prints the list of nodes that are ready for computation.
+// Outputs each node's name, operation type, inputs, and outputs along with their readiness status.
 pub fn printComputableNodes(computableNodes: std.ArrayList(*ReadyNode)) !void {
     for (computableNodes.items) |node| {
         std.debug.print("\n ----- node: {s}", .{node.nodeProto.name.?});
         std.debug.print("\n          op_type: {s}", .{node.nodeProto.op_type});
         std.debug.print("\n          inputs: ", .{});
-        //write the inputs
+        // Write the inputs
         for (node.inputs.items) |input| {
             std.debug.print("\n              -> {s} {s}", .{ input.name, if (input.ready) "--->ready" else "" });
         }
         std.debug.print("\n          outputs:", .{});
-        //write the outputs
+        // Write the outputs
         for (node.outputs.items) |output| {
             std.debug.print("\n              -> {s} {s}", .{ output.name, if (output.ready) "--->ready" else "" });
         }
     }
 }
 
+// Prints the list of unique ONNX operations present in the given graph.
+// Outputs each operation type only once.
 pub fn printOperations(graph: *GraphProto) !void {
     std.debug.print("\n", .{});
     std.debug.print("\n-------------------------------------------------", .{});
