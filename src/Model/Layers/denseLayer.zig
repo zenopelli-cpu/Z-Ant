@@ -58,6 +58,10 @@ pub fn DenseLayer(comptime T: type) type {
             //check on parameters
             if (n_inputs <= 0 or n_neurons <= 0) return LayerError.InvalidParameters;
 
+            // Check for potential overflow in matrix sizes
+            const total_weights = std.math.mul(usize, n_inputs, n_neurons) catch return LayerError.TooLarge;
+            if (total_weights > std.math.maxInt(usize) / @sizeOf(T)) return LayerError.TooLarge;
+
             //initializing number of neurons and inputs----------------------------------
             self.n_inputs = n_inputs;
             self.n_neurons = n_neurons;
@@ -91,28 +95,28 @@ pub fn DenseLayer(comptime T: type) type {
 
             std.debug.print("\nDENSE input.data.len : {}  size:{}", .{ self.input.data.len, self.input.size });
 
-            // Dealloc tensors of weights, bias and output if allocated
-            if (self.weights.data.len > 0 and self.weights.size > 0) {
+            // Dealloc tensors of weights, bias and output if allocated and valid
+            if (self.weights.data.len > 0 and self.weights.size > 0 and self.weights.shape.len > 0) {
                 self.weights.deinit();
             }
 
-            if (self.bias.data.len > 0 and self.bias.size > 0) {
+            if (self.bias.data.len > 0 and self.bias.size > 0 and self.bias.shape.len > 0) {
                 self.bias.deinit();
             }
 
-            if (self.w_gradients.data.len > 0 and self.w_gradients.size > 0) {
+            if (self.w_gradients.data.len > 0 and self.w_gradients.size > 0 and self.w_gradients.shape.len > 0) {
                 self.w_gradients.deinit();
             }
 
-            if (self.b_gradients.data.len > 0 and self.b_gradients.size > 0) {
+            if (self.b_gradients.data.len > 0 and self.b_gradients.size > 0 and self.b_gradients.shape.len > 0) {
                 self.b_gradients.deinit();
             }
 
-            if (self.input.data.len > 0 and self.input.size > 0) {
+            if (self.input.data.len > 0 and self.input.size > 0 and self.input.shape.len > 0) {
                 self.input.deinit();
             }
 
-            if (self.output.data.len > 0 and self.output.size > 0) {
+            if (self.output.data.len > 0 and self.output.size > 0 and self.output.shape.len > 0) {
                 self.output.deinit();
             }
 
@@ -123,6 +127,10 @@ pub fn DenseLayer(comptime T: type) type {
         /// We can improve it removing as much as possibile all the copy operations
         pub fn forward(ctx: *anyopaque, input: *tensor.Tensor(T)) !tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
+
+            // Check input dimensions
+            if (input.shape.len != 2) return LayerError.LayerDimensionsInvalid;
+            if (input.shape[1] != self.n_inputs) return LayerError.InputTensorWrongShape;
 
             // Dealloc self.input if already allocated
             if (self.input.data.len > 0 and self.input.size > 0) {
@@ -146,6 +154,11 @@ pub fn DenseLayer(comptime T: type) type {
         /// Backward pass of the layer It takes the dValues from the next layer and computes the gradients
         pub fn backward(ctx: *anyopaque, dValues: *tensor.Tensor(T)) !tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
+
+            // Check dValues dimensions
+            if (dValues.shape.len != 2) return LayerError.LayerDimensionsInvalid;
+            if (dValues.shape[0] != self.input.shape[0] or dValues.shape[1] != self.n_neurons)
+                return LayerError.InputTensorWrongShape;
 
             //---- Key Steps: -----
             // 2. Compute weight gradients (w_gradients)

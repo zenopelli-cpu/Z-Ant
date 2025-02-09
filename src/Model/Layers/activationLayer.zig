@@ -67,10 +67,10 @@ pub fn ActivationLayer(comptime T: type) type {
         ///Deallocate the layer
         pub fn deinit(ctx: *anyopaque) void {
             const self: *Self = @ptrCast(@alignCast(ctx));
-            if (self.output.data.len > 0) {
+            if (self.output.data.len > 0 or self.output.shape.len > 0) {
                 self.output.deinit();
             }
-            if (self.input.data.len > 0) {
+            if (self.input.data.len > 0 or self.input.shape.len > 0) {
                 self.input.deinit();
             }
             std.debug.print("\nActivationLayer resources deallocated.", .{});
