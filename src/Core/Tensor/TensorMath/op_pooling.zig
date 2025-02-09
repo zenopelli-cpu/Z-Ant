@@ -206,9 +206,9 @@ pub fn pool_forward(comptime T: type, input: *Tensor(T), kernel: [2]usize, strid
         return TensorMathError.InvalidDimensions;
     }
 
-    // Calculate output dimensions with safe arithmetic
-    const out_rows = try std.math.divFloor(usize, input_rows - kernel[0], stride[0]) + 1;
-    const out_cols = try std.math.divFloor(usize, input_cols - kernel[1], stride[1]) + 1;
+    // Calculate output dimensions
+    const out_rows = (input_rows -% kernel[0]) / stride[0] +% 1;
+    const out_cols = (input_cols -% kernel[1]) / stride[1] +% 1;
 
     // Validate output dimensions
     if (out_rows == 0 or out_cols == 0 or out_rows > input_rows or out_cols > input_cols) {
@@ -415,7 +415,6 @@ pub fn pool_backward(comptime T: type, dValues: *Tensor(T), input_shape: []const
                     const grad = dValues.data[grad_idx];
                     const window_index = out_r * out_cols + out_c;
 
-                    var avg_count: usize = 0;
                     for (0..kernel[0]) |kr| {
                         for (0..kernel[1]) |kc| {
                             const in_r = out_r * stride[0] + kr;
@@ -432,29 +431,7 @@ pub fn pool_backward(comptime T: type, dValues: *Tensor(T), input_shape: []const
                                     const input_idx = b * channels * input_rows * input_cols +
                                         c * input_rows * input_cols +
                                         in_r * input_cols + in_c;
-                                    // For average pooling, distribute gradient evenly
-                                    if (mask_val == 1) {
-                                        avg_count += 1;
-                                    }
                                     dInput.data[input_idx] += grad;
-                                }
-                            }
-                        }
-                    }
-
-                    // Scale gradients for average pooling
-                    if (avg_count > 0) {
-                        const scale = @as(T, 1.0) / @as(T, @floatFromInt(avg_count));
-                        for (0..kernel[0]) |kr| {
-                            for (0..kernel[1]) |kc| {
-                                const in_r = out_r * stride[0] + kr;
-                                const in_c = out_c * stride[1] + kc;
-
-                                if (in_r < input_rows and in_c < input_cols) {
-                                    const input_idx = b * channels * input_rows * input_cols +
-                                        c * input_rows * input_cols +
-                                        in_r * input_cols + in_c;
-                                    dInput.data[input_idx] *= scale;
                                 }
                             }
                         }

@@ -34,15 +34,13 @@ pub fn Tensor(comptime T: type) type {
 
         ///Free all the possible allocation, use it every time you create a new Tensor ( defer yourTensor.deinit() )
         pub fn deinit(self: *@This()) void {
-            if (self.size > 0) {
-                if (self.data.len > 0) {
-                    self.allocator.free(self.data);
-                    self.data = &[_]T{};
-                }
-                if (self.shape.len > 0) {
-                    self.allocator.free(self.shape);
-                    self.shape = &[_]usize{};
-                }
+            if (self.data.len > 0) {
+                self.allocator.free(self.data);
+                self.data = &[_]T{};
+            }
+            if (self.shape.len > 0) {
+                self.allocator.free(self.shape);
+                self.shape = &[_]usize{};
             }
         }
 

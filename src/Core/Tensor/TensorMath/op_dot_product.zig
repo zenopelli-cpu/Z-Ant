@@ -10,24 +10,21 @@ const DEFAULT_VECTOR_WIDTH: usize = std.simd.suggestVectorLength(f32) orelse 4;
 const BLOCK_SIZE: usize = 32; // Cache-friendly block size
 
 pub inline fn dot_product_tensor(comptime inputType: type, comptime outputType: type, t1: *const Tensor(inputType), t2: *const Tensor(inputType)) !Tensor(outputType) {
-    // Verifica che il numero di dimensioni coincidano e le forme siano compatibili
     const nDimT1 = t1.shape.len;
     const nDimT2 = t2.shape.len;
-    if (nDimT1 != nDimT2)
-        return TensorMathError.InputTensorDifferentShape;
-    if (t1.shape[nDimT1 - 1] != t2.shape[nDimT1 - 2])
-        return TensorMathError.InputTensorsWrongShape;
+    if (nDimT1 != nDimT2) return TensorMathError.InputTensorDifferentShape;
+    if (t1.shape[nDimT1 - 1] != t2.shape[nDimT1 - 2]) return TensorMathError.InputTensorsWrongShape;
 
-    // Controllo sul tipo di output: se la conversione non è "sicura" (es. da f32 a f16)
+    // Validate dimensions
+    if (nDimT1 < 2) return TensorMathError.InputTensorsWrongShape;
+
     if (@TypeOf(outputType) == @TypeOf(inputType)) {
-        // Nessun controllo necessario se sono lo stesso tipo
+        // Skip check if same type
     } else {
         if (@bitSizeOf(outputType) <= 16) {
-            if (@bitSizeOf(outputType) <= (@bitSizeOf(inputType) * 2))
-                return TensorMathError.TooSmallOutputType;
+            if (@bitSizeOf(outputType) <= (@bitSizeOf(inputType) * 2)) return TensorMathError.TooSmallOutputType;
         } else {
-            if (@bitSizeOf(outputType) <= @bitSizeOf(inputType))
-                return TensorMathError.TooSmallOutputType;
+            if (@bitSizeOf(outputType) <= @bitSizeOf(inputType)) return TensorMathError.TooSmallOutputType;
         }
     }
 
@@ -35,82 +32,108 @@ pub inline fn dot_product_tensor(comptime inputType: type, comptime outputType: 
     var out_shape = try allocator.alloc(usize, nDimT1);
     defer allocator.free(out_shape);
 
-    // Costruisco la forma dell'output:
-    // Copio le dimensioni esterne (se presenti) e imposto le ultime due dimensioni in base alla moltiplicazione
     for (0..(nDimT1 - 2)) |i| {
         out_shape[i] = t1.shape[i];
     }
     out_shape[nDimT1 - 2] = t1.shape[nDimT1 - 2];
     out_shape[nDimT1 - 1] = t2.shape[nDimT1 - 1];
 
-    const M = t1.shape[nDimT1 - 2]; // Numero di righe dell'output
-    const N = t2.shape[nDimT1 - 1]; // Numero di colonne dell'output
-    const K = t1.shape[nDimT1 - 1]; // Dimensione interna (dot product lungo k)
+    const M = t1.shape[nDimT1 - 2]; // rows of output
+    const N = t2.shape[nDimT1 - 1]; // cols of output
+    const K = t1.shape[nDimT1 - 1]; // inner dimension
+
+    // Validate sizes
+    if (M * N == 0 or K == 0) return TensorMathError.InputTensorsWrongShape;
 
     var out_tensor = try Tensor(outputType).fromShape(&allocator, out_shape);
     errdefer out_tensor.deinit();
 
-    // Inizializza la memoria dell'output a zero
     @memset(out_tensor.data, 0);
 
-    // Setup SIMD
     const vector_width = DEFAULT_VECTOR_WIDTH;
     const Vec = @Vector(vector_width, inputType);
     const HigherVec = @Vector(vector_width, outputType);
 
-    const vec_len = K / vector_width;
-    const vec_rem = K % vector_width;
+    // Block sizes for cache optimization - ensure they're not larger than input dimensions
+    const MB = @min(BLOCK_SIZE, M);
+    const NB = @min(BLOCK_SIZE, N);
+    const KB = @min(BLOCK_SIZE, K);
 
-    // Disabilitiamo alcuni controlli per massimizzare le prestazioni
-    @setRuntimeSafety(false);
-
-    // Calcola ogni elemento dell'output:
-    //   out[i, j] = sum_{k=0}^{K-1} ( t1[i, k] * t2[k, j] )
+    // Blocking for better cache utilization
     var i: usize = 0;
-    while (i < M) : (i += 1) {
+    while (i < M) : (i += MB) {
+        const i_end = @min(i + MB, M);
         var j: usize = 0;
-        while (j < N) : (j += 1) {
-            // Accumulatore per il dot product in formato SIMD (vettore di dimensione vector_width)
-            var sum_vec: HigherVec = @splat(0);
+        while (j < N) : (j += NB) {
+            const j_end = @min(j + NB, N);
 
-            // Elaborazione vettorializzata lungo la dimensione k
-            var k_chunk: usize = 0;
-            while (k_chunk < vec_len) : (k_chunk += 1) {
-                const offset = k_chunk * vector_width;
-                var a_vec: Vec = undefined;
-                var b_vec: Vec = undefined;
-                // Carica un blocco di vector_width elementi da t1 e t2:
-                for (0..vector_width) |v| {
-                    a_vec[v] = t1.data[i * K + offset + v];
-                    // Per k = offset+v si legge t2[k, j]:
-                    b_vec[v] = t2.data[(offset + v) * N + j];
+            // Process within blocks
+            var ii: usize = i;
+            while (ii < i_end) : (ii += 1) {
+                var jj: usize = j;
+                while (jj < j_end) : (jj += 1) {
+                    var sum: outputType = 0;
+
+                    // Direct computation for small K or when SIMD wouldn't help
+                    if (K < vector_width * 2) {
+                        var kk: usize = 0;
+                        while (kk < K) : (kk += 1) {
+                            const a = t1.data[ii * K + kk];
+                            const b = t2.data[kk * N + jj];
+                            sum += @as(outputType, a) * @as(outputType, b);
+                        }
+                    } else {
+                        var k: usize = 0;
+                        while (k < K) : (k += KB) {
+                            const k_end = @min(k + KB, K);
+                            var kk: usize = k;
+
+                            // SIMD processing within block
+                            const kk_vec_end = k_end - ((k_end - kk) % vector_width);
+                            var sum_vec: HigherVec = @splat(0);
+
+                            while (kk < kk_vec_end) : (kk += vector_width) {
+                                var a_vec: Vec = undefined;
+                                var b_vec: Vec = undefined;
+
+                                inline for (0..vector_width) |v| {
+                                    const a_idx = ii * K + kk + v;
+                                    const b_idx = (kk + v) * N + jj;
+                                    if (a_idx >= t1.data.len or b_idx >= t2.data.len) break;
+                                    a_vec[v] = t1.data[a_idx];
+                                    b_vec[v] = t2.data[b_idx];
+                                }
+
+                                var higher_a: HigherVec = undefined;
+                                var higher_b: HigherVec = undefined;
+                                inline for (0..vector_width) |v| {
+                                    higher_a[v] = @as(outputType, a_vec[v]);
+                                    higher_b[v] = @as(outputType, b_vec[v]);
+                                }
+                                sum_vec += higher_a * higher_b;
+                            }
+
+                            // Horizontal sum of SIMD vector
+                            inline for (0..vector_width) |v| {
+                                sum += sum_vec[v];
+                            }
+
+                            // Handle remaining elements
+                            while (kk < k_end) : (kk += 1) {
+                                const a_idx = ii * K + kk;
+                                const b_idx = kk * N + jj;
+                                if (a_idx >= t1.data.len or b_idx >= t2.data.len) break;
+                                sum += @as(outputType, t1.data[a_idx]) * @as(outputType, t2.data[b_idx]);
+                            }
+                        }
+                    }
+
+                    const out_idx = ii * N + jj;
+                    if (out_idx < out_tensor.data.len) {
+                        out_tensor.data[out_idx] = sum;
+                    }
                 }
-                // Conversione esplicita in outputType per maggiore precisione
-                var higher_a: HigherVec = undefined;
-                var higher_b: HigherVec = undefined;
-                for (0..vector_width) |v| {
-                    higher_a[v] = @as(outputType, (a_vec[v]));
-                    higher_b[v] = @as(outputType, (b_vec[v]));
-                }
-                sum_vec += higher_a * higher_b;
             }
-
-            // Riduzione orizzontale del vettore SIMD in uno scalare
-            var dot: outputType = 0;
-            for (0..vector_width) |v| {
-                dot += sum_vec[v];
-            }
-
-            // Gestione degli elementi rimanenti lungo k (se K non è multiplo di vector_width)
-            const rem_offset = vec_len * vector_width;
-            var r: usize = 0;
-            while (r < vec_rem) : (r += 1) {
-                const a_val = @as(outputType, (t1.data[i * K + rem_offset + r]));
-                const b_val = @as(outputType, (t2.data[(rem_offset + r) * N + j]));
-                dot += a_val * b_val;
-            }
-
-            out_tensor.data[i * N + j] = dot;
         }
     }
 

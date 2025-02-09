@@ -73,7 +73,7 @@ pub fn convolve_tensor_with_bias(
     defer input_col.deinit();
 
     const num_filters = kernel.shape[0];
-    const kernel_elements = try std.math.mul(usize, try std.math.mul(usize, kernel.shape[1], kernel.shape[2]), kernel.shape[3]);
+    const kernel_elements = try std.math.mul(usize, kernel.shape[1], try std.math.mul(usize, kernel.shape[2], kernel.shape[3]));
 
     var kernel_matrix_shape = [_]usize{ kernel_elements, num_filters };
     var kernel_matrix = try Tensor(T).fromShape(&pkg_allocator, &kernel_matrix_shape);
@@ -184,13 +184,48 @@ pub fn convolution_backward_weights(comptime T: type, input: *Tensor(T), dvalues
     var dval_reshaped = try Tensor(T).fromShape(&pkg_allocator, &dval_shape);
     defer dval_reshaped.deinit();
 
-    // Safe copy with overflow checks
+    // Pre-compute strides for faster access
+    const out_channel_stride = out_height * out_width;
+    const out_batch_stride = num_filters * out_channel_stride;
+
+    // Use SIMD for copying when possible
+    const Vector = @Vector(4, T);
+    const can_use_simd = total_spatial >= 4;
+
+    // Safe copy with optimized memory access
     for (0..batch_size) |b| {
+        const batch_offset = b * out_batch_stride;
+        const dst_batch_offset = b * total_spatial;
+
         for (0..num_filters) |f| {
-            for (0..total_spatial) |i| {
-                const src_idx = b * num_filters * total_spatial + f * total_spatial + i;
-                const dst_idx = f * batch_size * total_spatial + b * total_spatial + i;
-                try dval_reshaped.set_at(&[_]usize{ f, dst_idx % (batch_size * total_spatial) }, dvalues.data[src_idx]);
+            const src_offset = batch_offset + f * out_channel_stride;
+            const dst_offset = f * batch_size * total_spatial + dst_batch_offset;
+
+            if (can_use_simd) {
+                var i: usize = 0;
+                while (i + 4 <= total_spatial) : (i += 4) {
+                    const vec = Vector{
+                        dvalues.data[src_offset + i],
+                        dvalues.data[src_offset + i + 1],
+                        dvalues.data[src_offset + i + 2],
+                        dvalues.data[src_offset + i + 3],
+                    };
+
+                    dval_reshaped.data[dst_offset + i] = vec[0];
+                    dval_reshaped.data[dst_offset + i + 1] = vec[1];
+                    dval_reshaped.data[dst_offset + i + 2] = vec[2];
+                    dval_reshaped.data[dst_offset + i + 3] = vec[3];
+                }
+
+                // Handle remaining elements
+                var i_rem = total_spatial - (total_spatial % 4);
+                while (i_rem < total_spatial) : (i_rem += 1) {
+                    dval_reshaped.data[dst_offset + i_rem] = dvalues.data[src_offset + i_rem];
+                }
+            } else {
+                for (0..total_spatial) |i| {
+                    dval_reshaped.data[dst_offset + i] = dvalues.data[src_offset + i];
+                }
             }
         }
     }
@@ -198,9 +233,34 @@ pub fn convolution_backward_weights(comptime T: type, input: *Tensor(T), dvalues
     var dW = try dot_product_tensor(T, T, &dval_reshaped, &input_col);
     defer dW.deinit();
 
+    // Use SIMD for division
     const batch_size_f = @as(T, @floatFromInt(batch_size));
-    for (dW.data) |*val| {
-        val.* = val.* / batch_size_f;
+    if (can_use_simd) {
+        const batch_size_vec = Vector{ batch_size_f, batch_size_f, batch_size_f, batch_size_f };
+        var i: usize = 0;
+        while (i + 4 <= dW.data.len) : (i += 4) {
+            const vec = Vector{
+                dW.data[i],
+                dW.data[i + 1],
+                dW.data[i + 2],
+                dW.data[i + 3],
+            };
+            const result = vec / batch_size_vec;
+            dW.data[i] = result[0];
+            dW.data[i + 1] = result[1];
+            dW.data[i + 2] = result[2];
+            dW.data[i + 3] = result[3];
+        }
+
+        // Handle remaining elements
+        var i_rem = dW.data.len - (dW.data.len % 4);
+        while (i_rem < dW.data.len) : (i_rem += 1) {
+            dW.data[i_rem] = dW.data[i_rem] / batch_size_f;
+        }
+    } else {
+        for (dW.data) |*val| {
+            val.* = val.* / batch_size_f;
+        }
     }
 
     var dW_reshaped = try Tensor(T).fromShape(&pkg_allocator, &mutable_kernel_shape);
@@ -224,17 +284,53 @@ pub fn convolution_backward_input(comptime T: type, dvalues: *const Tensor(T), k
     const out_width = dvalues.shape[3];
     const total_spatial = out_height * out_width;
 
-    var dval_shape = [_]usize{ try std.math.mul(usize, batch_size, total_spatial), num_filters };
+    const total_batch_spatial = try std.math.mul(usize, batch_size, total_spatial);
+    var dval_shape = [_]usize{ total_batch_spatial, num_filters };
     var dval_reshaped = try Tensor(T).fromShape(&pkg_allocator, &dval_shape);
     defer dval_reshaped.deinit();
 
-    // Safe reshape
+    // Pre-compute strides for faster access
+    const dval_channel_stride = out_height * out_width;
+    const dval_batch_stride = num_filters * dval_channel_stride;
+
+    // Use SIMD for copying when possible
+    const Vector = @Vector(4, T);
+    const can_use_simd = num_filters >= 4;
+
+    // Safe reshape with optimized memory access
     for (0..batch_size) |b| {
+        const batch_offset = b * dval_batch_stride;
+        const dst_batch_offset = b * total_spatial;
+
         for (0..total_spatial) |i| {
-            for (0..num_filters) |f| {
-                const src_idx = b * num_filters * total_spatial + f * total_spatial + i;
-                const dst_idx = b * total_spatial + i;
-                try dval_reshaped.set_at(&[_]usize{ dst_idx, f }, dvalues.data[src_idx]);
+            const src_base = batch_offset + i % dval_channel_stride;
+            const dst_base = dst_batch_offset + i;
+
+            if (can_use_simd) {
+                var f: usize = 0;
+                while (f + 4 <= num_filters) : (f += 4) {
+                    const vec = Vector{
+                        dvalues.data[src_base + f * dval_channel_stride],
+                        dvalues.data[src_base + (f + 1) * dval_channel_stride],
+                        dvalues.data[src_base + (f + 2) * dval_channel_stride],
+                        dvalues.data[src_base + (f + 3) * dval_channel_stride],
+                    };
+
+                    dval_reshaped.data[dst_base * num_filters + f] = vec[0];
+                    dval_reshaped.data[dst_base * num_filters + f + 1] = vec[1];
+                    dval_reshaped.data[dst_base * num_filters + f + 2] = vec[2];
+                    dval_reshaped.data[dst_base * num_filters + f + 3] = vec[3];
+                }
+
+                // Handle remaining filters
+                var f_rem = num_filters - (num_filters % 4);
+                while (f_rem < num_filters) : (f_rem += 1) {
+                    dval_reshaped.data[dst_base * num_filters + f_rem] = dvalues.data[src_base + f_rem * dval_channel_stride];
+                }
+            } else {
+                for (0..num_filters) |f| {
+                    dval_reshaped.data[dst_base * num_filters + f] = dvalues.data[src_base + f * dval_channel_stride];
+                }
             }
         }
     }
@@ -244,13 +340,43 @@ pub fn convolution_backward_input(comptime T: type, dvalues: *const Tensor(T), k
     var kernel_transposed = try Tensor(T).fromShape(&pkg_allocator, &transposed_shape);
     defer kernel_transposed.deinit();
 
-    // Safe transpose
+    // Pre-compute strides for kernel transpose
+    const kernel_filter_stride = channels * kernel_spatial;
+
+    // Safe transpose with optimized memory access
     for (0..num_filters) |f| {
+        const filter_offset = f * kernel_filter_stride;
+        const src_filter_offset = f * channels * kernel_spatial;
+
         for (0..channels) |c| {
-            for (0..kernel_spatial) |k| {
-                const src_idx = try std.math.add(usize, try std.math.mul(usize, f, try std.math.mul(usize, channels, kernel_spatial)), try std.math.add(usize, try std.math.mul(usize, c, kernel_spatial), k));
-                const dst_idx = try std.math.add(usize, try std.math.mul(usize, c, kernel_spatial), k);
-                try kernel_transposed.set_at(&[_]usize{ f, dst_idx }, kernel.data[src_idx]);
+            const channel_offset = filter_offset + c * kernel_spatial;
+            const src_channel_offset = src_filter_offset + c * kernel_spatial;
+
+            if (can_use_simd and kernel_spatial >= 4) {
+                var k: usize = 0;
+                while (k + 4 <= kernel_spatial) : (k += 4) {
+                    const vec = Vector{
+                        kernel.data[src_channel_offset + k],
+                        kernel.data[src_channel_offset + k + 1],
+                        kernel.data[src_channel_offset + k + 2],
+                        kernel.data[src_channel_offset + k + 3],
+                    };
+
+                    kernel_transposed.data[channel_offset + k] = vec[0];
+                    kernel_transposed.data[channel_offset + k + 1] = vec[1];
+                    kernel_transposed.data[channel_offset + k + 2] = vec[2];
+                    kernel_transposed.data[channel_offset + k + 3] = vec[3];
+                }
+
+                // Handle remaining elements
+                var k_rem = kernel_spatial - (kernel_spatial % 4);
+                while (k_rem < kernel_spatial) : (k_rem += 1) {
+                    kernel_transposed.data[channel_offset + k_rem] = kernel.data[src_channel_offset + k_rem];
+                }
+            } else {
+                for (0..kernel_spatial) |k| {
+                    kernel_transposed.data[channel_offset + k] = kernel.data[src_channel_offset + k];
+                }
             }
         }
     }
@@ -314,24 +440,75 @@ pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize,
     const out_height = try std.math.divExact(usize, height - kernel_h, stride_h) + 1;
     const out_width = try std.math.divExact(usize, width - kernel_w, stride_w) + 1;
 
+    // Pre-compute strides for faster access
+    const input_channel_stride = height * width;
+    const input_batch_stride = channels * input_channel_stride;
+    const kernel_size = kernel_h * kernel_w;
+    const output_col_stride = channels * kernel_size;
+
+    // Use SIMD for copying when possible
+    const Vector = @Vector(4, T);
+    const can_use_simd = kernel_w >= 4;
+
     var row: usize = 0;
     while (row < batch_size * out_height * out_width) : (row += 1) {
         const b = row / (out_height * out_width);
         const oh = (row % (out_height * out_width)) / out_width;
         const ow = row % out_width;
 
-        var col: usize = 0;
-        while (col < channels * kernel_h * kernel_w) : (col += 1) {
-            const c = col / (kernel_h * kernel_w);
-            const kh = (col % (kernel_h * kernel_w)) / kernel_w;
-            const kw = col % kernel_w;
+        // Pre-compute base indices
+        const batch_offset = b * input_batch_stride;
+        const h_offset = oh * stride_h;
+        const w_offset = ow * stride_w;
 
-            const h_offset = try std.math.add(usize, try std.math.mul(usize, oh, stride_h), kh);
-            const w_offset = try std.math.add(usize, try std.math.mul(usize, ow, stride_w), kw);
+        var c: usize = 0;
+        while (c < channels) : (c += 1) {
+            const channel_offset = batch_offset + c * input_channel_stride;
+            const output_offset = row * output_col_stride + c * kernel_size;
 
-            const input_idx = try std.math.add(usize, try std.math.mul(usize, b, channels * height * width), try std.math.add(usize, try std.math.mul(usize, c, height * width), try std.math.add(usize, try std.math.mul(usize, h_offset, width), w_offset)));
+            var kh: usize = 0;
+            while (kh < kernel_h) : (kh += 1) {
+                const h_idx = h_offset + kh;
+                const row_offset = channel_offset + h_idx * width;
 
-            try output.set_at(&[_]usize{ row, col }, input.data[input_idx]);
+                if (can_use_simd) {
+                    var kw: usize = 0;
+                    while (kw + 4 <= kernel_w) : (kw += 4) {
+                        const w_idx = w_offset + kw;
+                        const input_idx = row_offset + w_idx;
+                        const out_idx = output_offset + kh * kernel_w + kw;
+
+                        const vec = Vector{
+                            input.data[input_idx],
+                            input.data[input_idx + 1],
+                            input.data[input_idx + 2],
+                            input.data[input_idx + 3],
+                        };
+
+                        output.data[out_idx] = vec[0];
+                        output.data[out_idx + 1] = vec[1];
+                        output.data[out_idx + 2] = vec[2];
+                        output.data[out_idx + 3] = vec[3];
+                    }
+
+                    // Handle remaining elements
+                    var kw_rem = kernel_w - (kernel_w % 4);
+                    while (kw_rem < kernel_w) : (kw_rem += 1) {
+                        const w_idx = w_offset + kw_rem;
+                        const input_idx = row_offset + w_idx;
+                        const out_idx = output_offset + kh * kernel_w + kw_rem;
+                        output.data[out_idx] = input.data[input_idx];
+                    }
+                } else {
+                    var kw: usize = 0;
+                    while (kw < kernel_w) : (kw += 1) {
+                        const w_idx = w_offset + kw;
+                        const input_idx = row_offset + w_idx;
+                        const out_idx = output_offset + kh * kernel_w + kw;
+                        output.data[out_idx] = input.data[input_idx];
+                    }
+                }
+            }
         }
     }
 }
@@ -370,26 +547,94 @@ pub inline fn lean_col2im(comptime T: type, col_matrix: *Tensor(T), output_shape
     const out_height = try std.math.divExact(usize, height - kernel_h, stride_h) + 1;
     const out_width = try std.math.divExact(usize, width - kernel_w, stride_w) + 1;
 
+    // Pre-compute strides for faster access
+    const output_channel_stride = height * width;
+    const output_batch_stride = channels * output_channel_stride;
+    const kernel_size = kernel_h * kernel_w;
+    const col_channel_stride = kernel_size;
+    const col_batch_stride = channels * col_channel_stride;
+
+    // Use SIMD for accumulation when possible
+    const Vector = @Vector(4, T);
+    const can_use_simd = kernel_w >= 4;
+
     var row: usize = 0;
     while (row < batch_size * out_height * out_width) : (row += 1) {
         const b = row / (out_height * out_width);
         const oh = (row % (out_height * out_width)) / out_width;
         const ow = row % out_width;
 
-        var col: usize = 0;
-        while (col < channels * kernel_h * kernel_w) : (col += 1) {
-            const c = col / (kernel_h * kernel_w);
-            const kh = (col % (kernel_h * kernel_w)) / kernel_w;
-            const kw = col % kernel_w;
+        // Pre-compute base indices
+        const batch_offset = b * output_batch_stride;
+        const h_offset = oh * stride_h;
+        const w_offset = ow * stride_w;
 
-            const h_offset = oh * stride_h + kh;
-            const w_offset = ow * stride_w + kw;
+        var c: usize = 0;
+        while (c < channels) : (c += 1) {
+            const channel_offset = batch_offset + c * output_channel_stride;
+            const col_offset = row * col_batch_stride + c * col_channel_stride;
 
-            const output_idx = b * channels * height * width + c * height * width + h_offset * width + w_offset;
+            var kh: usize = 0;
+            while (kh < kernel_h) : (kh += 1) {
+                const h_idx = h_offset + kh;
+                if (h_idx >= height) continue;
+                const row_offset = channel_offset + h_idx * width;
 
-            const val = try col_matrix.get_at(&[_]usize{ row, col });
-            const current = output.data[output_idx];
-            output.data[output_idx] = current + val;
+                if (can_use_simd) {
+                    var kw: usize = 0;
+                    while (kw + 4 <= kernel_w) : (kw += 4) {
+                        const w_idx = w_offset + kw;
+                        if (w_idx + 3 >= width) break;
+
+                        const output_idx = row_offset + w_idx;
+                        const col_idx = col_offset + kh * kernel_w + kw;
+
+                        // Load current values
+                        const curr_vec = Vector{
+                            output.data[output_idx],
+                            output.data[output_idx + 1],
+                            output.data[output_idx + 2],
+                            output.data[output_idx + 3],
+                        };
+
+                        // Load values to add
+                        const add_vec = Vector{
+                            col_matrix.data[col_idx],
+                            col_matrix.data[col_idx + 1],
+                            col_matrix.data[col_idx + 2],
+                            col_matrix.data[col_idx + 3],
+                        };
+
+                        // Add and store
+                        const result = curr_vec + add_vec;
+                        output.data[output_idx] = result[0];
+                        output.data[output_idx + 1] = result[1];
+                        output.data[output_idx + 2] = result[2];
+                        output.data[output_idx + 3] = result[3];
+                    }
+
+                    // Handle remaining elements
+                    var kw_rem = kernel_w - (kernel_w % 4);
+                    while (kw_rem < kernel_w) : (kw_rem += 1) {
+                        const w_idx = w_offset + kw_rem;
+                        if (w_idx >= width) continue;
+
+                        const output_idx = row_offset + w_idx;
+                        const col_idx = col_offset + kh * kernel_w + kw_rem;
+                        output.data[output_idx] += col_matrix.data[col_idx];
+                    }
+                } else {
+                    var kw: usize = 0;
+                    while (kw < kernel_w) : (kw += 1) {
+                        const w_idx = w_offset + kw;
+                        if (w_idx >= width) continue;
+
+                        const output_idx = row_offset + w_idx;
+                        const col_idx = col_offset + kh * kernel_w + kw;
+                        output.data[output_idx] += col_matrix.data[col_idx];
+                    }
+                }
+            }
         }
     }
 }
