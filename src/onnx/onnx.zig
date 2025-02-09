@@ -445,7 +445,8 @@ fn parseSingleAttribute(
 
     while (attr_reader.hasMore()) {
         const attr_tag = try attr_reader.readTag();
-        std.debug.print("Parsing attribute field {d} with wire type {}\n", .{ attr_tag.field_number, attr_tag.wire_type });
+        //DEBUG
+        //std.debug.print("Parsing attribute field {d} with wire type {}\n", .{ attr_tag.field_number, attr_tag.wire_type });
         switch (attr_tag.field_number) {
             1 => { // name
                 attr.name = try attr_reader.readString(allocator);
@@ -503,7 +504,8 @@ fn parseSingleAttribute(
             7, 8 => { // repeated int64 (ints) or potential repeated int
                 const v = try attr_reader.readVarint();
                 try ints_list.append(@intCast(v));
-                std.debug.print("Added int value {d} to {s}\n", .{ v, attr.name });
+                //DEBUG
+                //std.debug.print("Added int value {d} to {s}\n", .{ v, attr.name });
                 if (attr.type != .INTS) attr.type = .INTS;
             },
             else => {
