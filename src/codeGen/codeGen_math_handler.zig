@@ -42,8 +42,18 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
         try writer.writeAll("// Handle Relu\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Reshape")) {
-        try writer.writeAll("// Handle Reshape\n");
+        try write_Reshape(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Resize")) {
         try writer.writeAll("// Handle Resize\n");
+    } else {
+        return error.OperationNotSupported;
     }
+}
+
+inline fn write_Reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    _ = node;
+    try writer.writeAll(
+        \\
+        \\ TensMath.
+    , .{});
 }
