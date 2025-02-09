@@ -50,7 +50,7 @@ pub fn main() !void {
             stride: [2]usize,
         }{
             .input_channels = 1,
-            .kernel_shape = .{ 32, 1, 3, 3 }, // 32 filters, 1 channel, 3x3 kernel
+            .kernel_shape = .{ 16, 1, 3, 3 }, // 32 filters, 1 channel, 3x3 kernel
             .stride = .{ 1, 1 },
         }),
     );
@@ -70,32 +70,32 @@ pub fn main() !void {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 32 * 26 * 26,
-        .n_neurons = 32 * 26 * 26,
+        .n_inputs = 16 * 26 * 26,
+        .n_neurons = 16 * 26 * 26,
     }));
     try model.addLayer(conv1_act);
 
     // First MaxPool
-    var pool1 = PoolingLayer(f64){
-        .input = undefined,
-        .output = undefined,
-        .used_input = undefined,
-        .kernel = .{ 2, 2 },
-        .stride = .{ 2, 2 },
-        .poolingType = .Max,
-        .allocator = &allocator,
-    };
-    var pool1_layer = try pool1.create();
-    try pool1_layer.init(&allocator, @constCast(&struct {
-        kernel: [2]usize,
-        stride: [2]usize,
-        poolingType: PoolingType,
-    }{
-        .kernel = .{ 2, 2 },
-        .stride = .{ 2, 2 },
-        .poolingType = .Max,
-    }));
-    try model.addLayer(pool1_layer);
+    // var pool1 = PoolingLayer(f64){
+    //     .input = undefined,
+    //     .output = undefined,
+    //     .used_input = undefined,
+    //     .kernel = .{ 2, 2 },
+    //     .stride = .{ 2, 2 },
+    //     .poolingType = .Max,
+    //     .allocator = &allocator,
+    // };
+    // var pool1_layer = try pool1.create();
+    // try pool1_layer.init(&allocator, @constCast(&struct {
+    //     kernel: [2]usize,
+    //     stride: [2]usize,
+    //     poolingType: PoolingType,
+    // }{
+    //     .kernel = .{ 2, 2 },
+    //     .stride = .{ 2, 2 },
+    //     .poolingType = .Max,
+    // }));
+    // try model.addLayer(pool1_layer);
 
     // Second Convolutional Layer (64 filters)
     var conv2 = ConvolutionalLayer(f64){
@@ -118,8 +118,8 @@ pub fn main() !void {
             kernel_shape: [4]usize,
             stride: [2]usize,
         }{
-            .input_channels = 32,
-            .kernel_shape = .{ 64, 32, 3, 3 }, // 64 filters, 32 channels, 3x3 kernel
+            .input_channels = 16,
+            .kernel_shape = .{ 16, 16, 3, 3 }, // 64 filters, 32 channels, 3x3 kernel
             .stride = .{ 1, 1 },
         }),
     );
@@ -139,32 +139,32 @@ pub fn main() !void {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 64 * 11 * 11,
-        .n_neurons = 64 * 11 * 11,
+        .n_inputs = 16 * 11 * 11,
+        .n_neurons = 16 * 11 * 11,
     }));
     try model.addLayer(conv2_act);
 
     // Second MaxPool
-    var pool2 = PoolingLayer(f64){
-        .input = undefined,
-        .output = undefined,
-        .used_input = undefined,
-        .kernel = .{ 2, 2 },
-        .stride = .{ 2, 2 },
-        .poolingType = .Max,
-        .allocator = &allocator,
-    };
-    var pool2_layer = try pool2.create();
-    try pool2_layer.init(&allocator, @constCast(&struct {
-        kernel: [2]usize,
-        stride: [2]usize,
-        poolingType: PoolingType,
-    }{
-        .kernel = .{ 2, 2 },
-        .stride = .{ 2, 2 },
-        .poolingType = .Max,
-    }));
-    try model.addLayer(pool2_layer);
+    // var pool2 = PoolingLayer(f64){
+    //     .input = undefined,
+    //     .output = undefined,
+    //     .used_input = undefined,
+    //     .kernel = .{ 2, 2 },
+    //     .stride = .{ 2, 2 },
+    //     .poolingType = .Max,
+    //     .allocator = &allocator,
+    // };
+    // var pool2_layer = try pool2.create();
+    // try pool2_layer.init(&allocator, @constCast(&struct {
+    //     kernel: [2]usize,
+    //     stride: [2]usize,
+    //     poolingType: PoolingType,
+    // }{
+    //     .kernel = .{ 2, 2 },
+    //     .stride = .{ 2, 2 },
+    //     .poolingType = .Max,
+    // }));
+    // try model.addLayer(pool2_layer);
 
     // Flatten Layer
     var flatten = FlattenLayer(f64){
@@ -196,7 +196,7 @@ pub fn main() !void {
         n_inputs: usize,
         n_neurons: usize,
     }{
-        .n_inputs = 64 * 5 * 5, // After two maxpools: 28->13->5
+        .n_inputs = 9216, // After two maxpools: 28->13->5
         .n_neurons = 128,
     }));
     try model.addLayer(dense1_layer);
