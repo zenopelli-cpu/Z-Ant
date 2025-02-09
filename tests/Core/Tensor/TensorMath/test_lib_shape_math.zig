@@ -736,3 +736,159 @@ test "split with negative axis" {
     try std.testing.expectEqual(@as(u8, 7), split_tensors[1].data[2]);
     try std.testing.expectEqual(@as(u8, 8), split_tensors[1].data[3]);
 }
+
+test "get_resize_output_shape()" {
+    std.debug.print("\n     test: get_resize_output_shape \n", .{});
+
+    var input_shape = [_]usize{ 2, 3, 4 };
+    var scales = [_]f32{ 2.0, 1.5, 0.5 };
+    var target_sizes = [_]usize{ 4, 4, 2 };
+
+    // Test with scales
+    {
+        const output_shape = try TensMath.get_resize_output_shape(&input_shape, &scales, null);
+        defer pkgAllocator.allocator.free(output_shape);
+        try std.testing.expectEqual(@as(usize, 4), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 4), output_shape[1]);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[2]);
+    }
+
+    // Test with target sizes
+    {
+        const output_shape = try TensMath.get_resize_output_shape(&input_shape, null, &target_sizes);
+        defer pkgAllocator.allocator.free(output_shape);
+        try std.testing.expectEqual(@as(usize, 4), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 4), output_shape[1]);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[2]);
+    }
+
+    // Test invalid input (both scales and sizes null)
+    try std.testing.expectError(TensorError.InvalidInput, TensMath.get_resize_output_shape(&input_shape, null, null));
+
+    // Test invalid input (both scales and sizes provided)
+    try std.testing.expectError(TensorError.InvalidInput, TensMath.get_resize_output_shape(&input_shape, &scales, &target_sizes));
+
+    // Test mismatched dimensions
+    var wrong_scales = [_]f32{ 2.0, 1.5 };
+    try std.testing.expectError(TensorError.InvalidInput, TensMath.get_resize_output_shape(&input_shape, &wrong_scales, null));
+
+    var wrong_sizes = [_]usize{ 4, 4 };
+    try std.testing.expectError(TensorError.InvalidInput, TensMath.get_resize_output_shape(&input_shape, null, &wrong_sizes));
+}
+
+test "get_concatenate_output_shape" {
+    std.debug.print("\n     test: get_concatenate_output_shape \n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Test concatenation along axis 0
+    var shapes = [_][]const usize{
+        &[_]usize{ 2, 3 },
+        &[_]usize{ 3, 3 },
+        &[_]usize{ 1, 3 },
+    };
+
+    {
+        const output_shape = try TensMath.get_concatenate_output_shape(&shapes, 0);
+        defer allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 2), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 6), output_shape[0]); // 2 + 3 + 1
+        try std.testing.expectEqual(@as(usize, 3), output_shape[1]); // unchanged
+    }
+
+    // Test concatenation along axis 1
+    const shapes_axis1 = [_][]const usize{
+        &[_]usize{ 2, 3 },
+        &[_]usize{ 2, 2 },
+    };
+
+    {
+        const output_shape = try TensMath.get_concatenate_output_shape(&shapes_axis1, 1);
+        defer allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 2), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[0]); // unchanged
+        try std.testing.expectEqual(@as(usize, 5), output_shape[1]); // 3 + 2
+    }
+
+    // Test concatenation along negative axis
+    {
+        const output_shape = try TensMath.get_concatenate_output_shape(&shapes_axis1, -1);
+        defer allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 2), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[0]); // unchanged
+        try std.testing.expectEqual(@as(usize, 5), output_shape[1]); // 3 + 2
+    }
+
+    // Test error cases
+    var empty_shapes = [_][]const usize{};
+    try std.testing.expectError(TensorError.EmptyTensorList, TensMath.get_concatenate_output_shape(&empty_shapes, 0));
+
+    var mismatched_shapes = [_][]const usize{
+        &[_]usize{ 2, 3 },
+        &[_]usize{ 3, 4 }, // different non-concat dimension
+    };
+    try std.testing.expectError(TensorError.MismatchedShape, TensMath.get_concatenate_output_shape(&mismatched_shapes, 0));
+
+    var mismatched_rank_shapes = [_][]const usize{
+        &[_]usize{ 2, 3 },
+        &[_]usize{ 2, 3, 4 }, // different rank
+    };
+    try std.testing.expectError(TensorError.MismatchedRank, TensMath.get_concatenate_output_shape(&mismatched_rank_shapes, 0));
+
+    try std.testing.expectError(TensorError.AxisOutOfBounds, TensMath.get_concatenate_output_shape(&shapes_axis1, 2));
+    try std.testing.expectError(TensorError.AxisOutOfBounds, TensMath.get_concatenate_output_shape(&shapes_axis1, -3));
+}
+
+test "get_split_output_shapes()" {
+    std.debug.print("\n     test: get_split_output_shapes \n", .{});
+
+    const allocator = pkgAllocator.allocator;
+    var input_shape = [_]usize{ 2, 3, 4 };
+
+    // Test with null split_sizes (equal splits)
+    {
+        const output_shapes = try TensMath.get_split_output_shapes(&input_shape, 1, null);
+        defer {
+            for (output_shapes) |shape| {
+                allocator.free(shape);
+            }
+            allocator.free(output_shapes);
+        }
+
+        try std.testing.expectEqual(@as(usize, 1), output_shapes.len);
+        try std.testing.expectEqual(@as(usize, 3), output_shapes[0].len);
+        try std.testing.expectEqual(@as(usize, 2), output_shapes[0][0]);
+        try std.testing.expectEqual(@as(usize, 3), output_shapes[0][1]);
+        try std.testing.expectEqual(@as(usize, 4), output_shapes[0][2]);
+    }
+
+    // Test with specific split_sizes
+    {
+        var split_sizes = [_]usize{ 1, 2 };
+        const output_shapes = try TensMath.get_split_output_shapes(&input_shape, 1, &split_sizes);
+        defer {
+            for (output_shapes) |shape| {
+                allocator.free(shape);
+            }
+            allocator.free(output_shapes);
+        }
+
+        try std.testing.expectEqual(@as(usize, 2), output_shapes.len);
+        try std.testing.expectEqual(@as(usize, 3), output_shapes[0].len);
+        try std.testing.expectEqual(@as(usize, 2), output_shapes[0][0]);
+        try std.testing.expectEqual(@as(usize, 1), output_shapes[0][1]);
+        try std.testing.expectEqual(@as(usize, 4), output_shapes[0][2]);
+        try std.testing.expectEqual(@as(usize, 2), output_shapes[1][1]);
+    }
+
+    // Test invalid axis
+    try std.testing.expectError(TensorError.InvalidAxis, TensMath.get_split_output_shapes(&input_shape, -4, null));
+    try std.testing.expectError(TensorError.InvalidAxis, TensMath.get_split_output_shapes(&input_shape, 3, null));
+
+    // Test invalid split sizes
+    var invalid_split_sizes = [_]usize{ 1, 1 };
+    try std.testing.expectError(TensorError.InvalidSplitSize, TensMath.get_split_output_shapes(&input_shape, 1, &invalid_split_sizes));
+}

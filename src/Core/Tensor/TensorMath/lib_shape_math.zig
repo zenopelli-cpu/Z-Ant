@@ -71,6 +71,34 @@ pub fn resize(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales
     };
 }
 
+pub fn get_resize_output_shape(input_shape: []const usize, scales: ?[]const f32, sizes: ?[]const usize) ![]usize {
+    if (scales == null and sizes == null) {
+        return TensorError.InvalidInput;
+    }
+    if (scales != null and sizes != null) {
+        return TensorError.InvalidInput;
+    }
+
+    var output_shape = try pkg_allocator.alloc(usize, input_shape.len);
+    errdefer pkg_allocator.free(output_shape);
+
+    if (scales) |s| {
+        if (s.len != input_shape.len) {
+            return TensorError.InvalidInput;
+        }
+        for (0..input_shape.len) |i| {
+            output_shape[i] = @intFromFloat(@floor(@as(f32, @floatFromInt(input_shape[i])) * s[i]));
+        }
+    } else if (sizes) |sz| {
+        if (sz.len != input_shape.len) {
+            return TensorError.InvalidInput;
+        }
+        @memcpy(output_shape, sz);
+    }
+
+    return output_shape;
+}
+
 fn nearest_interpolation(comptime T: type, self: *Tensor(T), output_data: []T, output_shape: []usize, coordinate_transformation_mode: []const u8) !void {
     const input_strides = try self.getStrides();
     defer self.allocator.free(input_strides);
@@ -388,6 +416,55 @@ pub fn concatenate(comptime T: type, allocator: *std.mem.Allocator, tensors: []T
     };
 }
 
+pub fn get_concatenate_output_shape(tensors: []const []const usize, axis: isize) ![]usize {
+    // Ensure there is at least one tensor to concatenate
+    if (tensors.len == 0) return TensorError.EmptyTensorList;
+
+    // Determine the rank (number of dimensions) from the first tensor
+    const rank = tensors[0].len;
+
+    var concat_axis = axis;
+    if (concat_axis < 0) {
+        concat_axis += @as(isize, @intCast(rank));
+    }
+
+    if (concat_axis < 0 or concat_axis >= @as(isize, @intCast(rank))) {
+        return TensorError.AxisOutOfBounds;
+    }
+
+    const concat_axis_usize = @as(usize, @intCast(concat_axis));
+
+    // Validate that all tensors have the same rank and matching shapes except along the concatenation axis
+    for (tensors) |tensor_shape| {
+        if (tensor_shape.len != rank) {
+            return TensorError.MismatchedRank;
+        }
+        for (0..rank) |d| {
+            if (d != concat_axis_usize and tensor_shape[d] != tensors[0][d]) {
+                return TensorError.MismatchedShape;
+            }
+        }
+    }
+
+    // Calculate the new shape after concatenation
+    var new_shape = try pkg_allocator.alloc(usize, rank);
+    errdefer pkg_allocator.free(new_shape);
+
+    for (0..rank) |d| {
+        if (d == concat_axis_usize) {
+            var sum: usize = 0;
+            for (tensors) |tensor_shape| {
+                sum += tensor_shape[d];
+            }
+            new_shape[d] = sum;
+        } else {
+            new_shape[d] = tensors[0][d];
+        }
+    }
+
+    return new_shape;
+}
+
 /// Returns a Tensor self transposed. Does not modify self.
 /// It sobstitute init(), but defer yourTensor.deinit() is still necessary.
 pub fn transpose2D(comptime T: type, t: *Tensor(T)) !Tensor(T) {
@@ -666,4 +743,58 @@ pub fn split(comptime T: anytype, t: *Tensor(T), axis: i64, split_sizes: ?[]cons
     }
 
     return output_tensors;
+}
+
+pub fn get_split_output_shapes(input_shape: []const usize, axis: i64, split_sizes: ?[]const usize) ![][]usize {
+    // Handle negative axis
+    var positive_axis: usize = undefined;
+    if (axis < 0) {
+        const adjusted = @as(i64, @intCast(input_shape.len)) + axis;
+        if (adjusted < 0) return TensorError.InvalidAxis;
+        positive_axis = @intCast(adjusted);
+    } else {
+        positive_axis = @intCast(axis);
+    }
+
+    if (positive_axis >= input_shape.len) return TensorError.InvalidAxis;
+
+    // Rest of the function remains the same...
+    const dim_size = input_shape[positive_axis];
+    var sizes = std.ArrayList(usize).init(pkg_allocator);
+    defer sizes.deinit();
+
+    if (split_sizes) |s| {
+        // Validate and use provided split sizes
+        var total_size: usize = 0;
+        for (s) |size| {
+            try sizes.append(size);
+            total_size += size;
+        }
+        if (total_size != dim_size) return TensorError.InvalidSplitSize;
+    } else {
+        // Split into equal parts
+        if (dim_size == 0) return TensorError.InvalidSplitSize;
+        const split_size = dim_size;
+        try sizes.append(split_size);
+    }
+
+    // Create output shapes
+    var output_shapes = try pkg_allocator.alloc([]usize, sizes.items.len);
+    errdefer {
+        for (output_shapes) |shape| {
+            pkg_allocator.free(shape);
+        }
+        pkg_allocator.free(output_shapes);
+    }
+
+    // Fill output shapes
+    for (sizes.items, 0..) |split_size, i| {
+        output_shapes[i] = try pkg_allocator.alloc(usize, input_shape.len);
+        errdefer pkg_allocator.free(output_shapes[i]);
+
+        @memcpy(output_shapes[i], input_shape);
+        output_shapes[i][positive_axis] = split_size;
+    }
+
+    return output_shapes;
 }

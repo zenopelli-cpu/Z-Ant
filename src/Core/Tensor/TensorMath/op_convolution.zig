@@ -113,6 +113,23 @@ pub fn convolve_tensor_with_bias(
     return output;
 }
 
+pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []const usize, stride: []const usize) ![4]usize {
+    if (input_shape.len != 4 or kernel_shape.len != 4) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    if (stride.len != 2 or stride[0] == 0 or stride[1] == 0) {
+        return TensorMathError.WrongStride;
+    }
+
+    const batch_size = input_shape[0];
+    const num_filters = kernel_shape[0];
+    const out_height = try std.math.divExact(usize, input_shape[2] - kernel_shape[2], stride[0]) + 1;
+    const out_width = try std.math.divExact(usize, input_shape[3] - kernel_shape[3], stride[1]) + 1;
+
+    return [4]usize{ batch_size, num_filters, out_height, out_width };
+}
+
 pub fn convolution_backward_biases(comptime T: type, dValues: *Tensor(T)) !Tensor(T) {
     if (dValues.shape.len != 4) return TensorMathError.InvalidDimensions;
 
