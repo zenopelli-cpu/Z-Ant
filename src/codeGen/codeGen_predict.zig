@@ -6,8 +6,10 @@ const TensorProto = @import("onnx").TensorProto;
 const NodeProto = @import("onnx").NodeProto;
 const GraphProto = @import("onnx").GraphProto;
 const allocator = @import("pkgAllocator").allocator;
+
 const codeGenInitializers = @import("codeGen_initializers.zig");
 const utils = @import("codeGen_utils.zig");
+const mathGen = @import("codeGen_math_handler.zig");
 
 pub const ReadyTensor = struct {
     name: []const u8,
@@ -77,13 +79,15 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
 
     //create the ReadyGraph
     var readyGraph: std.ArrayList(ReadyNode) = try createReadyGraph(model);
-    _ = &readyGraph;
 
     //DEBUG
     std.debug.print("\n------------------------------------------------------------", .{});
     std.debug.print("\n+                READY GRAPH after Creation                +", .{});
     std.debug.print("\n------------------------------------------------------------", .{});
     try utils.printNodeList(readyGraph);
+
+    //DEBUG
+    try utils.printOperations(model.graph.?);
 
     try writer.print(
         \\
@@ -130,6 +134,7 @@ inline fn writeComputationGraph(writer: std.fs.File.Writer, readyGraph: *std.Arr
     //Create a list with all the nodes ready for the computation
     //A node is ready for the computation when all its input tensors are ready
     const computableNodes: std.ArrayList(*ReadyNode) = try utils.getComputableNodes(readyGraph);
+
     //DEBUG
     std.debug.print("\n", .{});
     std.debug.print("\n------------------------------------------------------------", .{});
@@ -165,6 +170,7 @@ fn writeInitOutputs(writer: std.fs.File.Writer, readyGraph: *std.ArrayList(Ready
         }
     }
 }
+
 fn writeOutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !void {
     try writer.print(
         \\
@@ -213,18 +219,20 @@ fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
             \\    //      -> {s} 
         , .{input.name});
     }
-
     try writer.print(
         \\
         \\    //    outputs: 
     , .{});
-    //write the inputs
+
+    //write the outputs
     for (readyNode.outputs.items) |output| {
         try writer.print(
             \\
             \\    //      <- {s} 
         , .{output.name});
     }
+
+    try mathGen.write_math_op(writer, readyNode);
 }
 
 fn setOutputsReady(completedNode: *ReadyNode, readyGraph: *std.ArrayList(ReadyNode)) !void {

@@ -3,7 +3,7 @@ const DataType = @import("onnx").DataType;
 const TensorProto = @import("onnx").TensorProto;
 const allocator = @import("pkgAllocator").allocator;
 const ReadyNode = @import("codeGen_predict.zig").ReadyNode;
-const ModelOnnx = @import("onnx").ModelProto;
+const GraphProto = @import("onnx").GraphProto;
 
 //Given an element from DataType Enum in onnx.zig returns the equivalent zig type
 pub inline fn getType(data_type: DataType) !type {
@@ -181,4 +181,25 @@ pub fn printComputableNodes(computableNodes: std.ArrayList(*ReadyNode)) !void {
             std.debug.print("\n              -> {s} {s}", .{ output.name, if (output.ready) "--->ready" else "" });
         }
     }
+}
+
+pub fn printOperations(graph: *GraphProto) !void {
+    std.debug.print("\n", .{});
+    std.debug.print("\n-------------------------------------------------", .{});
+    std.debug.print("\n+                ONNX operations                +", .{});
+    std.debug.print("\n-------------------------------------------------", .{});
+
+    var op_set = std.StringHashMap(void).init(std.heap.page_allocator);
+    defer op_set.deinit();
+
+    for (graph.nodes) |node| {
+        try op_set.put(node.op_type, {});
+    }
+
+    var it = op_set.iterator();
+    while (it.next()) |entry| {
+        std.debug.print("\n- {s}", .{entry.key_ptr.*});
+    }
+
+    std.debug.print("\n-------------------------------------------------\n", .{});
 }
