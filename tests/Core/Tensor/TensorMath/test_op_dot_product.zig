@@ -67,13 +67,15 @@ test "Compare dot product implementations with execution time" {
     const allocator = pkgAllocator.allocator;
 
     // Create test tensors
-    var shape: [2]usize = [_]usize{ 4, 4 };
-    var inputArray: [4][4]f32 = [_][4]f32{
-        [_]f32{ 1.0, 2.0, 3.0, 4.0 },
-        [_]f32{ 5.0, 6.0, 7.0, 8.0 },
-        [_]f32{ 9.0, 10.0, 11.0, 12.0 },
-        [_]f32{ 13.0, 14.0, 15.0, 16.0 },
-    };
+    var shape: [2]usize = [_]usize{ 16, 16 };
+    var inputArray: [16][16]f32 = undefined;
+
+    // Initialize with sequential values
+    for (0..16) |i| {
+        for (0..16) |j| {
+            inputArray[i][j] = @floatFromInt(i * 16 + j + 1);
+        }
+    }
 
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);

@@ -50,6 +50,8 @@ pub fn FlattenLayer(comptime T: type) type {
 
             self.allocator = alloc;
             self.original_shape = &[_]usize{};
+            self.input = try Tensor.Tensor(T).init(alloc);
+            self.output = try Tensor.Tensor(T).init(alloc);
             return;
         }
 
@@ -57,12 +59,17 @@ pub fn FlattenLayer(comptime T: type) type {
         pub fn deinit(ctx: *anyopaque) void {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
+            if (self.input.data.len > 0) {
+                self.input.deinit();
+            }
+
             if (self.output.data.len > 0) {
                 self.output.deinit();
             }
 
             if (self.original_shape.len > 0) {
                 self.allocator.free(self.original_shape);
+                self.original_shape = &[_]usize{};
             }
         }
 
@@ -76,10 +83,12 @@ pub fn FlattenLayer(comptime T: type) type {
                 return LayerError.InvalidParameters;
             }
 
-            // Store original shape for backward pass, only once, only for the first forward
-            if (self.original_shape.len == 0) {
-                self.original_shape = try self.allocator.dupe(usize, input.shape);
+            // Store original shape for backward pass
+            if (self.original_shape.len > 0) {
+                self.allocator.free(self.original_shape);
             }
+            self.original_shape = try self.allocator.dupe(usize, input.shape);
+            errdefer self.allocator.free(self.original_shape);
 
             const batch_size = input.shape[0];
             var total_size: usize = 1;
@@ -90,15 +99,19 @@ pub fn FlattenLayer(comptime T: type) type {
             // New shape: [N, total_size]
             var output_shape = [_]usize{ batch_size, total_size };
 
-            // Use reshape instead of copying
+            // Dealloc previous input and output if they exist
+            if (self.input.data.len > 0) {
+                self.input.deinit();
+            }
             if (self.output.data.len > 0) {
                 self.output.deinit();
             }
 
+            // Store input and create output
+            self.input = try input.copy();
             self.output = try input.copy();
             try self.output.reshape(output_shape[0..]);
 
-            std.debug.print("Shape Flatten is {any}", .{self.output.shape});
             return self.output;
         }
 
@@ -106,7 +119,12 @@ pub fn FlattenLayer(comptime T: type) type {
         pub fn backward(ctx: *anyopaque, dValues: *Tensor.Tensor(T)) !Tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
+            if (self.original_shape.len == 0) {
+                return LayerError.InvalidParameters;
+            }
+
             var dInput = try dValues.copy();
+            errdefer dInput.deinit();
             try dInput.reshape(self.original_shape);
             return dInput;
         }

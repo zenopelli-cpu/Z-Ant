@@ -4,7 +4,6 @@ const TensMath = @import("tensor_m");
 const Tensor = @import("tensor").Tensor;
 const PoolingType = @import("layer").poolingLayer.PoolingType;
 
-
 test "Pooling 2D" {
     std.debug.print("\n     test: Pooling 2D\n", .{});
 

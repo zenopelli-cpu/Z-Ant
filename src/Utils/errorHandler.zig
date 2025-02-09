@@ -16,6 +16,9 @@ pub const LayerError = error{
     ZeroValueKernel, //TODO: add description
     ZeroValueStride, //TODO: add description
     FeatureNotSupported,
+    TooLarge,
+    LayerDimensionsInvalid,
+    InputTensorWrongShape,
 };
 
 /// Type errors
@@ -101,6 +104,9 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         //LAYER
         LayerError.NullLayer => "Layer: null layer encountered",
         LayerError.InvalidParameters => "Layer: invalid parameters specified",
+        LayerError.TooLarge => "Layer: dimensions too large for memory allocation",
+        LayerError.LayerDimensionsInvalid => "Layer: invalid dimensions for operation",
+        LayerError.InputTensorWrongShape => "Layer: input tensor has wrong shape",
 
         //TYPE
         TypeError.UnsupportedType => "the Type you choose is not supported by this method/class",

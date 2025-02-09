@@ -75,6 +75,8 @@ pub fn Model(comptime T: type) type {
                 if (self.layers.items[i].layer_type != layer.LayerType.ActivationLayer) try DataProc.normalize(T, self.getPrevOut(i), NormalizType.UnityBasedNormalizartion);
                 // DEBUG METHOD try self.getPrevOut(i).isSafe();
                 _ = try self.layers.items[i].forward(self.getPrevOut(i));
+                //print the output shape
+                std.debug.print("\n output shape: {any}", .{self.layers.items[i].get_output().shape});
                 //self.layers.items[i].printLayer(0);
             }
             return (self.getPrevOut(self.layers.items.len)).*;
