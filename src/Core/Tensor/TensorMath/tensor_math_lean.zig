@@ -1,3 +1,6 @@
+//! tensor_math_lean only contains forwarding methods and utility methods.
+//! All the function return void.
+
 // ---------------------------------------------------------------------------
 // ---------------------------- importing methods ----------------------------
 // ---------------------------------------------------------------------------
@@ -19,10 +22,16 @@ pub const get_split_output_shapes = shape_math_lib.get_split_output_shapes;
 
 // ---------- importing lean activation function methods ----------
 const activation_math_lib = @import("lib_activation_function_math.zig");
+//ReLU
 pub const ReLU = activation_math_lib.lean_ReLU;
+//Leaky ReLU
 pub const leakyReLU = activation_math_lib.lean_leakyReLU;
+//Sigmoid
 pub const sigmoid = activation_math_lib.lean_sigmoid;
+//Softmax
 pub const softmax = activation_math_lib.lean_softmax;
+
+// ---------- importing lean convolution methods ----------
 
 const op_convolution = @import("op_convolution.zig");
 

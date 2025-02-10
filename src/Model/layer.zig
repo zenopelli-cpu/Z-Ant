@@ -9,14 +9,13 @@ const TensMath = @import("tensor_m");
 const Architectures = @import("architectures").Architectures;
 const TensorError = @import("tensor_m").TensorError;
 const ArchitectureError = @import("tensor_m").ArchitectureError;
-const ActivLib = @import("activation_function");
-const ActivationType = @import("activation_function").ActivationType;
 //import error libraries
 const LayerError = @import("errorHandler").LayerError;
 
 // All existing layers are imported so that the layer module can be used as a layer library by other modules.
 // New layers should be imported here.
 pub const ActivationLayer = @import("activationLayer").ActivationLayer;
+pub const ActivationType = @import("activationLayer").ActivationType;
 pub const BatchNormLayer = @import("batchNormLayer").BatchNormLayer;
 pub const ConvolutionalLayer = @import("convLayer").ConvolutionalLayer;
 pub const DenseLayer = @import("denseLayer").DenseLayer;

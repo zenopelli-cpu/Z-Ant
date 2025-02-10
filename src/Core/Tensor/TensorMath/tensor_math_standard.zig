@@ -63,7 +63,15 @@ pub const equal = logical_math_lib.equal;
 
 // ---------- importing standard activation function methods ----------
 const activation_math_lib = @import("lib_activation_function_math.zig");
+//ReLU
 pub const ReLU = activation_math_lib.ReLU_standard;
+pub const ReLU_backward = activation_math_lib.ReLU_backward;
+//Leaky ReLU
 pub const leakyReLU = activation_math_lib.leakyReLU;
+pub const leakyReLU_backward = activation_math_lib.leakyReLU_backward;
+//Sigmoid
 pub const sigmoid = activation_math_lib.sigmoid;
+pub const sigmoid_backward = activation_math_lib.sigmoid_backward;
+//Softmax
 pub const softmax = activation_math_lib.softmax;
+pub const softmax_backward = activation_math_lib.softmax_backward;

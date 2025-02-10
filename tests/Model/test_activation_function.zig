@@ -1,7 +1,7 @@
 const std = @import("std");
 const Tensor = @import("tensor").Tensor;
-const ActivFun = @import("activation_function");
-const ActivType = @import("activation_function").ActivationType;
+const TensorMath = @import("tensor_m");
+const ActivType = @import("layer").ActivationType;
 const pkgAllocator = @import("pkgAllocator");
 
 test "tests description" {
@@ -24,13 +24,13 @@ test "ReLU from ActivationFunction()" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t1.deinit();
 
-    var relu = ActivFun.ActivationFunction(f32, ActivType.ReLU){};
-    try relu.forward(&t1);
+    var t_out = try TensorMath.ReLU(f32, &t1);
+    defer t_out.deinit();
 
-    try std.testing.expect(0.0 < t1.data[0]);
-    try std.testing.expect(0.0 == t1.data[1]);
-    try std.testing.expect(0.0 == t1.data[2]);
-    try std.testing.expect(0.0 < t1.data[3]);
+    try std.testing.expect(0.0 < t_out.data[0]);
+    try std.testing.expect(0.0 == t_out.data[1]);
+    try std.testing.expect(0.0 == t_out.data[2]);
+    try std.testing.expect(0.0 < t_out.data[3]);
 }
 
 test "ReLU all negative" {
@@ -48,11 +48,10 @@ test "ReLU all negative" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t1.deinit();
 
-    var relu = ActivFun.ActivationFunction(f32, ActivType.ReLU){};
+    var t_out = try TensorMath.ReLU(f32, &t1);
+    defer t_out.deinit();
 
-    try relu.forward(&t1);
-
-    for (t1.data) |*val| {
+    for (t_out.data) |*val| {
         try std.testing.expect(0.0 == val.*);
     }
 }
@@ -72,10 +71,10 @@ test "ReLU all positive" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t1.deinit();
 
-    var relu = ActivFun.ActivationFunction(f32, ActivType.ReLU){};
-    try relu.forward(&t1);
+    var t_out = try TensorMath.ReLU(f32, &t1);
+    defer t_out.deinit();
 
-    for (t1.data) |*val| {
+    for (t_out.data) |*val| {
         try std.testing.expect(val.* >= 0);
     }
 }
@@ -94,11 +93,9 @@ test "ReLU backward " {
 
     var t_input = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t_input.deinit();
-    var t_output = try t_input.copy();
-    defer t_output.deinit();
 
-    var relu = ActivFun.ActivationFunction(f32, ActivType.ReLU){};
-    try relu.forward(&t_output);
+    var t_output = try TensorMath.ReLU(f32, &t_input);
+    defer t_output.deinit();
 
     for (t_output.data) |*val| {
         try std.testing.expect(val.* >= 0);
@@ -115,7 +112,7 @@ test "ReLU backward " {
     var t_dValues = try Tensor(f32).fromArray(&allocator, &dValues, &shape_dValues);
     defer t_dValues.deinit();
 
-    try relu.derivate(&t_dValues, &t_input);
+    try TensorMath.ReLU_backward(f32, &t_dValues, &t_input);
 
     try std.testing.expect(10.0 == t_dValues.data[0]);
     try std.testing.expect(0.0 == t_dValues.data[1]);
@@ -124,23 +121,6 @@ test "ReLU backward " {
 }
 
 //*********************************************** Softmax ***********************************************
-test "Softmax from ActivationFunction()" {
-    std.debug.print("\n     test: Softmax from ActivationFunction()", .{});
-    const allocator = pkgAllocator.allocator;
-
-    var inputArray: [2][2]f32 = [_][2]f32{
-        [_]f32{ 0, 0 },
-        [_]f32{ 0, 0 },
-    };
-
-    var shape: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
-
-    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
-    defer t1.deinit();
-
-    const soft_type = ActivFun.ActivationFunction(f32, ActivType.Softmax);
-    _ = soft_type{};
-}
 
 test "Softmax all positive" {
     std.debug.print("\n     test: Softmax all positive", .{});
@@ -157,16 +137,16 @@ test "Softmax all positive" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t1.deinit();
 
-    var soft = ActivFun.ActivationFunction(f32, ActivType.Softmax){};
-    try soft.forward(&t1);
+    var t_output = try TensorMath.softmax(f32, &t1);
+    defer t_output.deinit();
 
-    t1.info();
+    //t_output.info();
 
-    try std.testing.expect(t1.data[0] + t1.data[1] > 0.9);
-    try std.testing.expect(t1.data[0] + t1.data[1] < 1.1);
+    try std.testing.expect(t_output.data[0] + t_output.data[1] > 0.9);
+    try std.testing.expect(t_output.data[0] + t_output.data[1] < 1.1);
 
-    try std.testing.expect(t1.data[2] + t1.data[3] > 0.9);
-    try std.testing.expect(t1.data[2] + t1.data[3] < 1.1);
+    try std.testing.expect(t_output.data[2] + t_output.data[3] > 0.9);
+    try std.testing.expect(t_output.data[2] + t_output.data[3] < 1.1);
 }
 
 test "Softmax all 0" {
@@ -184,13 +164,13 @@ test "Softmax all 0" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t1.deinit();
 
-    var soft = ActivFun.ActivationFunction(f32, ActivType.Softmax){};
-    try soft.forward(&t1);
+    var t_output = try TensorMath.softmax(f32, &t1);
+    defer t_output.deinit();
 
     //t1.info();
 
-    try std.testing.expect(t1.data[0] == t1.data[1]);
-    try std.testing.expect(t1.data[2] == t1.data[3]);
+    try std.testing.expect(t_output.data[0] == t_output.data[1]);
+    try std.testing.expect(t_output.data[2] == t_output.data[3]);
 }
 
 test "Softmax derivate" {
@@ -208,20 +188,20 @@ test "Softmax derivate" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t1.deinit();
 
-    var soft = ActivFun.ActivationFunction(f32, ActivType.Softmax){};
-    try soft.forward(&t1);
+    var t_output = try TensorMath.softmax(f32, &t1);
+    defer t_output.deinit();
     //now data is:
     //{ 0.2689414,  0.7310586  }
     //{ 0.2689414,  0.73105854 }
     //t1.info();
 
-    try std.testing.expect(t1.data[0] + t1.data[1] > 0.9);
-    try std.testing.expect(t1.data[0] + t1.data[1] < 1.1);
+    try std.testing.expect(t_output.data[0] + t_output.data[1] > 0.9);
+    try std.testing.expect(t_output.data[0] + t_output.data[1] < 1.1);
 
-    try std.testing.expect(t1.data[2] + t1.data[3] > 0.9);
-    try std.testing.expect(t1.data[2] + t1.data[3] < 1.1);
+    try std.testing.expect(t_output.data[2] + t_output.data[3] > 0.9);
+    try std.testing.expect(t_output.data[2] + t_output.data[3] < 1.1);
 
-    try soft.derivate(&t1, &t1);
+    try TensorMath.softmax_backward(f32, &t_output, &t1);
 }
 
 //*********************************************** Sigmoid ***********************************************
@@ -236,11 +216,11 @@ test "Sigmoid forward" {
     var input_tensor = try Tensor(f64).fromArray(&allocator, &input_data, &shape); // create tensor from input data
     defer input_tensor.deinit();
 
-    var sigmoid = ActivFun.ActivationFunction(f64, ActivType.Sigmoid){};
-    // Test forward pass
-    try sigmoid.forward(&input_tensor);
+    var t_output = try TensorMath.sigmoid(f64, &input_tensor);
+    defer t_output.deinit();
+
     const expected_forward_output = [_]f64{ 0.5, 0.880797, 0.119203 }; // expected sigmoid output for each input value
-    for (input_tensor.data, 0..) |*data, i| {
+    for (t_output.data, 0..) |*data, i| {
         try std.testing.expect(@abs(data.* - expected_forward_output[i]) < 1e-6);
     }
 }
@@ -262,9 +242,8 @@ test "Sigmoid derivate" {
     var act_forward_out_tensor = try Tensor(f64).fromArray(&allocator, &act_forward_out_data, &shape_forw);
     defer act_forward_out_tensor.deinit();
 
-    // Call the derivate function
-    var sigmoid = ActivFun.ActivationFunction(f64, ActivType.Sigmoid){};
-    try sigmoid.derivate(&gradient_tensor, &act_forward_out_tensor);
+    // Call the backward function
+    try TensorMath.sigmoid_backward(f64, &gradient_tensor, &act_forward_out_tensor);
 
     // Expected values after applying the derivative
     const expected_values = [_]f64{
@@ -297,13 +276,13 @@ test "LeakyReLU from ActivationFunction()" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t1.deinit();
 
-    var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
-    try leaky_relu.forward(&t1, 0.01);
+    var t_output = try TensorMath.leakyReLU(f32, &t1, 0.01);
+    defer t_output.deinit();
 
-    try std.testing.expect(t1.data[0] == 1.0);
-    try std.testing.expect(@abs(t1.data[1] - (-0.02)) < 0.00001);
-    try std.testing.expect(@abs(t1.data[2] - (-0.04)) < 0.00001);
-    try std.testing.expect(t1.data[3] == 5.0);
+    try std.testing.expect(t_output.data[0] == 1.0);
+    try std.testing.expect(@abs(t_output.data[1] - (-0.02)) < 0.00001);
+    try std.testing.expect(@abs(t_output.data[2] - (-0.04)) < 0.00001);
+    try std.testing.expect(t_output.data[3] == 5.0);
 }
 
 test "LeakyReLU all negative" {
@@ -321,11 +300,11 @@ test "LeakyReLU all negative" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t1.deinit();
 
-    var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
-    try leaky_relu.forward(&t1, 0.01);
+    var t_output = try TensorMath.leakyReLU(f32, &t1, 0.01);
+    defer t_output.deinit();
 
-    for (0..t1.data.len) |i| {
-        try std.testing.expect(@abs(t1.data[i] - (0.01 * inputArray[i / shape[1]][i % shape[1]])) < 0.00001);
+    for (0..t_output.data.len) |i| {
+        try std.testing.expect(@abs(t_output.data[i] - (0.01 * inputArray[i / shape[1]][i % shape[1]])) < 0.00001);
     }
 }
 
@@ -344,11 +323,11 @@ test "LeakyReLU all positive" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t1.deinit();
 
-    var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
-    try leaky_relu.forward(&t1, 0.01);
+    var t_output = try TensorMath.leakyReLU(f32, &t1, 0.01);
+    defer t_output.deinit();
 
-    for (0..t1.data.len) |i| {
-        try std.testing.expect(t1.data[i] == inputArray[i / shape[1]][i % shape[1]]);
+    for (0..t_output.data.len) |i| {
+        try std.testing.expect(t_output.data[i] == inputArray[i / shape[1]][i % shape[1]]);
     }
 }
 
@@ -367,11 +346,8 @@ test "LeakyReLU backward" {
     var t_input = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer t_input.deinit();
 
-    var t_gradient = try t_input.copy();
-    defer t_gradient.deinit();
-
-    var leaky_relu = ActivFun.ActivationFunction(f32, ActivType.LeakyReLU){};
-    try leaky_relu.forward(&t_input, 0.01);
+    var t_output = try TensorMath.leakyReLU(f32, &t_input, 0.01);
+    defer t_output.deinit();
 
     var dValues: [2][2]f32 = [_][2]f32{
         [_]f32{ 10.0, -20.0 },
@@ -381,7 +357,7 @@ test "LeakyReLU backward" {
     var t_dValues = try Tensor(f32).fromArray(&allocator, &dValues, &shape);
     defer t_dValues.deinit();
 
-    try leaky_relu.derivate(&t_dValues, &t_input, 0.01);
+    try TensorMath.leakyReLU_backward(f32, &t_dValues, &t_input, 0.01);
 
     try std.testing.expect(t_dValues.data[0] == 10.0);
     try std.testing.expect(@abs(t_dValues.data[1] - (-20.0 * 0.01)) < 0.00001);

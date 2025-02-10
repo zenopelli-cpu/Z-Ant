@@ -10,12 +10,11 @@ const PoolingLayer = layer_.PoolingLayer;
 const PoolingType = layer_.poolingLayer.PoolingType;
 const Tensor = @import("tensor").Tensor;
 const TensorMath = @import("tensor_m");
-const ActivationFunction = @import("activation_function");
 const LayerError = @import("errorHandler").LayerError;
 const TensorError = @import("errorHandler").TensorError;
 const TensorMathError = @import("errorHandler").TensorMathError;
 const tensor = @import("tensor");
-const ActivationType = @import("activation_function").ActivationType;
+const ActivationType = @import("layer").ActivationType;
 const pkg_allocator = @import("pkgAllocator");
 
 test "Layer test description" {

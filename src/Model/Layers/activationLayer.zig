@@ -2,9 +2,15 @@ const std = @import("std");
 const tensor = @import("tensor");
 const TensMath = @import("tensor_m");
 const Layer = @import("Layer");
-const ActivationType = @import("activation_function").ActivationType;
-const ActivLib = @import("activation_function");
 const LayerError = @import("errorHandler").LayerError;
+
+pub const ActivationType = enum {
+    ReLU,
+    LeakyReLU,
+    Sigmoid,
+    Softmax,
+    None,
+};
 
 /// Represents an activation layer in a neural network, designed for use with tensors.
 /// The `ActivationLayer` type is parameterized by the type `T`, which represents the data type of the tensor elements.
@@ -81,27 +87,22 @@ pub fn ActivationLayer(comptime T: type) type {
         pub fn forward(ctx: *anyopaque, input: *tensor.Tensor(T)) !tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
-            // 1. copy the input both in self.input and self.output because activation.forward doesn't return a tensor
+            // 1. Copy the input both in self.input and self.output because activation.forward doesn't return a tensor
+            self.input.deinit();
+            self.output.deinit();
             self.input = try input.copy();
-            self.output = try input.copy();
 
             // 2. Apply activation function
             // I was gettig crazy with this.activation initialization since ActivLib.ActivationFunction( something ) is
             //dynamic and we are trying to do everything at comptime, no excuses, you can do better than me !
             if (self.activationFunction == ActivationType.ReLU) {
-                const act_type = ActivLib.ActivationFunction(T, ActivationType.ReLU);
-                var activation = act_type{};
-                try activation.forward(&self.output);
+                self.output = try TensMath.ReLU(T, &self.input);
             } else if (self.activationFunction == ActivationType.Softmax) {
-                const act_type = ActivLib.ActivationFunction(T, ActivationType.Softmax);
-                var activation = act_type{};
-                try activation.forward(&self.output);
+                self.output = try TensMath.softmax(T, &self.input);
             } else if (self.activationFunction == ActivationType.Sigmoid) {
-                const act_type = ActivLib.ActivationFunction(T, ActivationType.Sigmoid);
-                var activation = act_type{};
-                try activation.forward(&self.output);
+                self.output = try TensMath.sigmoid(T, &self.output);
             }
-            // DEBUG try self.output.isSafe();
+
             return self.output;
         }
 
@@ -111,17 +112,11 @@ pub fn ActivationLayer(comptime T: type) type {
             //---- Key Steps: -----
             // 1. Apply the derivative of the activation function to dValues
             if (self.activationFunction == ActivationType.ReLU) {
-                const act_type = ActivLib.ActivationFunction(T, ActivationType.ReLU);
-                var activation = act_type{};
-                try activation.derivate(dValues, &self.input);
+                try TensMath.ReLU_backward(T, dValues, &self.input);
             } else if (self.activationFunction == ActivationType.Softmax) {
-                const act_type = ActivLib.ActivationFunction(T, ActivationType.Softmax);
-                var activation = act_type{};
-                try activation.derivate(dValues, &self.output);
+                try TensMath.softmax_backward(T, dValues, &self.output);
             } else if (self.activationFunction == ActivationType.Sigmoid) {
-                const act_type = ActivLib.ActivationFunction(T, ActivationType.Sigmoid);
-                var activation = act_type{};
-                try activation.derivate(dValues, &self.output);
+                try TensMath.sigmoid_backward(T, dValues, &self.output);
             }
 
             return dValues.copy();

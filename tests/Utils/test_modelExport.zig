@@ -9,7 +9,7 @@ const FlattenLayer = Layer.FlattenLayer;
 const PoolingLayer = Layer.poolingLayer.PoolingLayer;
 
 const Tensor = @import("tensor").Tensor;
-const ActivationType = @import("activation_function").ActivationType;
+const ActivationType = @import("layer").ActivationType;
 const Trainer = @import("trainer");
 const pkgAllocator = @import("pkgAllocator");
 const TensMath = @import("tensor_m");
