@@ -3,7 +3,7 @@ const tensor = @import("tensor");
 const Layer = @import("layer");
 const DenseLayer = Layer.DenseLayer;
 const Model = @import("model").Model;
-const ActivationType = @import("activation_function").ActivationType;
+const ActivationType = @import("layer").ActivationType;
 const Trainer = @import("trainer");
 const pkgAllocator = @import("pkgAllocator");
 

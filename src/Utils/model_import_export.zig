@@ -11,7 +11,7 @@ const PoolingLayer = Layer.PoolingLayer;
 
 const LayerType = @import("layer").LayerType;
 const Tensor = @import("tensor").Tensor;
-const ActivationType = @import("activation_function").ActivationType;
+const ActivationType = @import("layer").ActivationType;
 const PoolingType = Layer.poolingLayer.PoolingType;
 
 // ----------------------------------------------------------------------------

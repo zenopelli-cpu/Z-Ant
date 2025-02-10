@@ -25,7 +25,6 @@ pub fn build(b: *std.Build) void {
 
     // Create modules from the source files in the `src/Model/` directory.
     const loss_mod = b.createModule(.{ .root_source_file = b.path("src/Model/lossFunction.zig") });
-    const activation_mod = b.createModule(.{ .root_source_file = b.path("src/Model/activation_function.zig") });
     const model_mod = b.createModule(.{ .root_source_file = b.path("src/Model/model.zig") });
     const layer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/layer.zig") });
     const optim_mod = b.createModule(.{ .root_source_file = b.path("src/Model/optim.zig") });
@@ -67,13 +66,11 @@ pub fn build(b: *std.Build) void {
     model_mod.addImport("dataloader", dataloader_mod);
     model_mod.addImport("tensor_m", tensor_math_mod);
     model_mod.addImport("dataprocessor", dataProcessor_mod);
-    model_mod.addImport("activation_function", activation_mod);
 
     // ************************************************LAYER DEPENDENCIES************************************************
 
     // Add necessary imports for the layers module.
     layer_mod.addImport("tensor", tensor_mod);
-    layer_mod.addImport("activation_function", activation_mod);
     layer_mod.addImport("tensor_m", tensor_math_mod);
     layer_mod.addImport("errorHandler", errorHandler_mod);
     layer_mod.addImport("pkgAllocator", allocator_mod);
@@ -120,7 +117,6 @@ pub fn build(b: *std.Build) void {
     activationLayer_mod.addImport("tensor", tensor_mod);
     activationLayer_mod.addImport("tensor_m", tensor_math_mod);
     activationLayer_mod.addImport("Layer", layer_mod);
-    activationLayer_mod.addImport("activation_function", activation_mod);
     activationLayer_mod.addImport("errorHandler", errorHandler_mod);
 
     // ************************************************BATCHNORMLAYER DEPENDENCIES************************************************
@@ -167,14 +163,6 @@ pub fn build(b: *std.Build) void {
     tensor_math_mod.addImport("layer", layer_mod);
     tensor_math_mod.addImport("pkgAllocator", allocator_mod);
 
-    // ************************************************ACTIVATION DEPENDENCIES************************************************
-
-    // Add necessary imports for the activation module.
-    activation_mod.addImport("tensor", tensor_mod);
-    activation_mod.addImport("errorHandler", errorHandler_mod);
-    activation_mod.addImport("pkgAllocator", allocator_mod);
-    activation_mod.addImport("tensor_m", tensor_math_mod);
-
     // ************************************************LOSS DEPENDENCIES************************************************
 
     // Add necessary imports for the loss function module.
@@ -199,7 +187,6 @@ pub fn build(b: *std.Build) void {
     modelImportExport_mod.addImport("layer", layer_mod);
     modelImportExport_mod.addImport("model", model_mod);
     modelImportExport_mod.addImport("errorHandler", errorHandler_mod);
-    modelImportExport_mod.addImport("activation_function", activation_mod);
 
     // ************************************************CODEGEN DEPENDENCIES************************************************
     codegen_mod.addImport("tensor", tensor_mod);
@@ -226,7 +213,6 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("layer", layer_mod);
     exe.root_module.addImport("dataloader", dataloader_mod);
     exe.root_module.addImport("dataprocessor", dataProcessor_mod);
-    exe.root_module.addImport("activation_function", activation_mod);
     exe.root_module.addImport("loss", loss_mod);
     exe.root_module.addImport("trainer", trainer_mod);
     exe.root_module.addImport("pkgAllocator", allocator_mod);
@@ -301,7 +287,6 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("optim", optim_mod);
     unit_tests.root_module.addImport("loss", loss_mod);
     unit_tests.root_module.addImport("tensor_m", tensor_math_mod);
-    unit_tests.root_module.addImport("activation_function", activation_mod);
     unit_tests.root_module.addImport("dataloader", dataloader_mod);
     unit_tests.root_module.addImport("dataprocessor", dataProcessor_mod);
     unit_tests.root_module.addImport("trainer", trainer_mod);
