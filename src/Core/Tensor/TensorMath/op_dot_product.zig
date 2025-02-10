@@ -50,90 +50,18 @@ pub inline fn dot_product_tensor(comptime inputType: type, comptime outputType: 
 
     @memset(out_tensor.data, 0);
 
-    const vector_width = DEFAULT_VECTOR_WIDTH;
-    const Vec = @Vector(vector_width, inputType);
-    const HigherVec = @Vector(vector_width, outputType);
-
-    // Block sizes for cache optimization - ensure they're not larger than input dimensions
-    const MB = @min(BLOCK_SIZE, M);
-    const NB = @min(BLOCK_SIZE, N);
-    const KB = @min(BLOCK_SIZE, K);
-
-    // Blocking for better cache utilization
     var i: usize = 0;
-    while (i < M) : (i += MB) {
-        const i_end = @min(i + MB, M);
+    while (i < M) : (i += 1) {
         var j: usize = 0;
-        while (j < N) : (j += NB) {
-            const j_end = @min(j + NB, N);
-
-            // Process within blocks
-            var ii: usize = i;
-            while (ii < i_end) : (ii += 1) {
-                var jj: usize = j;
-                while (jj < j_end) : (jj += 1) {
-                    var sum: outputType = 0;
-
-                    // Direct computation for small K or when SIMD wouldn't help
-                    if (K < vector_width * 2) {
-                        var kk: usize = 0;
-                        while (kk < K) : (kk += 1) {
-                            const a = t1.data[ii * K + kk];
-                            const b = t2.data[kk * N + jj];
-                            sum += @as(outputType, a) * @as(outputType, b);
-                        }
-                    } else {
-                        var k: usize = 0;
-                        while (k < K) : (k += KB) {
-                            const k_end = @min(k + KB, K);
-                            var kk: usize = k;
-
-                            // SIMD processing within block
-                            const kk_vec_end = k_end - ((k_end - kk) % vector_width);
-                            var sum_vec: HigherVec = @splat(0);
-
-                            while (kk < kk_vec_end) : (kk += vector_width) {
-                                var a_vec: Vec = undefined;
-                                var b_vec: Vec = undefined;
-
-                                inline for (0..vector_width) |v| {
-                                    const a_idx = ii * K + kk + v;
-                                    const b_idx = (kk + v) * N + jj;
-                                    if (a_idx >= t1.data.len or b_idx >= t2.data.len) break;
-                                    a_vec[v] = t1.data[a_idx];
-                                    b_vec[v] = t2.data[b_idx];
-                                }
-
-                                var higher_a: HigherVec = undefined;
-                                var higher_b: HigherVec = undefined;
-                                inline for (0..vector_width) |v| {
-                                    higher_a[v] = @as(outputType, a_vec[v]);
-                                    higher_b[v] = @as(outputType, b_vec[v]);
-                                }
-                                sum_vec += higher_a * higher_b;
-                            }
-
-                            // Horizontal sum of SIMD vector
-                            inline for (0..vector_width) |v| {
-                                sum += sum_vec[v];
-                            }
-
-                            // Handle remaining elements
-                            while (kk < k_end) : (kk += 1) {
-                                const a_idx = ii * K + kk;
-                                const b_idx = kk * N + jj;
-                                if (a_idx >= t1.data.len or b_idx >= t2.data.len) break;
-                                sum += @as(outputType, t1.data[a_idx]) * @as(outputType, t2.data[b_idx]);
-                            }
-                        }
-                    }
-
-                    const out_idx = ii * N + jj;
-                    if (out_idx < out_tensor.data.len) {
-                        out_tensor.data[out_idx] = sum;
-                    }
-                }
+        while (j < N) : (j += 1) {
+            var sum: outputType = 0;
+            var k: usize = 0;
+            while (k < K) : (k += 1) {
+                const a = t1.data[i * K + k];
+                const b = t2.data[k * N + j];
+                sum += @as(outputType, a) * @as(outputType, b);
             }
+            out_tensor.data[i * N + j] = sum;
         }
     }
 

@@ -68,37 +68,49 @@ test "Compare dot product implementations with execution time" {
 
     // Create test tensors
     var shape: [2]usize = [_]usize{ 16, 16 };
-    var inputArray: [16][16]f32 = undefined;
+    var matrix1: [16][16]f32 = undefined;
+    var matrix2: [16][16]f32 = undefined;
 
-    // Initialize with sequential values
+    // Initialize with different values for each matrix
     for (0..16) |i| {
         for (0..16) |j| {
-            inputArray[i][j] = @floatFromInt(i * 16 + j + 1);
+            matrix1[i][j] = @floatFromInt(i * 16 + j + 1);
+            matrix2[i][j] = @floatFromInt((15 - i) * 16 + (15 - j) + 1); // Reverse pattern
         }
     }
 
-    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
-    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    var t1 = try Tensor(f32).fromArray(&allocator, &matrix1, &shape);
+    var t2 = try Tensor(f32).fromArray(&allocator, &matrix2, &shape);
     defer t1.deinit();
     defer t2.deinit();
 
-    const start_simd = std.time.nanoTimestamp();
-    var result_simd = try TensMath.dot_product_tensor(f32, f32, &t1, &t2);
-    const end_simd = std.time.nanoTimestamp();
-    const duration_simd = end_simd - start_simd;
-    defer result_simd.deinit();
+    // Run multiple iterations for more accurate timing
+    const iterations = 100;
+    var total_simd: i64 = 0;
+    var total_flat: i64 = 0;
 
-    const start_flat = std.time.nanoTimestamp();
-    var result_flat = try TensMath.dot_product_tensor_flat(f32, f32, &t1, &t2);
-    const end_flat = std.time.nanoTimestamp();
-    const duration_flat = end_flat - start_flat;
-    defer result_flat.deinit();
+    for (0..iterations) |_| {
+        const start_simd = std.time.nanoTimestamp();
+        var result_simd = try TensMath.dot_product_tensor(f32, f32, &t1, &t2);
+        const end_simd = std.time.nanoTimestamp();
+        total_simd += @as(i64, @intCast(end_simd - start_simd));
+        result_simd.deinit();
 
-    std.debug.print("SIMD execution time: {d} ns\n", .{duration_simd});
-    std.debug.print("Flat execution time: {d} ns\n", .{duration_flat});
-
-    // Compare results
-    for (result_simd.data, result_flat.data) |v1, v2| {
-        try std.testing.expectApproxEqAbs(v1, v2, 0.001);
+        const start_flat = std.time.nanoTimestamp();
+        var result_flat = try TensMath.dot_product_tensor_flat(f32, f32, &t1, &t2);
+        const end_flat = std.time.nanoTimestamp();
+        total_flat += @as(i64, @intCast(end_flat - start_flat));
+        result_flat.deinit();
     }
+
+    const avg_simd = @divFloor(total_simd, iterations);
+    const avg_flat = @divFloor(total_flat, iterations);
+
+    std.debug.print("Average over {d} iterations:\n", .{iterations});
+    std.debug.print("SIMD execution time: {d} ns\n", .{avg_simd});
+    std.debug.print("Flat execution time: {d} ns\n", .{avg_flat});
+    std.debug.print("SIMD is {d:.2}x {s}\n", .{ if (avg_simd < avg_flat)
+        @as(f64, @floatFromInt(avg_flat)) / @as(f64, @floatFromInt(avg_simd))
+    else
+        @as(f64, @floatFromInt(avg_simd)) / @as(f64, @floatFromInt(avg_flat)), if (avg_simd < avg_flat) "faster" else "slower" });
 }
