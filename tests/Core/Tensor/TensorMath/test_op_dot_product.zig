@@ -98,6 +98,7 @@ test "Compare dot product implementations with execution time" {
 
         const start_flat = std.time.nanoTimestamp();
         var result_flat = try TensMath.dot_product_tensor_flat(f32, f32, &t1, &t2);
+        defer result_flat.deinit();
         const end_flat = std.time.nanoTimestamp();
         total_flat += @as(i64, @intCast(end_flat - start_flat));
         result_flat.deinit();

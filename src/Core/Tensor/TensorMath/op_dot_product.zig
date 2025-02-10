@@ -33,6 +33,7 @@ pub inline fn dot_product_tensor(comptime inputType: type, comptime outputType: 
 
     const allocator = pkg_allocator;
     var out_shape = try allocator.alloc(usize, nDimT1);
+    defer allocator.free(out_shape);
     errdefer allocator.free(out_shape);
 
     for (0..(nDimT1 - 2)) |i| {
@@ -242,6 +243,7 @@ pub fn dot_product_tensor_flat(comptime inputType: anytype, comptime outputType:
 
     const allocator = pkg_allocator;
     var out_shape = try allocator.alloc(usize, nDimT1);
+    defer allocator.free(out_shape);
     errdefer allocator.free(out_shape);
 
     for (0..(nDimT1 - 2)) |i| {
