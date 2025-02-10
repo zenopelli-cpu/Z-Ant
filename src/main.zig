@@ -11,7 +11,7 @@ const ActivationLayer = layer.ActivationLayer;
 //--- other
 const Model = @import("model").Model;
 const loader = @import("dataloader");
-const ActivationType = @import("activation_function").ActivationType;
+const ActivationType = layer.ActivationType;
 const LossType = @import("loss").LossType;
 const Trainer = @import("trainer");
 const BatchNormLayer = @import("batchNormLayer").BatchNormLayer;

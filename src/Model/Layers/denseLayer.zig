@@ -155,20 +155,40 @@ pub fn DenseLayer(comptime T: type) type {
         pub fn backward(ctx: *anyopaque, dValues: *tensor.Tensor(T)) !tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
+            // Debug info
+            std.debug.print("\nDenseLayer backward - Input shape: {any}, dValues shape: {any}", .{ self.input.shape, dValues.shape });
+
             // Check dValues dimensions
             if (dValues.shape.len != 2) return LayerError.LayerDimensionsInvalid;
-            if (dValues.shape[0] != self.input.shape[0] or dValues.shape[1] != self.n_neurons)
+            if (dValues.shape[0] != self.input.shape[0] or dValues.shape[1] != self.n_neurons) {
+                std.debug.print("\nShape mismatch - Expected dValues: [{}, {}], Got: [{}, {}]", .{ self.input.shape[0], self.n_neurons, dValues.shape[0], dValues.shape[1] });
                 return LayerError.InputTensorWrongShape;
+            }
 
             //---- Key Steps: -----
             // 2. Compute weight gradients (w_gradients)
             var input_transposed = try TensMath.transpose2D(T, &self.input);
             defer input_transposed.deinit();
 
-            self.w_gradients.deinit();
+            std.debug.print("\nComputing weight gradients - Input transposed shape: {any}", .{input_transposed.shape});
+
+            // Safely deallocate old gradients if they exist
+            if (self.w_gradients.data.len > 0 and self.w_gradients.size > 0) {
+                self.w_gradients.deinit();
+            }
             self.w_gradients = try TensMath.dot_product_tensor(T, T, &input_transposed, dValues);
 
+            std.debug.print("\nWeight gradients computed - Shape: {any}", .{self.w_gradients.shape});
+
             // 3. Compute bias gradients (b_gradients)
+            // Safely deallocate old bias gradients if they exist
+            if (self.b_gradients.data.len > 0 and self.b_gradients.size > 0) {
+                self.b_gradients.deinit();
+            }
+            // Reinitialize b_gradients with correct shape
+            var bias_shape = [_]usize{self.n_neurons};
+            self.b_gradients = try tensor.Tensor(T).fromShape(self.allocator, &bias_shape);
+
             // Sum gradients for each neuron across all samples
             for (0..self.n_neurons) |neuron| {
                 var sum: T = 0;
@@ -178,11 +198,22 @@ pub fn DenseLayer(comptime T: type) type {
                 self.b_gradients.data[neuron] = sum;
             }
 
+            std.debug.print("\nBias gradients computed - Shape: {any}", .{self.b_gradients.shape});
+
             // 4. Compute input gradients (dL_dInput)
             var weights_transposed = try TensMath.transpose2D(T, &self.weights);
             defer weights_transposed.deinit();
 
-            return try TensMath.dot_product_tensor(T, T, dValues, &weights_transposed);
+            std.debug.print("\nComputing input gradients - Weights transposed shape: {any}", .{weights_transposed.shape});
+
+            var input_gradients = try TensMath.dot_product_tensor(T, T, dValues, &weights_transposed);
+            errdefer input_gradients.deinit();
+
+            const result = try input_gradients.copy();
+            input_gradients.deinit();
+
+            std.debug.print("\nInput gradients computed - Shape: {any}", .{result.shape});
+            return result;
         }
 
         ///Print the layer used for debug purposes it has 2 different verbosity levels
