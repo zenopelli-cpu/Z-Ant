@@ -68,6 +68,10 @@ pub fn ActivationLayer(comptime T: type) type {
             self.n_inputs = n_inputs;
             self.n_neurons = n_neurons;
             self.allocator = alloc;
+
+            // Initialize tensors with empty arrays
+            self.input = try tensor.Tensor(T).init(alloc);
+            self.output = try tensor.Tensor(T).init(alloc);
         }
 
         ///Deallocate the layer
@@ -87,20 +91,34 @@ pub fn ActivationLayer(comptime T: type) type {
         pub fn forward(ctx: *anyopaque, input: *tensor.Tensor(T)) !tensor.Tensor(T) {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
-            // 1. Copy the input both in self.input and self.output because activation.forward doesn't return a tensor
-            self.input.deinit();
-            self.output.deinit();
+            // Here we reset to an "empty" tensor by explicitly setting each field
+            if (self.input.data.len > 0 or self.input.shape.len > 0) {
+                self.input.deinit();
+                self.input = .{
+                    .data = &[_]T{},
+                    .size = 0,
+                    .shape = &[_]usize{},
+                    .allocator = self.allocator,
+                };
+            }
+            if (self.output.data.len > 0 or self.output.shape.len > 0) {
+                self.output.deinit();
+                self.output = .{
+                    .data = &[_]T{},
+                    .size = 0,
+                    .shape = &[_]usize{},
+                    .allocator = self.allocator,
+                };
+            }
+
             self.input = try input.copy();
 
-            // 2. Apply activation function
-            // I was gettig crazy with this.activation initialization since ActivLib.ActivationFunction( something ) is
-            //dynamic and we are trying to do everything at comptime, no excuses, you can do better than me !
             if (self.activationFunction == ActivationType.ReLU) {
                 self.output = try TensMath.ReLU(T, &self.input);
             } else if (self.activationFunction == ActivationType.Softmax) {
                 self.output = try TensMath.softmax(T, &self.input);
             } else if (self.activationFunction == ActivationType.Sigmoid) {
-                self.output = try TensMath.sigmoid(T, &self.output);
+                self.output = try TensMath.sigmoid(T, &self.input);
             }
 
             return self.output;

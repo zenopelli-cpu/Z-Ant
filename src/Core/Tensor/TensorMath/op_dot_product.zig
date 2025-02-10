@@ -6,21 +6,24 @@ const assert = std.debug.assert;
 const ArchitectureError = @import("errorHandler").ArchitectureError;
 const TensorMathError = @import("errorHandler").TensorMathError;
 
+// Optimize for L1 cache size (typically 32KB)
+const BLOCK_SIZE_M: usize = 32;
+const BLOCK_SIZE_N: usize = 32;
+const BLOCK_SIZE_K: usize = 32;
+
+// Use largest available SIMD width
 const DEFAULT_VECTOR_WIDTH: usize = std.simd.suggestVectorLength(f32) orelse 4;
-const BLOCK_SIZE: usize = 32; // Cache-friendly block size
+const UNROLL_FACTOR: usize = 4;
 
 pub inline fn dot_product_tensor(comptime inputType: type, comptime outputType: type, t1: *const Tensor(inputType), t2: *const Tensor(inputType)) !Tensor(outputType) {
     const nDimT1 = t1.shape.len;
     const nDimT2 = t2.shape.len;
     if (nDimT1 != nDimT2) return TensorMathError.InputTensorDifferentShape;
     if (t1.shape[nDimT1 - 1] != t2.shape[nDimT1 - 2]) return TensorMathError.InputTensorsWrongShape;
-
-    // Validate dimensions
     if (nDimT1 < 2) return TensorMathError.InputTensorsWrongShape;
 
-    if (@TypeOf(outputType) == @TypeOf(inputType)) {
-        // Skip check if same type
-    } else {
+    // Type validation
+    if (@TypeOf(outputType) != @TypeOf(inputType)) {
         if (@bitSizeOf(outputType) <= 16) {
             if (@bitSizeOf(outputType) <= (@bitSizeOf(inputType) * 2)) return TensorMathError.TooSmallOutputType;
         } else {
@@ -30,7 +33,7 @@ pub inline fn dot_product_tensor(comptime inputType: type, comptime outputType: 
 
     const allocator = pkg_allocator;
     var out_shape = try allocator.alloc(usize, nDimT1);
-    defer allocator.free(out_shape);
+    errdefer allocator.free(out_shape);
 
     for (0..(nDimT1 - 2)) |i| {
         out_shape[i] = t1.shape[i];
@@ -38,21 +41,54 @@ pub inline fn dot_product_tensor(comptime inputType: type, comptime outputType: 
     out_shape[nDimT1 - 2] = t1.shape[nDimT1 - 2];
     out_shape[nDimT1 - 1] = t2.shape[nDimT1 - 1];
 
-    const M = t1.shape[nDimT1 - 2]; // rows of output
-    const N = t2.shape[nDimT1 - 1]; // cols of output
-    const K = t1.shape[nDimT1 - 1]; // inner dimension
+    const M = t1.shape[nDimT1 - 2];
+    const N = t2.shape[nDimT1 - 1];
+    const K = t1.shape[nDimT1 - 1];
 
-    // Validate sizes
-    if (M * N == 0 or K == 0) return TensorMathError.InputTensorsWrongShape;
+    if (M * N == 0 or K == 0) {
+        allocator.free(out_shape);
+        return TensorMathError.InputTensorsWrongShape;
+    }
 
     var out_tensor = try Tensor(outputType).fromShape(&allocator, out_shape);
     errdefer out_tensor.deinit();
 
     @memset(out_tensor.data, 0);
 
+    const Vec = @Vector(DEFAULT_VECTOR_WIDTH, inputType);
+    const HigherVec = @Vector(DEFAULT_VECTOR_WIDTH, outputType);
+
     var i: usize = 0;
     while (i < M) : (i += 1) {
         var j: usize = 0;
+        while (j + DEFAULT_VECTOR_WIDTH <= N) : (j += DEFAULT_VECTOR_WIDTH) {
+            var sum_vec: HigherVec = @splat(0);
+            var k: usize = 0;
+            while (k < K) : (k += 1) {
+                const a = t1.data[i * K + k];
+                var b_vec: Vec = undefined;
+                comptime var v: usize = 0;
+                inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
+                    b_vec[v] = t2.data[k * N + j + v];
+                }
+
+                const a_vec: Vec = @splat(a);
+                var higher_a: HigherVec = undefined;
+                var higher_b: HigherVec = undefined;
+                inline for (0..DEFAULT_VECTOR_WIDTH) |vec_idx| {
+                    higher_a[vec_idx] = @as(outputType, a_vec[vec_idx]);
+                    higher_b[vec_idx] = @as(outputType, b_vec[vec_idx]);
+                }
+                sum_vec += higher_a * higher_b;
+            }
+
+            // Store results
+            inline for (0..DEFAULT_VECTOR_WIDTH) |vec_idx| {
+                out_tensor.data[i * N + j + vec_idx] = sum_vec[vec_idx];
+            }
+        }
+
+        // Handle remaining columns
         while (j < N) : (j += 1) {
             var sum: outputType = 0;
             var k: usize = 0;
@@ -206,16 +242,22 @@ pub fn dot_product_tensor_flat(comptime inputType: anytype, comptime outputType:
 
     const allocator = pkg_allocator;
     var out_shape = try allocator.alloc(usize, nDimT1);
-    defer allocator.free(out_shape);
+    errdefer allocator.free(out_shape);
 
-    var total_outer_iterations: usize = 1;
     for (0..(nDimT1 - 2)) |i| {
         out_shape[i] = t1.shape[i];
-        total_outer_iterations *= t1.shape[i];
     }
     out_shape[nDimT1 - 2] = t1.shape[nDimT1 - 2];
     out_shape[nDimT1 - 1] = t2.shape[nDimT1 - 1];
-    total_outer_iterations *= t1.shape[nDimT1 - 2] * t2.shape[nDimT1 - 1];
+
+    const M = t1.shape[nDimT1 - 2];
+    const N = t2.shape[nDimT1 - 1];
+    const K = t1.shape[nDimT1 - 1];
+
+    if (M * N == 0 or K == 0) {
+        allocator.free(out_shape);
+        return TensorMathError.InputTensorsWrongShape;
+    }
 
     var out_tensor = try Tensor(outputType).fromShape(&allocator, out_shape);
     errdefer out_tensor.deinit();
@@ -223,12 +265,11 @@ pub fn dot_product_tensor_flat(comptime inputType: anytype, comptime outputType:
     const inner_dim = t1.shape[nDimT1 - 1];
     const t1_stride = t1.shape[nDimT1 - 1];
     const t2_stride = t2.shape[nDimT1 - 1];
-    const out_stride = out_tensor.shape[nDimT1 - 1];
 
     var batch_idx: usize = 0;
-    while (batch_idx < total_outer_iterations) : (batch_idx += 1) {
-        const out_row = (batch_idx / out_stride) % out_tensor.shape[nDimT1 - 2];
-        const out_col = batch_idx % out_stride;
+    while (batch_idx < M * N) : (batch_idx += 1) {
+        const out_row = (batch_idx / N) % M;
+        const out_col = batch_idx % N;
 
         var sum: outputType = 0;
         const row_offset = out_row * t1_stride;
