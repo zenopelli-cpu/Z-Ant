@@ -79,7 +79,7 @@ pub fn Model(comptime T: type) type {
                 std.debug.print("\n output shape: {any}", .{self.layers.items[i].get_output().shape});
                 //self.layers.items[i].printLayer(0);
             }
-            return (self.getPrevOut(self.layers.items.len)).*;
+            return try (self.getPrevOut(self.layers.items.len)).copy();
         }
 
         /// Executes the backward pass through the model with the specified gradient tensor.

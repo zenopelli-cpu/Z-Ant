@@ -92,26 +92,10 @@ pub fn ActivationLayer(comptime T: type) type {
             const self: *Self = @ptrCast(@alignCast(ctx));
 
             // Here we reset to an "empty" tensor by explicitly setting each field
-            if (self.input.data.len > 0 or self.input.shape.len > 0) {
-                self.input.deinit();
-                self.input = .{
-                    .data = &[_]T{},
-                    .size = 0,
-                    .shape = &[_]usize{},
-                    .allocator = self.allocator,
-                };
-            }
-            if (self.output.data.len > 0 or self.output.shape.len > 0) {
-                self.output.deinit();
-                self.output = .{
-                    .data = &[_]T{},
-                    .size = 0,
-                    .shape = &[_]usize{},
-                    .allocator = self.allocator,
-                };
-            }
-
+            self.input.deinit();
             self.input = try input.copy();
+
+            self.output.deinit();
 
             if (self.activationFunction == ActivationType.ReLU) {
                 self.output = try TensMath.ReLU(T, &self.input);
