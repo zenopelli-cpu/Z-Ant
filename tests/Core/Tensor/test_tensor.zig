@@ -577,3 +577,63 @@ test "slice_onnx error cases" {
     var axes = [_]i64{5}; // Axis 5 doesn't exist in a 1D tensor
     try std.testing.expectError(TensorError.InvalidSliceIndices, tensor.slice_onnx(&starts, &ends, &axes, null));
 }
+
+test "ensure_4D_shape" {
+    std.debug.print("\n     test: ensure_4D_shape ", .{});
+
+    //shape 1D
+    const shape = [_]usize{5};
+    var result = try Tensor(f32).ensure_4D_shape(&shape);
+
+    try std.testing.expectEqual(result.len, 4);
+
+    try std.testing.expectEqual(result[0], 1);
+    try std.testing.expectEqual(result[1], 1);
+    try std.testing.expectEqual(result[2], 1);
+    try std.testing.expectEqual(result[3], 5);
+
+    //shape 2D
+    const shape_2 = [_]usize{ 5, 10 };
+    result = try Tensor(f32).ensure_4D_shape(&shape_2);
+
+    try std.testing.expectEqual(result.len, 4);
+
+    try std.testing.expectEqual(result[0], 1);
+    try std.testing.expectEqual(result[1], 1);
+    try std.testing.expectEqual(result[2], 5);
+    try std.testing.expectEqual(result[3], 10);
+
+    //shape 3D
+    std.debug.print("\n     test: ensure_4D_shape with 3 dimensions", .{});
+
+    const shape_3 = [_]usize{ 5, 10, 15 };
+    result = try Tensor(f32).ensure_4D_shape(&shape_3);
+
+    try std.testing.expectEqual(result.len, 4);
+
+    try std.testing.expectEqual(result[0], 1);
+    try std.testing.expectEqual(result[1], 5);
+    try std.testing.expectEqual(result[2], 10);
+    try std.testing.expectEqual(result[3], 15);
+
+    //shape 4D
+    std.debug.print("\n     test: ensure_4D_shape with 4 dimensions", .{});
+
+    const shape_4 = [_]usize{ 5, 10, 15, 20 };
+    result = try Tensor(f32).ensure_4D_shape(&shape_4);
+
+    try std.testing.expectEqual(result.len, 4);
+
+    try std.testing.expectEqual(result[0], 5);
+    try std.testing.expectEqual(result[1], 10);
+    try std.testing.expectEqual(result[2], 15);
+    try std.testing.expectEqual(result[3], 20);
+
+    // shape 5D --> check for error
+    std.debug.print("\n     test: ensure_4D_shape with 5 dimensions", .{});
+
+    const shape_5 = [_]usize{ 5, 10, 15, 20, 25 };
+    result = try Tensor(f32).ensure_4D_shape(&shape_5);
+
+    try std.testing.expectError(TensorError.InvalidDimensions, result);
+}
