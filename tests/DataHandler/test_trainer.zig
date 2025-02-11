@@ -286,7 +286,7 @@ test "Test single epoch training with simplified CNN" {
         784,
         &model,
         &load,
-        10, // Reduced epochs since the model converges faster
+        1, // Reduced epochs since the model converges faster
         LossType.CCE,
         0.005, // Reduced learning rate for better stability
         0.9, // Increased momentum
