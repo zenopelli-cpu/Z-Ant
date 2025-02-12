@@ -1,0 +1,90 @@
+
+ .......... file created, path:src/codeGen/firstTry.zig
+-------------------------------------------------------------
++                       READY HASHMAP                       +
+-------------------------------------------------------------
+-------------------------------------------------------------
++                        READY GRAPH                        +
+-------------------------------------------------------------
+
+ getComputableNodes()
+    --- /layer1/Gemm is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: /layer1/Gemm
+          op_type: Gemm
+          inputs: 3
+              -> input --->ready
+              -> layer1.weight --->ready
+              -> layer1.bias --->ready
+          outputs:
+              -> /layer1/Gemm_output_0 
+ -----> set /layer1/Gemm outputs to ready
+    /layer1/Gemm_output_0 --> ready
+
+ getComputableNodes()
+    --- /relu/Relu is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: /relu/Relu
+          op_type: Relu
+          inputs: 1
+              -> /layer1/Gemm_output_0 --->ready
+          outputs:
+              -> /relu/Relu_output_0 
+ -----> set /relu/Relu outputs to ready
+    /relu/Relu_output_0 --> ready
+
+ getComputableNodes()
+    --- /layer2/Gemm is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: /layer2/Gemm
+          op_type: Gemm
+          inputs: 3
+              -> /relu/Relu_output_0 --->ready
+              -> layer2.weight --->ready
+              -> layer2.bias --->ready
+          outputs:
+              -> /layer2/Gemm_output_0 
+ -----> set /layer2/Gemm outputs to ready
+    /layer2/Gemm_output_0 --> ready
+
+ getComputableNodes()
+    --- /relu_1/Relu is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: /relu_1/Relu
+          op_type: Relu
+          inputs: 1
+              -> /layer2/Gemm_output_0 --->ready
+          outputs:
+              -> /relu_1/Relu_output_0 
+ -----> set /relu_1/Relu outputs to ready
+    /relu_1/Relu_output_0 --> ready
+
+ getComputableNodes()
+    --- /Softmax is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: /Softmax
+          op_type: Softmax
+          inputs: 1
+              -> /relu_1/Relu_output_0 --->ready
+          outputs:
+              -> output 
+ -----> set /Softmax outputs to ready
+    output --> ready
+
+ getComputableNodes()
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:0                  +
+------------------------------------------------------------
+#############################################################
++                      EXECUTION ENDED                      +
+#############################################################

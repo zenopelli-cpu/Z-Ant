@@ -11,6 +11,9 @@ const codeGenInitializers = @import("codeGen_initializers.zig");
 const utils = @import("codeGen_utils.zig");
 const mathGen = @import("codeGen_math_handler.zig");
 
+var readyGraph: std.ArrayList(ReadyNode) = std.ArrayList(ReadyNode).init(allocator);
+var tensorHashMap: std.StringHashMap(ReadyTensor) = std.StringHashMap(ReadyTensor).init(allocator); //key: TensorProto.name
+
 // Struct to represent a tensor that is ready for computation
 pub const ReadyTensor = struct {
     name: []const u8,
@@ -18,10 +21,9 @@ pub const ReadyTensor = struct {
     shape: []const i64,
 
     // Creates a ReadyTensor by checking if it exists in the initializers or is an input
-    pub fn create(name: []const u8, graph: *GraphProto, op_type: []const u8) !ReadyTensor {
-        std.debug.print("\n     ReadyTensor.create() --> {s}\n", .{name});
-        _ = op_type;
-        const shape_array: []const i64 = &[_]i64{ 1, 1, 1, 1 }; // Placeholder shape //TODO: infer the shape based on the inputs and the op_type
+    pub fn create(name: []const u8, graph: *GraphProto) !ReadyTensor {
+        //std.debug.print("\n     ReadyTensor.create() --> {s}\n", .{name});
+        // const shape_array: []const i64 = &[_]i64{ 1, 1, 1, 1 }; // Placeholder shape //TODO: infer the shape based on the inputs and the op_type
 
         //TODO: given the operation type and the shape of the input return the shape of the output
         if (utils.isInitializer(name, graph.initializers)) { // Check if tensor is an initializer
@@ -34,11 +36,11 @@ pub const ReadyTensor = struct {
         } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "input")) |_| return ReadyTensor{ // Check if tensor is an input
             .name = "input",
             .ready = true,
-            .shape = shape_array, //TODO: given the operation type (op_type) and the shape of the input return the shape of the output
+            .shape = &[_]i64{ 1, 1, 1, 1 }, //TODO: given the operation type (op_type) and the shape of the input return the shape of the output
         } else return ReadyTensor{
             .name = name,
             .ready = false,
-            .shape = shape_array, //TODO: given the operation type (op_type) and the shape of the input return the shape of the output
+            .shape = &[_]i64{ 1, 1, 1, 1 }, //TODO: given the operation type (op_type) and the shape of the input return the shape of the output
         };
     }
 };
@@ -46,53 +48,58 @@ pub const ReadyTensor = struct {
 // Struct representing a computational node in the ONNX model
 pub const ReadyNode = struct {
     nodeProto: *NodeProto,
-    inputs: std.ArrayList(ReadyTensor),
-    outputs: std.ArrayList(ReadyTensor),
+    inputs: std.ArrayList(*ReadyTensor),
+    outputs: std.ArrayList(*ReadyTensor),
     ready: bool,
 
     // Creates a ReadyNode by preparing its input and output tensors
-    pub fn create(nodeProto: *NodeProto, model: *const ModelOnnx) !ReadyNode {
-        std.debug.print("\n ReadyNode.create() --> {s}\n", .{nodeProto.name.?});
+    pub fn create(nodeProto: *NodeProto) !ReadyNode {
+        // std.debug.print("\n\nReadyNode.create() --> {s}", .{nodeProto.name.?});
 
-        var ready_node = ReadyNode{
-            .nodeProto = nodeProto,
-            .inputs = std.ArrayList(ReadyTensor).init(allocator),
-            .outputs = std.ArrayList(ReadyTensor).init(allocator),
-            .ready = false,
-        };
-
+        var inputs = std.ArrayList(*ReadyTensor).init(allocator);
+        var outputs = std.ArrayList(*ReadyTensor).init(allocator);
         for (nodeProto.input) |input_name| { //for each input tensor in NodeProto
 
-            //creating the ReadyTensor
-            const readyInput = try ReadyTensor.create(input_name, model.graph.?, nodeProto.op_type);
             //adding the readyTensor to the model
-            try ready_node.inputs.append(readyInput);
+            try inputs.append(if (tensorHashMap.getPtr(input_name)) |V_ptr| V_ptr else return error.keyNotAvailable);
+            // std.debug.print("\n   added input {s} to node {s} ", .{ input_name, nodeProto.name.? });
+        }
+        for (nodeProto.output) |output_name| { //for each output tensor
+
+            //adding the readyTensor to the model
+            try outputs.append(if (tensorHashMap.getPtr(output_name)) |V_ptr| V_ptr else return error.keyNotAvailable);
+            // std.debug.print("\n   added output {s} to node {s} ", .{ output_name, nodeProto.name.? });
         }
 
-        for (nodeProto.output) |output_name| { //for each output tensor
-            //creating the ReadyTensor
-            const readyOutput = try ReadyTensor.create(output_name, model.graph.?, nodeProto.op_type);
-            //adding the readyTensor to the model
-            try ready_node.outputs.append(readyOutput);
-        }
-        return ready_node;
+        return ReadyNode{
+            .nodeProto = nodeProto,
+            .inputs = inputs,
+            .outputs = outputs,
+            .ready = false,
+        };
     }
 };
 
 // Writes the computation function for predicting outputs
 pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
 
+    //create the hashMap
+    try createReadyTensorHashMap(model);
+    //DEBUG
+    std.debug.print("\n-------------------------------------------------------------", .{});
+    std.debug.print("\n+                       READY HASHMAP                       +", .{});
+    std.debug.print("\n-------------------------------------------------------------", .{});
+    //DEBUG
+    // utils.printTensorHashMap(tensorHashMap);
+
     //create the ReadyGraph
-    var readyGraph: std.ArrayList(ReadyNode) = try createReadyGraph(model);
-
+    try createReadyGraph(model);
     //DEBUG
-    std.debug.print("\n------------------------------------------------------------", .{});
-    std.debug.print("\n+                READY GRAPH after Creation                +", .{});
-    std.debug.print("\n------------------------------------------------------------", .{});
-    try utils.printNodeList(readyGraph);
-
+    std.debug.print("\n-------------------------------------------------------------", .{});
+    std.debug.print("\n+                        READY GRAPH                        +", .{});
+    std.debug.print("\n-------------------------------------------------------------", .{});
     //DEBUG
-    try utils.printOperations(model.graph.?);
+    // try utils.printNodeList(readyGraph);
 
     try writer.print(
         \\
@@ -102,7 +109,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
         \\ // ---------------------------------------------------
     , .{});
 
-    try writeInitOutputs(writer, &readyGraph);
+    try writeInitOutputs(writer);
 
     _ = try writer.print(
         \\
@@ -111,62 +118,89 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
         \\pub fn predict(comptime T: anytype, tensor_input: Tensor(T)) !void {{
     , .{});
 
-    while (readyGraph.items.len != 0) {
-        try writeComputationGraph(writer, &readyGraph);
-    }
+    try writeComputationGraph(writer);
 
     _ = try writer.print(
         \\
         \\ }}
     , .{});
+
+    std.debug.print("\n#############################################################", .{});
+    std.debug.print("\n+                      EXECUTION ENDED                      +", .{});
+    std.debug.print("\n#############################################################", .{});
+}
+
+// Populates tensorHashMap with the tensors used in the onn graph, where the key is the name of the tensor
+fn createReadyTensorHashMap(model: ModelOnnx) !void {
+    const protoGraph = try if (model.graph) |graph| graph else error.GraphNotAvailable;
+
+    for (protoGraph.nodes) |node| { //for each NodeProto in the GraphProto
+        for (node.input) |input_name| {
+            try addToTensorHashMap(input_name, model.graph.?);
+        }
+        for (node.output) |output_name| {
+            try addToTensorHashMap(output_name, model.graph.?);
+        }
+    }
+}
+
+inline fn addToTensorHashMap(name: []const u8, graph: *GraphProto) !void {
+    if (tensorHashMap.get(name)) |_| {
+        // std.debug.print("\n ----- Tensor {s} already present!! ", .{name});
+        return;
+    } else {
+        //create the readyTensor
+        const readyTensor: ReadyTensor = try ReadyTensor.create(name, graph);
+        //add the readyTensor to the HashMap
+        try tensorHashMap.put(name, readyTensor);
+        // std.debug.print("\n +++++ Tensor {s} added to the hash map ", .{name});
+    }
 }
 
 // Creates a graph representation with all nodes in a ready-to-compute state
-fn createReadyGraph(model: ModelOnnx) !std.ArrayList(ReadyNode) {
+fn createReadyGraph(model: ModelOnnx) !void {
     const graph = try if (model.graph) |graph| graph else error.GraphNotAvailable;
 
-    var readyGraph = std.ArrayList(ReadyNode).init(allocator);
     for (graph.nodes) |node_ptr| { //for each NodeProto in the GraphProto
 
-        const readyNode = try ReadyNode.create(node_ptr, &model);
+        const readyNode = try ReadyNode.create(node_ptr);
         try readyGraph.append(readyNode);
     }
-
-    return readyGraph;
 }
 
 // Processes and writes the computation graph
-inline fn writeComputationGraph(writer: std.fs.File.Writer, readyGraph: *std.ArrayList(ReadyNode)) !void {
+inline fn writeComputationGraph(writer: std.fs.File.Writer) !void {
 
     //Create a list with all the nodes ready for the computation
     //A node is ready for the computation when all its input tensors are ready
-    const computableNodes: std.ArrayList(*ReadyNode) = try utils.getComputableNodes(readyGraph);
 
-    //DEBUG
-    std.debug.print("\n", .{});
-    std.debug.print("\n------------------------------------------------------------", .{});
-    std.debug.print("\n+  COMPUTABLE NODES (aka nodes with all the inputs ready)  +", .{});
-    std.debug.print("\n------------------------------------------------------------", .{});
-    try utils.printComputableNodes(computableNodes);
+    while (true) { //TODO: while(true)==desperation, do something more elegant
 
-    for (computableNodes.items) |node_ptr| {
+        const computableNodes: std.ArrayList(*ReadyNode) = try utils.getComputableNodes(&readyGraph);
+        //DEBUG
+        std.debug.print("\n------------------------------------------------------------", .{});
+        std.debug.print("\n+                  COMPUTABLE NODES  n:{}                  +", .{computableNodes.items.len});
+        std.debug.print("\n------------------------------------------------------------", .{});
+        try utils.printComputableNodes(computableNodes);
 
-        //writing the operation
-        try writeOperation(writer, node_ptr);
+        if (computableNodes.items.len == 0) return;
 
-        //set the output as ready
-        try setOutputsReady(node_ptr, readyGraph);
+        for (computableNodes.items) |node_ptr| {
+
+            //writing the operation
+            try writeOperation(writer, node_ptr);
+
+            //set the output as ready
+            try setOutputsReady(node_ptr);
+        }
     }
-
-    //important step: Delete the computed node from the list
-    try removeCompletedNodes(readyGraph);
 }
 
 // Initializes output tensors in the computation graph
-fn writeInitOutputs(writer: std.fs.File.Writer, readyGraph: *std.ArrayList(ReadyNode)) !void {
+fn writeInitOutputs(writer: std.fs.File.Writer) !void {
     for (readyGraph.items) |node_ptr| {
         //writing the outputs, OSS: two nodes shpuld never have the same output, so we don't need to check for duplicates
-        for (node_ptr.outputs.items) |*output| {
+        for (node_ptr.outputs.items) |output| {
             try writeOutputShape(
                 writer,
                 output,
@@ -180,22 +214,23 @@ fn writeInitOutputs(writer: std.fs.File.Writer, readyGraph: *std.ArrayList(Ready
 }
 
 fn writeOutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !void {
+    const shape = output.shape;
     try writer.print(
         \\
         \\
         \\const shape_tensor_{s} : [{}]usize = [_]usize{{
     , .{
         try utils.getSanitizedName(output.name),
-        output.shape.len,
+        shape.len,
     });
 
     try writer.print(
         \\{}
-    , .{output.shape[0]});
-    for (1..output.shape.len) |i| {
+    , .{shape[0]});
+    for (1..shape.len) |i| {
         try writer.print(
             \\, {}
-        , .{output.shape[i]});
+        , .{shape[i]});
     }
 
     try writer.print(
@@ -218,7 +253,7 @@ fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
         \\    //forwarding operation : {s}
         \\    //parameters:
         \\    //   inputs: 
-    , .{readyNode.nodeProto.op_type});
+    , .{readyNode.*.nodeProto.*.op_type});
 
     //write the inputs
     for (readyNode.inputs.items) |input| {
@@ -244,31 +279,12 @@ fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
 }
 
 // Marks output tensors as ready for computation in all the graph
-fn setOutputsReady(completedNode: *ReadyNode, readyGraph: *std.ArrayList(ReadyNode)) !void {
-    for (completedNode.outputs.items) |*ready_output_tensor| { //for each output tensor of the completed node
-        ready_output_tensor.ready = true;
-        for (readyGraph.items) |ready_node| { //for each node of the graph
-            for (ready_node.inputs.items) |*input| { //for each Tensor of the ready_node's inputs
-                if (std.mem.eql(u8, input.name, ready_output_tensor.name)) {
-                    input.ready = true;
-                }
-            }
-        }
-    }
-}
-
-// Removes nodes from the computation graph once they have been processed
-fn removeCompletedNodes(readyGraph: *std.ArrayList(ReadyNode)) !void {
-    var i: usize = 0;
-    while (i < readyGraph.items.len) {
-        if (try utils.isComputed(&readyGraph.items[i])) {
-            // remove the node
-            std.debug.print("\nremoving node: {s}", .{readyGraph.items[i].nodeProto.name.?});
-
-            _ = readyGraph.swapRemove(i);
-            // Do not increment i because swapRemove swaps the element, and we need to check the new element at index i.
-        } else {
-            i += 1; // Only increment i if we don't remove the node
-        }
+fn setOutputsReady(completedNode: *ReadyNode) !void {
+    std.debug.print("\n -----> set {s} outputs to ready", .{completedNode.nodeProto.name.?});
+    completedNode.ready = true;
+    for (completedNode.outputs.items) |ready_output_tensor| { //for each output tensor of the completed node
+        var mutablePtr: *ReadyTensor = if (tensorHashMap.getPtr(ready_output_tensor.name)) |V_ptr| V_ptr else return error.keyNotAvailable;
+        mutablePtr.ready = true;
+        std.debug.print("\n    {s} --> ready", .{mutablePtr.name});
     }
 }

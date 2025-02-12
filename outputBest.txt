@@ -1,0 +1,205 @@
+
+ .......... file created, path:src/codeGen/firstTry.zig
+-------------------------------------------------------------
++                       READY HASHMAP                       +
+-------------------------------------------------------------
+-------------------------------------------------------------
++                        READY GRAPH                        +
+-------------------------------------------------------------
+ getComputableNodes()
+    --- Constant_9 is computable
+    --- Constant_28 is computable
+    --- Constant_54 is computable
+    --- Constant_80 is computable
+    --- /model.10/Constant is computable
+    --- /model.13/Constant is computable
+    --- Constant_126 is computable
+    --- /model.22/Constant is computable
+    --- /model.22/Constant_1 is computable
+    --- /model.22/Constant_2 is computable
+    --- Constant_226 is computable
+    --- /model.22/dfl/Constant is computable
+    --- /model.22/dfl/Constant_1 is computable
+    --- /model.22/Constant_3 is computable
+    --- /model.22/Constant_4 is computable
+    --- /model.22/Constant_5 is computable
+    --- /model.22/Constant_6 is computable
+    --- /model.22/Constant_7 is computable
+    --- /model.22/Constant_8 is computable
+    --- /model.22/Constant_9 is computable
+    --- /model.22/Constant_10 is computable
+    --- /model.22/Constant_11 is computable
+    --- /model.22/Constant_12 is computable
+
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:23                  +
+------------------------------------------------------------
+ ----- node: Constant_9
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> onnx::Split_137 
+ ----- node: Constant_28
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> onnx::Split_157 
+ ----- node: Constant_54
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> onnx::Split_184 
+ ----- node: Constant_80
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> onnx::Split_211 
+ ----- node: /model.10/Constant
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.10/Constant_output_0 
+ ----- node: /model.13/Constant
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.13/Constant_output_0 
+ ----- node: Constant_126
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> onnx::Split_265 
+ ----- node: /model.22/Constant
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_output_0 
+ ----- node: /model.22/Constant_1
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_1_output_0 
+ ----- node: /model.22/Constant_2
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_2_output_0 
+ ----- node: Constant_226
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> onnx::Split_389 
+ ----- node: /model.22/dfl/Constant
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/dfl/Constant_output_0 
+ ----- node: /model.22/dfl/Constant_1
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/dfl/Constant_1_output_0 
+ ----- node: /model.22/Constant_3
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_3_output_0 
+ ----- node: /model.22/Constant_4
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_4_output_0 
+ ----- node: /model.22/Constant_5
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_5_output_0 
+ ----- node: /model.22/Constant_6
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_6_output_0 
+ ----- node: /model.22/Constant_7
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_7_output_0 
+ ----- node: /model.22/Constant_8
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_8_output_0 
+ ----- node: /model.22/Constant_9
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_9_output_0 
+ ----- node: /model.22/Constant_10
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_10_output_0 
+ ----- node: /model.22/Constant_11
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_11_output_0 
+ ----- node: /model.22/Constant_12
+          op_type: Constant
+          inputs: 0
+          outputs:
+              -> /model.22/Constant_12_output_0 
+ -----> set Constant_9 outputs to ready
+    onnx::Split_137 --> ready
+ -----> set Constant_28 outputs to ready
+    onnx::Split_157 --> ready
+ -----> set Constant_54 outputs to ready
+    onnx::Split_184 --> ready
+ -----> set Constant_80 outputs to ready
+    onnx::Split_211 --> ready
+ -----> set /model.10/Constant outputs to ready
+    /model.10/Constant_output_0 --> ready
+ -----> set /model.13/Constant outputs to ready
+    /model.13/Constant_output_0 --> ready
+ -----> set Constant_126 outputs to ready
+    onnx::Split_265 --> ready
+ -----> set /model.22/Constant outputs to ready
+    /model.22/Constant_output_0 --> ready
+ -----> set /model.22/Constant_1 outputs to ready
+    /model.22/Constant_1_output_0 --> ready
+ -----> set /model.22/Constant_2 outputs to ready
+    /model.22/Constant_2_output_0 --> ready
+ -----> set Constant_226 outputs to ready
+    onnx::Split_389 --> ready
+ -----> set /model.22/dfl/Constant outputs to ready
+    /model.22/dfl/Constant_output_0 --> ready
+ -----> set /model.22/dfl/Constant_1 outputs to ready
+    /model.22/dfl/Constant_1_output_0 --> ready
+ -----> set /model.22/Constant_3 outputs to ready
+    /model.22/Constant_3_output_0 --> ready
+ -----> set /model.22/Constant_4 outputs to ready
+    /model.22/Constant_4_output_0 --> ready
+ -----> set /model.22/Constant_5 outputs to ready
+    /model.22/Constant_5_output_0 --> ready
+ -----> set /model.22/Constant_6 outputs to ready
+    /model.22/Constant_6_output_0 --> ready
+ -----> set /model.22/Constant_7 outputs to ready
+    /model.22/Constant_7_output_0 --> ready
+ -----> set /model.22/Constant_8 outputs to ready
+    /model.22/Constant_8_output_0 --> ready
+ -----> set /model.22/Constant_9 outputs to ready
+    /model.22/Constant_9_output_0 --> ready
+ -----> set /model.22/Constant_10 outputs to ready
+    /model.22/Constant_10_output_0 --> ready
+ -----> set /model.22/Constant_11 outputs to ready
+    /model.22/Constant_11_output_0 --> ready
+ -----> set /model.22/Constant_12 outputs to ready
+    /model.22/Constant_12_output_0 --> ready
+ getComputableNodes()
+
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:0                  +
+------------------------------------------------------------
+#############################################################
++                      EXECUTION ENDED                      +
+#############################################################
