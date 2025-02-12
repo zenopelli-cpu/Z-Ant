@@ -57,48 +57,61 @@ pub inline fn dot_product_tensor(comptime inputType: type, comptime outputType: 
     @memset(out_tensor.data, 0);
 
     const Vec = @Vector(DEFAULT_VECTOR_WIDTH, inputType);
-    const HigherVec = @Vector(DEFAULT_VECTOR_WIDTH, outputType);
+    const VecOut = @Vector(DEFAULT_VECTOR_WIDTH, outputType);
 
+    // Get pointers for faster access
+    const t1_ptr = t1.data.ptr;
+    const t2_ptr = t2.data.ptr;
+    const out_ptr = out_tensor.data.ptr;
+
+    // Main matrix multiplication loop with SIMD
     var i: usize = 0;
     while (i < M) : (i += 1) {
+        const row_offset = i * K;
+        const out_offset = i * N;
+
         var j: usize = 0;
         while (j + DEFAULT_VECTOR_WIDTH <= N) : (j += DEFAULT_VECTOR_WIDTH) {
-            var sum_vec: HigherVec = @splat(0);
+            var sum_vec: VecOut = @splat(0);
+            const out_idx = out_offset + j;
+
+            // Inner product with SIMD
             var k: usize = 0;
             while (k < K) : (k += 1) {
-                const a = t1.data[i * K + k];
+                const a_val = t1_ptr[row_offset + k];
+                const b_offset = k * N + j;
+
+                // Load B values directly into vector
                 var b_vec: Vec = undefined;
                 comptime var v: usize = 0;
                 inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
-                    b_vec[v] = t2.data[k * N + j + v];
+                    b_vec[v] = t2_ptr[b_offset + v];
                 }
 
-                const a_vec: Vec = @splat(a);
-                var higher_a: HigherVec = undefined;
-                var higher_b: HigherVec = undefined;
-                inline for (0..DEFAULT_VECTOR_WIDTH) |vec_idx| {
-                    higher_a[vec_idx] = @as(outputType, a_vec[vec_idx]);
-                    higher_b[vec_idx] = @as(outputType, b_vec[vec_idx]);
-                }
-                sum_vec += higher_a * higher_b;
+                // Convert and multiply
+                const a_vec: VecOut = @splat(@as(outputType, a_val));
+                const b_vec_out: VecOut = @as(VecOut, b_vec);
+                sum_vec += a_vec * b_vec_out;
             }
 
-            // Store results
-            inline for (0..DEFAULT_VECTOR_WIDTH) |vec_idx| {
-                out_tensor.data[i * N + j + vec_idx] = sum_vec[vec_idx];
+            // Store result
+            comptime var v: usize = 0;
+            inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
+                out_ptr[out_idx + v] = sum_vec[v];
             }
         }
 
         // Handle remaining columns
         while (j < N) : (j += 1) {
             var sum: outputType = 0;
+            const out_idx = out_offset + j;
+
             var k: usize = 0;
             while (k < K) : (k += 1) {
-                const a = t1.data[i * K + k];
-                const b = t2.data[k * N + j];
-                sum += @as(outputType, a) * @as(outputType, b);
+                sum += @as(outputType, t1_ptr[row_offset + k]) *
+                    @as(outputType, t2_ptr[k * N + j]);
             }
-            out_tensor.data[i * N + j] = sum;
+            out_ptr[out_idx] = sum;
         }
     }
 
