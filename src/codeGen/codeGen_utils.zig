@@ -3,6 +3,7 @@ const DataType = @import("onnx").DataType;
 const TensorProto = @import("onnx").TensorProto;
 const allocator = @import("pkgAllocator").allocator;
 const ReadyNode = @import("codeGen_predict.zig").ReadyNode;
+const ReadyTensor = @import("codeGen_predict.zig").ReadyTensor;
 const GraphProto = @import("onnx").GraphProto;
 
 //Given an element from DataType Enum in onnx.zig returns the equivalent zig type
@@ -103,26 +104,31 @@ pub inline fn getSanitizedName(name: []const u8) ![]const u8 {
 
 //Returns a List of Ready nodes where all the input Tensor are set as ready
 pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.ArrayList(*ReadyNode) {
+    std.debug.print("\n\n getComputableNodes()", .{});
+
     var set: std.ArrayList(*ReadyNode) = std.ArrayList(*ReadyNode).init(allocator);
     var ready_input_counter: i8 = 0;
-    var ready_output_counter: i8 = 0;
 
     for (readyGraph.items) |*node| {
-        for (node.inputs.items) |input| {
-            if (!input.ready) break else ready_input_counter += 1;
+        if (!node.ready) {
+            for (node.inputs.items) |input| {
+                if (input.ready) ready_input_counter += 1;
+            }
+            for (node.outputs.items) |output| {
+                if (output.ready) return error.OutputReadyTooEarly;
+            }
+            if (ready_input_counter == node.inputs.items.len) {
+                try set.append(node);
+                std.debug.print("\n    --- {s} is computable", .{node.nodeProto.name.?});
+            }
+            ready_input_counter = 0;
         }
-        for (node.outputs.items) |output| {
-            if (output.ready) return error.OutputReadyTooEarly else ready_output_counter += 1;
-        }
-        if (ready_input_counter == node.inputs.items.len and ready_output_counter == node.outputs.items.len) try set.append(node);
-        ready_input_counter = 0;
-        ready_output_counter = 0;
     }
 
     return set;
 }
 
-//returns true if all the inputs and all the poutputs of a node are set as ready
+//returns true if all the inputs and all the outputs of a node are set as ready
 pub inline fn isComputed(readyNode: *ReadyNode) !bool {
     for (readyNode.inputs.items) |input| {
         if (!input.ready) return false;
@@ -156,11 +162,13 @@ pub fn getInitializer(name: []const u8, initializers: []*TensorProto) !*TensorPr
 pub fn printNodeList(graph: std.ArrayList(ReadyNode)) !void {
     for (graph.items) |node| {
         std.debug.print("\n ----- node: {s}", .{node.nodeProto.name.?});
+
         std.debug.print("\n          inputs: ", .{});
         // Write the inputs
         for (node.inputs.items) |input| {
             std.debug.print("\n              ->{s} {s}", .{ input.name, if (input.ready) "--->ready" else "" });
         }
+
         std.debug.print("\n          outputs:", .{});
         // Write the outputs
         for (node.outputs.items) |output| {
@@ -175,15 +183,15 @@ pub fn printComputableNodes(computableNodes: std.ArrayList(*ReadyNode)) !void {
     for (computableNodes.items) |node| {
         std.debug.print("\n ----- node: {s}", .{node.nodeProto.name.?});
         std.debug.print("\n          op_type: {s}", .{node.nodeProto.op_type});
-        std.debug.print("\n          inputs: ", .{});
+        std.debug.print("\n          inputs: {}", .{node.inputs.items.len});
         // Write the inputs
         for (node.inputs.items) |input| {
-            std.debug.print("\n              -> {s} {s}", .{ input.name, if (input.ready) "--->ready" else "" });
+            std.debug.print("\n              -> {s} {s}", .{ input.name, if (input.ready) "--->ready" else return error.ShouldBeReady });
         }
         std.debug.print("\n          outputs:", .{});
         // Write the outputs
         for (node.outputs.items) |output| {
-            std.debug.print("\n              -> {s} {s}", .{ output.name, if (output.ready) "--->ready" else "" });
+            std.debug.print("\n              -> {s} {s}", .{ output.name, if (output.ready) return error.OutputReadyTooEarly else "" });
         }
     }
 }
@@ -209,4 +217,16 @@ pub fn printOperations(graph: *GraphProto) !void {
     }
 
     std.debug.print("\n-------------------------------------------------\n", .{});
+}
+
+// Function to print all entries in the tensorHashMap
+pub fn printTensorHashMap(map: std.StringHashMap(ReadyTensor)) void {
+    var it = map.iterator();
+    while (it.next()) |entry| {
+        const key = entry.key_ptr.*;
+        const tensor = entry.value_ptr.*;
+        std.debug.print("\nTensor Name: {s}", .{key});
+        std.debug.print("\n     Ready: {}", .{tensor.ready});
+        std.debug.print("\n     Shape: [{any}]", .{tensor.shape});
+    }
 }
