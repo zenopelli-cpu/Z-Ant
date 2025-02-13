@@ -46,7 +46,7 @@ pub fn Tensor(comptime T: type) type {
         ///Given a multidimensional array with its shape, returns the equivalent Tensor.
         /// It sobstitute init(), but defer yourTensor.deinit() is still necessary.
         pub fn fromArray(allocator: *const std.mem.Allocator, inputArray: anytype, shape: []usize) !@This() {
-            const adjusted_shape = try ensure_4D_shape(&shape);
+            const adjusted_shape = try ensure_4D_shape(shape);
 
             // Calculate total size based on shape
             var total_size: usize = 1;
@@ -92,7 +92,7 @@ pub fn Tensor(comptime T: type) type {
         /// Return a all-zero tensor starting from the given shape
         /// It sobstitute init(), but defer yourTensor.deinit() is still necessary.
         pub fn fromShape(allocator: *const std.mem.Allocator, shape: []usize) !@This() {
-            const adjusted_shape = try ensure_4D_shape(&shape);
+            const adjusted_shape = try ensure_4D_shape(shape);
 
             var total_size: usize = 1;
             for (adjusted_shape) |dim| {
@@ -115,7 +115,7 @@ pub fn Tensor(comptime T: type) type {
 
         /// Given any array and its shape it reshape the tensor and update .data
         pub fn fill(self: *@This(), inputArray: anytype, shape: []usize) !void {
-            const adjusted_shape = try ensure_4D_shape(&shape);
+            const adjusted_shape = try ensure_4D_shape(shape);
 
             //deinitialize data e shape
             self.deinit(); //if the Tensor has been just init() this function does nothing
