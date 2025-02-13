@@ -199,16 +199,26 @@ inline fn writeComputationGraph(writer: std.fs.File.Writer) !void {
 // Initializes output tensors in the computation graph
 fn writeInitOutputs(writer: std.fs.File.Writer) !void {
     for (readyGraph.items) |node_ptr| {
-        //writing the outputs, OSS: two nodes shpuld never have the same output, so we don't need to check for duplicates
+        //writing the outputs, OSS: two nodes shpuld never have the same output by definition, so we don't need to check for duplicates
         for (node_ptr.outputs.items) |output| {
-            try writeOutputShape(
-                writer,
-                output,
-            );
-            try writeOutputTensor(
-                writer,
-                output.name,
-            );
+            if (std.mem.eql(u8, node_ptr.nodeProto.op_type, "Constant") and node_ptr.inputs.items.len == 0) { //A node is constant if it only has one output and no inputs
+                if (node_ptr.outputs.items.len > 1) return error.MultipleOutputConstant else {
+                    try writeConstant(writer, &node_ptr);
+                    //set the node and tensor to Ready
+                    var mutableNode: *ReadyNode = @constCast(&node_ptr);
+                    mutableNode.ready = true;
+                    mutableNode.ready = true;
+                }
+            } else {
+                try writeOutputShape(
+                    writer,
+                    output,
+                );
+                try writeOutputTensor(
+                    writer,
+                    output.name,
+                );
+            }
         }
     }
 }
@@ -224,12 +234,10 @@ fn writeOutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !void {
         shape.len,
     });
 
-    try writer.print(
-        \\{}
-    , .{shape[0]});
-    for (1..shape.len) |i| {
+    for (0..shape.len) |i| {
+        if (i > 0) try writer.print(",", .{});
         try writer.print(
-            \\, {}
+            \\ {}
         , .{shape[i]});
     }
 
@@ -244,6 +252,36 @@ fn writeOutputTensor(writer: std.fs.File.Writer, name: []const u8) !void {
         \\
         \\const tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s});
     , .{ sanitized_name, "f32", sanitized_name });
+}
+
+// TODO: complete this function
+fn writeConstant(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void {
+    try writer.print(
+        \\
+        \\ // ---- CONSTANT TENSOR ----
+    , .{});
+
+    _ = readyNode;
+    // Writing the shape
+    // try writer.print(
+    //     \\
+    //     \\
+    //     \\const shape_tensor_{s} : [{}]usize = [_]usize{{
+    // , .{
+    //     try utils.getSanitizedName(output.name),
+    //     shape.len,
+    // });
+
+    // for (0..shape.len) |i| {
+    //     if (i > 0) try writer.print(",", .{shape[i]});
+    //     try writer.print(
+    //         \\ {}
+    //     , .{shape[i]});
+    // }
+
+    // try writer.print(
+    //     \\}} ;
+    // , .{});
 }
 
 fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
