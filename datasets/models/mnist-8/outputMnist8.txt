@@ -1,0 +1,187 @@
+
+ .......... file created, path:src/codeGen/firstTry.zig
+-------------------------------------------------------------
++                       READY HASHMAP                       +
+-------------------------------------------------------------
+-------------------------------------------------------------
++                        READY GRAPH                        +
+-------------------------------------------------------------
+
+ getComputableNodes()
+    --- Times212_reshape1 is computable
+    --- Convolution28 is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:2                  +
+------------------------------------------------------------
+ ----- node: Times212_reshape1
+          op_type: Reshape
+          inputs: 2
+              -> Parameter193 --->ready
+              -> Parameter193_reshape1_shape --->ready
+          outputs:
+              -> Parameter193_reshape1 
+ ----- node: Convolution28
+          op_type: Conv
+          inputs: 2
+              -> input --->ready
+              -> Parameter5 --->ready
+          outputs:
+              -> Convolution28_Output_0 
+ -----> set Times212_reshape1 outputs to ready
+    Parameter193_reshape1 --> ready
+ -----> set Convolution28 outputs to ready
+    Convolution28_Output_0 --> ready
+
+ getComputableNodes()
+    --- Plus30 is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: Plus30
+          op_type: Add
+          inputs: 2
+              -> Convolution28_Output_0 --->ready
+              -> Parameter6 --->ready
+          outputs:
+              -> Plus30_Output_0 
+ -----> set Plus30 outputs to ready
+    Plus30_Output_0 --> ready
+
+ getComputableNodes()
+    --- ReLU32 is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: ReLU32
+          op_type: Relu
+          inputs: 1
+              -> Plus30_Output_0 --->ready
+          outputs:
+              -> ReLU32_Output_0 
+ -----> set ReLU32 outputs to ready
+    ReLU32_Output_0 --> ready
+
+ getComputableNodes()
+    --- Pooling66 is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: Pooling66
+          op_type: MaxPool
+          inputs: 1
+              -> ReLU32_Output_0 --->ready
+          outputs:
+              -> Pooling66_Output_0 
+ -----> set Pooling66 outputs to ready
+    Pooling66_Output_0 --> ready
+
+ getComputableNodes()
+    --- Convolution110 is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: Convolution110
+          op_type: Conv
+          inputs: 2
+              -> Pooling66_Output_0 --->ready
+              -> Parameter87 --->ready
+          outputs:
+              -> Convolution110_Output_0 
+ -----> set Convolution110 outputs to ready
+    Convolution110_Output_0 --> ready
+
+ getComputableNodes()
+    --- Plus112 is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: Plus112
+          op_type: Add
+          inputs: 2
+              -> Convolution110_Output_0 --->ready
+              -> Parameter88 --->ready
+          outputs:
+              -> Plus112_Output_0 
+ -----> set Plus112 outputs to ready
+    Plus112_Output_0 --> ready
+
+ getComputableNodes()
+    --- ReLU114 is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: ReLU114
+          op_type: Relu
+          inputs: 1
+              -> Plus112_Output_0 --->ready
+          outputs:
+              -> ReLU114_Output_0 
+ -----> set ReLU114 outputs to ready
+    ReLU114_Output_0 --> ready
+
+ getComputableNodes()
+    --- Pooling160 is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: Pooling160
+          op_type: MaxPool
+          inputs: 1
+              -> ReLU114_Output_0 --->ready
+          outputs:
+              -> Pooling160_Output_0 
+ -----> set Pooling160 outputs to ready
+    Pooling160_Output_0 --> ready
+
+ getComputableNodes()
+    --- Times212_reshape0 is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: Times212_reshape0
+          op_type: Reshape
+          inputs: 2
+              -> Pooling160_Output_0 --->ready
+              -> Pooling160_Output_0_reshape0_shape --->ready
+          outputs:
+              -> Pooling160_Output_0_reshape0 
+ -----> set Times212_reshape0 outputs to ready
+    Pooling160_Output_0_reshape0 --> ready
+
+ getComputableNodes()
+    --- Times212 is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: Times212
+          op_type: MatMul
+          inputs: 2
+              -> Pooling160_Output_0_reshape0 --->ready
+              -> Parameter193_reshape1 --->ready
+          outputs:
+              -> Times212_Output_0 
+ -----> set Times212 outputs to ready
+    Times212_Output_0 --> ready
+
+ getComputableNodes()
+    --- Plus214 is computable
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ----- node: Plus214
+          op_type: Add
+          inputs: 2
+              -> Times212_Output_0 --->ready
+              -> Parameter194 --->ready
+          outputs:
+              -> Plus214_Output_0 
+ -----> set Plus214 outputs to ready
+    Plus214_Output_0 --> ready
+
+ getComputableNodes()
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:0                  +
+------------------------------------------------------------
+#############################################################
++                      EXECUTION ENDED                      +
+#############################################################

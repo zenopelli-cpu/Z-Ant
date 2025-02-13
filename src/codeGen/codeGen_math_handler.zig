@@ -20,6 +20,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try writer.writeAll("// Handle BatchNormalization\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Concat")) {
         try writer.writeAll("// Handle Concat\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Constant")) {
+        try writer.writeAll("// Handle Constant\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Conv")) {
         try writer.writeAll("// Handle Conv\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Div")) {
@@ -46,6 +48,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_Reshape(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Resize")) {
         try writer.writeAll("// Handle Resize\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Softmax")) {
+        try writer.writeAll("// Handle Softmax\n");
     } else {
         return error.OperationNotSupported;
     }
