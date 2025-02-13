@@ -5,6 +5,7 @@ const DataType = @import("onnx").DataType;
 const TensorProto = @import("onnx").TensorProto;
 const NodeProto = @import("onnx").NodeProto;
 const GraphProto = @import("onnx").GraphProto;
+const AttributeProto = @import("onnx").AttributeProto;
 const allocator = @import("pkgAllocator").allocator;
 
 const codeGenInitializers = @import("codeGen_initializers.zig");
@@ -261,27 +262,91 @@ fn writeConstant(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void 
         \\ // ---- CONSTANT TENSOR ----
     , .{});
 
-    _ = readyNode;
-    // Writing the shape
-    // try writer.print(
-    //     \\
-    //     \\
-    //     \\const shape_tensor_{s} : [{}]usize = [_]usize{{
-    // , .{
-    //     try utils.getSanitizedName(output.name),
-    //     shape.len,
-    // });
+    // Get the output tensor (constant nodes have exactly one output)
+    const output = readyNode.outputs.items[0];
+    const sanitized_name = try utils.getSanitizedName(output.name);
 
-    // for (0..shape.len) |i| {
-    //     if (i > 0) try writer.print(",", .{shape[i]});
-    //     try writer.print(
-    //         \\ {}
-    //     , .{shape[i]});
-    // }
+    // Find the value attribute which contains the constant tensor
+    var value_attr: ?*AttributeProto = null;
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "value")) {
+            value_attr = attr;
+            break;
+        }
+    }
 
-    // try writer.print(
-    //     \\}} ;
-    // , .{});
+    if (value_attr == null or value_attr.?.t == null) return error.MissingConstantValue;
+    const tensor = value_attr.?.t.?;
+
+    // Write shape array
+    try writer.print(
+        \\
+        \\const shape_tensor_{s} : [{}]usize = [_]usize{{
+    , .{ sanitized_name, output.shape.len });
+
+    for (0..output.shape.len) |i| {
+        if (i > 0) try writer.print(",", .{});
+        try writer.print(
+            \\ {}
+        , .{output.shape[i]});
+    }
+
+    try writer.print(
+        \\}} ;
+    , .{});
+
+    // Write data array
+    var total_size: i64 = 1;
+    for (tensor.dims) |dim| {
+        total_size *= dim;
+    }
+
+    const dataTypeString = try utils.getTypeString(tensor.data_type);
+    try writer.print(
+        \\
+        \\const array_{s} : [{d}]{s} = [_]{s}{{
+    , .{ sanitized_name, total_size, dataTypeString, dataTypeString });
+
+    // Write the actual data values
+    if (tensor.float_data) |data| {
+        for (0..data.len) |i| {
+            if (i > 0) try writer.print(",", .{});
+            try writer.print(" {d}", .{data[i]});
+        }
+    } else if (tensor.int64_data) |data| {
+        for (0..data.len) |i| {
+            if (i > 0) try writer.print(",", .{});
+            try writer.print(" {d}", .{data[i]});
+        }
+    } else if (tensor.raw_data) |data| {
+        switch (tensor.data_type) {
+            .FLOAT => {
+                const float_data = @as([*]const f32, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 4)];
+                for (0..float_data.len) |i| {
+                    if (i > 0) try writer.print(",", .{});
+                    try writer.print(" {d}", .{float_data[i]});
+                }
+            },
+            .INT64 => {
+                const int_data = @as([*]const i64, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 8)];
+                for (0..int_data.len) |i| {
+                    if (i > 0) try writer.print(",", .{});
+                    try writer.print(" {d}", .{int_data[i]});
+                }
+            },
+            else => return error.UnsupportedDataType,
+        }
+    } else return error.NoDataAvailable;
+
+    try writer.print(
+        \\ }};
+    , .{});
+
+    // Write tensor initialization using fromArray
+    try writer.print(
+        \\
+        \\const tensor_{s} = Tensor({s}).fromArray(&allocator, &array_{s}, &shape_tensor_{s});
+    , .{ sanitized_name, dataTypeString, sanitized_name, sanitized_name });
 }
 
 fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
