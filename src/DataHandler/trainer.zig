@@ -438,6 +438,8 @@ pub fn trainTensors(
         try optimizer.step(model);
     }
 
+    predictions.?.deinit();
+
     std.debug.print("\n>>>>>>>>>>>> loss record:{any}", .{LossMeanRecord});
 }
 

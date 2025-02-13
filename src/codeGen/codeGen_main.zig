@@ -7,10 +7,10 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var model1 = try onnx.parseFromFile(allocator, "datasets/models/mnist-8/mnist-8.onnx");
+    var model1 = try onnx.parseFromFile(allocator, "datasets/models/mnist-1/mnist-1.onnx");
     defer model1.deinit(allocator);
 
-    //onnx.printStructure(&model1);
+    // onnx.printStructure(&model1);
 
     const file_path = "src/codeGen/firstTry.zig";
     var file = try std.fs.cwd().createFile(file_path, .{});
