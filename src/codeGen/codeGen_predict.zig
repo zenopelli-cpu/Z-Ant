@@ -184,7 +184,7 @@ inline fn writeComputationGraph(writer: std.fs.File.Writer) !void {
             std.debug.print("Node {s} (op: {s}): {s}\n", .{
                 node.nodeProto.name orelse "unnamed",
                 node.nodeProto.op_type,
-                if (node.ready) "COMPLETED" else if (areAllInputsReady(node)) "READY" else "WAITING",
+                if (node.ready) "COMPLETED" else if (utils.areAllInputsReady(node)) "READY" else "WAITING",
             });
             // Print input tensor status
             for (node.inputs.items) |input| {
@@ -209,13 +209,6 @@ inline fn writeComputationGraph(writer: std.fs.File.Writer) !void {
         }
         iteration += 1;
     }
-}
-
-fn areAllInputsReady(node: *ReadyNode) bool {
-    for (node.inputs.items) |input| {
-        if (!input.ready) return false;
-    }
-    return true;
 }
 
 // Initializes output tensors in the computation graph
@@ -276,7 +269,6 @@ fn writeOutputTensor(writer: std.fs.File.Writer, name: []const u8) !void {
     , .{ sanitized_name, "f32", sanitized_name });
 }
 
-// TODO: complete this function
 fn writeConstant(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void {
     try writer.print(
         \\

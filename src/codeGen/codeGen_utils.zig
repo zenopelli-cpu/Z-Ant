@@ -128,6 +128,14 @@ pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.Arr
     return set;
 }
 
+// returns true if all the inputs are ready
+pub inline fn areAllInputsReady(node: *ReadyNode) bool {
+    for (node.inputs.items) |input| {
+        if (!input.ready) return false;
+    }
+    return true;
+}
+
 //returns true if all the inputs and all the outputs of a node are set as ready
 pub inline fn isComputed(readyNode: *ReadyNode) !bool {
     for (readyNode.inputs.items) |input| {
