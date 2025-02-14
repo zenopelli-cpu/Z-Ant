@@ -38,6 +38,10 @@ pub const ReadyTensor = struct {
             .name = "input",
             .ready = true,
             .shape = &[_]i64{ 1, 1, 1, 1 }, //TODO: given the operation type (op_type) and the shape of the input return the shape of the output
+        } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "images")) |_| return ReadyTensor{ // Check if tensor is images
+            .name = name,
+            .ready = true,
+            .shape = &[_]i64{ 1, 1, 1, 1 }, //TODO: given the operation type (op_type) and the shape of the input return the shape of the output
         } else return ReadyTensor{
             .name = name,
             .ready = false,
@@ -171,11 +175,22 @@ fn createReadyGraph(model: ModelOnnx) !void {
 
 // Processes and writes the computation graph
 inline fn writeComputationGraph(writer: std.fs.File.Writer) !void {
+    var iteration: usize = 0;
 
-    //Create a list with all the nodes ready for the computation
-    //A node is ready for the computation when all its input tensors are ready
-
-    while (true) { //TODO: while(true)==desperation, do something more elegant
+    while (true) {
+        std.debug.print("\n\n=== Iteration {} ===\n", .{iteration});
+        // Print status of all nodes
+        for (readyGraph.items) |*node| {
+            std.debug.print("Node {s} (op: {s}): {s}\n", .{
+                node.nodeProto.name orelse "unnamed",
+                node.nodeProto.op_type,
+                if (node.ready) "COMPLETED" else if (areAllInputsReady(node)) "READY" else "WAITING",
+            });
+            // Print input tensor status
+            for (node.inputs.items) |input| {
+                std.debug.print("  Input {s}: {s}\n", .{ input.name, if (input.ready) "ready" else "not ready" });
+            }
+        }
 
         const computableNodes: std.ArrayList(*ReadyNode) = try utils.getComputableNodes(&readyGraph);
         //DEBUG
@@ -187,14 +202,20 @@ inline fn writeComputationGraph(writer: std.fs.File.Writer) !void {
         if (computableNodes.items.len == 0) return;
 
         for (computableNodes.items) |node_ptr| {
-
             //writing the operation
             try writeOperation(writer, node_ptr);
-
             //set the output as ready
             try setOutputsReady(node_ptr);
         }
+        iteration += 1;
     }
+}
+
+fn areAllInputsReady(node: *ReadyNode) bool {
+    for (node.inputs.items) |input| {
+        if (!input.ready) return false;
+    }
+    return true;
 }
 
 // Initializes output tensors in the computation graph
