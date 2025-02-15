@@ -105,7 +105,8 @@ pub inline fn getSanitizedName(name: []const u8) ![]const u8 {
     return sanitized;
 }
 
-//Returns a List of Ready nodes where all the input Tensor are set as ready
+/// Returns a List of Ready nodes
+/// A node is considered "computable" if all the node's input Tensors are set as ready
 pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.ArrayList(*ReadyNode) {
     std.debug.print("\n\n getComputableNodes()", .{});
 
@@ -133,9 +134,9 @@ pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.Arr
 
 pub inline fn getConstantTensorDims(nodeProto: *NodeProto) ![]const i64 {
     //check the node is a Constant
-    if (nodeProto.std.mem.indexOf(u8, try getSanitizedName(nodeProto.op_type), "constant")) |_| {} else return error.NodeNotConstant;
+    if (std.mem.indexOf(u8, try getSanitizedName(nodeProto.op_type), "constant")) |_| {} else return error.NodeNotConstant;
 
-    return if (nodeProto.attribute.t) |tensorProto| tensorProto.dims else error.ConstantTensorAttributeNotAvailable;
+    return if (nodeProto.attribute[0].t) |tensorProto| tensorProto.dims else error.ConstantTensorAttributeNotAvailable;
 }
 
 // -------------------- SETTERS --------------------

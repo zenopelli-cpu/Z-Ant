@@ -5,14 +5,15 @@ const ModelOnnx = @import("onnx").ModelProto;
 const DataType = @import("onnx").DataType;
 const allocator = @import("pkgAllocator").allocator;
 
-// --- proto lib
+// --- proto libs
 const TensorProto = @import("onnx").TensorProto;
 const NodeProto = @import("onnx").NodeProto;
 const GraphProto = @import("onnx").GraphProto;
 
-// --- ready lib
+// --- codeGen libs
 const ReadyNode = @import("codeGen_predict.zig").ReadyNode;
 const ReadyTensor = @import("codeGen_predict.zig").ReadyTensor;
+const utils = @import("codeGen_utils.zig");
 
 /// This method map and write the ONNX operations with the Zant LeanTensorMath mathods
 /// Follow the link for details: https://onnx.ai/onnx/operators/?utm_source=chatgpt.com
@@ -80,6 +81,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         // try writer.writeAll("// Handle Shape Concat\n");
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Constant")) {
         // try writer.writeAll("// Handle Shape Constant\n");
+        try compute_constant_output(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Conv")) {
         // try writer.writeAll("// Handle Shape Conv\n");
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Div")) {
@@ -126,4 +128,10 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         std.debug.print("\n\n ERROR! output shape computation for {s} is not available in codeGen_math_handler.compute_output_shape() \n\n", .{readyNode.nodeProto.op_type});
         return error.OperationNotSupported;
     }
+}
+
+// ---------------- SHAPE COMPUTATION METHODS ----------------
+
+pub inline fn compute_constant_output(readyNode: *ReadyNode) !void {
+    readyNode.outputs.items[0].shape = try utils.getConstantTensorDims(readyNode.nodeProto);
 }
