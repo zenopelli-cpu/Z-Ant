@@ -8,10 +8,19 @@ pub fn build(b: *std.Build) void {
     build_options.addOption(bool, "trace_allocator", b.option(bool, "trace_allocator", "Use a tracing allocator") orelse true);
     build_options.addOption([]const u8, "allocator", (b.option([]const u8, "allocator", "Allocator to use") orelse "raw_c_allocator"));
 
-    // Set target options, such as architecture and OS.
-    const target = b.standardTargetOptions(.{});
+    // Get target and CPU options from command line or use defaults
+    const target_str = b.option([]const u8, "target", "Target architecture (e.g., thumb-freestanding)") orelse "native";
+    const cpu_str = b.option([]const u8, "cpu", "CPU model (e.g., cortex_m33)");
 
-    // Set optimization level (debug, release, etc.).
+    const target_query = std.zig.CrossTarget.parse(.{
+        .arch_os_abi = target_str,
+        .cpu_features = cpu_str,
+    }) catch |err| {
+        std.debug.print("Error parsing target: {}\n", .{err});
+        return;
+    };
+
+    const target = b.resolveTargetQuery(target_query);
     const optimize = b.standardOptimizeOption(.{});
 
     //************************************************MODULE CREATION************************************************
@@ -262,6 +271,27 @@ pub fn build(b: *std.Build) void {
     // Create a build step to run the application.
     const codegen_step = b.step("codegen", " code generation");
     codegen_step.dependOn(&codegen_cmd.step);
+
+    // ************************************************STATIC LIBRARY************************************************
+
+    const tensor_math_lib = b.addStaticLibrary(.{
+        .name = "tensor_math",
+        .root_source_file = b.path("src/Core/Tensor/TensorMath/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    tensor_math_lib.linkLibC();
+    tensor_math_lib.root_module.addImport("tensor", tensor_mod);
+    tensor_math_lib.root_module.addImport("typeC", typeConv_mod);
+    tensor_math_lib.root_module.addImport("errorHandler", errorHandler_mod);
+    tensor_math_lib.root_module.addImport("layer", layer_mod);
+    tensor_math_lib.root_module.addImport("pkgAllocator", allocator_mod);
+    tensor_math_lib.root_module.addImport("tensor_m", tensor_math_mod);
+
+    const install_lib_step = b.addInstallArtifact(tensor_math_lib, .{});
+    const lib_step = b.step("lib", "Compile tensor_math static library");
+    lib_step.dependOn(&install_lib_step.step);
 
     //************************************************UNIT TESTS************************************************
 
