@@ -6,6 +6,7 @@ const TensorProto = @import("onnx").TensorProto;
 const allocator = @import("pkgAllocator").allocator;
 const codeGenInitializers = @import("codeGen_initializers.zig");
 const coddeGenPredict = @import("codeGen_predict.zig");
+const tensorMath = @import("tensor_math");
 
 /// Writes a Zig source file containing the generated code for an ONNX model.
 ///
