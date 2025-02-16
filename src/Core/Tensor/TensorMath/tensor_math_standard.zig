@@ -51,6 +51,7 @@ pub const mean = reduction_math_lib.mean;
 const elementWise_math_lib = @import("lib_elementWise_math.zig");
 pub const add_bias = elementWise_math_lib.add_bias;
 pub const sum_tensors = elementWise_math_lib.sum_tensors;
+pub const sum_tensor_list = elementWise_math_lib.sum_tensor_list;
 pub const sub_tensors = elementWise_math_lib.sub_tensors;
 pub const mul = elementWise_math_lib.mul;
 pub const div = elementWise_math_lib.div;

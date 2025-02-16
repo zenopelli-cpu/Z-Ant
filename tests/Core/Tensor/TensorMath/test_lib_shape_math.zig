@@ -3,6 +3,7 @@ const pkgAllocator = @import("pkgAllocator");
 const TensMath = @import("tensor_m");
 const Tensor = @import("tensor").Tensor;
 const TensorError = @import("errorHandler").TensorError;
+const TensorMathError = @import("errorHandler").TensorMathError;
 
 test "Concatenate tensors along axis 0" {
     std.debug.print("\n     test: Concatenate tensors along axis 0", .{});
@@ -824,7 +825,7 @@ test "get_concatenate_output_shape" {
 
     // Test error cases
     var empty_shapes = [_][]const usize{};
-    try std.testing.expectError(TensorError.EmptyTensorList, TensMath.get_concatenate_output_shape(&empty_shapes, 0));
+    try std.testing.expectError(TensorMathError.EmptyTensorList, TensMath.get_concatenate_output_shape(&empty_shapes, 0));
 
     var mismatched_shapes = [_][]const usize{
         &[_]usize{ 2, 3 },
@@ -891,4 +892,10 @@ test "get_split_output_shapes()" {
     // Test invalid split sizes
     var invalid_split_sizes = [_]usize{ 1, 1 };
     try std.testing.expectError(TensorError.InvalidSplitSize, TensMath.get_split_output_shapes(&input_shape, 1, &invalid_split_sizes));
+}
+
+test "Empty tensor list error" {
+    std.debug.print("\n     test: Empty tensor list error", .{});
+    const empty_shapes: []const []const usize = &[_][]const usize{};
+    try std.testing.expectError(TensorMathError.EmptyTensorList, TensMath.get_concatenate_output_shape(empty_shapes, 0));
 }

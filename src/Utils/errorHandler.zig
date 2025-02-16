@@ -44,6 +44,7 @@ pub const TensorMathError = error{
     WrongStride,
     IncompatibleBroadcastShapes,
     InvalidDimensions,
+    EmptyTensorList,
 };
 
 /// Tensor errors
@@ -64,7 +65,6 @@ pub const TensorError = error{
     InvalidSliceStep,
     InvalidIndices,
     TooSmallToPadding,
-    EmptyTensorList,
     AxisOutOfBounds,
     MismatchedRank,
     MismatchedShape,
@@ -125,6 +125,8 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         TensorMathError.InputTensorDimensionMismatch => "TensorMath: input tensor dimension mismatch",
         TensorMathError.IncompatibleBroadcastShapes => "TensorMath: tensors have incompatible shapes for broadcasting",
         TensorMathError.InvalidDimensions => "TensorMath: invalid dimensions",
+        TensorMathError.WrongStride => "TensorMath: wrong stride",
+        TensorMathError.EmptyTensorList => "TensorMath: empty tensor list provided",
 
         //TENSOR
         TensorError.TensorNotInitialized => "Tensor: tensor not initialized",
@@ -137,6 +139,17 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         TensorError.NotFiniteValue => "Tensor: tensor has non-finite value",
         TensorError.NegativeInfValue => "Tensor: tensor has negative infinity value",
         TensorError.PositiveInfValue => "Tensor: tensor has positive infinity value",
+        TensorError.InvalidSliceIndices => "Tensor: invalid slice indices",
+        TensorError.InvalidSliceShape => "Tensor: invalid slice shape",
+        TensorError.SliceOutOfBounds => "Tensor: slice out of bounds",
+        TensorError.InvalidSliceStep => "Tensor: invalid slice step",
+        TensorError.InvalidIndices => "Tensor: invalid indices",
+        TensorError.TooSmallToPadding => "Tensor: too small to padding",
+        TensorError.AxisOutOfBounds => "Tensor: axis out of bounds",
+        TensorError.MismatchedRank => "Tensor: mismatched rank",
+        TensorError.MismatchedShape => "Tensor: mismatched shape",
+        TensorError.IndexOutOfBounds => "Tensor: index out of bounds",
+        TensorError.InvalidAxis => "Tensor: invalid axis",
         TensorError.InvalidInput => "Tensor: invalid input parameters for operation",
         TensorError.UnsupportedMode => "Tensor: unsupported interpolation mode",
         TensorError.UnsupportedDimension => "Tensor: operation not supported for this tensor dimension",

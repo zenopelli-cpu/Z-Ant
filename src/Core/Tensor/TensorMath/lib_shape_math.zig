@@ -302,7 +302,7 @@ fn cubic_weight(x: f32) f32 {
 ///     - TensorError.MismatchedShape
 pub fn concatenate(comptime T: type, allocator: *std.mem.Allocator, tensors: []Tensor(T), axis: isize) !Tensor(T) {
     // Ensure there is at least one tensor to concatenate
-    if (tensors.len == 0) return TensorError.EmptyTensorList;
+    if (tensors.len == 0) return TensorMathError.EmptyTensorList;
 
     // Determine the rank (number of dimensions) from the first tensor
     const rank = tensors[0].shape.len;
@@ -418,7 +418,7 @@ pub fn concatenate(comptime T: type, allocator: *std.mem.Allocator, tensors: []T
 
 pub fn get_concatenate_output_shape(tensors: []const []const usize, axis: isize) ![]usize {
     // Ensure there is at least one tensor to concatenate
-    if (tensors.len == 0) return TensorError.EmptyTensorList;
+    if (tensors.len == 0) return TensorMathError.EmptyTensorList;
 
     // Determine the rank (number of dimensions) from the first tensor
     const rank = tensors[0].len;
