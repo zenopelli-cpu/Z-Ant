@@ -412,8 +412,11 @@ pub fn trainTensors(
 
         // Forward pass
         std.debug.print("\n-------------------------------forwarding", .{});
-        if (predictions != null) predictions.?.*.deinit();
-        predictions = try model.forward(input);
+
+        if (predictions != null) predictions.?.deinit();
+        const forward_result = try model.forward(input);
+        predictions = try forward_result.copy();
+
 
         // Loss computation
         std.debug.print("\n-------------------------------computing loss", .{});

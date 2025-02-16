@@ -633,7 +633,6 @@ test "ensure_4D_shape" {
     std.debug.print("\n     test: ensure_4D_shape with 5 dimensions", .{});
 
     const shape_5 = [_]usize{ 5, 10, 15, 20, 25 };
-    result = try Tensor(f32).ensure_4D_shape(&shape_5);
 
-    try std.testing.expectError(TensorError.InvalidDimensions, result);
+    try std.testing.expectError(error.InvalidDimensions, Tensor(f32).ensure_4D_shape(&shape_5));
 }
