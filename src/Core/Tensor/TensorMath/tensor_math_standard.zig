@@ -23,8 +23,9 @@ pub const split = shape_math_lib.split;
 pub const get_split_output_shapes = shape_math_lib.get_split_output_shapes;
 
 // ---------- importing matrix algebra methods ----------
-pub const dot_product_tensor = @import("op_dot_product.zig").dot_product_tensor;
-pub const dot_product_tensor_flat = @import("op_dot_product.zig").dot_product_tensor_flat;
+const dot_product = @import("op_dot_product.zig");
+pub const dot_product_tensor = dot_product.dot_product_tensor;
+pub const dot_product_tensor_flat = dot_product.dot_product_tensor_flat;
 
 // ---------- importing standard Convolution methods ----------
 const convolution_math_lib = @import("op_convolution.zig");
