@@ -94,17 +94,17 @@ pub fn TrainDataLoader(
             const loser = Loss.LossFunction(lossType){};
             try DataProc.normalize(T, &load.yTensor, NormalizType.UnityBasedNormalizartion);
 
-            var loss = try loser.computeLoss(T, &predictions, &load.yTensor);
+            var loss = try loser.computeLoss(T, predictions, &load.yTensor);
             defer loss.deinit();
 
-            const correctPredictions: u16 = try computeAccuracy(T, &predictions, &load.yTensor);
+            const correctPredictions: u16 = try computeAccuracy(T, predictions, &load.yTensor);
             totalCorrect += correctPredictions;
             totalSamples += batchSize;
 
             LossMeanRecord[i] = TensMath.mean(T, &loss);
             AccuracyRecord[i] = @as(f32, @floatFromInt(totalCorrect)) / @as(f32, @floatFromInt(totalSamples)) * 100.0;
 
-            var grad: Tensor.Tensor(T) = try loser.computeGradient(T, &predictions, &load.yTensor);
+            var grad: Tensor.Tensor(T) = try loser.computeGradient(T, predictions, &load.yTensor);
             defer grad.deinit();
 
             _ = try model.backward(&grad);
@@ -139,10 +139,10 @@ pub fn TrainDataLoader(
             const loser = Loss.LossFunction(lossType){};
             try DataProc.normalize(T, &load.yTensor, NormalizType.UnityBasedNormalizartion);
 
-            var loss = try loser.computeLoss(T, &predictions, &load.yTensor);
+            var loss = try loser.computeLoss(T, predictions, &load.yTensor);
             defer loss.deinit();
 
-            const correctPredictions: u16 = try computeAccuracy(T, &predictions, &load.yTensor);
+            const correctPredictions: u16 = try computeAccuracy(T, predictions, &load.yTensor);
             totalCorrectVal += correctPredictions;
             totalSamplesVal += batchSize;
 
@@ -231,10 +231,10 @@ pub fn TrainDataLoader2D(
             const loser = Loss.LossFunction(lossType){};
             try DataProc.normalize(T, &load.yTensor, NormalizType.UnityBasedNormalizartion);
 
-            var loss = try loser.computeLoss(T, &predictions, &load.yTensor);
+            var loss = try loser.computeLoss(T, predictions, &load.yTensor);
             defer loss.deinit();
 
-            const correctPredictions: u16 = try computeAccuracy(T, &predictions, &load.yTensor);
+            const correctPredictions: u16 = try computeAccuracy(T, predictions, &load.yTensor);
             totalCorrect += correctPredictions;
             totalSamples += batchSize;
 
@@ -242,7 +242,7 @@ pub fn TrainDataLoader2D(
             AccuracyRecord[i] = @as(f32, @floatFromInt(totalCorrect)) / @as(f32, @floatFromInt(totalSamples)) * 100.0;
             std.debug.print("\nLOSS: {d}\n", .{LossMeanRecord[i]});
             std.debug.print("\nACCURACY: {d}\n", .{AccuracyRecord[i]});
-            var grad: Tensor.Tensor(T) = try loser.computeGradient(T, &predictions, &load.yTensor);
+            var grad: Tensor.Tensor(T) = try loser.computeGradient(T, predictions, &load.yTensor);
             defer grad.deinit();
 
             // Apply L2 and gradient clipping before backward
@@ -301,10 +301,10 @@ pub fn TrainDataLoader2D(
             const loser = Loss.LossFunction(lossType){};
             try DataProc.normalize(T, &load.yTensor, NormalizType.UnityBasedNormalizartion);
 
-            var loss = try loser.computeLoss(T, &predictions, &load.yTensor);
+            var loss = try loser.computeLoss(T, predictions, &load.yTensor);
             defer loss.deinit();
 
-            const correctPredictions: u16 = try computeAccuracy(T, &predictions, &load.yTensor);
+            const correctPredictions: u16 = try computeAccuracy(T, predictions, &load.yTensor);
             totalCorrectVal += correctPredictions;
             totalSamplesVal += batchSize;
 
@@ -415,8 +415,7 @@ pub fn trainTensors(
 
         if (predictions != null) predictions.?.deinit();
         const forward_result = try model.forward(input);
-        predictions = try forward_result.copy();
-
+        predictions = forward_result;
 
         // Loss computation
         std.debug.print("\n-------------------------------computing loss", .{});
