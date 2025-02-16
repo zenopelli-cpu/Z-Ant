@@ -2,6 +2,7 @@ const std = @import("std");
 const pkgAllocator = @import("pkgAllocator");
 const TensMath = @import("tensor_m");
 const Tensor = @import("tensor").Tensor;
+const TensorError = @import("errorHandler").TensorError;
 const TensorMathError = @import("errorHandler").TensorMathError;
 
 test "Sum two tensors on CPU architecture" {
@@ -257,4 +258,126 @@ test "test tensor element-wise division" {
     for (0..tensor3.size) |i| {
         try std.testing.expect(tensor3.data[i] == tensor1.data[i] / tensor2.data[i]);
     }
+}
+
+test "Sum list of tensors - normal case" {
+    std.debug.print("\n     test: Sum list of tensors - normal case", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+    var inputArray2: [2][2]f32 = [_][2]f32{
+        [_]f32{ 5.0, 6.0 },
+        [_]f32{ 7.0, 8.0 },
+    };
+    var inputArray3: [2][2]f32 = [_][2]f32{
+        [_]f32{ 9.0, 10.0 },
+        [_]f32{ 11.0, 12.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 2 };
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape);
+    defer t2.deinit();
+    var t3 = try Tensor(f32).fromArray(&allocator, &inputArray3, &shape);
+    defer t3.deinit();
+
+    var tensors = [_]*Tensor(f32){ &t1, &t2, &t3 };
+    var result = try TensMath.sum_tensor_list(f32, f32, &tensors);
+    defer result.deinit();
+
+    try std.testing.expectEqual(result.data[0], 15.0); // 1 + 5 + 9
+    try std.testing.expectEqual(result.data[1], 18.0); // 2 + 6 + 10
+    try std.testing.expectEqual(result.data[2], 21.0); // 3 + 7 + 11
+    try std.testing.expectEqual(result.data[3], 24.0); // 4 + 8 + 12
+}
+
+test "Sum list of tensors - single tensor case" {
+    std.debug.print("\n     test: Sum list of tensors - single tensor case", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var inputArray: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 2 };
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer t1.deinit();
+
+    var tensors = [_]*Tensor(f32){&t1};
+    var result = try TensMath.sum_tensor_list(f32, f32, &tensors);
+    defer result.deinit();
+
+    try std.testing.expectEqual(result.data[0], 1.0);
+    try std.testing.expectEqual(result.data[1], 2.0);
+    try std.testing.expectEqual(result.data[2], 3.0);
+    try std.testing.expectEqual(result.data[3], 4.0);
+}
+
+test "Sum list of tensors - empty list error" {
+    std.debug.print("\n     test: Sum list of tensors - empty list error", .{});
+
+    var tensors = [_]*Tensor(f32){};
+    try std.testing.expectError(TensorMathError.EmptyTensorList, TensMath.sum_tensor_list(f32, f32, &tensors));
+}
+
+test "Sum list of tensors - different sizes error" {
+    std.debug.print("\n     test: Sum list of tensors - different sizes error", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+    var inputArray2: [3][2]f32 = [_][2]f32{
+        [_]f32{ 5.0, 6.0 },
+        [_]f32{ 7.0, 8.0 },
+        [_]f32{ 9.0, 10.0 },
+    };
+
+    var shape1: [2]usize = [_]usize{ 2, 2 };
+    var shape2: [2]usize = [_]usize{ 3, 2 };
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape1);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
+    defer t2.deinit();
+
+    var tensors = [_]*Tensor(f32){ &t1, &t2 };
+    try std.testing.expectError(TensorMathError.InputTensorDifferentSize, TensMath.sum_tensor_list(f32, f32, &tensors));
+}
+
+test "Sum list of tensors - type promotion" {
+    std.debug.print("\n     test: Sum list of tensors - type promotion", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var inputArray1: [2][2]u8 = [_][2]u8{
+        [_]u8{ 100, 100 },
+        [_]u8{ 100, 100 },
+    };
+    var inputArray2: [2][2]u8 = [_][2]u8{
+        [_]u8{ 100, 100 },
+        [_]u8{ 100, 100 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 2 };
+
+    var t1 = try Tensor(u8).fromArray(&allocator, &inputArray1, &shape);
+    defer t1.deinit();
+    var t2 = try Tensor(u8).fromArray(&allocator, &inputArray2, &shape);
+    defer t2.deinit();
+
+    var tensors = [_]*Tensor(u8){ &t1, &t2 };
+    var result = try TensMath.sum_tensor_list(u8, u32, &tensors); // Promote to u32 to handle overflow
+    defer result.deinit();
+
+    try std.testing.expectEqual(result.data[0], 200);
+    try std.testing.expectEqual(result.data[1], 200);
+    try std.testing.expectEqual(result.data[2], 200);
+    try std.testing.expectEqual(result.data[3], 200);
 }

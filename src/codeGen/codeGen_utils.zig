@@ -1,10 +1,13 @@
 const std = @import("std");
 const DataType = @import("onnx").DataType;
+const GraphProto = @import("onnx").GraphProto;
+const NodeProto = @import("onnx").NodeProto;
 const TensorProto = @import("onnx").TensorProto;
 const allocator = @import("pkgAllocator").allocator;
 const ReadyNode = @import("codeGen_predict.zig").ReadyNode;
 const ReadyTensor = @import("codeGen_predict.zig").ReadyTensor;
-const GraphProto = @import("onnx").GraphProto;
+
+// -------------------- GETTERS --------------------
 
 //Given an element from DataType Enum in onnx.zig returns the equivalent zig type
 pub inline fn getType(data_type: DataType) !type {
@@ -102,7 +105,8 @@ pub inline fn getSanitizedName(name: []const u8) ![]const u8 {
     return sanitized;
 }
 
-//Returns a List of Ready nodes where all the input Tensor are set as ready
+/// Returns a List of Ready nodes
+/// A node is considered "computable" if all the node's input Tensors are set as ready
 pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.ArrayList(*ReadyNode) {
     std.debug.print("\n\n getComputableNodes()", .{});
 
@@ -126,6 +130,36 @@ pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.Arr
     }
 
     return set;
+}
+
+pub inline fn getConstantTensorDims(nodeProto: *NodeProto) ![]const i64 {
+    //check the node is a Constant
+    if (std.mem.indexOf(u8, try getSanitizedName(nodeProto.op_type), "constant")) |_| {} else return error.NodeNotConstant;
+
+    return if (nodeProto.attribute[0].t) |tensorProto| tensorProto.dims else error.ConstantTensorAttributeNotAvailable;
+}
+
+// -------------------- SETTERS --------------------
+
+// Marks output tensors as ready for computation in all the graph
+pub fn setOutputsReady(completedNode: *ReadyNode, tensorHashMap: *std.StringHashMap(ReadyTensor)) !void {
+    std.debug.print("\n -----> set {s} outputs to ready", .{completedNode.nodeProto.name.?});
+    completedNode.ready = true;
+    for (completedNode.outputs.items) |ready_output_tensor| { //for each output tensor of the completed node
+        var mutablePtr: *ReadyTensor = if (tensorHashMap.getPtr(ready_output_tensor.name)) |V_ptr| V_ptr else return error.keyNotAvailable;
+        mutablePtr.ready = true;
+        std.debug.print("\n    {s} --> ready", .{mutablePtr.name});
+    }
+}
+
+// -------------------- BOOLEANS --------------------
+
+// returns true if all the inputs are ready
+pub inline fn areAllInputsReady(node: *ReadyNode) bool {
+    for (node.inputs.items) |input| {
+        if (!input.ready) return false;
+    }
+    return true;
 }
 
 //returns true if all the inputs and all the outputs of a node are set as ready
@@ -156,6 +190,8 @@ pub fn getInitializer(name: []const u8, initializers: []*TensorProto) !*TensorPr
 
     return error.NotExistingInitializer;
 }
+
+// -------------------- PRINTERS --------------------
 
 // Prints the list of nodes in the given computation graph.
 // Outputs each node's name along with its input and output tensors and their readiness status.
