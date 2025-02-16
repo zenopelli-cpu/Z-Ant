@@ -415,8 +415,7 @@ pub fn trainTensors(
 
         if (predictions != null) predictions.?.deinit();
         const forward_result = try model.forward(input);
-        predictions = try forward_result.copy();
-
+        predictions = forward_result;
 
         // Loss computation
         std.debug.print("\n-------------------------------computing loss", .{});
