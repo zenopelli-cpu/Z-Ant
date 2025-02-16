@@ -276,7 +276,7 @@ pub fn build(b: *std.Build) void {
 
     const tensor_math_lib = b.addStaticLibrary(.{
         .name = "tensor_math",
-        .root_source_file = b.path("src/Core/Tensor/TensorMath/lib.zig"),
+        .root_source_file = b.path("src/Core/Tensor/TensorMath/c_api.zig"),
         .target = target,
         .optimize = optimize,
     });

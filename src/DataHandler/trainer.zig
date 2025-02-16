@@ -400,7 +400,7 @@ pub fn trainTensors(
     // allocate only once
     var LossMeanRecord: []f32 = try allocator.alloc(f32, epochs);
     defer allocator.free(LossMeanRecord);
-    var predictions: ?Tensor.Tensor(T) = null; //it gets already free by model.deinit() and gets free at each iteration except the first
+    var predictions: ?*Tensor.Tensor(T) = null; //it gets already free by model.deinit() and gets free at each iteration except the first
 
     var loss: ?Tensor.Tensor(T) = null;
     defer loss.?.deinit();
@@ -412,13 +412,13 @@ pub fn trainTensors(
 
         // Forward pass
         std.debug.print("\n-------------------------------forwarding", .{});
-        if (predictions != null) predictions.?.deinit();
+        if (predictions != null) predictions.?.*.deinit();
         predictions = try model.forward(input);
 
         // Loss computation
         std.debug.print("\n-------------------------------computing loss", .{});
         if (loss != null) loss.?.deinit();
-        loss = try loser.computeLoss(T, &predictions.?, targets);
+        loss = try loser.computeLoss(T, predictions.?, targets);
 
         LossMeanRecord[i] = TensMath.mean(T, &loss.?);
         std.debug.print("\n     loss:{}", .{LossMeanRecord[i]});
@@ -426,7 +426,7 @@ pub fn trainTensors(
         // Gradient computation
         std.debug.print("\n-------------------------------computing loss gradient", .{});
         if (grad != null) grad.?.deinit();
-        grad = try loser.computeGradient(T, &predictions.?, targets);
+        grad = try loser.computeGradient(T, predictions.?, targets);
         std.debug.print("\n     gradient:", .{});
 
         // Backpropagation
@@ -438,7 +438,7 @@ pub fn trainTensors(
         try optimizer.step(model);
     }
 
-    predictions.?.deinit();
+    predictions.?.*.deinit();
 
     std.debug.print("\n>>>>>>>>>>>> loss record:{any}", .{LossMeanRecord});
 }
@@ -464,7 +464,7 @@ fn print_end_training() void {
         \\    ______          __   __             _       _                   
         \\   / ____/___  ____/ /  / /__________ _(_)___  (_)___  ____ _       
         \\  / __/ / __ \/ __  /  / __/ ___/ __ `/ / __ \/ / __ \/ __ `/       
-        \\ / /___/ / / / /_/ /  / /_/ /  / /_/ / / / / / / / / /_/ /  _ _ _ 
+        \\ / /___/ / / / /_/ /  / /_/ /  / /_/ / / / / / / / /_/ /  _ _ _ 
         \\/_____/_/ /_/\__,_/   \__/_/   \__,_/_/_/ /_/_/_/ /_/\__, /  (_|_|_)
         \\                                                 /____/                 
         \\ 
