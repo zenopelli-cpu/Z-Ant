@@ -62,24 +62,35 @@ pub fn Model(comptime T: type) type {
         /// - `input`: A pointer to the input tensor.
         ///
         /// # Returns
-        /// A tensor containing the model's output after the forward pass.
+        /// A pointer to the output tensor of the model after the forward pass.
         ///
         /// # Errors
         /// Returns an error if any layer's forward pass or tensor copying fails.
-        pub fn forward(self: *@This(), input: *tensor.Tensor(T)) !tensor.Tensor(T) {
-            self.input_tensor.deinit(); //Why this?! it is ok since in each epooch the input tensor must be initialized with the new incomming batch
-            self.input_tensor = try input.copy();
+        pub fn forward(self: *@This(), input_tensor: *tensor.Tensor(T)) !*tensor.Tensor(T) {
+            if (self.layers.items.len == 0) {
+                self.input_tensor = try input_tensor.copy();
+                return &self.input_tensor;
+            }
 
-            for (0..self.layers.items.len) |i| {
-                std.debug.print("\n--------------------------------------forwarding layer {}", .{i});
-                if (self.layers.items[i].layer_type != layer.LayerType.ActivationLayer) try DataProc.normalize(T, self.getPrevOut(i), NormalizType.UnityBasedNormalizartion);
+            // Store input tensor
+            self.input_tensor = try input_tensor.copy();
+
+            // Forward pass through all layers
+            var i: usize = 0;
+            while (i < self.layers.items.len) : (i += 1) {
+                const current_layer = self.layers.items[i];
+                std.debug.print("--------------------------------------forwarding layer {d}\n", .{i});
+                if (current_layer.layer_type != layer.LayerType.ActivationLayer) try DataProc.normalize(T, self.getPrevOut(i), NormalizType.UnityBasedNormalizartion);
                 // DEBUG METHOD try self.getPrevOut(i).isSafe();
-                _ = try self.layers.items[i].forward(self.getPrevOut(i));
+                _ = try current_layer.forward(self.getPrevOut(i));
                 //print the output shape
-                std.debug.print("\n output shape: {any}", .{self.layers.items[i].get_output().shape});
+                std.debug.print(" output shape: {any}\n", .{current_layer.get_output().shape});
                 //self.layers.items[i].printLayer(0);
             }
-            return try (self.getPrevOut(self.layers.items.len)).copy();
+
+            // Return a copy of the final output
+            self.input_tensor = try (self.getPrevOut(self.layers.items.len)).copy();
+            return &self.input_tensor;
         }
 
         /// Executes the backward pass through the model with the specified gradient tensor.
