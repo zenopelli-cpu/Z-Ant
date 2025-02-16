@@ -33,10 +33,12 @@ pub const ReadyTensor = struct {
                 .ready = true,
                 .shape = init.dims,
             };
-        } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "input")) |_| return ReadyTensor{ // Check if tensor is an input
-            .name = "input",
-            .ready = true,
-            .shape = &[_]i64{ 1, 1, 1, 1 },
+        } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "input")) |_| {
+            return ReadyTensor{ // Check if tensor is an input
+                .name = name,
+                .ready = true,
+                .shape = &[_]i64{ 1, 1, 28, 28 }, //TODO; wtf is this shit hardcoded, ask to Mirko
+            };
         } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "images")) |_| return ReadyTensor{ // Check if tensor is images
             .name = name,
             .ready = true,
@@ -78,6 +80,7 @@ pub const ReadyNode = struct {
             //adding the readyTensor to the model
             try newReadyNode.inputs.append(if (tensorHashMap.getPtr(input_name)) |V_ptr| V_ptr else return error.keyNotAvailable);
             // std.debug.print("\n   added input {s} to node {s} ", .{ input_name, nodeProto.name.? });
+
         }
         for (nodeProto.output) |output_name| { //for each output tensor
 
@@ -103,7 +106,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
     std.debug.print("\n+                       READY HASHMAP                       +", .{});
     std.debug.print("\n-------------------------------------------------------------", .{});
     //DEBUG
-    utils.printTensorHashMap(tensorHashMap);
+    //utils.printTensorHashMap(tensorHashMap);
 
     //create the ReadyGraph
     try createReadyGraph(model);
@@ -209,10 +212,7 @@ inline fn writeComputationGraph(writer: std.fs.File.Writer) !void {
 
         const computableNodes: std.ArrayList(*ReadyNode) = try utils.getComputableNodes(&readyGraph);
         //DEBUG
-        std.debug.print("\n------------------------------------------------------------", .{});
-        std.debug.print("\n+                  COMPUTABLE NODES  n:{}                  +", .{computableNodes.items.len});
-        std.debug.print("\n------------------------------------------------------------", .{});
-        try utils.printComputableNodes(computableNodes);
+        //try utils.printComputableNodes(computableNodes);
 
         if (computableNodes.items.len == 0) return;
 

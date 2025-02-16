@@ -201,6 +201,7 @@ pub fn build(b: *std.Build) void {
     codegen_mod.addImport("tensor", tensor_mod);
     codegen_mod.addImport("onnx", onnx_mod);
     codegen_mod.addImport("pkgAllocator", allocator_mod);
+    codegen_mod.addImport("tensor_math", tensor_math_mod);
 
     // ************************************************MAIN EXECUTABLE************************************************
 

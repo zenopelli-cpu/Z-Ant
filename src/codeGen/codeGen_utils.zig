@@ -216,6 +216,10 @@ pub fn printNodeList(graph: std.ArrayList(ReadyNode)) !void {
 // Prints the list of nodes that are ready for computation.
 // Outputs each node's name, operation type, inputs, and outputs along with their readiness status.
 pub fn printComputableNodes(computableNodes: std.ArrayList(*ReadyNode)) !void {
+    std.debug.print("\n------------------------------------------------------------", .{});
+    std.debug.print("\n+                  COMPUTABLE NODES  n:{}                  +", .{computableNodes.items.len});
+    std.debug.print("\n------------------------------------------------------------", .{});
+
     for (computableNodes.items) |node| {
         std.debug.print("\n ----- node: {s}", .{node.nodeProto.name.?});
         std.debug.print("\n          op_type: {s}", .{node.nodeProto.op_type});
@@ -265,4 +269,37 @@ pub fn printTensorHashMap(map: std.StringHashMap(ReadyTensor)) void {
         std.debug.print("\n     Ready: {}", .{tensor.ready});
         std.debug.print("\n     Shape: [{any}]", .{tensor.shape});
     }
+}
+
+// ----------------- data type management -------------
+
+pub fn i64SliceToUsizeSlice(input: []const i64) ![]usize {
+    var output = try allocator.alloc(usize, input.len);
+
+    const maxUsize = std.math.maxInt(usize);
+
+    for (input, 0..) |value, index| {
+        if (value < 0) {
+            return error.NegativeValue;
+        }
+        if (value > maxUsize) {
+            return error.ValueTooLarge;
+        }
+        output[index] = @intCast(value);
+    }
+
+    return output;
+}
+
+pub fn usizeSliceToI64Slice(input: []usize) ![]const i64 {
+    var output = try allocator.alloc(i64, input.len);
+
+    for (input, 0..) |value, index| {
+        if (value > std.math.maxInt(i64)) {
+            return error.ValueTooLarge;
+        }
+        output[index] = @intCast(value);
+    }
+
+    return output;
 }
