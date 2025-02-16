@@ -8,6 +8,12 @@ const tMath = @import("tensor_m");
 const TensorError = @import("errorHandler").TensorError;
 const ArgumentError = @import("errorHandler").ArgumentError;
 
+pub var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
+
+pub fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {
+    log_function = func;
+}
+
 ///Class Tensor.
 ///Return a generic type structure
 pub fn Tensor(comptime T: type) type {
@@ -731,7 +737,114 @@ pub fn Tensor(comptime T: type) type {
 
             return &padded_shape;
         }
+
+        /// Bare metal version of tensor info that uses a logging function instead of std.debug.print
+        pub fn info_metal(self: *@This()) void {
+            if (log_function) |log| {
+                var buffer: [512]u8 = undefined;
+
+                // Log size
+                if (std.fmt.bufPrint(&buffer, "Tensor size: {}\n", .{self.size})) |msg| {
+                    log(@constCast(@ptrCast(&buffer[0..msg.len])));
+                } else |_| return;
+
+                // Log shape
+                var shape_str: [256]u8 = undefined;
+                var shape_pos: usize = 0;
+                for (self.shape, 0..) |dim, i| {
+                    if (i == 0) {
+                        if (std.fmt.bufPrint(shape_str[shape_pos..], "{}", .{dim})) |msg| {
+                            shape_pos += msg.len;
+                        } else |_| return;
+                    } else {
+                        if (std.fmt.bufPrint(shape_str[shape_pos..], ", {}", .{dim})) |msg| {
+                            shape_pos += msg.len;
+                        } else |_| return;
+                    }
+                }
+                if (std.fmt.bufPrint(&buffer, "Tensor shape: [{s}]\n", .{shape_str[0..shape_pos]})) |msg| {
+                    log(@constCast(@ptrCast(&buffer[0..msg.len])));
+                } else |_| return;
+
+                // Log data
+                var data_str: [256]u8 = undefined;
+                var data_pos: usize = 0;
+                const max_preview = @min(self.size, 4);
+                for (0..max_preview) |i| {
+                    if (i == 0) {
+                        if (std.fmt.bufPrint(data_str[data_pos..], "{d:.2}", .{self.data[i]})) |msg| {
+                            data_pos += msg.len;
+                        } else |_| return;
+                    } else {
+                        if (std.fmt.bufPrint(data_str[data_pos..], ", {d:.2}", .{self.data[i]})) |msg| {
+                            data_pos += msg.len;
+                        } else |_| return;
+                    }
+                }
+                if (self.size > max_preview) {
+                    if (std.fmt.bufPrint(data_str[data_pos..], ", ...", .{})) |msg| {
+                        data_pos += msg.len;
+                    } else |_| return;
+                }
+                if (std.fmt.bufPrint(&buffer, "Tensor data: [{s}]\n", .{data_str[0..data_pos]})) |msg| {
+                    log(@constCast(@ptrCast(&buffer[0..msg.len])));
+                } else |_| return;
+            }
+        }
     };
+}
+
+// Helper functions for string conversion
+fn intToString(value: usize, buffer: []u8) usize {
+    if (value == 0) {
+        buffer[0] = '0';
+        return 1;
+    }
+    var n = value;
+    var i: usize = 0;
+    while (n > 0) : (n /= 10) {
+        buffer[i] = @intCast('0' + @mod(n, 10));
+        i += 1;
+    }
+    // Reverse the string
+    var start: usize = 0;
+    var end: usize = i - 1;
+    while (start < end) {
+        const temp = buffer[start];
+        buffer[start] = buffer[end];
+        buffer[end] = temp;
+        start += 1;
+        end -= 1;
+    }
+    return i;
+}
+
+fn floatToString(value: f32, buffer: []u8) usize {
+    // Handle negative numbers
+    var pos: usize = 0;
+    if (value < 0) {
+        buffer[pos] = '-';
+        pos += 1;
+    }
+
+    // Convert integer part
+    const abs_value = if (value < 0) -value else value;
+    const int_part = @as(i32, @intFromFloat(abs_value));
+    pos += intToString(@intCast(int_part), buffer[pos..]);
+
+    // Add decimal point
+    buffer[pos] = '.';
+    pos += 1;
+
+    // Convert decimal part (2 decimal places)
+    const decimal_part = @as(i32, @intFromFloat((abs_value - @as(f32, @floatFromInt(int_part))) * 100.0));
+    if (decimal_part < 10) {
+        buffer[pos] = '0';
+        pos += 1;
+    }
+    pos += intToString(@intCast(decimal_part), buffer[pos..]);
+
+    return pos;
 }
 
 /// Recursive function to flatten a multidimensional array

@@ -68,13 +68,17 @@ pub fn Model(comptime T: type) type {
         /// Returns an error if any layer's forward pass or tensor copying fails.
         pub fn forward(self: *@This(), input_tensor: *tensor.Tensor(T)) !*tensor.Tensor(T) {
             if (self.layers.items.len == 0) {
+
                 if (self.input_tensor.data.len > 0) self.input_tensor.deinit();
+
                 self.input_tensor = try input_tensor.copy();
                 return &self.input_tensor;
             }
 
             // Store input tensor
+
             if (self.input_tensor.data.len > 0) self.input_tensor.deinit();
+
             self.input_tensor = try input_tensor.copy();
 
             // Forward pass through all layers
@@ -91,7 +95,9 @@ pub fn Model(comptime T: type) type {
             }
 
             // Return a copy of the final output
+
             if (self.input_tensor.data.len > 0) self.input_tensor.deinit();
+
             self.input_tensor = try (self.getPrevOut(self.layers.items.len)).copy();
             return &self.input_tensor;
         }

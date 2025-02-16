@@ -400,7 +400,7 @@ pub fn trainTensors(
     // allocate only once
     var LossMeanRecord: []f32 = try allocator.alloc(f32, epochs);
     defer allocator.free(LossMeanRecord);
-    var predictions: ?Tensor.Tensor(T) = null; //it gets already free by model.deinit() and gets free at each iteration except the first
+    var predictions: ?*Tensor.Tensor(T) = null; //it gets already free by model.deinit() and gets free at each iteration except the first
 
     var loss: ?Tensor.Tensor(T) = null;
     defer loss.?.deinit();
@@ -412,14 +412,16 @@ pub fn trainTensors(
 
         // Forward pass
         std.debug.print("\n-------------------------------forwarding", .{});
+
         if (predictions != null) predictions.?.deinit();
         const forward_result = try model.forward(input);
         predictions = try forward_result.copy();
 
+
         // Loss computation
         std.debug.print("\n-------------------------------computing loss", .{});
         if (loss != null) loss.?.deinit();
-        loss = try loser.computeLoss(T, &predictions.?, targets);
+        loss = try loser.computeLoss(T, predictions.?, targets);
 
         LossMeanRecord[i] = TensMath.mean(T, &loss.?);
         std.debug.print("\n     loss:{}", .{LossMeanRecord[i]});
@@ -427,7 +429,7 @@ pub fn trainTensors(
         // Gradient computation
         std.debug.print("\n-------------------------------computing loss gradient", .{});
         if (grad != null) grad.?.deinit();
-        grad = try loser.computeGradient(T, &predictions.?, targets);
+        grad = try loser.computeGradient(T, predictions.?, targets);
         std.debug.print("\n     gradient:", .{});
 
         // Backpropagation
@@ -439,7 +441,7 @@ pub fn trainTensors(
         try optimizer.step(model);
     }
 
-    predictions.?.deinit();
+    predictions.?.*.deinit();
 
     std.debug.print("\n>>>>>>>>>>>> loss record:{any}", .{LossMeanRecord});
 }
