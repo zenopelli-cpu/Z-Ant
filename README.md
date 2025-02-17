@@ -1,5 +1,5 @@
 # Z-Ant
-
+![image](https://github.com/user-attachments/assets/6a5346e5-58ec-4069-8143-c3b7b03586f3)
 ## Project Overview
 
 **Zant** (Zig-Ant) is an open-source SDK designed to simplify deploying Neural Networks (NN) on microcontrollers. Written in Zig, Zant prioritizes cross-compatibility and efficiency, providing tools to import, optimize, and deploy NNs seamlessly, tailored to specific hardware.
