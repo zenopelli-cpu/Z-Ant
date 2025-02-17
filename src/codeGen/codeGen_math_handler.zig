@@ -106,7 +106,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         // try writer.writeAll("// Handle Shape MatMul\n");
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MaxPool")) {
         // try writer.writeAll("// Handle Shape MaxPool\n");
-        try compute_maxPool_output_shape(readyNode);
+        //try compute_maxPool_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mul")) {
         // try writer.writeAll("// Handle Shape Mul\n");
         try compute_mul_output_shape(readyNode);
@@ -194,9 +194,9 @@ inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
     const stride = readyNode.nodeProto.attribute[1].ints;
 
     // DEBUG
-    // std.debug.print("\n====== compute_conv_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    // std.debug.print("\n input_shape: []usize = {any}", .{try utils.i64SliceToUsizeSlice(input_shape)});
-    // std.debug.print("\n kernel_shape: []usize = {any} ", .{try utils.i64SliceToUsizeSlice(kernel_shape)});
+    std.debug.print("\n====== compute_conv_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    std.debug.print("\n input_shape: []usize = {any}", .{try utils.i64SliceToUsizeSlice(input_shape)});
+    std.debug.print("\n kernel_shape: []usize = {any} ", .{try utils.i64SliceToUsizeSlice(kernel_shape)});
 
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(
         @constCast(
@@ -209,14 +209,14 @@ inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
     );
 }
 
-inline fn compute_maxPool_output_shape(readyNode: *ReadyNode) !void {
-    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(
-        @constCast(
-            &try tensorMath.get_convolution_output_shape(
-                try utils.i64SliceToUsizeSlice(input_shape),
-                try utils.i64SliceToUsizeSlice(kernel_shape),
-                try utils.i64SliceToUsizeSlice(stride),
-            ),
-        ),
-    );
-}
+// inline fn compute_maxPool_output_shape(readyNode: *ReadyNode) !void {
+//     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(
+//         @constCast(
+//             &try tensorMath.get_convolution_output_shape(
+//                 try utils.i64SliceToUsizeSlice(input_shape),
+//                 try utils.i64SliceToUsizeSlice(kernel_shape),
+//                 try utils.i64SliceToUsizeSlice(stride),
+//             ),
+//         ),
+//     );
+// }
