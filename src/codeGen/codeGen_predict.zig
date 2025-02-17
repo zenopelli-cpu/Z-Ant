@@ -14,6 +14,9 @@ const mathGen = @import("codeGen_math_handler.zig");
 var readyGraph: std.ArrayList(ReadyNode) = std.ArrayList(ReadyNode).init(allocator);
 var tensorHashMap: std.StringHashMap(ReadyTensor) = std.StringHashMap(ReadyTensor).init(allocator); //key: TensorProto.name
 
+var networkInput: []const u8 = undefined;
+var networkOutput: []const u8 = undefined;
+
 // Struct to represent a tensor that is ready for computation
 pub const ReadyTensor = struct {
     name: []const u8,
@@ -34,6 +37,7 @@ pub const ReadyTensor = struct {
                 .shape = init.dims,
             };
         } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "input")) |_| {
+            networkInput = name;
             return ReadyTensor{ // Check if tensor is an input
                 .name = name,
                 .ready = true,
@@ -47,11 +51,14 @@ pub const ReadyTensor = struct {
             .name = name,
             .ready = true,
             .shape = &[_]i64{ 1, 1, 1, 1 }, //try utils.getConstantTensorDims(nodeProto),
-        } else return ReadyTensor{ //default
-            .name = name,
-            .ready = false,
-            .shape = &[_]i64{ 1, 1, 1, 1 }, //TODO: given the operation type (op_type) and the shape of the input return the shape of the output
-        };
+        } else {
+            if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "output")) |_| networkOutput = name;
+            return ReadyTensor{ //default
+                .name = name,
+                .ready = false,
+                .shape = &[_]i64{ 1, 1, 1, 1 }, //TODO: given the operation type (op_type) and the shape of the input return the shape of the output
+            };
+        }
     }
 };
 
@@ -115,7 +122,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
     std.debug.print("\n+                        READY GRAPH                        +", .{});
     std.debug.print("\n-------------------------------------------------------------", .{});
     //DEBUG
-    try utils.printNodeList(readyGraph);
+    //try utils.printNodeList(readyGraph);
 
     //DEBUG
     try utils.printOperations(model.graph.?);
@@ -134,15 +141,14 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
         \\
         \\
         \\
-        \\pub fn predict(comptime T: anytype, tensor_input: Tensor(T)) !void {{
+        \\export fn predict(T: type, input: [*]T, input_shape: []usize) ![*]T {{
     , .{});
+
+    try writeInitInput(writer);
 
     try writeComputationGraph(writer);
 
-    _ = try writer.print(
-        \\
-        \\ }}
-    , .{});
+    try writeReturn(writer);
 
     std.debug.print("\n#############################################################", .{});
     std.debug.print("\n+                      EXECUTION ENDED                      +", .{});
@@ -283,6 +289,28 @@ fn writeOutputTensor(writer: std.fs.File.Writer, name: []const u8) !void {
     , .{ sanitized_name, "f32", sanitized_name });
 }
 
+fn writeInitInput(writer: std.fs.File.Writer) !void {
+
+    //compute the size:
+    _ = try writer.print(
+        \\  
+        \\      if (input_shape.len == 0) return error.ShapeLenZero;
+        \\      var size: u16 = 1;
+        \\      for(input_shape) |dim_i| {{
+        \\          size *= dim_i;
+        \\      }}
+        \\
+        \\      const data = allocator.alloc(T, size) catch return null;
+        \\  
+        \\      for (0..len) |i| {{
+        \\          data[i] = data[i]; // Copying input elements 
+        \\      }}
+        \\
+        \\      var tensor_{s} = Tensor(T).fromShape(&allocator, &input_shape);
+        \\
+    , .{try utils.getSanitizedName(networkInput)});
+}
+
 fn writeConstant(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void {
     try writer.print(
         \\
@@ -406,4 +434,12 @@ fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
     }
 
     try mathGen.write_math_op(writer, readyNode);
+}
+
+fn writeReturn(writer: std.fs.File.Writer) !void {
+    _ = try writer.print(
+        \\
+        \\      return &tensor_{s}.data ;
+        \\}}
+    , .{networkOutput});
 }
