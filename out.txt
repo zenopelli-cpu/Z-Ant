@@ -1,0 +1,184 @@
+
+=== Model Info ===
+IR Version: onnx.Version.IR_VERSION_2019_9_19
+Producer: pytorch
+Version: 2.5.1
+
+=== Graph Info ===
+Name: main_graph
+Nodes: 5
+Initializers: 4
+
+=== Graph Structure ===
+
+[0] Gemm (/layer1/Gemm)
+  Inputs:
+    ← input
+    ← layer1.weight
+    ← layer1.bias
+  Outputs:
+    → /layer1/Gemm_output_0
+
+[1] Relu (/relu/Relu)
+  Inputs:
+    ← /layer1/Gemm_output_0
+  Outputs:
+    → /relu/Relu_output_0
+
+[2] Gemm (/layer2/Gemm)
+  Inputs:
+    ← /relu/Relu_output_0
+    ← layer2.weight
+    ← layer2.bias
+  Outputs:
+    → /layer2/Gemm_output_0
+
+[3] Relu (/relu_1/Relu)
+  Inputs:
+    ← /layer2/Gemm_output_0
+  Outputs:
+    → /relu_1/Relu_output_0
+
+[4] Softmax (/Softmax)
+  Inputs:
+    ← /relu_1/Relu_output_0
+  Outputs:
+    → output
+
+=== Detailed Node Info ===
+
+[Node 0]
+Name: /layer1/Gemm
+Type: Gemm
+Attributes:
+  alpha: float = 1
+  beta: float = 1
+  transB: int = 1
+
+[Node 1]
+Name: /relu/Relu
+Type: Relu
+
+[Node 2]
+Name: /layer2/Gemm
+Type: Gemm
+Attributes:
+  alpha: float = 1
+  beta: float = 1
+  transB: int = 1
+
+[Node 3]
+Name: /relu_1/Relu
+Type: Relu
+
+[Node 4]
+Name: /Softmax
+Type: Softmax
+Attributes:
+  axis: int = 1
+
+=== Initializers (weights, biases, etc.) ===
+
+Initializer 0:
+Name: layer1.weight (weights/filters)
+Type: onnx.DataType.FLOAT
+Shape: [5, 5]
+Data preview:  raw_data [-0.080 -0.371 -0.227 -0.241 -0.168 0.264 -0.179 0.372 0.159 -0.437 ...]
+Description: 2D matrix of size 5x5 (typically dense layer weights)
+
+Initializer 1:
+Name: layer1.bias (bias values)
+Type: onnx.DataType.FLOAT
+Shape: [5]
+Data preview:  raw_data [0.119 0.243 -0.039 0.135 -0.100 ]
+Description: 1D tensor with 5 values (typically bias or batch norm parameter)
+
+Initializer 2:
+Name: layer2.weight (weights/filters)
+Type: onnx.DataType.FLOAT
+Shape: [5, 5]
+Data preview:  raw_data [0.064 0.388 -0.110 0.322 0.055 0.118 0.287 -0.281 0.405 0.399 ...]
+Description: 2D matrix of size 5x5 (typically dense layer weights)
+
+Initializer 3:
+Name: layer2.bias (bias values)
+Type: onnx.DataType.FLOAT
+Shape: [5]
+Data preview:  raw_data [0.357 0.336 0.131 -0.389 -0.291 ]
+Description: 1D tensor with 5 values (typically bias or batch norm parameter)
+
+ .......... file created, path:src/codeGen/static_lib.zig
+-------------------------------------------------------------
++                       READY HASHMAP                       +
+-------------------------------------------------------------
+-------------------------------------------------------------
++                        READY GRAPH                        +
+-------------------------------------------------------------
+ ----- node: /layer1/Gemm
+          inputs: 
+              ->input --->ready
+              ->layer1.weight --->ready
+              ->layer1.bias --->ready
+          outputs:
+              -> /layer1/Gemm_output_0 
+ ----- node: /relu/Relu
+          inputs: 
+              ->/layer1/Gemm_output_0 
+          outputs:
+              -> /relu/Relu_output_0 
+ ----- node: /layer2/Gemm
+          inputs: 
+              ->/relu/Relu_output_0 
+              ->layer2.weight --->ready
+              ->layer2.bias --->ready
+          outputs:
+              -> /layer2/Gemm_output_0 
+ ----- node: /relu_1/Relu
+          inputs: 
+              ->/layer2/Gemm_output_0 
+          outputs:
+              -> /relu_1/Relu_output_0 
+ ----- node: /Softmax
+          inputs: 
+              ->/relu_1/Relu_output_0 
+          outputs:
+              -> output 
+
+-------------------------------------------------
++                ONNX operations                +
+-------------------------------------------------
+- Softmax
+- Gemm
+- Relu
+-------------------------------------------------
+
+
+ getComputableNodes()
+    --- /layer1/Gemm is computable
+ -----> set /layer1/Gemm outputs to ready
+    /layer1/Gemm_output_0 --> ready
+
+ getComputableNodes()
+    --- /relu/Relu is computable
+ -----> set /relu/Relu outputs to ready
+    /relu/Relu_output_0 --> ready
+
+ getComputableNodes()
+    --- /layer2/Gemm is computable
+ -----> set /layer2/Gemm outputs to ready
+    /layer2/Gemm_output_0 --> ready
+
+ getComputableNodes()
+    --- /relu_1/Relu is computable
+ -----> set /relu_1/Relu outputs to ready
+    /relu_1/Relu_output_0 --> ready
+
+ getComputableNodes()
+    --- /Softmax is computable
+ -----> set /Softmax outputs to ready
+    output --> ready
+
+ getComputableNodes()
+#############################################################
++                      EXECUTION ENDED                      +
+#############################################################

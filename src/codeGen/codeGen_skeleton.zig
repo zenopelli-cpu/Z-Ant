@@ -47,7 +47,7 @@ inline fn writeLibraries(writer: std.fs.File.Writer) !void {
         \\
         \\ const std = @import("std");
         \\ const Tensor = @import("tensor").Tensor;
-        \\ const TensMath = @import("lean_tensor_math");
+        \\ const tensMath = @import("lean_tensor_math");
         \\ const pkgAllocator = @import("pkgAllocator");
         \\ const allocator = pkgAllocator.allocator;
     , .{});
