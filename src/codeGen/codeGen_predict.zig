@@ -281,36 +281,6 @@ fn writeOutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !void {
     , .{});
 }
 
-fn writeOutputTensor(writer: std.fs.File.Writer, name: []const u8) !void {
-    const sanitized_name = try utils.getSanitizedName(name);
-    try writer.print(
-        \\
-        \\const tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s});
-    , .{ sanitized_name, "f32", sanitized_name });
-}
-
-fn writeInitInput(writer: std.fs.File.Writer) !void {
-
-    //compute the size:
-    _ = try writer.print(
-        \\  
-        \\      if (input_shape.len == 0) return error.ShapeLenZero;
-        \\      var size: u16 = 1;
-        \\      for(input_shape) |dim_i| {{
-        \\          size *= dim_i;
-        \\      }}
-        \\
-        \\      const data = allocator.alloc(T, size) catch return null;
-        \\  
-        \\      for (0..len) |i| {{
-        \\          data[i] = data[i]; // Copying input elements 
-        \\      }}
-        \\
-        \\      var tensor_{s} = Tensor(T).fromShape(&allocator, &input_shape);
-        \\
-    , .{try utils.getSanitizedName(networkInput)});
-}
-
 fn writeConstant(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void {
     try writer.print(
         \\
@@ -404,35 +374,37 @@ fn writeConstant(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void 
     , .{ sanitized_name, dataTypeString, sanitized_name, sanitized_name });
 }
 
+fn writeOutputTensor(writer: std.fs.File.Writer, name: []const u8) !void {
+    const sanitized_name = try utils.getSanitizedName(name);
+    try writer.print(
+        \\
+        \\const tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s});
+    , .{ sanitized_name, "f32", sanitized_name });
+}
+
+fn writeInitInput(writer: std.fs.File.Writer) !void {
+
+    //compute the size:
+    _ = try writer.print(
+        \\  
+        \\     if (input_shape.len == 0) return error.ShapeLenZero;
+        \\     var size: u16 = 1;
+        \\     for(input_shape) |dim_i| {{
+        \\         size *= dim_i;
+        \\     }}
+        \\
+        \\     const data = allocator.alloc(T, size) catch return null;
+        \\  
+        \\     for (0..size) |i| {{
+        \\         data[i] = input[i]; // Copying input elements 
+        \\     }}
+        \\
+        \\     var tensor_{s} = Tensor(T).fromShape(&allocator, &input_shape);
+        \\
+    , .{try utils.getSanitizedName(networkInput)});
+}
+
 fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
-    try writer.print(
-        \\
-        \\
-        \\    //forwarding operation : {s}
-        \\    //parameters:
-        \\    //   inputs: 
-    , .{readyNode.*.nodeProto.*.op_type});
-
-    //write the inputs
-    for (readyNode.inputs.items) |input| {
-        try writer.print(
-            \\
-            \\    //      -> {s} 
-        , .{input.name});
-    }
-    try writer.print(
-        \\
-        \\    //    outputs: 
-    , .{});
-
-    //write the outputs
-    for (readyNode.outputs.items) |output| {
-        try writer.print(
-            \\
-            \\    //      <- {s} 
-        , .{output.name});
-    }
-
     try mathGen.write_math_op(writer, readyNode);
 }
 

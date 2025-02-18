@@ -9,6 +9,7 @@ const allocator = @import("pkgAllocator").allocator;
 const TensorProto = @import("onnx").TensorProto;
 const NodeProto = @import("onnx").NodeProto;
 const GraphProto = @import("onnx").GraphProto;
+const AttributeType = @import("onnx").AttributeType;
 
 // --- codeGen libs
 const ReadyNode = @import("codeGen_predict.zig").ReadyNode;
@@ -20,6 +21,34 @@ const utils = @import("codeGen_utils.zig");
 /// This method map and write the ONNX operations with the Zant LeanTensorMath mathods
 /// Follow the link for details: https://onnx.ai/onnx/operators/?utm_source=chatgpt.com
 pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    try writer.print(
+        \\
+        \\
+        \\   //forwarding operation : {s}
+        \\   //parameters:
+        \\   //   inputs: 
+    , .{node.*.nodeProto.*.op_type});
+
+    //write the inputs
+    for (node.inputs.items) |input| {
+        try writer.print(
+            \\
+            \\   //      -> {s} 
+        , .{input.name});
+    }
+    try writer.print(
+        \\
+        \\   //    outputs: 
+    , .{});
+
+    //write the outputs
+    for (node.outputs.items) |output| {
+        try writer.print(
+            \\
+            \\   //      <- {s} 
+        , .{output.name});
+    }
+
     if (std.mem.eql(u8, node.nodeProto.op_type, "Add")) {
         try writer.writeAll("// Handle Add\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "AveragePool")) {
@@ -39,7 +68,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gather")) {
         try writer.writeAll("// Handle Gather\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gemm")) {
-        try writer.writeAll("// Handle Gemm\n");
+        try write_gemm(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "LeakyRelu")) {
         try writer.writeAll("// Handle LeakyRelu\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "LogSoftmax")) {
@@ -53,15 +82,15 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "OneHot")) {
         try writer.writeAll("// Handle OneHot\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
-        try writer.writeAll("// Handle Relu\n");
+        try write_ReLU(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Reshape")) {
         try writer.writeAll("// Handle Relu\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Resize")) {
         try writer.writeAll("// Handle Resize\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sigmoid")) {
-        try writer.writeAll("// Handle Sigmoid\n");
+        try write_sigmoid(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Softmax")) {
-        try writer.writeAll("// Handle Softmax\n");
+        try write_softmax(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Slice")) {
         try writer.writeAll("// Handle Slice\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Split")) {
@@ -73,6 +102,100 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else {
         return error.OperationNotSupported;
     }
+}
+
+inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Gemm.html
+    // INPUTS:
+    //      - Input tensor A. The shape of A should be (M, K) if transA is 0, or (K, M) if transA is non-zero.
+    //      - Input tensor B. The shape of B should be (K, N) if transB is 0, or (N, K) if transB is non-zero.
+    //      - Optional input tensor C. If not specified, the computation is done as if C is a scalar 0. The shape of C should be unidirectional broadcastable to (M, N).
+    //OUTPUTS:
+    //      - Output tensor of shape (M, N).
+    // ATTRIBUTES:
+    //      - alpha. FLOAT (default is '1.0'): Scalar multiplier for the product of input tensors A * B.
+    //      - beta - FLOAT (default is '1.0'): Scalar multiplier for input tensor C.
+    //      - transA - INT (default is '0'): Whether A should be transposed
+    //      - transB - INT (default is '0'): Whether B should be transposed
+
+    var alpha: f32 = 1.0;
+    var beta: f32 = 1.0;
+    var transA: bool = false;
+    var transB: bool = false;
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.indexOf(u8, attr.name, "alpha")) |_| {
+            if (attr.type == AttributeType.FLOAT) alpha = attr.f else return error.GemmAphaNotFLOAT;
+        } else if (std.mem.indexOf(u8, attr.name, "beta")) |_| {
+            if (attr.type == AttributeType.FLOAT) beta = attr.f else return error.GemmBetaNotFLOAT;
+        } else if (std.mem.indexOf(u8, attr.name, "transA")) |_| {
+            if (attr.type == AttributeType.INT) transA = if (attr.i != 0) false else true else return error.GemmTransANotINT;
+        } else if (std.mem.indexOf(u8, attr.name, "transB")) |_| {
+            if (attr.type == AttributeType.INT) transB = if (attr.i != 0) false else true else return error.GemmTransBNotINT;
+        }
+    }
+
+    var c_tensor_string: []u8 = undefined;
+    // Input Tensor C is optional! verify the presence
+    if (node.inputs.items.len == 3) {
+        const C_name = try utils.getSanitizedName(node.inputs.items[2].name);
+        c_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ ", &tensor_", C_name });
+    } else {
+        c_tensor_string = "";
+    }
+
+    //gemm_lean(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(T), alpha: ?*const f32, beta: ?*const f32, transA: ?*const bool, transB: ?*const bool, Y: *Tensor(T)
+    _ = try writer.print(
+        \\
+        \\    try tensMath.gemm(T, &tensor_{s}, &tensor_{s} {s}, {}, {}, {}, {} );
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
+        try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
+        c_tensor_string,
+        alpha,
+        beta,
+        transA,
+        transB,
+    });
+}
+
+inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    //node.inputs.items[0] -> input
+    //node.outputs.items[0] -> output
+
+    _ = try writer.print(
+        \\
+        \\    try tensMath.ReLU(T, &tensor_{s}, &tensor_{s});
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name),
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_sigmoid(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    //node.inputs.items[0] -> input
+    //node.outputs.items[0] -> output
+
+    _ = try writer.print(
+        \\
+        \\    try tensMath.sigmoid(T, &tensor_{s}, &tensor_{s});
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name),
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_softmax(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    //node.inputs.items[0] -> input
+    //node.outputs.items[0] -> output
+
+    _ = try writer.print(
+        \\
+        \\    try tensMath.softmax(T, &tensor_{s}, &tensor_{s});
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name),
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
 }
 
 // ----------------------------------- SHAPE inference -----------------------------------

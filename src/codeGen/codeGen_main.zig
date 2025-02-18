@@ -10,7 +10,7 @@ pub fn main() !void {
     var model1 = try onnx.parseFromFile(allocator, "datasets/models/debug_model/debug_model.onnx");
     defer model1.deinit(allocator);
 
-    //onnx.printStructure(&model1);
+    onnx.printStructure(&model1);
 
     const file_path = "src/codeGen/static_lib.zig";
     var file = try std.fs.cwd().createFile(file_path, .{});
