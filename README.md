@@ -169,7 +169,7 @@ model.deinit();
 
 ## Docker
 
-Follow the [Docker Guide](How_TO_DOCKER_101.md) for containerized usage.
+Follow the [Docker Guide](/docs/How_TO_DOCKER_101.md) for containerized usage.
 
 ## Join Us!
 
