@@ -62,7 +62,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Conv")) {
         try writer.writeAll("// Handle Conv\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Div")) {
-        try writer.writeAll("// Handle Div\n");
+        try write_div(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Flatten")) {
         try writer.writeAll("// Handle Flatten\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gather")) {
@@ -78,7 +78,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "MaxPool")) {
         try writer.writeAll("// Handle MaxPool\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Mul")) {
-        try writer.writeAll("// Handle Mul\n");
+        try write_mul(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "OneHot")) {
         try writer.writeAll("// Handle OneHot\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
@@ -97,11 +97,31 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try writer.writeAll("// Handle Split\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sub")) {
         try writer.writeAll("// Handle Sub\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sum")) {
+        try write_sum(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Transpose")) {
         try writer.writeAll("// Handle Transpose\n");
     } else {
         return error.OperationNotSupported;
     }
+}
+
+inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Div.html
+    // INPUTS:
+    //      - A (heterogeneous) - T: First operand.
+    //      - B (heterogeneous) - T: Second operand.
+    // OUTPUTS:
+    //      - C (heterogeneous) - T: Result, has same element type as two inputs.
+
+    _ = try writer.print(
+        \\
+        \\    try tensMath.div(T, &tensor_{s}, &tensor_{s}, &tensor_{s});
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
+        try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
+    });
 }
 
 inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
@@ -144,7 +164,6 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         c_tensor_string = "";
     }
 
-    //gemm_lean(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(T), alpha: ?*const f32, beta: ?*const f32, transA: ?*const bool, transB: ?*const bool, Y: *Tensor(T)
     _ = try writer.print(
         \\
         \\    try tensMath.gemm(T, &tensor_{s}, &tensor_{s} {s}, {}, {}, {}, {} );
@@ -156,6 +175,24 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         beta,
         transA,
         transB,
+    });
+}
+
+inline fn write_mul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Mul.html
+    // INPUTS:
+    //      - A (heterogeneous) - T: First operand.
+    //      - B (heterogeneous) - T: Second operand.
+    // OUTPUTS:
+    //      - C (heterogeneous) - T: Result, has same element type as two inputs.
+
+    _ = try writer.print(
+        \\
+        \\    try tensMath.mul(T, &tensor_{s}, &tensor_{s}, &tensor_{s});
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
+        try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
     });
 }
 
@@ -198,65 +235,96 @@ inline fn write_softmax(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
+inline fn write_sum(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Sum.html
+    // INPUTS:
+    //      - list of tensors
+    // OUTPUTS:
+    //      - sum (heterogeneous) - T: Output tensor.
+
+    //Writing the tensor list with all the inputs
+    _ = try writer.print(
+        \\
+        \\    const my_tensor_list = [_]*Tensor(T){{
+    , .{});
+
+    for (node.inputs.items, 0..) |tens, idx| {
+        if (idx > 0) {
+            _ = try writer.print(", ", .{});
+        }
+        _ = try writer.print(
+            \\tensor_{s}
+        , .{try utils.getSanitizedName(tens.name)});
+    }
+
+    _ = try writer.print("}}", .{});
+
+    _ = try writer.print(
+        \\
+        \\    try tensMath.sum_tensor_list(T, T, &my_tensor_list, &tensor_{s});
+    , .{try utils.getSanitizedName(node.outputs.items[0].name)});
+}
+
 // ----------------------------------- SHAPE inference -----------------------------------
 
 pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Add")) {
-        // try writer.writeAll("// Handle Shape Add\n");
+        //https://onnx.ai/onnx/operators/onnx__Add.html
         readyNode.outputs.items[0].shape = readyNode.inputs.items[1].shape;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Concat")) {
-        // try writer.writeAll("// Handle Shape Concat\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Constant")) {
-        // try writer.writeAll("// Handle Shape Constant\n");
+        //https://onnx.ai/onnx/operators/onnx__Constant.html
         try compute_constant_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Conv")) {
-        // try writer.writeAll("// Handle Shape Conv\n");
+        //https://onnx.ai/onnx/operators/onnx__Conv.html
         try compute_conv_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Div")) {
-        // try writer.writeAll("// Handle Shape Div\n");
+        //https://onnx.ai/onnx/operators/onnx__Div.html
+        readyNode.outputs.items[0].shape = readyNode.inputs.items[1].shape;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Flatten")) {
-        // try writer.writeAll("// Handle Shape Flatten\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
-        // try writer.writeAll("// Handle Shape Gather\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gemm")) {
-        // try writer.writeAll("// Handle Shape Gemm\n");
+        //https://onnx.ai/onnx/operators/onnx__Gemm.html
         try compute_gemm_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LeakyRelu")) {
-        // try writer.writeAll("// Handle Shape LeakyRelu\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LogSoftmax")) {
-        // try writer.writeAll("// Handle Shape LogSoftmax\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MatMul")) {
-        // try writer.writeAll("// Handle Shape MatMul\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MaxPool")) {
-        // try writer.writeAll("// Handle Shape MaxPool\n");
+        // TODO
         //try compute_maxPool_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mul")) {
-        // try writer.writeAll("// Handle Shape Mul\n");
+        //https://onnx.ai/onnx/operators/onnx__Mul.html
         try compute_mul_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "OneHot")) {
-        // try writer.writeAll("// Handle Shape OneHot\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Relu")) {
-        // try writer.writeAll("// Handle Shape Relu\n");
+        //https://onnx.ai/onnx/operators/onnx__Relu.html
         try compute_ReLU_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Reshape")) {
-        // try writer.writeAll("// Handle Shape Reshape\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Resize")) {
-        // try writer.writeAll("// Handle Shape Resize\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Shape")) {
-        // try writer.writeAll("// Handle Shape Shape\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sigmoid")) {
-        // try writer.writeAll("// Handle Shape Sigmoid\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Softmax")) {
-        // try writer.writeAll("// Handle Shape Softmax\n");
+        //https://onnx.ai/onnx/operators/onnx__Softmax.html
         try compute_softmax_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Slice")) {
-        // try writer.writeAll("// Handle Shape Slice\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Split")) {
-        // try writer.writeAll("// Handle Shape Split\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sub")) {
-        // try writer.writeAll("// Handle Shape Sub\n");
+        // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Transpose")) {
-        // try writer.writeAll("// Handle Shape Transpose\n");
+        // TODO
     } else {
         std.debug.print("\n\n ERROR! output shape computation for {s} is not available in codeGen_math_handler.compute_output_shape() \n\n", .{readyNode.nodeProto.op_type});
         return error.OperationNotSupported;
