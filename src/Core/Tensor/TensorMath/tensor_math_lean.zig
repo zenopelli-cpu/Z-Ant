@@ -11,6 +11,7 @@ pub const sum_tensors = lean_elementWise_math_lib.lean_sum_tensors;
 //pub const sub_tensors = lean_elementWise_math_lib.sub_tensors;
 pub const mul = lean_elementWise_math_lib.mul_lean;
 pub const div = lean_elementWise_math_lib.div_lean;
+pub const sum_tensor_list = lean_elementWise_math_lib.lean_sum_tensor_list;
 
 const lean_op_convolution = @import("op_convolution.zig");
 pub const im2col = lean_op_convolution.lean_im2col;

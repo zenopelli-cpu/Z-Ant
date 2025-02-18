@@ -261,6 +261,10 @@ pub fn printOperations(graph: *GraphProto) !void {
 
 // Function to print all entries in the tensorHashMap
 pub fn printTensorHashMap(map: std.StringHashMap(ReadyTensor)) void {
+    std.debug.print("\n-------------------------------------------------------------", .{});
+    std.debug.print("\n+                       READY HASHMAP                       +", .{});
+    std.debug.print("\n-------------------------------------------------------------", .{});
+
     var it = map.iterator();
     while (it.next()) |entry| {
         const key = entry.key_ptr.*;

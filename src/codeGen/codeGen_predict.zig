@@ -108,10 +108,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
 
     //create the hashMap
     try createReadyTensorHashMap(model);
-    //DEBUG
-    std.debug.print("\n-------------------------------------------------------------", .{});
-    std.debug.print("\n+                       READY HASHMAP                       +", .{});
-    std.debug.print("\n-------------------------------------------------------------", .{});
+
     //DEBUG
     //utils.printTensorHashMap(tensorHashMap);
 
@@ -122,7 +119,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
     std.debug.print("\n+                        READY GRAPH                        +", .{});
     std.debug.print("\n-------------------------------------------------------------", .{});
     //DEBUG
-    //try utils.printNodeList(readyGraph);
+    try utils.printNodeList(readyGraph);
 
     //DEBUG
     try utils.printOperations(model.graph.?);
