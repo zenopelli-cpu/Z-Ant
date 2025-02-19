@@ -41,7 +41,7 @@ pub const ReadyTensor = struct {
             return ReadyTensor{ // Check if tensor is an input
                 .name = name,
                 .ready = true,
-                .shape = &[_]i64{ 1, 1, 28, 28 }, //TODO; wtf is this shit hardcoded, ask to Mirko
+                .shape = &[_]i64{ 1, 1, 28, 28 }, //TODO; hardcoded shit, ask to Mirko
             };
         } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "images")) |_| return ReadyTensor{ // Check if tensor is images
             .name = name,
@@ -50,7 +50,7 @@ pub const ReadyTensor = struct {
         } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "constant")) |_| return ReadyTensor{
             .name = name,
             .ready = true,
-            .shape = &[_]i64{ 1, 1, 1, 1 }, //try utils.getConstantTensorDims(nodeProto),
+            .shape = &[_]i64{ 1, 1, 1, 1 }, // it will be changed in the graph gration
         } else {
             if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "output")) |_| networkOutput = name;
             return ReadyTensor{ //default
@@ -112,17 +112,14 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
     //DEBUG
     //utils.printTensorHashMap(tensorHashMap);
 
-    //create the ReadyGraph
-    try createReadyGraph(model);
-    //DEBUG
-    std.debug.print("\n-------------------------------------------------------------", .{});
-    std.debug.print("\n+                        READY GRAPH                        +", .{});
-    std.debug.print("\n-------------------------------------------------------------", .{});
-    //DEBUG
-    try utils.printNodeList(readyGraph);
-
     //DEBUG
     try utils.printOperations(model.graph.?);
+
+    //create the ReadyGraph
+    try createReadyGraph(model);
+
+    //DEBUG
+    try utils.printNodeList(readyGraph);
 
     try writer.print(
         \\
@@ -138,7 +135,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
         \\
         \\
         \\
-        \\export fn predict(T: type, input: [*]T, input_shape: []usize) ![*]T {{
+        \\export fn predict(T: anytype, input: [*]T, input_shape: []usize) ![*]T {{
     , .{});
 
     try writeInitInput(writer);

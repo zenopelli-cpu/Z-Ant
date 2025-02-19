@@ -28,6 +28,8 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     // Generate tensor initialization code
     try codeGenInitializers.writeTensorsInit(writer, model);
 
+    try write_ciaoCiao(writer);
+
     // Generate prediction function code
     try coddeGenPredict.writePredict(writer, model);
 }
@@ -50,5 +52,17 @@ inline fn writeLibraries(writer: std.fs.File.Writer) !void {
         \\ const tensMath = @import("lean_tensor_math");
         \\ const pkgAllocator = @import("pkgAllocator");
         \\ const allocator = pkgAllocator.allocator;
+    , .{});
+}
+
+fn write_ciaoCiao(writer: std.fs.File.Writer) !void {
+    _ = try writer.print(
+        \\
+        \\
+        \\export fn ciaoCiao() void {{
+        \\      std.debug.print("\n#############################################################", .{{}});
+        \\      std.debug.print("\n+                      CIAO CIAO                      +", .{{}});
+        \\      std.debug.print("\n#############################################################", .{{}});
+        \\}}
     , .{});
 }

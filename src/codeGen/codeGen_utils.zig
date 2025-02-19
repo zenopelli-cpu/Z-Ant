@@ -196,6 +196,9 @@ pub fn getInitializer(name: []const u8, initializers: []*TensorProto) !*TensorPr
 // Prints the list of nodes in the given computation graph.
 // Outputs each node's name along with its input and output tensors and their readiness status.
 pub fn printNodeList(graph: std.ArrayList(ReadyNode)) !void {
+    std.debug.print("\n-------------------------------------------------------------", .{});
+    std.debug.print("\n+                        READY GRAPH                        +", .{});
+    std.debug.print("\n-------------------------------------------------------------", .{});
     for (graph.items) |node| {
         std.debug.print("\n ----- node: {s}", .{node.nodeProto.name.?});
 
