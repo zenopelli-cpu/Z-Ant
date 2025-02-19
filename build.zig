@@ -305,18 +305,15 @@ pub fn build(b: *std.Build) void {
 
     const tensor_math_lib = b.addStaticLibrary(.{
         .name = "tensor_math",
-        .root_source_file = b.path("src/Core/Tensor/TensorMath/c_api.zig"),
+        .root_source_file = b.path("src/codeGen/static_lib.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     tensor_math_lib.linkLibC();
     tensor_math_lib.root_module.addImport("tensor", tensor_mod);
-    tensor_math_lib.root_module.addImport("typeC", typeConv_mod);
-    tensor_math_lib.root_module.addImport("errorHandler", errorHandler_mod);
-    tensor_math_lib.root_module.addImport("layer", layer_mod);
+    tensor_math_lib.root_module.addImport("lean_tensor_math", tensor_math_mod);
     tensor_math_lib.root_module.addImport("pkgAllocator", allocator_mod);
-    tensor_math_lib.root_module.addImport("tensor_m", tensor_math_mod);
 
     const install_lib_step = b.addInstallArtifact(tensor_math_lib, .{});
     const lib_step = b.step("lib", "Compile tensor_math static library");
