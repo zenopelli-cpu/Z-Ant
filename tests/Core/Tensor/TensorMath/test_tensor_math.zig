@@ -12,4 +12,5 @@ test {
     _ = @import("test_op_convolution.zig");
     _ = @import("test_op_dot_product.zig");
     _ = @import("test_op_pooling.zig");
+    _ = @import("test_op_gemm.zig");
 }
