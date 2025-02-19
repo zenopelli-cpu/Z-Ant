@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) void {
 
     // Create modules from the source files in the `src/Core/Tensor/TensorMath` directory.
     const tensor_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_standard.zig") });
-    //const tensor_math_lean_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_lean.zig") });
+    const tensor_math_lean_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_lean.zig") });
 
     // Create modules from the source files in the `src/Model/` directory.
     const loss_mod = b.createModule(.{ .root_source_file = b.path("src/Model/lossFunction.zig") });
@@ -350,6 +350,7 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("errorHandler", errorHandler_mod);
     unit_tests.root_module.addImport("model_import_export", modelImportExport_mod);
     unit_tests.root_module.addImport("pkgAllocator", allocator_mod);
+    unit_tests.root_module.addImport("tensor_math_lean", tensor_math_lean_mod);
 
     unit_tests.linkLibC();
 
