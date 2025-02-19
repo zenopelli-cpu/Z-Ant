@@ -5,8 +5,8 @@ const Tensor = @import("tensor").Tensor;
 const TensorMathError = @import("errorHandler").TensorMathError;
 const ErrorHandler = @import("errorHandler");
 
-test "Dot product 2x2" {
-    std.debug.print("\n     test:Dot product 2x2", .{});
+test "MatMul 2x2" {
+    std.debug.print("\n     test:MatMul 2x2", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -20,7 +20,7 @@ test "Dot product 2x2" {
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
 
-    var result_tensor = try TensMath.dot_product_tensor(f32, f64, &t1, &t2);
+    var result_tensor = try TensMath.mat_mul(f32, &t1, &t2);
 
     try std.testing.expect(9.0 == result_tensor.data[0]);
     try std.testing.expect(12.0 == result_tensor.data[1]);
@@ -30,7 +30,7 @@ test "Dot product 2x2" {
     t2.deinit();
 }
 
-test "Error when input tensors have incompatible sizes for dot product" {
+test "Error when input tensors have incompatible sizes for MatMul" {
     const allocator = pkgAllocator.allocator;
 
     var shape1: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
@@ -38,17 +38,17 @@ test "Error when input tensors have incompatible sizes for dot product" {
     var t1 = try Tensor(f32).fromShape(&allocator, &shape1);
     var t2 = try Tensor(f32).fromShape(&allocator, &shape2);
 
-    try std.testing.expectError(TensorMathError.InputTensorsWrongShape, TensMath.dot_product_tensor(f32, f64, &t1, &t2));
+    try std.testing.expectError(TensorMathError.InputTensorsWrongShape, TensMath.mat_mul(f32, &t1, &t2));
 
-    _ = TensMath.dot_product_tensor(f32, f64, &t1, &t2) catch |err| {
+    _ = TensMath.mat_mul(f32, &t1, &t2) catch |err| {
         std.debug.print("\n _______ {s} ______", .{ErrorHandler.errorDetails(err)});
     };
     t1.deinit();
     t2.deinit();
 }
 
-test "Error when input tensors have incompatible shapes for dot product" {
-    std.debug.print("\n     test: Error when input tensors have incompatible shapes for dot product", .{});
+test "Error when input tensors have incompatible shapes for MatMul" {
+    std.debug.print("\n     test: Error when input tensors have incompatible shapes for MatMul", .{});
     const allocator = pkgAllocator.allocator;
 
     var shape1: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
@@ -56,14 +56,14 @@ test "Error when input tensors have incompatible shapes for dot product" {
     var t1 = try Tensor(f32).fromShape(&allocator, &shape1);
     var t2 = try Tensor(f32).fromShape(&allocator, &shape2);
 
-    try std.testing.expectError(TensorMathError.InputTensorsWrongShape, TensMath.dot_product_tensor(f32, f64, &t1, &t2));
+    try std.testing.expectError(TensorMathError.InputTensorsWrongShape, TensMath.mat_mul(f32, &t1, &t2));
 
     t1.deinit();
     t2.deinit();
 }
 
-test "Compare dot product implementations with execution time" {
-    std.debug.print("\nTest: Compare dot product implementations with execution time\n", .{});
+test "Compare MatMul implementations with execution time" {
+    std.debug.print("\nTest: Compare MatMul implementations with execution time\n", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create test tensors
@@ -91,7 +91,7 @@ test "Compare dot product implementations with execution time" {
 
     for (0..iterations) |_| {
         const start_simd = std.time.nanoTimestamp();
-        var result_simd = try TensMath.dot_product_tensor(f32, f32, &t1, &t2);
+        var result_simd = try TensMath.mat_mul(f32, &t1, &t2);
         const end_simd = std.time.nanoTimestamp();
         total_simd += @as(i64, @intCast(end_simd - start_simd));
         result_simd.deinit();
