@@ -18,6 +18,7 @@ pub const sum_tensor_list = lean_elementWise_math_lib.lean_sum_tensor_list;
 // ---------- importing lean Convolution methods ----------
 const lean_op_convolution = @import("op_convolution.zig");
 pub const im2col = lean_op_convolution.lean_im2col;
+pub const OnnxConvLean = lean_op_convolution.OnnxConvLean;
 
 // ---------- importing lean structural methods ----------
 const shape_math_lib = @import("lib_shape_math.zig");

@@ -871,3 +871,172 @@ test "OnnxConvLean - with bias and dilation" {
         try std.testing.expectEqual(@as(f32, 5), val);
     }
 }
+
+test "OnnxConv - all padding modes and features" {
+    std.debug.print("\n     test: OnnxConv - all padding modes and features\n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Test 1: NOTSET padding
+    {
+        // Input tensor
+        var input_shape: [4]usize = [_]usize{ 1, 1, 5, 5 };
+        var inputArray: [1][1][5][5]f32 = [_][1][5][5]f32{
+            [_][5][5]f32{
+                [_][5]f32{
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                },
+            },
+        };
+
+        // Kernel tensor
+        var kernel_shape: [4]usize = [_]usize{ 1, 1, 3, 3 };
+        var kernelArray: [1][1][3][3]f32 = [_][1][3][3]f32{
+            [_][3][3]f32{
+                [_][3]f32{
+                    [_]f32{ 1, 1, 1 },
+                    [_]f32{ 1, 1, 1 },
+                    [_]f32{ 1, 1, 1 },
+                },
+            },
+        };
+
+        var input_tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &input_shape);
+        defer input_tensor.deinit();
+        var kernel_tensor = try Tensor(f32).fromArray(&allocator, &kernelArray, &kernel_shape);
+        defer kernel_tensor.deinit();
+
+        const stride = [_]usize{1};
+        const pads = [_]usize{ 0, 0, 0, 0 };
+
+        var result = try TensMath.OnnxConv(f32, &input_tensor, &kernel_tensor, null, &stride, &pads, null, null, null);
+        defer result.deinit();
+
+        try std.testing.expectEqual(@as(usize, 1), result.shape[0]); // batch
+        try std.testing.expectEqual(@as(usize, 1), result.shape[1]); // channels
+        try std.testing.expectEqual(@as(usize, 3), result.shape[2]); // height
+        try std.testing.expectEqual(@as(usize, 3), result.shape[3]); // width
+
+        // Each output should be 9 (sum of 3x3 kernel of ones)
+        for (result.data) |val| {
+            try std.testing.expectEqual(@as(f32, 9), val);
+        }
+    }
+
+    // Test 2: SAME_UPPER padding
+    {
+        // Input tensor
+        var input_shape: [4]usize = [_]usize{ 1, 1, 5, 5 };
+        var inputArray: [1][1][5][5]f32 = [_][1][5][5]f32{
+            [_][5][5]f32{
+                [_][5]f32{
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                },
+            },
+        };
+
+        // Kernel tensor
+        var kernel_shape: [4]usize = [_]usize{ 1, 1, 3, 3 };
+        var kernelArray: [1][1][3][3]f32 = [_][1][3][3]f32{
+            [_][3][3]f32{
+                [_][3]f32{
+                    [_]f32{ 1, 1, 1 },
+                    [_]f32{ 1, 1, 1 },
+                    [_]f32{ 1, 1, 1 },
+                },
+            },
+        };
+
+        var input_tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &input_shape);
+        defer input_tensor.deinit();
+        var kernel_tensor = try Tensor(f32).fromArray(&allocator, &kernelArray, &kernel_shape);
+        defer kernel_tensor.deinit();
+
+        const stride = [_]usize{1};
+        const auto_pad = "SAME_UPPER";
+
+        var result = try TensMath.OnnxConv(f32, &input_tensor, &kernel_tensor, null, &stride, null, null, null, auto_pad);
+        defer result.deinit();
+
+        try std.testing.expectEqual(@as(usize, 1), result.shape[0]); // batch
+        try std.testing.expectEqual(@as(usize, 1), result.shape[1]); // channels
+        try std.testing.expectEqual(@as(usize, 5), result.shape[2]); // height
+        try std.testing.expectEqual(@as(usize, 5), result.shape[3]); // width
+
+        // Center values should be 9, edge values less due to padding
+        const expected_values = [_]f32{
+            4, 6, 6, 6, 4,
+            6, 9, 9, 9, 6,
+            6, 9, 9, 9, 6,
+            6, 9, 9, 9, 6,
+            4, 6, 6, 6, 4,
+        };
+
+        for (result.data, 0..) |val, i| {
+            try std.testing.expectEqual(expected_values[i], val);
+        }
+    }
+
+    // Test 3: With bias and dilation
+    {
+        // Input tensor
+        var input_shape: [4]usize = [_]usize{ 1, 1, 5, 5 };
+        var inputArray: [1][1][5][5]f32 = [_][1][5][5]f32{
+            [_][5][5]f32{
+                [_][5]f32{
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                    [_]f32{ 1, 1, 1, 1, 1 },
+                },
+            },
+        };
+
+        // Kernel tensor
+        var kernel_shape: [4]usize = [_]usize{ 1, 1, 2, 2 };
+        var kernelArray: [1][1][2][2]f32 = [_][1][2][2]f32{
+            [_][2][2]f32{
+                [_][2]f32{
+                    [_]f32{ 1, 1 },
+                    [_]f32{ 1, 1 },
+                },
+            },
+        };
+
+        // Bias tensor
+        var bias_shape: [1]usize = [_]usize{1};
+        var biasArray: [1]f32 = [_]f32{1};
+
+        var input_tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &input_shape);
+        defer input_tensor.deinit();
+        var kernel_tensor = try Tensor(f32).fromArray(&allocator, &kernelArray, &kernel_shape);
+        defer kernel_tensor.deinit();
+        var bias_tensor = try Tensor(f32).fromArray(&allocator, &biasArray, &bias_shape);
+        defer bias_tensor.deinit();
+
+        const stride = [_]usize{1};
+        const dilations = [_]usize{2};
+
+        var result = try TensMath.OnnxConv(f32, &input_tensor, &kernel_tensor, &bias_tensor, &stride, null, &dilations, null, null);
+        defer result.deinit();
+
+        try std.testing.expectEqual(@as(usize, 1), result.shape[0]); // batch
+        try std.testing.expectEqual(@as(usize, 1), result.shape[1]); // channels
+        try std.testing.expectEqual(@as(usize, 3), result.shape[2]); // height
+        try std.testing.expectEqual(@as(usize, 3), result.shape[3]); // width
+
+        // Each output should be 5 (4 from dilated kernel + 1 from bias)
+        for (result.data) |val| {
+            try std.testing.expectEqual(@as(f32, 5), val);
+        }
+    }
+}
