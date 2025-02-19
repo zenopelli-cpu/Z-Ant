@@ -5,7 +5,7 @@
 
 // ---------- importing standard reduction and logical methods ----------
 
-// ---------- importing standard strucutal methods ----------
+// ---------- importing standard structural methods ----------
 const shape_math_lib = @import("lib_shape_math.zig");
 pub const concatenate = shape_math_lib.concatenate;
 pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_shape;
@@ -26,6 +26,10 @@ pub const get_split_output_shapes = shape_math_lib.get_split_output_shapes;
 const dot_product = @import("op_dot_product.zig");
 pub const dot_product_tensor = dot_product.dot_product_tensor;
 pub const dot_product_tensor_flat = dot_product.dot_product_tensor_flat;
+
+// ---------- importing standard gemm method ----------
+const op_gemm = @import("op_gemm.zig");
+pub const gemm = op_gemm.gemm;
 
 // ---------- importing standard Convolution methods ----------
 const convolution_math_lib = @import("op_convolution.zig");
