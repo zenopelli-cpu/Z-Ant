@@ -2,8 +2,8 @@ const std = @import("std");
 const Tensor = @import("tensor").Tensor; // Import Tensor type
 const pkg_allocator = @import("pkgAllocator").allocator;
 const TensorMathError = @import("errorHandler").TensorMathError;
-const dot_product = @import("op_dot_product.zig");
-const dot_product_tensor = dot_product.dot_product_tensor;
+const op_mat_mul = @import("op_mat_mul.zig");
+const mat_mul = op_mat_mul.mat_mul;
 
 // CONVOLVE -----------------------------------------------------------------------------------------------------------------------
 
@@ -93,7 +93,7 @@ pub fn convolve_tensor_with_bias(
     var output = try Tensor(T).fromShape(&pkg_allocator, &output_shape);
     errdefer output.deinit();
 
-    var result = try dot_product_tensor(T, T, &input_col, &kernel_matrix);
+    var result = try mat_mul(T, &input_col, &kernel_matrix);
     defer result.deinit();
 
     // Safe copy with direct floating point addition
@@ -231,7 +231,7 @@ pub fn convolution_backward_weights(comptime T: type, input: *Tensor(T), dvalues
         }
     }
 
-    var dW = try dot_product_tensor(T, T, &dval_reshaped, &input_col);
+    var dW = try mat_mul( T, &dval_reshaped, &input_col);
     defer dW.deinit();
 
     // Use SIMD for division
@@ -382,7 +382,7 @@ pub fn convolution_backward_input(comptime T: type, dvalues: *const Tensor(T), k
         }
     }
 
-    var dX_col = try dot_product_tensor(T, T, &dval_reshaped, &kernel_transposed);
+    var dX_col = try mat_mul(T, &dval_reshaped, &kernel_transposed);
     defer dX_col.deinit();
 
     const kernel_size = [2]usize{ kernel_height, kernel_width };
