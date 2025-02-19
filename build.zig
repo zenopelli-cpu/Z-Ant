@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) void {
 
     // Create modules from the source files in the `src/Core/Tensor/TensorMath` directory.
     const tensor_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_standard.zig") });
-    // const tensor_math_lean_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_lean.zig") });
+    //const tensor_math_lean_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_lean.zig") });
 
     // Create modules from the source files in the `src/Model/` directory.
     const loss_mod = b.createModule(.{ .root_source_file = b.path("src/Model/lossFunction.zig") });
@@ -51,6 +51,9 @@ pub fn build(b: *std.Build) void {
 
     // code generation module
     const codegen_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/codeGen_skeleton.zig") });
+
+    //generated predict() code
+    //const predict_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
 
     // Create modules from the source files in the `src/DataHandler/` directory.
     const dataloader_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataLoader.zig") });
@@ -215,8 +218,6 @@ pub fn build(b: *std.Build) void {
 
     exe.linkLibC();
 
-    // ************************************************MAIN DEPENDENCIES************************************************
-
     // Add necessary imports for the main executable.
     exe.root_module.addImport("tensor", tensor_mod);
     exe.root_module.addImport("model", model_mod);
@@ -253,8 +254,6 @@ pub fn build(b: *std.Build) void {
 
     codeGen_exe.linkLibC();
 
-    // ************************************************CODEGEN DEPENDENCIES************************************************
-
     // Add necessary imports for the executable.
     codeGen_exe.root_module.addImport("onnx", onnx_mod);
     codeGen_exe.root_module.addImport("tensor_math", tensor_math_mod);
@@ -273,7 +272,36 @@ pub fn build(b: *std.Build) void {
     const codegen_step = b.step("codegen", " code generation");
     codegen_step.dependOn(&codegen_cmd.step);
 
-    // ************************************************STATIC LIBRARY************************************************
+    // ************************************************PREDICT EXECUTABLE, TODO: DELETE AFTER 1/03/2025************************************************
+
+    // // Define the main executable with target architecture and optimization settings.
+    // const predict_exe = b.addExecutable(.{
+    //     .name = "predict_main",
+    //     .root_source_file = b.path("src/codeGen/predict_main.zig"),
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+
+    // predict_exe.linkLibC();
+
+    // // Add necessary imports for the executable.
+    // predict_exe.root_module.addImport("predict_lib", predict_mod);
+    // predict_exe.root_module.addImport("tensor", tensor_mod);
+
+    // // Install the executable.
+    // b.installArtifact(predict_exe);
+
+    // // Define the run command for the main executable.
+    // const predict_cmd = b.addRunArtifact(predict_exe);
+    // if (b.args) |args| {
+    //     predict_cmd.addArgs(args);
+    // }
+
+    // // Create a build step to run the application.
+    // const predict_step = b.step("predict_main", " predict lib");
+    // predict_step.dependOn(&predict_cmd.step);
+
+    // ************************************************ TEST STATIC LIBRARY, TODO: DELETE AFTER 1/03/2025************************************************
 
     const tensor_math_lib = b.addStaticLibrary(.{
         .name = "tensor_math",
