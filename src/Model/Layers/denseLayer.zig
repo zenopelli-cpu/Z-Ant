@@ -144,7 +144,7 @@ pub fn DenseLayer(comptime T: type) type {
             }
 
             // Compute dot product and store result directly in self.output
-            self.output = try TensMath.dot_product_tensor(T, T, &self.input, &self.weights);
+            self.output = try TensMath.mat_mul(T, &self.input, &self.weights);
             errdefer self.output.deinit();
 
             try TensMath.add_bias(T, &self.output, &self.bias);
@@ -176,7 +176,7 @@ pub fn DenseLayer(comptime T: type) type {
             if (self.w_gradients.data.len > 0 and self.w_gradients.size > 0) {
                 self.w_gradients.deinit();
             }
-            self.w_gradients = try TensMath.dot_product_tensor(T, T, &input_transposed, dValues);
+            self.w_gradients = try TensMath.mat_mul(T, &input_transposed, dValues);
 
             std.debug.print("\nWeight gradients computed - Shape: {any}", .{self.w_gradients.shape});
 
@@ -206,7 +206,7 @@ pub fn DenseLayer(comptime T: type) type {
 
             std.debug.print("\nComputing input gradients - Weights transposed shape: {any}", .{weights_transposed.shape});
 
-            var input_gradients = try TensMath.dot_product_tensor(T, T, dValues, &weights_transposed);
+            var input_gradients = try TensMath.mat_mul(T, dValues, &weights_transposed);
             errdefer input_gradients.deinit();
 
             const result = try input_gradients.copy();

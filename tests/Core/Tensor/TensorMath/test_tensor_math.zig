@@ -9,8 +9,8 @@ test {
     _ = @import("test_lib_logical_math.zig");
     _ = @import("test_lib_reduction_math.zig");
     _ = @import("test_lib_shape_math.zig");
-    _ = @import("test_op_convolution.zig");
-    _ = @import("test_op_dot_product.zig");
-    _ = @import("test_op_pooling.zig");
+    _ = @import("test_op_mat_mul.zig");
     _ = @import("test_op_gemm.zig");
+    _ = @import("test_op_pooling.zig");
+    _ = @import("test_op_convolution.zig");
 }
