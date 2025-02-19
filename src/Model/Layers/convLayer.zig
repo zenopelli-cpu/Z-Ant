@@ -184,7 +184,7 @@ pub fn ConvolutionalLayer(comptime T: type) type {
             if (self.output.data.len > 0) {
                 self.output.deinit();
             }
-            self.output = try TensMath.convolve_tensor_with_bias(T, &self.input, &self.weights, &self.bias, &self.stride);
+            self.output = try TensMath.convolve_tensor_with_bias(T, &self.input, &self.weights, &self.bias, &self.stride, null);
 
             return self.output;
         }
