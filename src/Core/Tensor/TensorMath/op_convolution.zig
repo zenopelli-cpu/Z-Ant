@@ -872,3 +872,56 @@ pub inline fn lean_col2im(comptime T: type, col_matrix: *Tensor(T), output_shape
         }
     }
 }
+
+pub fn OnnxConv(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !Tensor(T) {
+    // Input validation
+    if (input.shape.len != 4 or kernel.shape.len != 4) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    const in_height = input.shape[2];
+    const in_width = input.shape[3];
+    const out_channels = kernel.shape[0];
+    const kernel_height = kernel.shape[2];
+    const kernel_width = kernel.shape[3];
+
+    // Group validation - currently only supporting group=1
+    if (group != null and group.? != 1) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    // Set default values for stride and dilation
+    const stride_h = if (stride.len > 0) stride[0] else 1;
+    const stride_w = if (stride.len > 1) stride[1] else stride[0];
+    const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
+    const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else d[0] else 1;
+
+    // Calculate output dimensions
+    var expected_out_height: usize = in_height;
+    var expected_out_width: usize = in_width;
+
+    if (auto_pad) |pad_mode| {
+        if (std.mem.eql(u8, pad_mode, "SAME_UPPER") or std.mem.eql(u8, pad_mode, "SAME_LOWER")) {
+            expected_out_height = in_height;
+            expected_out_width = in_width;
+        }
+    } else {
+        const dilated_kernel_h = (kernel_height - 1) * dilation_h + 1;
+        const dilated_kernel_w = (kernel_width - 1) * dilation_w + 1;
+        const total_pad_h = if (pads) |p| if (p.len >= 4) p[0] + p[2] else 0 else 0;
+        const total_pad_w = if (pads) |p| if (p.len >= 4) p[1] + p[3] else 0 else 0;
+
+        expected_out_height = (in_height + total_pad_h - dilated_kernel_h) / stride_h + 1;
+        expected_out_width = (in_width + total_pad_w - dilated_kernel_w) / stride_w + 1;
+    }
+
+    // Create output tensor with correct shape
+    var output_shape = [_]usize{ input.shape[0], out_channels, expected_out_height, expected_out_width };
+    var output = try Tensor(T).fromShape(&pkg_allocator, &output_shape);
+    errdefer output.deinit();
+
+    // Call the lean version
+    try OnnxConvLean(T, input, kernel, &output, bias, stride, pads, dilations, group, auto_pad);
+
+    return output;
+}

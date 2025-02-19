@@ -39,6 +39,7 @@ pub const convolution_backward_biases = convolution_math_lib.convolution_backwar
 pub const convolution_backward_weights = convolution_math_lib.convolution_backward_weights;
 pub const convolution_backward_input = convolution_math_lib.convolution_backward_input;
 pub const get_convolution_output_shape = convolution_math_lib.get_convolution_output_shape;
+pub const OnnxConv = convolution_math_lib.OnnxConv;
 pub const OnnxConvLean = convolution_math_lib.OnnxConvLean;
 
 // ---------- importing standard Pooling methods ----------
