@@ -120,6 +120,18 @@ pub fn Tensor(comptime T: type) type {
             };
         }
 
+        /// Initialize a tensor from a const buffer without allocation
+        /// Useful for freestanding targets where dynamic allocation is not available
+        /// The data and shape buffers must outlive the tensor
+        pub fn fromConstBuffer(data: []const T, shape: []const usize) @This() {
+            return @This(){
+                .data = @constCast(data),
+                .size = data.len,
+                .shape = @constCast(shape),
+                .allocator = undefined,
+            };
+        }
+
         /// Given any array and its shape it reshape the tensor and update .data
         pub fn fill(self: *@This(), inputArray: anytype, shape: []usize) !void {
             //const adjusted_shape = try ensure_4D_shape(shape);
