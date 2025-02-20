@@ -109,8 +109,7 @@ pub fn FlattenLayer(comptime T: type) type {
 
             // Store input and create output
             self.input = try input.copy();
-            self.output = try input.copy();
-            try self.output.reshape(output_shape[0..]);
+            self.output = try TensMath.reshape(T, input, output_shape[0..], null);
 
             return self.output;
         }
@@ -123,9 +122,8 @@ pub fn FlattenLayer(comptime T: type) type {
                 return LayerError.InvalidParameters;
             }
 
-            var dInput = try dValues.copy();
+            var dInput = try TensMath.reshape(T, dValues, self.original_shape, null);
             errdefer dInput.deinit();
-            try dInput.reshape(self.original_shape);
             return dInput;
         }
 

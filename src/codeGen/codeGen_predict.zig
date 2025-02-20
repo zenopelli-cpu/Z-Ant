@@ -135,7 +135,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
         \\
         \\
         \\
-        \\export fn predict(T: anytype, input: [*]T, input_shape: []usize) ![*]T {{
+        \\fn predict(T: anytype, input: [*]T, input_shape: []usize) ![*]T {{
     , .{});
 
     try writeInitInput(writer);
