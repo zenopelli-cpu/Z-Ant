@@ -448,7 +448,7 @@ fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
 fn writeReturn(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
-        \\      result = &tensor_{s}.data ;
+        \\      result.* = tensor_output.data.ptr;
         \\}}
     , .{networkOutput});
 }
