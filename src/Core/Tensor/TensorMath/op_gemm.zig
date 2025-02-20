@@ -110,7 +110,7 @@ pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(
     // }
 
     // result = alpha * A * B
-    try LeanTensMath.lean_dot_product_tensor(T, T, actual_A_ptr, actual_B_ptr, result);
+    try LeanTensMath.lean_mat_mul(T, actual_A_ptr, actual_B_ptr, result);
     for (0..result.size) |i| {
         result.data[i] *= alpha;
     }

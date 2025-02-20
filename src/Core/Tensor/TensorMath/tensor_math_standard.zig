@@ -24,9 +24,9 @@ pub const split = shape_math_lib.split;
 pub const get_split_output_shapes = shape_math_lib.get_split_output_shapes;
 
 // ---------- importing matrix algebra methods ----------
-const dot_product = @import("op_dot_product.zig");
-pub const dot_product_tensor = dot_product.dot_product_tensor;
-pub const dot_product_tensor_flat = dot_product.dot_product_tensor_flat;
+const op_mat_mul = @import("op_mat_mul.zig");
+pub const mat_mul = op_mat_mul.mat_mul;
+pub const dot_product_tensor_flat = op_mat_mul.dot_product_tensor_flat;
 
 // ---------- importing standard gemm method ----------
 const op_gemm = @import("op_gemm.zig");
@@ -40,6 +40,8 @@ pub const convolution_backward_biases = convolution_math_lib.convolution_backwar
 pub const convolution_backward_weights = convolution_math_lib.convolution_backward_weights;
 pub const convolution_backward_input = convolution_math_lib.convolution_backward_input;
 pub const get_convolution_output_shape = convolution_math_lib.get_convolution_output_shape;
+pub const OnnxConv = convolution_math_lib.OnnxConv;
+pub const OnnxConvLean = convolution_math_lib.OnnxConvLean;
 
 // ---------- importing standard Pooling methods ----------
 const pooling_math_lib = @import("op_pooling.zig");
