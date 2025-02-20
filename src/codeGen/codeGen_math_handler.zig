@@ -104,6 +104,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else {
         return error.OperationNotSupported;
     }
+
+    try writer.writeAll(" catch return;");
 }
 
 inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
@@ -116,7 +118,7 @@ inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    try tensMath.div(T, &tensor_{s}, &tensor_{s}, &tensor_{s});
+        \\    tensMath.div_lean(T, &tensor_{s}, &tensor_{s}, &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
@@ -159,14 +161,14 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // Input Tensor C is optional! verify the presence
     if (node.inputs.items.len == 3) {
         const C_name = try utils.getSanitizedName(node.inputs.items[2].name);
-        c_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ ", &tensor_", C_name });
+        c_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ ", @constCast(&tensor_", C_name, ")" });
     } else {
         c_tensor_string = "";
     }
 
     _ = try writer.print(
         \\
-        \\    try tensMath.gemm(T, &tensor_{s}, &tensor_{s} {s}, {}, {}, {}, {} );
+        \\    tensMath.gemm_lean(T, &tensor_{s}, @constCast(&tensor_{s}) {s}, {}, {}, {}, {}, &tensor_{s} )
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
@@ -175,6 +177,7 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         beta,
         transA,
         transB,
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output
     });
 }
 
@@ -188,7 +191,7 @@ inline fn write_mul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    try tensMath.mul(T, &tensor_{s}, &tensor_{s}, &tensor_{s});
+        \\    tensMath.mul_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
@@ -202,7 +205,7 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    try tensMath.ReLU(T, &tensor_{s}, &tensor_{s});
+        \\    tensMath.ReLU_lean(T, &tensor_{s}, &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name),
         try utils.getSanitizedName(node.outputs.items[0].name),
@@ -215,7 +218,7 @@ inline fn write_sigmoid(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    try tensMath.sigmoid(T, &tensor_{s}, &tensor_{s});
+        \\    tensMath.sigmoid_lean(T, &tensor_{s}, &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name),
         try utils.getSanitizedName(node.outputs.items[0].name),
@@ -228,7 +231,7 @@ inline fn write_softmax(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    try tensMath.softmax(T, &tensor_{s}, &tensor_{s});
+        \\    tensMath.softmax_lean(T, &tensor_{s}, &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name),
         try utils.getSanitizedName(node.outputs.items[0].name),
@@ -261,7 +264,7 @@ inline fn write_sum(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    try tensMath.sum_tensor_list(T, T, &my_tensor_list, &tensor_{s});
+        \\    tensMath.sum_tensor_list_lean(T, T, &my_tensor_list, &tensor_{s})
     , .{try utils.getSanitizedName(node.outputs.items[0].name)});
 }
 

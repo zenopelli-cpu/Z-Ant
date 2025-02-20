@@ -280,9 +280,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    //  static_lib.linkLibC();
+    static_lib.linkLibC();
     static_lib.root_module.addImport("tensor", tensor_mod);
-    static_lib.root_module.addImport("lean_tensor_math", tensor_math_mod);
+    static_lib.root_module.addImport("tensor_math", tensor_math_mod);
     static_lib.root_module.addImport("pkgAllocator", allocator_mod);
 
     const install_lib_step = b.addInstallArtifact(static_lib, .{});

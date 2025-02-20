@@ -310,3 +310,21 @@ pub fn usizeSliceToI64Slice(input: []usize) ![]const i64 {
 
     return output;
 }
+
+pub fn u32ToUsize(input: [*]u32, size: u32) ![]usize {
+    var output = try allocator.alloc(usize, size);
+
+    const maxUsize = std.math.maxInt(usize);
+
+    for (0..size) |i| {
+        if (input[i] < 0) {
+            return error.NegativeValue;
+        }
+        if (input[i] > maxUsize) {
+            return error.ValueTooLarge;
+        }
+        output[i] = @intCast(input[i]);
+    }
+
+    return output;
+}

@@ -33,7 +33,7 @@ pub const lean_mat_mul = op_mat_mul.lean_mat_mul;
 
 // ---------- importing lean gemm method ----------
 const op_gemm = @import("op_gemm.zig");
-pub const gemm = op_gemm.lean_gemm;
+pub const gemm_lean = op_gemm.lean_gemm;
 
 // ---------- importing lean activation function methods ----------
 const activation_math_lib = @import("lib_activation_function_math.zig");
