@@ -53,9 +53,11 @@ inline fn write_libraries(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\ const Tensor = @import("tensor").Tensor;
-        \\ const tensMath = @import("lean_tensor_math");
+        \\ const tensMath = @import("tensor_math");
         \\ const pkgAllocator = @import("pkgAllocator");
         \\ const allocator = pkgAllocator.allocator;
+        \\ const utils = @import("codeGen_utils.zig");
+        \\
     , .{});
 }
 
@@ -63,7 +65,7 @@ fn write_FBA(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\
-        \\ var buf: [4096 * 10]f32 = undefined;
+        \\ var buf: [4096 * 10]u8 = undefined;
         \\ var fba_state = @import("std").heap.FixedBufferAllocator.init(&buf);
         \\ const fba = fba_state.allocator();
     , .{});
