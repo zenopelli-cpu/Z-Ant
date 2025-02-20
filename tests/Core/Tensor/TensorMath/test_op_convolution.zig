@@ -694,7 +694,7 @@ test "OnnxConvLean - NOTSET padding" {
     var output_tensor = try Tensor(f32).fromShape(&allocator, &output_shape);
     defer output_tensor.deinit();
 
-    try TensMath.OnnxConvLean(f32, &input_tensor, &kernel_tensor, &output_tensor, null, &stride, &pads, null, null, null);
+    try TensMath.Conv_lean(f32, &input_tensor, &kernel_tensor, &output_tensor, null, &stride, &pads, null, null, null);
 
     try std.testing.expectEqual(@as(usize, 1), output_tensor.shape[0]); // batch
     try std.testing.expectEqual(@as(usize, 1), output_tensor.shape[1]); // channels
@@ -751,7 +751,7 @@ test "OnnxConvLean - SAME_UPPER padding" {
     var output_tensor = try Tensor(f32).fromShape(&allocator, &output_shape);
     defer output_tensor.deinit();
 
-    try TensMath.OnnxConvLean(f32, &input_tensor, &kernel_tensor, &output_tensor, null, &stride, null, null, null, auto_pad);
+    try TensMath.Conv_lean(f32, &input_tensor, &kernel_tensor, &output_tensor, null, &stride, null, null, null, auto_pad);
 
     // Add debug prints for padded input
     std.debug.print("\nKernel values:\n", .{});
@@ -859,7 +859,7 @@ test "OnnxConvLean - with bias and dilation" {
     var output_tensor = try Tensor(f32).fromShape(&allocator, &output_shape);
     defer output_tensor.deinit();
 
-    try TensMath.OnnxConvLean(f32, &input_tensor, &kernel_tensor, &output_tensor, &bias_tensor, &stride, null, &dilations, null, null);
+    try TensMath.Conv_lean(f32, &input_tensor, &kernel_tensor, &output_tensor, &bias_tensor, &stride, null, &dilations, null, null);
 
     try std.testing.expectEqual(@as(usize, 1), output_tensor.shape[0]); // batch
     try std.testing.expectEqual(@as(usize, 1), output_tensor.shape[1]); // channels
@@ -913,7 +913,7 @@ test "OnnxConv - all padding modes and features" {
         const stride = [_]usize{1};
         const pads = [_]usize{ 0, 0, 0, 0 };
 
-        var result = try TensMath.OnnxConv(f32, &input_tensor, &kernel_tensor, null, &stride, &pads, null, null, null);
+        var result = try TensMath.Conv(f32, &input_tensor, &kernel_tensor, null, &stride, &pads, null, null, null);
         defer result.deinit();
 
         try std.testing.expectEqual(@as(usize, 1), result.shape[0]); // batch
@@ -963,7 +963,7 @@ test "OnnxConv - all padding modes and features" {
         const stride = [_]usize{1};
         const auto_pad = "SAME_UPPER";
 
-        var result = try TensMath.OnnxConv(f32, &input_tensor, &kernel_tensor, null, &stride, null, null, null, auto_pad);
+        var result = try TensMath.Conv(f32, &input_tensor, &kernel_tensor, null, &stride, null, null, null, auto_pad);
         defer result.deinit();
 
         try std.testing.expectEqual(@as(usize, 1), result.shape[0]); // batch
@@ -1026,7 +1026,7 @@ test "OnnxConv - all padding modes and features" {
         const stride = [_]usize{1};
         const dilations = [_]usize{2};
 
-        var result = try TensMath.OnnxConv(f32, &input_tensor, &kernel_tensor, &bias_tensor, &stride, null, &dilations, null, null);
+        var result = try TensMath.Conv(f32, &input_tensor, &kernel_tensor, &bias_tensor, &stride, null, &dilations, null, null);
         defer result.deinit();
 
         try std.testing.expectEqual(@as(usize, 1), result.shape[0]); // batch
