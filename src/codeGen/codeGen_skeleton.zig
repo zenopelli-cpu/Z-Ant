@@ -23,7 +23,10 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     const writer = file.writer();
 
     // Write the necessary library imports to the generated Zig file
-    try writeLibraries(writer);
+    try write_libraries(writer);
+
+    //Fixed Buffer Allocator
+    try write_FBA(writer);
 
     // Generate tensor initialization code
     try codeGenInitializers.writeTensorsInit(writer, model);
@@ -44,7 +47,7 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
 ///
 /// # Errors
 /// This function may return an error if writing to the file fails.
-inline fn writeLibraries(writer: std.fs.File.Writer) !void {
+inline fn write_libraries(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\ const std = @import("std");
@@ -52,6 +55,16 @@ inline fn writeLibraries(writer: std.fs.File.Writer) !void {
         \\ const tensMath = @import("lean_tensor_math");
         \\ const pkgAllocator = @import("pkgAllocator");
         \\ const allocator = pkgAllocator.allocator;
+    , .{});
+}
+
+fn write_FBA(writer: std.fs.File.Writer) !void {
+    _ = try writer.print(
+        \\
+        \\
+        \\ var buf: [4096 * 10]f32 = undefined;
+        \\ var fba_state = std.heap.FixedBufferAllocator.init(&buf);
+        \\ const fba = fba_state.allocator();
     , .{});
 }
 

@@ -135,7 +135,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
         \\
         \\
         \\
-        \\fn predict(T: anytype, input: [*]T, input_shape: []usize) ![*]T {{
+        \\fn predict(T: anytype, input: [*]T, input_shape: []u32) ![*]T {{
     , .{});
 
     try writeInitInput(writer);
@@ -364,7 +364,7 @@ fn writeConstant(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void 
     // Write tensor initialization using fromArray
     try writer.print(
         \\
-        \\const tensor_{s} = Tensor({s}).fromArray(&allocator, &array_{s}, &shape_tensor_{s});
+        \\const tensor_{s} = Tensor({s}).fromArray(&fba, &array_{s}, &shape_tensor_{s});
     , .{ sanitized_name, dataTypeString, sanitized_name, sanitized_name });
 }
 
@@ -372,7 +372,7 @@ fn writeOutputTensor(writer: std.fs.File.Writer, name: []const u8) !void {
     const sanitized_name = try utils.getSanitizedName(name);
     try writer.print(
         \\
-        \\const tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s});
+        \\var tensor_{s} = Tensor({s}).fromShape(&fba, &shape_tensor_{s});
     , .{ sanitized_name, "f32", sanitized_name });
 }
 
