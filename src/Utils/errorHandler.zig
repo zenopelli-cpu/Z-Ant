@@ -34,17 +34,18 @@ pub const ArchitectureError = error{
 
 /// Tensor Math errors
 pub const TensorMathError = error{
+    InvalidDimensions,
     MemError,
     InputTensorDifferentSize,
     InputTensorDifferentShape,
-    InputTensorsWrongShape, //launched in dot_product
+    InputTensorsWrongShape,
     OutputTensorDifferentSize,
-    TooSmallOutputType, //the type dimension of the output Tensor could coause a loss of information
+    TooSmallOutputType,
     InputTensorDimensionMismatch,
     WrongStride,
     IncompatibleBroadcastShapes,
-    InvalidDimensions,
     EmptyTensorList,
+    DivisionError,
 };
 
 /// Tensor errors
@@ -127,6 +128,7 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         TensorMathError.InvalidDimensions => "TensorMath: invalid dimensions",
         TensorMathError.WrongStride => "TensorMath: wrong stride",
         TensorMathError.EmptyTensorList => "TensorMath: empty tensor list provided",
+        TensorMathError.DivisionError => "TensorMath: division error encountered",
 
         //TENSOR
         TensorError.TensorNotInitialized => "Tensor: tensor not initialized",

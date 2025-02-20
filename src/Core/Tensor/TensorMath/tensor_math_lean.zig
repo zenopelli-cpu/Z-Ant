@@ -18,6 +18,7 @@ pub const sum_tensor_list = lean_elementWise_math_lib.lean_sum_tensor_list;
 // ---------- importing lean Convolution methods ----------
 const lean_op_convolution = @import("op_convolution.zig");
 pub const im2col = lean_op_convolution.lean_im2col;
+pub const OnnxConvLean = lean_op_convolution.OnnxConvLean;
 
 // ---------- importing lean structural methods ----------
 const shape_math_lib = @import("lib_shape_math.zig");
@@ -27,8 +28,8 @@ pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_s
 pub const get_split_output_shapes = shape_math_lib.get_split_output_shapes;
 
 // ---------- importing lean matrix algebra methods ----------
-const dot_product = @import("op_dot_product.zig");
-pub const lean_dot_product_tensor = dot_product.lean_dot_product_tensor;
+const op_mat_mul = @import("op_mat_mul.zig");
+pub const lean_mat_mul = op_mat_mul.lean_mat_mul;
 
 // ---------- importing lean gemm method ----------
 const op_gemm = @import("op_gemm.zig");
