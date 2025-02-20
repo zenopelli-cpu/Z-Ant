@@ -22,5 +22,4 @@
 #ignore zig output
 zig-out/
 
-#ignore codegen
-static_lib.zig
+
