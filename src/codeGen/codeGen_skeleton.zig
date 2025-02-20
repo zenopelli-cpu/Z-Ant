@@ -28,10 +28,12 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     //Fixed Buffer Allocator
     try write_FBA(writer);
 
+    try write_type_T(writer);
+
     // Generate tensor initialization code
     try codeGenInitializers.writeTensorsInit(writer, model);
 
-    try write_ciaoCiao(writer);
+    //try write_debug(writer);
 
     // Generate prediction function code
     try coddeGenPredict.writePredict(writer, model);
@@ -50,7 +52,6 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
 inline fn write_libraries(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
-        \\ const std = @import("std");
         \\ const Tensor = @import("tensor").Tensor;
         \\ const tensMath = @import("lean_tensor_math");
         \\ const pkgAllocator = @import("pkgAllocator");
@@ -63,18 +64,26 @@ fn write_FBA(writer: std.fs.File.Writer) !void {
         \\
         \\
         \\ var buf: [4096 * 10]f32 = undefined;
-        \\ var fba_state = std.heap.FixedBufferAllocator.init(&buf);
+        \\ var fba_state = @import("std").heap.FixedBufferAllocator.init(&buf);
         \\ const fba = fba_state.allocator();
     , .{});
 }
 
-fn write_ciaoCiao(writer: std.fs.File.Writer) !void {
+fn write_type_T(writer: std.fs.File.Writer) !void {
+    _ = try writer.print(
+        \\
+        \\
+        \\ const T = f32;
+    , .{});
+}
+
+fn write_debug(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\
         \\export fn ciaoCiao() void {{
         \\      std.debug.print("\n#############################################################", .{{}});
-        \\      std.debug.print("\n+                      CIAO CIAO                      +", .{{}});
+        \\      std.debug.print("\n+                      DEBUG                     +", .{{}});
         \\      std.debug.print("\n#############################################################", .{{}});
         \\}}
     , .{});

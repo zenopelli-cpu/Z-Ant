@@ -272,50 +272,20 @@ pub fn build(b: *std.Build) void {
     const codegen_step = b.step("codegen", " code generation");
     codegen_step.dependOn(&codegen_cmd.step);
 
-    // ************************************************PREDICT EXECUTABLE, TODO: DELETE AFTER 1/03/2025************************************************
+    // ************************************************ STATIC LIBRARY CREATION ************************************************
 
-    // // Define the main executable with target architecture and optimization settings.
-    // const predict_exe = b.addExecutable(.{
-    //     .name = "predict_main",
-    //     .root_source_file = b.path("src/codeGen/predict_main.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-
-    // predict_exe.linkLibC();
-
-    // // Add necessary imports for the executable.
-    // predict_exe.root_module.addImport("predict_lib", predict_mod);
-    // predict_exe.root_module.addImport("tensor", tensor_mod);
-
-    // // Install the executable.
-    // b.installArtifact(predict_exe);
-
-    // // Define the run command for the main executable.
-    // const predict_cmd = b.addRunArtifact(predict_exe);
-    // if (b.args) |args| {
-    //     predict_cmd.addArgs(args);
-    // }
-
-    // // Create a build step to run the application.
-    // const predict_step = b.step("predict_main", " predict lib");
-    // predict_step.dependOn(&predict_cmd.step);
-
-    // ************************************************ TEST STATIC LIBRARY, TODO: DELETE AFTER 1/03/2025************************************************
-
-    const tensor_math_lib = b.addStaticLibrary(.{
-        .name = "tensor_math",
+    const static_lib = b.addStaticLibrary(.{
+        .name = "static_lib",
         .root_source_file = b.path("src/codeGen/static_lib.zig"),
         .target = target,
         .optimize = optimize,
     });
+    //  static_lib.linkLibC();
+    static_lib.root_module.addImport("tensor", tensor_mod);
+    static_lib.root_module.addImport("lean_tensor_math", tensor_math_mod);
+    static_lib.root_module.addImport("pkgAllocator", allocator_mod);
 
-    tensor_math_lib.linkLibC();
-    tensor_math_lib.root_module.addImport("tensor", tensor_mod);
-    tensor_math_lib.root_module.addImport("lean_tensor_math", tensor_math_mod);
-    tensor_math_lib.root_module.addImport("pkgAllocator", allocator_mod);
-
-    const install_lib_step = b.addInstallArtifact(tensor_math_lib, .{});
+    const install_lib_step = b.addInstallArtifact(static_lib, .{});
     const lib_step = b.step("lib", "Compile tensor_math static library");
     lib_step.dependOn(&install_lib_step.step);
 
@@ -323,7 +293,7 @@ pub fn build(b: *std.Build) void {
 
     // Define unified tests for the project.
     const unit_tests = b.addTest(.{
-        .name = "lib",
+        .name = "test_lib",
         .root_source_file = b.path("tests/test_lib.zig"),
         .target = target,
         .optimize = optimize,
