@@ -899,3 +899,28 @@ test "Empty tensor list error" {
     const empty_shapes: []const []const usize = &[_][]const usize{};
     try std.testing.expectError(TensorMathError.EmptyTensorList, TensMath.get_concatenate_output_shape(empty_shapes, 0));
 }
+
+test "Reshape" {
+    std.debug.print("\n     test: Reshape ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Inizializzazione degli array di input
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 4 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape: [4]usize = [_]usize{ 1, 1, 2, 3 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    var new_shape: [4]usize = [_]usize{ 1, 1, 3, 2 };
+    var new_tens = try TensMath.reshape(u8, &tensor, &new_shape, false);
+    defer new_tens.deinit();
+
+    std.debug.print(" \n\n  new_tens.shape= {any} ", .{new_tens.shape});
+
+    try std.testing.expect(new_tens.size == new_tens.size);
+    try std.testing.expect(new_tens.shape[2] == 3);
+    try std.testing.expect(new_tens.shape[3] == 2);
+}

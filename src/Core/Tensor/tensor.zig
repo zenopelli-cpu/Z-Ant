@@ -244,26 +244,6 @@ pub fn Tensor(comptime T: type) type {
             return product;
         }
 
-        /// Modify, if possible, the shape of a tensor, use it wisely.
-        /// Errors:
-        ///     - TensorError.InputArrayWrongSize
-        pub fn reshape(self: *@This(), shape: []usize) !void {
-            var total_size: usize = 1;
-            for (shape) |dim| {
-                total_size *= dim;
-            }
-            if (total_size != self.size) {
-                return TensorError.InputArrayWrongSize;
-            }
-
-            self.allocator.free(self.shape);
-            const tensorShape = try self.allocator.alloc(usize, shape.len);
-            // copy elements of shape
-            @memcpy(tensorShape, shape);
-
-            self.shape = tensorShape;
-        }
-
         /// Given the coordinates (indices) of a multidimensional Tensor returns the correspondant potition in the monodimensional space of self.data
         pub fn flatten_index(self: *const @This(), indices: []const usize) !usize {
             var idx: usize = 0;

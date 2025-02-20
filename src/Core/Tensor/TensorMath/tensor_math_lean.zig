@@ -21,6 +21,7 @@ pub const im2col = lean_op_convolution.lean_im2col;
 
 // ---------- importing lean structural methods ----------
 const shape_math_lib = @import("lib_shape_math.zig");
+pub const reshape = shape_math_lib.reshape_lean;
 pub const get_resize_output_shape = shape_math_lib.get_resize_output_shape;
 pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_shape;
 pub const get_split_output_shapes = shape_math_lib.get_split_output_shapes;
