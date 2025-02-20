@@ -38,7 +38,7 @@ pub inline fn writeTensorsInit(writer: std.fs.File.Writer, model: ModelOnnx) !vo
         // Create the tensor instance
         try writer.print(
             \\
-            \\const tensor_{s} = Tensor({s}).fromArray(&allocator, &array_{s}, &shape_tensor_{s});
+            \\const tensor_{s} = Tensor({s}).fromArray(&fba, &array_{s}, &shape_tensor_{s});
         , .{ name, dataTypeString, name, name });
     }
 }
