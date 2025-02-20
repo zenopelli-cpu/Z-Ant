@@ -274,6 +274,12 @@ pub fn build(b: *std.Build) void {
 
     // ************************************************ STATIC LIBRARY CREATION ************************************************
 
+    const static_lib_mod = b.createModule(.{
+        .root_source_file = b.path("src/codeGen/static_lib.zig"),
+    });
+    static_lib_mod.addImport("tensor", tensor_mod);
+    static_lib_mod.addImport("tensor_math", tensor_math_mod);
+
     const static_lib = b.addStaticLibrary(.{
         .name = "static_lib",
         .root_source_file = b.path("src/codeGen/static_lib.zig"),
@@ -283,7 +289,6 @@ pub fn build(b: *std.Build) void {
     static_lib.linkLibC();
     static_lib.root_module.addImport("tensor", tensor_mod);
     static_lib.root_module.addImport("tensor_math", tensor_math_mod);
-    static_lib.root_module.addImport("pkgAllocator", allocator_mod);
 
     const install_lib_step = b.addInstallArtifact(static_lib, .{});
     const lib_step = b.step("lib", "Compile tensor_math static library");
@@ -321,6 +326,7 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("model_import_export", modelImportExport_mod);
     unit_tests.root_module.addImport("pkgAllocator", allocator_mod);
     unit_tests.root_module.addImport("tensor_math_lean", tensor_math_lean_mod);
+    unit_tests.root_module.addImport("static_lib", static_lib_mod);
 
     unit_tests.linkLibC();
 
