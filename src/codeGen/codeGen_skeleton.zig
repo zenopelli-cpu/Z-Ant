@@ -7,6 +7,8 @@ const allocator = @import("pkgAllocator").allocator;
 const codeGenInitializers = @import("codeGen_initializers.zig");
 const coddeGenPredict = @import("codeGen_predict.zig");
 const tensorMath = @import("tensor_math");
+const codegen_options = @import("codegen_options");
+const utils = @import("codeGen_utils.zig");
 
 /// Writes a Zig source file containing the generated code for an ONNX model.
 ///
@@ -24,6 +26,11 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
 
     // Write the necessary library imports to the generated Zig file
     try write_libraries(writer);
+
+    if (codegen_options.log) {
+        //log function setting
+        try write_logFunction(writer);
+    }
 
     //Fixed Buffer Allocator
     try write_FBA(writer);
@@ -49,7 +56,7 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
 ///
 /// # Errors
 /// This function may return an error if writing to the file fails.
-inline fn write_libraries(writer: std.fs.File.Writer) !void {
+fn write_libraries(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\ const Tensor = @import("tensor").Tensor;
@@ -61,6 +68,17 @@ inline fn write_libraries(writer: std.fs.File.Writer) !void {
     , .{});
 }
 
+fn write_logFunction(writer: std.fs.File.Writer) !void {
+    _ = try writer.print(
+        \\
+        \\var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
+        \\
+        \\pub export fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {{
+        \\    log_function = func;
+        \\}}
+        \\
+    , .{});
+}
 fn write_FBA(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
@@ -72,8 +90,7 @@ fn write_FBA(writer: std.fs.File.Writer) !void {
 }
 
 fn write_type_T(writer: std.fs.File.Writer) !void {
-    _ = try writer.print(
-        \\
+    _ = try writer.print( //TODO: get the type form the onnx model
         \\
         \\ const T = f32;
     , .{});
@@ -83,7 +100,7 @@ fn write_debug(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\
-        \\export fn ciaoCiao() void {{
+        \\export fn debug() void {{
         \\      std.debug.print("\n#############################################################", .{{}});
         \\      std.debug.print("\n+                      DEBUG                     +", .{{}});
         \\      std.debug.print("\n#############################################################", .{{}});

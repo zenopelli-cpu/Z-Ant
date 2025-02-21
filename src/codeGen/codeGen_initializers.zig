@@ -13,33 +13,9 @@ pub inline fn writeTensorsInit(writer: std.fs.File.Writer, model: ModelOnnx) !vo
     try writer.print(
         \\
         \\
-        \\ // ------------------------------------------------
-        \\ // +         Declaring Weights and Biases         +
-        \\ // -------------------------------------------------
-    , .{});
-
-    // Iterate over all initializers in the ONNX model and generate code
-    for (model.graph.?.initializers) |tensorProtoInitializer| {
-        const name: []const u8 = try utils.getSanitizedName(tensorProtoInitializer.name.?);
-
-        try writer.print(
-            \\ 
-            \\const tensor_{s}: Tensor(T) = undefined;
-        , .{try utils.getSanitizedName(name)});
-    }
-
-    try writer.print(
-        \\
-        \\
         \\ // ---------------------------------------------------
         \\ // +         Initializing Weights and Biases         +
         \\ // ---------------------------------------------------
-    , .{});
-
-    //initialization
-    try writer.print(
-        \\
-        \\comptime {{
     , .{});
 
     // Iterate over all initializers in the ONNX model and generate code
@@ -62,14 +38,9 @@ pub inline fn writeTensorsInit(writer: std.fs.File.Writer, model: ModelOnnx) !vo
         // Create the tensor instance
         try writer.print(
             \\
-            \\tensor_{s} = Tensor({s}).fromArray(&fba, &array_{s}, &shape_tensor_{s});
+            \\const tensor_{s} = Tensor({s}).fromConstBuffer( &array_{s}, &shape_tensor_{s});
         , .{ name, dataTypeString, name, name });
     }
-
-    try writer.print(
-        \\
-        \\ }} 
-    , .{}); //closes comptime
 }
 
 /// Writes the shape array for a tensor initializer.
@@ -81,7 +52,7 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, t: *TensorProto, nam
     try writer.print(
         \\
         \\
-        \\var shape_tensor_{s} : [{}]usize = [_]usize{{ 
+        \\const shape_tensor_{s} : [{}]usize = [_]usize{{ 
     , .{ name, t.dims.len });
 
     for (0..t.dims.len) |i| {
@@ -113,7 +84,7 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
     }
     try writer.print(
         \\
-        \\var array_{s} : [{d}]{s} = [_]{s}{{ 
+        \\const array_{s} : [{d}]{s} = [_]{s}{{ 
     , .{ name, size, dataTypeString, dataTypeString });
 
     // Select appropriate data storage format
