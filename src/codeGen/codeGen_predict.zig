@@ -154,6 +154,11 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
 
     try writeReturn(writer);
 
+    _ = try writer.print(
+        \\
+        \\}} 
+    , .{});
+
     std.debug.print("\n#############################################################", .{});
     std.debug.print("\n+                      EXECUTION ENDED                      +", .{});
     std.debug.print("\n#############################################################", .{});
@@ -445,7 +450,7 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\    result.* = tensor_{s}.data.ptr;
-        \\}}
+        \\
     , .{networkOutput});
 
     if (codegen_options.log) {
