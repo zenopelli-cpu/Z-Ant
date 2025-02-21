@@ -103,67 +103,29 @@ export fn predict(
     const usized_shape: []usize = utils.u32ToUsize(input_shape, shape_len) catch return;
     var tensor_input = Tensor(T).fromShape(&allocator, @constCast(usized_shape)) catch return;
     @memcpy(tensor_input.data, data);
-
-   //forwarding operation : Gemm
-   //parameters:
-   //   inputs: 
-   //      -> input 
-   //      -> layer1.weight 
-   //      -> layer1.bias 
-   //    outputs: 
-   //      <- /layer1/Gemm_output_0 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Gemm operation...\n")));
     }
     tensMath.gemm_lean(T, &tensor_input, @constCast(&tensor_layer1_weight) , @constCast(&tensor_layer1_bias), 1e0, 1e0, false, false, &tensor__layer1_gemm_output_0 ) catch return;
-
-   //forwarding operation : Relu
-   //parameters:
-   //   inputs: 
-   //      -> /layer1/Gemm_output_0 
-   //    outputs: 
-   //      <- /relu/Relu_output_0 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Relu operation...\n")));
     }
     tensMath.ReLU_lean(T, &tensor__layer1_gemm_output_0, &tensor__relu_relu_output_0) catch return;
-
-   //forwarding operation : Gemm
-   //parameters:
-   //   inputs: 
-   //      -> /relu/Relu_output_0 
-   //      -> layer2.weight 
-   //      -> layer2.bias 
-   //    outputs: 
-   //      <- /layer2/Gemm_output_0 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Gemm operation...\n")));
     }
     tensMath.gemm_lean(T, &tensor__relu_relu_output_0, @constCast(&tensor_layer2_weight) , @constCast(&tensor_layer2_bias), 1e0, 1e0, false, false, &tensor__layer2_gemm_output_0 ) catch return;
-
-   //forwarding operation : Relu
-   //parameters:
-   //   inputs: 
-   //      -> /layer2/Gemm_output_0 
-   //    outputs: 
-   //      <- /relu_1/Relu_output_0 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Relu operation...\n")));
     }
     tensMath.ReLU_lean(T, &tensor__layer2_gemm_output_0, &tensor__relu_1_relu_output_0) catch return;
-
-   //forwarding operation : Softmax
-   //parameters:
-   //   inputs: 
-   //      -> /relu_1/Relu_output_0 
-   //    outputs: 
-   //      <- output 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Softmax operation...\n")));
     }
     tensMath.softmax_lean(T, &tensor__relu_1_relu_output_0, &tensor_output) catch return;
     result.* = tensor_output.data.ptr;
-}
+
     if (log_function) |log| {
         log(@constCast(@ptrCast("Prediction completed.\n")));
     }
+} 

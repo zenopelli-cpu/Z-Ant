@@ -22,8 +22,9 @@ const codegen_options = @import("codegen_options");
 /// This method map and write the ONNX operations with the Zant LeanTensorMath mathods
 /// Follow the link for details: https://onnx.ai/onnx/operators/?utm_source=chatgpt.com
 pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    try write_op_info(writer, node);
-
+    if (!codegen_options.noComm) {
+        try write_op_info(writer, node);
+    }
     if (codegen_options.log) {
         try writer.print(
             \\
