@@ -139,6 +139,16 @@ pub inline fn getConstantTensorDims(nodeProto: *NodeProto) ![]const i64 {
     return if (nodeProto.attribute[0].t) |tensorProto| tensorProto.dims else error.ConstantTensorAttributeNotAvailable;
 }
 
+// Returns the corresponding TensorProto for the given name if it exists in the initializers list.
+// Returns an error if the initializer is not found.
+pub fn getInitializer(name: []const u8, initializers: []*TensorProto) !*TensorProto {
+    for (initializers) |init| {
+        if (std.mem.eql(u8, init.name.?, name)) return init;
+    }
+
+    return error.NotExistingInitializer;
+}
+
 // -------------------- SETTERS --------------------
 
 // Marks output tensors as ready for computation in all the graph
@@ -179,16 +189,6 @@ pub fn isInitializer(name: []const u8, initializers: []*TensorProto) bool {
         if (std.mem.eql(u8, init.name.?, name)) return true;
     }
     return false;
-}
-
-// Returns the corresponding TensorProto for the given name if it exists in the initializers list.
-// Returns an error if the initializer is not found.
-pub fn getInitializer(name: []const u8, initializers: []*TensorProto) !*TensorProto {
-    for (initializers) |init| {
-        if (std.mem.eql(u8, init.name.?, name)) return init;
-    }
-
-    return error.NotExistingInitializer;
 }
 
 // -------------------- PRINTERS --------------------
@@ -278,7 +278,7 @@ pub fn printTensorHashMap(map: std.StringHashMap(ReadyTensor)) void {
     }
 }
 
-// ----------------- data type management -------------
+// ----------------- DATA TYPE management -------------
 
 pub fn i64SliceToUsizeSlice(input: []const i64) ![]usize {
     var output = try allocator.alloc(usize, input.len);
@@ -327,4 +327,17 @@ pub fn u32ToUsize(input: [*]u32, size: u32) ![]usize {
     }
 
     return output;
+}
+
+pub fn parseNumbers(input: []const u8) ![]u32 {
+    var list = std.ArrayList(u32).init(allocator);
+    errdefer list.deinit();
+
+    var it = std.mem.splitScalar(u8, input, ',');
+    while (it.next()) |num_str| {
+        const num = try std.fmt.parseInt(u32, num_str, 10);
+        try list.append(num);
+    }
+
+    return list.toOwnedSlice();
 }

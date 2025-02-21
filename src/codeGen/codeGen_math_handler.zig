@@ -15,38 +15,22 @@ const AttributeType = @import("onnx").AttributeType;
 const ReadyNode = @import("codeGen_predict.zig").ReadyNode;
 const ReadyTensor = @import("codeGen_predict.zig").ReadyTensor;
 const utils = @import("codeGen_utils.zig");
+const codegen_options = @import("codegen_options");
 
 // ----------------------------------- MATH -----------------------------------
 
 /// This method map and write the ONNX operations with the Zant LeanTensorMath mathods
 /// Follow the link for details: https://onnx.ai/onnx/operators/?utm_source=chatgpt.com
 pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    try writer.print(
-        \\
-        \\
-        \\   //forwarding operation : {s}
-        \\   //parameters:
-        \\   //   inputs: 
-    , .{node.*.nodeProto.*.op_type});
+    try write_op_info(writer, node);
 
-    //write the inputs
-    for (node.inputs.items) |input| {
+    if (codegen_options.log) {
         try writer.print(
             \\
-            \\   //      -> {s} 
-        , .{input.name});
-    }
-    try writer.print(
-        \\
-        \\   //    outputs: 
-    , .{});
-
-    //write the outputs
-    for (node.outputs.items) |output| {
-        try writer.print(
-            \\
-            \\   //      <- {s} 
-        , .{output.name});
+            \\    if (log_function) |log| {{
+            \\        log(@constCast(@ptrCast("Running {s} operation...\n")));
+            \\    }}
+        , .{node.*.nodeProto.*.op_type});
     }
 
     if (std.mem.eql(u8, node.nodeProto.op_type, "Add")) {
@@ -106,6 +90,36 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     }
 
     try writer.writeAll(" catch return;");
+}
+
+fn write_op_info(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    try writer.print(
+        \\
+        \\
+        \\   //forwarding operation : {s}
+        \\   //parameters:
+        \\   //   inputs: 
+    , .{node.*.nodeProto.*.op_type});
+
+    //write the inputs
+    for (node.inputs.items) |input| {
+        try writer.print(
+            \\
+            \\   //      -> {s} 
+        , .{input.name});
+    }
+    try writer.print(
+        \\
+        \\   //    outputs: 
+    , .{});
+
+    //write the outputs
+    for (node.outputs.items) |output| {
+        try writer.print(
+            \\
+            \\   //      <- {s} 
+        , .{output.name});
+    }
 }
 
 inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {

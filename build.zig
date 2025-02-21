@@ -49,9 +49,6 @@ pub fn build(b: *std.Build) void {
     // onnx module
     const onnx_mod = b.createModule(.{ .root_source_file = b.path("src/onnx/onnx.zig") });
 
-    // code generation module
-    const codegen_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/codeGen_skeleton.zig") });
-
     //generated predict() code
     //const predict_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
 
@@ -200,12 +197,6 @@ pub fn build(b: *std.Build) void {
     modelImportExport_mod.addImport("model", model_mod);
     modelImportExport_mod.addImport("errorHandler", errorHandler_mod);
 
-    // ************************************************CODEGEN DEPENDENCIES************************************************
-    codegen_mod.addImport("tensor", tensor_mod);
-    codegen_mod.addImport("onnx", onnx_mod);
-    codegen_mod.addImport("pkgAllocator", allocator_mod);
-    codegen_mod.addImport("tensor_math", tensor_math_mod);
-
     // ************************************************MAIN EXECUTABLE************************************************
 
     // Define the main executable with target architecture and optimization settings.
@@ -254,10 +245,18 @@ pub fn build(b: *std.Build) void {
 
     codeGen_exe.linkLibC();
 
+    // Define codegen options
+    const codegen_options = b.addOptions();
+    codegen_options.addOption(bool, "log", b.option(bool, "log", "Run with log") orelse false);
+    codegen_options.addOption([]const u8, "shape", b.option([]const u8, "shape", "Input shape") orelse "0");
+    codegen_options.addOption([]const u8, "type", b.option([]const u8, "type", "Input type") orelse "f32");
+    codeGen_exe.root_module.addOptions("codegen_options", codegen_options);
+
     // Add necessary imports for the executable.
     codeGen_exe.root_module.addImport("onnx", onnx_mod);
+    codeGen_exe.root_module.addImport("tensor", tensor_mod);
     codeGen_exe.root_module.addImport("tensor_math", tensor_math_mod);
-    codeGen_exe.root_module.addImport("codeGen", codegen_mod);
+    codeGen_exe.root_module.addImport("pkgAllocator", allocator_mod);
 
     // Install the executable.
     b.installArtifact(codeGen_exe);

@@ -10,6 +10,7 @@ const allocator = @import("pkgAllocator").allocator;
 
 const utils = @import("codeGen_utils.zig");
 const mathGen = @import("codeGen_math_handler.zig");
+const codegen_options = @import("codegen_options");
 
 var readyGraph: std.ArrayList(ReadyNode) = std.ArrayList(ReadyNode).init(allocator);
 var tensorHashMap: std.StringHashMap(ReadyTensor) = std.StringHashMap(ReadyTensor).init(allocator); //key: TensorProto.name
@@ -113,30 +114,43 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
     //utils.printTensorHashMap(tensorHashMap);
 
     //DEBUG
-    try utils.printOperations(model.graph.?);
+    //try utils.printOperations(model.graph.?);
 
     //create the ReadyGraph
     try createReadyGraph(model);
 
     //DEBUG
-    try utils.printNodeList(readyGraph);
+    //try utils.printNodeList(readyGraph);
 
-    try writeOutputs(writer);
+    try write_outputsInitialization(writer);
 
     _ = try writer.print(
         \\
         \\
         \\
-        \\export fn predict( input: [*]T,
-        \\            input_shape: [*]u32,
-        \\            shape_len: u32,
-        \\            result: *[*]T,
-        \\          ) void {{
+        \\export fn predict( 
+        \\    input: [*]T,
+        \\    input_shape: [*]u32,
+        \\    shape_len: u32,
+        \\    result: *[*]T,
+        \\) void {{
     , .{});
 
-    try writeInitInput(writer);
+    if (codegen_options.log) {
+        _ = try writer.print(
+            \\
+            \\
+            \\    if (log_function) |log| {{
+            \\        log(@constCast(@ptrCast("Starting prediction...\n")));
+            \\    }}
+        , .{});
+    }
 
-    try writeComputationGraph(writer);
+    try write_checks(writer);
+
+    try write_predictInitialization(writer);
+
+    try write_graphSerialization(writer);
 
     try writeReturn(writer);
 
@@ -174,7 +188,6 @@ inline fn addToTensorHashMap(name: []const u8, graph: *GraphProto) !void {
 }
 
 // ----------------------- READY GRAPH -----------------------
-
 // Creates a graph representation with all nodes in a ready-to-compute state
 fn createReadyGraph(model: ModelOnnx) !void {
     const graph = try if (model.graph) |graph| graph else error.GraphNotAvailable;
@@ -187,7 +200,7 @@ fn createReadyGraph(model: ModelOnnx) !void {
 }
 
 // Processes and writes the computation graph
-inline fn writeComputationGraph(writer: std.fs.File.Writer) !void {
+inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
     var iteration: usize = 0;
 
     while (true) {
@@ -223,35 +236,7 @@ inline fn writeComputationGraph(writer: std.fs.File.Writer) !void {
 }
 
 // Initializes output tensors in the computation graph
-fn writeOutputs(writer: std.fs.File.Writer) !void {
-    try writer.print(
-        \\
-        \\
-        \\ // -------------------------------------------------
-        \\ // +         Declaring output Tensors             +
-        \\ // -------------------------------------------------
-    , .{});
-    for (readyGraph.items) |*node| {
-        for (node.outputs.items) |output| {
-            if (std.mem.eql(u8, node.nodeProto.op_type, "Constant") and node.inputs.items.len == 0) { //A node is constant if it only has one output and no inputs
-                if (node.outputs.items.len > 1) return error.MultipleOutputConstant else {
-                    try writer.print(
-                        \\
-                        \\ const
-                    , .{});
-                }
-            } else {
-                try writer.print(
-                    \\
-                    \\ var
-                , .{});
-            }
-            try writer.print(
-                \\ tensor_{s}: Tensor(T) = undefined;
-            , .{try utils.getSanitizedName(output.name)});
-        }
-    }
-
+fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
     try writer.print(
         \\
         \\
@@ -260,41 +245,32 @@ fn writeOutputs(writer: std.fs.File.Writer) !void {
         \\ // ---------------------------------------------------
     , .{});
 
-    try writer.print(
-        \\
-        \\comptime {{
-    , .{});
     for (readyGraph.items) |*node| {
 
         //writing the outputs, OSS: two nodes shpuld never have the same output by definition, so we don't need to check for duplicates
         for (node.outputs.items) |output| {
             if (std.mem.eql(u8, node.nodeProto.op_type, "Constant") and node.inputs.items.len == 0) { //A node is constant if it only has one output and no inputs
                 if (node.outputs.items.len > 1) return error.MultipleOutputConstant else {
-                    try writeConstant(writer, node);
+                    try write_constantTensor(writer, node);
                     //set the node and tensor to Ready
                     var mutableNode: *ReadyNode = @constCast(node);
                     mutableNode.ready = true;
                 }
             } else {
-                try writeOutputShape(
+                try write_OutputShape(
                     writer,
                     output,
                 );
-                try writeOutputTensor(
+                try write_OutputTensor(
                     writer,
                     output.name,
                 );
             }
         }
     }
-
-    try writer.print(
-        \\
-        \\ }}
-    , .{}); //closes comptime
 }
 
-fn writeOutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !void {
+fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !void {
     const shape = output.shape;
     try writer.print(
         \\
@@ -317,7 +293,7 @@ fn writeOutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !void {
     , .{});
 }
 
-fn writeConstant(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void {
+fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void {
     try writer.print(
         \\
         \\ // ---- CONSTANT TENSOR ---- 
@@ -342,7 +318,7 @@ fn writeConstant(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void 
     // Write shape array
     try writer.print(
         \\
-        \\var shape_tensor_{s} : [{}]usize = [_]usize{{
+        \\const shape_tensor_{s} : [{}]usize = [_]usize{{
     , .{ sanitized_name, output.shape.len });
 
     for (0..output.shape.len) |i| {
@@ -365,7 +341,7 @@ fn writeConstant(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void 
     const dataTypeString = try utils.getTypeString(tensor.data_type);
     try writer.print(
         \\
-        \\var array_{s} : [{d}]{s} = [_]{s}{{
+        \\const array_{s} : [{d}]{s} = [_]{s}{{
     , .{ sanitized_name, total_size, dataTypeString, dataTypeString });
 
     // Write the actual data values
@@ -406,39 +382,59 @@ fn writeConstant(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void 
     // Write tensor initialization using fromArray
     try writer.print(
         \\
-        \\tensor_{s} = Tensor({s}).fromArray(&fba, &array_{s}, &shape_tensor_{s});
+        \\const tensor_{s} = Tensor({s}).fromConstBuffer( &array_{s}, &shape_tensor_{s});
     , .{ sanitized_name, dataTypeString, sanitized_name, sanitized_name });
 }
 
-fn writeOutputTensor(writer: std.fs.File.Writer, name: []const u8) !void {
+fn write_OutputTensor(writer: std.fs.File.Writer, name: []const u8) !void {
     const sanitized_name = try utils.getSanitizedName(name);
     try writer.print(
         \\
-        \\tensor_{s} = Tensor({s}).fromShape(&fba, &shape_tensor_{s});
-    , .{ sanitized_name, "f32", sanitized_name });
+        \\var array_{s} = undefined;
+        \\var tensor_{s} = Tensor(T).fromConstBuffer( &array_{s}, &shape_tensor_{s});
+    , .{ sanitized_name, sanitized_name, sanitized_name, sanitized_name });
 }
 
-fn writeInitInput(writer: std.fs.File.Writer) !void {
+fn write_checks(writer: std.fs.File.Writer) !void {
+    // Autogen a check for the input shape as arg VS input shape as codegen option
+    //First convert the optional String of numbers divided by a comma into an array
+    const parsedInputshape = try utils.parseNumbers(codegen_options.shape);
+    //check on the number of dims
+    _ = try writer.print(
+        \\
+        \\    //checks on the input parameters
+        \\    if (shape_len == 0) return ;
+        \\    if(shape_len != {}) return ;
+    , .{parsedInputshape.len});
+    //check on dims correspondance
+    for (parsedInputshape, 0..) |parsed_dim, i| {
+        _ = try writer.print(
+            \\
+            \\    if( input_shape[{}] != {}) return ;
+        , .{ i, parsed_dim });
+    }
+}
 
-    //compute the size:
+fn write_predictInitialization(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\  
-        \\     if (shape_len == 0) return ;
-        \\     var size: u32 = 1;
-        \\     for(0..shape_len) |dim_i| {{
-        \\         size *= input_shape[dim_i];
-        \\     }}
-        \\
-        \\     const data = allocator.alloc(T, size) catch return;
-        \\  
-        \\     for (0..size) |i| {{
-        \\         data[i] = input[i]; // Copying input elements 
-        \\     }}
-        \\
-        \\     const usized_shape: []usize = utils.u32ToUsize(input_shape, shape_len) catch return;
-        \\     var tensor_{s} = Tensor(T).fromShape(&allocator, @constCast(usized_shape)) catch return;
-        \\
-    , .{try utils.getSanitizedName(networkInput)});
+        \\    //computing the size of the input tensor
+        \\    var size: u32 = 1;
+        \\    for(0..shape_len) |dim_i| {{
+        \\        size *= input_shape[dim_i];
+        \\    }}
+        \\     
+        \\    //allocating space in memory for the data
+        \\    const data = allocator.alloc(T, size) catch return;
+        \\    for (0..size) |i| {{
+        \\        data[i] = input[i]; // Copying input elements 
+        \\    }}
+        \\    
+        \\    //converting the shape from [*]u32 to []usize
+        \\    const usized_shape: []usize = utils.u32ToUsize(input_shape, shape_len) catch return;
+        \\    var tensor_{s} = Tensor(T).fromShape(&allocator, @constCast(usized_shape)) catch return;
+        \\    @memcpy(tensor_{s}.data, data);
+    , .{ try utils.getSanitizedName(networkInput), try utils.getSanitizedName(networkInput) });
 }
 
 fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
@@ -448,7 +444,16 @@ fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
 fn writeReturn(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
-        \\      result.* = tensor_{s}.data.ptr;
+        \\    result.* = tensor_{s}.data.ptr;
         \\}}
     , .{networkOutput});
+
+    if (codegen_options.log) {
+        _ = try writer.print(
+            \\
+            \\    if (log_function) |log| {{
+            \\        log(@constCast(@ptrCast("Prediction completed.\n")));
+            \\    }}
+        , .{});
+    }
 }
