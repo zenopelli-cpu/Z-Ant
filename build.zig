@@ -245,6 +245,12 @@ pub fn build(b: *std.Build) void {
 
     codeGen_exe.linkLibC();
 
+    // Add necessary imports for the codegen executable
+    codeGen_exe.root_module.addImport("pkgAllocator", allocator_mod);
+    codeGen_exe.root_module.addImport("tensor", tensor_mod);
+    codeGen_exe.root_module.addImport("tensor_math", tensor_math_mod);
+    codeGen_exe.root_module.addImport("onnx", onnx_mod);
+
     // Define codegen options
     const codegen_options = b.addOptions();
     codegen_options.addOption(bool, "log", b.option(bool, "log", "Run with log") orelse false);
@@ -252,12 +258,6 @@ pub fn build(b: *std.Build) void {
     codegen_options.addOption([]const u8, "type", b.option([]const u8, "type", "Input type") orelse "f32");
     codegen_options.addOption(bool, "noComm", b.option(bool, "noComm", "Run with log") orelse true);
     codeGen_exe.root_module.addOptions("codegen_options", codegen_options);
-
-    // Add necessary imports for the executable.
-    codeGen_exe.root_module.addImport("onnx", onnx_mod);
-    codeGen_exe.root_module.addImport("tensor", tensor_mod);
-    codeGen_exe.root_module.addImport("tensor_math", tensor_math_mod);
-    codeGen_exe.root_module.addImport("pkgAllocator", allocator_mod);
 
     // Install the executable.
     b.installArtifact(codeGen_exe);
@@ -279,6 +279,7 @@ pub fn build(b: *std.Build) void {
     });
     static_lib_mod.addImport("tensor", tensor_mod);
     static_lib_mod.addImport("tensor_math", tensor_math_mod);
+    static_lib_mod.addImport("pkgAllocator", allocator_mod);
 
     const static_lib = b.addStaticLibrary(.{
         .name = "static_lib",
@@ -289,6 +290,7 @@ pub fn build(b: *std.Build) void {
     static_lib.linkLibC();
     static_lib.root_module.addImport("tensor", tensor_mod);
     static_lib.root_module.addImport("tensor_math", tensor_math_mod);
+    static_lib.root_module.addImport("pkgAllocator", allocator_mod);
 
     const install_lib_step = b.addInstallArtifact(static_lib, .{});
     const lib_step = b.step("lib", "Compile tensor_math static library");

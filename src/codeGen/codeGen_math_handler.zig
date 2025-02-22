@@ -60,7 +60,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "LogSoftmax")) {
         try writer.writeAll("// Handle LogSoftmax\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "MatMul")) {
-        try writer.writeAll("// Handle MatMul\n");
+        try write_matmul(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "MaxPool")) {
         try writer.writeAll("// Handle MaxPool\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Mul")) {
@@ -311,6 +311,24 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
+inline fn write_matmul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__MatMul.html
+    // INPUTS:
+    //      - A (heterogeneous) - T: First operand.
+    //      - B (heterogeneous) - T: Second operand.
+    // OUTPUTS:
+    //      - C (heterogeneous) - T: Result, has same element type as two inputs.
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.matmul_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
+        try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
+    });
+}
+
 inline fn write_mul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // https://onnx.ai/onnx/operators/onnx__Mul.html
     // INPUTS:
@@ -359,12 +377,14 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         }
     }
 
+    const shape_name = try utils.getSanitizedName(node.inputs.items[1].name);
     _ = try writer.print(
         \\
-        \\    tensMath.reshape_lean(T, &tensor_{s}, @constCast(&tensor_{s}), {}, &tensor_{s})
+        \\    var shape_usize_{s} = [_]usize{{ for (tensor_{s}.data) |v| @as(usize, @intCast(v)) }};
+        \\    tensMath.reshape_lean(T, @constCast(&tensor_{s}), &shape_usize, {}, &tensor_{s})
     , .{
+        shape_name,
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor
-        try utils.getSanitizedName(node.inputs.items[1].name), // Shape tensor
         allowzer,
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
     });
