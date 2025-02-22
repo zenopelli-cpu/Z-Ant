@@ -329,13 +329,13 @@ pub fn u32ToUsize(input: [*]u32, size: u32) ![]usize {
     return output;
 }
 
-pub fn parseNumbers(input: []const u8) ![]u32 {
-    var list = std.ArrayList(u32).init(allocator);
+pub fn parseNumbers(input: []const u8) ![]i64 {
+    var list = std.ArrayList(i64).init(allocator);
     errdefer list.deinit();
 
     var it = std.mem.splitScalar(u8, input, ',');
     while (it.next()) |num_str| {
-        const num = try std.fmt.parseInt(u32, num_str, 10);
+        const num = try std.fmt.parseInt(i64, num_str, 10);
         try list.append(num);
     }
 
