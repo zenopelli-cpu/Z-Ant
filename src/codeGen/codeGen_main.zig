@@ -17,10 +17,10 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const gpa_allocator = gpa.allocator();
 
-    var model1 = try onnx.parseFromFile(gpa_allocator, "datasets/models/mnist-8/mnist-8.onnx");
+    var model1 = try onnx.parseFromFile(gpa_allocator, "datasets/models/debug_model/debug_model.onnx");
     defer model1.deinit(gpa_allocator);
 
-    //onnx.printStructure(&model1);
+    onnx.printStructure(&model1);
 
     const file_path = "src/codeGen/static_lib.zig";
     var file = try std.fs.cwd().createFile(file_path, .{});
