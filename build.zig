@@ -49,8 +49,8 @@ pub fn build(b: *std.Build) void {
     // onnx module
     const onnx_mod = b.createModule(.{ .root_source_file = b.path("src/onnx/onnx.zig") });
 
-    //generated predict() code
-    //const predict_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
+    // static_lib module for MNIST
+    const static_lib_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
 
     // Create modules from the source files in the `src/DataHandler/` directory.
     const dataloader_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataLoader.zig") });
@@ -63,6 +63,11 @@ pub fn build(b: *std.Build) void {
     const modelImportExport_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/model_import_export.zig") });
     const allocator_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/allocator.zig") });
     allocator_mod.addOptions("build_options", build_options);
+
+    // Add dependencies for static_lib_mod
+    static_lib_mod.addImport("pkgAllocator", allocator_mod);
+    static_lib_mod.addImport("tensor", tensor_mod);
+    static_lib_mod.addImport("tensor_math", tensor_math_mod);
 
     //************************************************MODEL DEPENDENCIES************************************************
 
@@ -274,13 +279,6 @@ pub fn build(b: *std.Build) void {
 
     // ************************************************ STATIC LIBRARY CREATION ************************************************
 
-    const static_lib_mod = b.createModule(.{
-        .root_source_file = b.path("src/codeGen/static_lib.zig"),
-    });
-    static_lib_mod.addImport("tensor", tensor_mod);
-    static_lib_mod.addImport("tensor_math", tensor_math_mod);
-    static_lib_mod.addImport("pkgAllocator", allocator_mod);
-
     const static_lib = b.addStaticLibrary(.{
         .name = "static_lib",
         .root_source_file = b.path("src/codeGen/static_lib.zig"),
@@ -336,4 +334,19 @@ pub fn build(b: *std.Build) void {
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run all unit tests");
     test_step.dependOn(&run_unit_tests.step);
+
+    // Add test for static_lib
+    const test_static_lib = b.addTest(.{
+        .root_source_file = b.path("tests/CodeGen/test_static_lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    test_static_lib.root_module.addImport("static_lib", static_lib_mod);
+    test_static_lib.root_module.addImport("tensor", tensor_mod);
+    test_static_lib.root_module.addImport("pkgAllocator", allocator_mod);
+    test_static_lib.linkLibC();
+
+    const run_test_static_lib = b.addRunArtifact(test_static_lib);
+    const test_step_static_lib = b.step("test-static-lib", "Run static library tests");
+    test_step_static_lib.dependOn(&run_test_static_lib.step);
 }

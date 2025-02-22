@@ -86,6 +86,7 @@ pub const sum_tensor_list_lean = elementWise_math_lib.lean_sum_tensor_list;
 pub const sub_tensors = elementWise_math_lib.sub_tensors;
 //TODO: pub const sub_tensors_lean = elementWise_math_lib.sub_tensors_lean;
 //--mul
+pub const lean_matmul = op_mat_mul.lean_mat_mul;
 pub const mul = elementWise_math_lib.mul;
 pub const mul_lean = elementWise_math_lib.mul_lean;
 //--div
