@@ -125,7 +125,7 @@ pub fn predict(
     input_shape: [*]u32,
     shape_len: u32,
     result: *[*]T,
-) !void {
+) void {
     if (log_function) |log| {
         log(@constCast(@ptrCast("Starting prediction...\n")));
     }
@@ -156,18 +156,13 @@ pub fn predict(
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Reshape operation...\n")));
     }
-    // const reshape_shape_data_parameter193_reshape1_shape = tensor_parameter193_reshape1_shape.data;
-    // var new_shape_parameter193_reshape1_shape = allocator.alloc(usize, reshape_shape_data_parameter193_reshape1_shape.len) catch unreachable;
-    // for (reshape_shape_data_parameter193_reshape1_shape, 0..) |val, i| {
-    //     new_shape_parameter193_reshape1_shape[i] = @intCast(val);
-    // }
-    // defer allocator.free(new_shape_parameter193_reshape1_shape);
-    // tensMath.reshape_lean(T, @constCast(&tensor_parameter193), new_shape_parameter193_reshape1_shape, false, &tensor_parameter193_reshape1) catch return;
+    var shape_usize_parameter193_reshape1_shape = [_]usize{for (tensor_parameter193.data) |v| @as(usize, @intCast(v))};
+    tensMath.reshape_lean(T, @constCast(&tensor_parameter193), &shape_usize_parameter193_reshape1_shape, false, &tensor_parameter193_reshape1) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Conv operation...\n")));
     }
-    try tensMath.conv_lean(
+    tensMath.conv_lean(
         T, //type
         &tensor_input3, //input
         @constCast(&tensor_parameter5), //kernel
@@ -178,7 +173,7 @@ pub fn predict(
         &[_]usize{ 1, 1 }, //dilatations
         1, //group
         "SAME_UPPER", //auto_pad
-    );
+    ) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Add operation...\n")));
@@ -192,7 +187,17 @@ pub fn predict(
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running MaxPool operation...\n")));
-    } // Handle MaxPool
+    }
+    tensMath.onnx_maxpool_lean(
+        T,
+        &tensor_relu32_output_0, //Input
+        &tensor_pooling66_output_0, //Output
+        &[_]usize{ 2, 2 }, //kernel_shape
+        &[_]usize{ 2, 2 }, //strides
+        &[_]usize{ 1, 1, 1, 1 }, //dilations
+        &[_]usize{ 0, 0, 0, 0 }, //pads
+        "NOTSET", //auto_pad
+    ) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Conv operation...\n")));
@@ -222,23 +227,28 @@ pub fn predict(
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running MaxPool operation...\n")));
-    } // Handle MaxPool
+    }
+    tensMath.onnx_maxpool_lean(
+        T,
+        &tensor_relu114_output_0, //Input
+        &tensor_pooling160_output_0, //Output
+        &[_]usize{ 3, 3 }, //kernel_shape
+        &[_]usize{ 3, 3 }, //strides
+        &[_]usize{ 1, 1, 1, 1 }, //dilations
+        &[_]usize{ 0, 0, 0, 0 }, //pads
+        "NOTSET", //auto_pad
+    ) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Reshape operation...\n")));
     }
-    const reshape_shape_data_pooling160_output_0_reshape0_shape = tensor_pooling160_output_0_reshape0_shape.data;
-    var new_shape_pooling160_output_0_reshape0_shape = allocator.alloc(usize, reshape_shape_data_pooling160_output_0_reshape0_shape.len) catch unreachable;
-    for (reshape_shape_data_pooling160_output_0_reshape0_shape, 0..) |val, i| {
-        new_shape_pooling160_output_0_reshape0_shape[i] = @intCast(val);
-    }
-    defer allocator.free(new_shape_pooling160_output_0_reshape0_shape);
-    tensMath.reshape_lean(T, @constCast(&tensor_pooling160_output_0), new_shape_pooling160_output_0_reshape0_shape, false, &tensor_pooling160_output_0_reshape0) catch return;
+    var shape_usize_pooling160_output_0_reshape0_shape = [_]usize{for (tensor_pooling160_output_0.data) |v| @as(usize, @intCast(v))};
+    tensMath.reshape_lean(T, @constCast(&tensor_pooling160_output_0), &shape_usize_pooling160_output_0_reshape0_shape, false, &tensor_pooling160_output_0_reshape0) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running MatMul operation...\n")));
     }
-    tensMath.lean_matmul(T, &tensor_pooling160_output_0_reshape0, @constCast(&tensor_parameter193_reshape1), &tensor_times212_output_0) catch return;
+    tensMath.mat_mul_lean(T, &tensor_pooling160_output_0_reshape0, @constCast(&tensor_parameter193_reshape1), &tensor_times212_output_0) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Add operation...\n")));

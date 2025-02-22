@@ -100,10 +100,10 @@ test "Static Library - MNIST Prediction Test" {
     }.log;
 
     // Set the logging function
-    @import("static_lib_hm").setLogFunction(logFn);
+    @import("static_lib").setLogFunction(logFn);
 
     // Run prediction
-    try @import("static_lib").predict(
+    @import("static_lib").predict(
         @ptrCast(&input_data),
         @ptrCast(&input_shape),
         4, // 4D tensor shape
@@ -145,7 +145,7 @@ test "Static Library - MNIST Error Cases" {
         var input_shape = [_]u32{ 10, 10 }; // Wrong shape
         var result: [*]f32 = undefined;
 
-        try @import("static_lib_hm").predict(
+        @import("static_lib").predict(
             @ptrCast(&input_data),
             @ptrCast(&input_shape),
             2,
@@ -159,7 +159,7 @@ test "Static Library - MNIST Error Cases" {
         var input_shape = [_]u32{};
         var result: [*]f32 = undefined;
 
-        try @import("static_lib_hm").predict(
+        @import("static_lib").predict(
             @ptrCast(&input_data),
             @ptrCast(&input_shape),
             0,
@@ -173,7 +173,7 @@ test "Static Library - MNIST Error Cases" {
         var input_shape = [_]u32{784}; // Should be 4D but only 1D
         var result: [*]f32 = undefined;
 
-        try @import("static_lib_hm").predict(
+        @import("static_lib").predict(
             @ptrCast(&input_data),
             @ptrCast(&input_shape),
             1,

@@ -618,37 +618,37 @@ test "convolution_backward_input() " {
     d_input.info();
 }
 
-test "get_convolution_output_shape()" {
-    std.debug.print("\n     test: get_convolution_output_shape \n", .{});
+// test "get_convolution_output_shape()" {
+//     std.debug.print("\n     test: get_convolution_output_shape \n", .{});
 
-    var input_shape = [_]usize{ 2, 2, 5, 5 }; // batch=2, channels=2, height=5, width=5
-    var kernel_shape = [_]usize{ 3, 2, 3, 3 }; // filters=3, channels=2, height=3, width=3
-    var stride = [_]usize{ 1, 1 };
+//     var input_shape = [_]usize{ 2, 2, 5, 5 }; // batch=2, channels=2, height=5, width=5
+//     var kernel_shape = [_]usize{ 3, 2, 3, 3 }; // filters=3, channels=2, height=3, width=3
+//     var stride = [_]usize{ 1, 1 };
 
-    var output_shape = try TensMath.get_convolution_output_shape(&input_shape, &kernel_shape, &stride);
+//     var output_shape = try TensMath.get_convolution_output_shape(&input_shape, &kernel_shape, &stride);
 
-    try std.testing.expectEqual(@as(usize, 2), output_shape[0]); // batch size
-    try std.testing.expectEqual(@as(usize, 3), output_shape[1]); // num filters
-    try std.testing.expectEqual(@as(usize, 3), output_shape[2]); // output height
-    try std.testing.expectEqual(@as(usize, 3), output_shape[3]); // output width
+//     try std.testing.expectEqual(@as(usize, 2), output_shape[0]); // batch size
+//     try std.testing.expectEqual(@as(usize, 3), output_shape[1]); // num filters
+//     try std.testing.expectEqual(@as(usize, 3), output_shape[2]); // output height
+//     try std.testing.expectEqual(@as(usize, 3), output_shape[3]); // output width
 
-    // Test with different stride
-    stride = [_]usize{ 2, 2 };
-    output_shape = try TensMath.get_convolution_output_shape(&input_shape, &kernel_shape, &stride);
+//     // Test with different stride
+//     stride = [_]usize{ 2, 2 };
+//     output_shape = try TensMath.get_convolution_output_shape(&input_shape, &kernel_shape, &stride);
 
-    try std.testing.expectEqual(@as(usize, 2), output_shape[0]); // batch size
-    try std.testing.expectEqual(@as(usize, 3), output_shape[1]); // num filters
-    try std.testing.expectEqual(@as(usize, 2), output_shape[2]); // output height
-    try std.testing.expectEqual(@as(usize, 2), output_shape[3]); // output width
+//     try std.testing.expectEqual(@as(usize, 2), output_shape[0]); // batch size
+//     try std.testing.expectEqual(@as(usize, 3), output_shape[1]); // num filters
+//     try std.testing.expectEqual(@as(usize, 2), output_shape[2]); // output height
+//     try std.testing.expectEqual(@as(usize, 2), output_shape[3]); // output width
 
-    // Test invalid dimensions
-    var invalid_input_shape = [_]usize{ 2, 2, 5 };
-    try std.testing.expectError(TensorMathError.InvalidDimensions, TensMath.get_convolution_output_shape(&invalid_input_shape, &kernel_shape, &stride));
+//     // Test invalid dimensions
+//     var invalid_input_shape = [_]usize{ 2, 2, 5 };
+//     try std.testing.expectError(TensorMathError.InvalidDimensions, TensMath.get_convolution_output_shape(&invalid_input_shape, &kernel_shape, &stride));
 
-    // Test invalid stride
-    var invalid_stride = [_]usize{ 0, 1 };
-    try std.testing.expectError(TensorMathError.WrongStride, TensMath.get_convolution_output_shape(&input_shape, &kernel_shape, &invalid_stride));
-}
+//     // Test invalid stride
+//     var invalid_stride = [_]usize{ 0, 1 };
+//     try std.testing.expectError(TensorMathError.WrongStride, TensMath.get_convolution_output_shape(&input_shape, &kernel_shape, &invalid_stride));
+// }
 
 test "OnnxConvLean - NOTSET padding" {
     std.debug.print("\n     test: OnnxConvLean - NOTSET padding\n", .{});

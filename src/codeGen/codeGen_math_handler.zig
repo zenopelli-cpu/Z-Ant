@@ -71,7 +71,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
         try write_ReLU(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Reshape")) {
-        try writer.writeAll("// Handle Reshape\n");
+        try write_reshape(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Resize")) {
         try writer.writeAll("// Handle Resize\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sigmoid")) {
@@ -324,11 +324,7 @@ inline fn write_matmul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-<<<<<<< HEAD
         \\    tensMath.mat_mul_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
-=======
-        \\    tensMath.lean_matmul(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
->>>>>>> 0f99897 (WIP Model)
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
@@ -475,7 +471,6 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
-<<<<<<< HEAD
 inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     // https://onnx.ai/onnx/operators/onnx__Reshape.html
@@ -509,8 +504,6 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
-=======
->>>>>>> 0f99897 (WIP Model)
 inline fn write_sigmoid(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //node.inputs.items[0] -> input
     //node.outputs.items[0] -> output
