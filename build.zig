@@ -279,6 +279,7 @@ pub fn build(b: *std.Build) void {
     });
     static_lib_mod.addImport("tensor", tensor_mod);
     static_lib_mod.addImport("tensor_math", tensor_math_mod);
+    static_lib_mod.addImport("pkgAllocator", allocator_mod);
 
     const static_lib = b.addStaticLibrary(.{
         .name = "static_lib",
@@ -289,6 +290,7 @@ pub fn build(b: *std.Build) void {
     static_lib.linkLibC();
     static_lib.root_module.addImport("tensor", tensor_mod);
     static_lib.root_module.addImport("tensor_math", tensor_math_mod);
+    static_lib.root_module.addImport("pkgAllocator", allocator_mod);
 
     const install_lib_step = b.addInstallArtifact(static_lib, .{});
     const lib_step = b.step("lib", "Compile tensor_math static library");
