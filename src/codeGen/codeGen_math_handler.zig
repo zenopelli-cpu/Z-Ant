@@ -124,7 +124,6 @@ fn write_op_info(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 }
 
 inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    _ = writer;
     // https://onnx.ai/onnx/operators/onnx__Conv.html
     // INPUTS:
     //      - X (heterogeneous) - T: Input data tensor
@@ -141,11 +140,11 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //      - strides - INTS : Stride along each spatial axis. If not present, the stride defaults is 1 along each spatial axis.
 
     var auto_pad: []const u8 = "NOTSET";
-    var dilations: []i64 = undefined;
+    var dilations: ?[]i64 = undefined;
     var group: i64 = 1;
     var kernel_shape: []i64 = undefined;
-    var pads: []i64 = undefined;
-    var strides: []i64 = undefined;
+    var pads: ?[]i64 = null;
+    var strides: ?[]i64 = undefined; //mandatory
 
     for (node.nodeProto.attribute) |attr| {
         if (std.mem.indexOf(u8, attr.name, "auto_pad")) |_| {
@@ -162,23 +161,82 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             if (attr.type == AttributeType.INTS) strides = attr.ints else return error.ConvStridesNotINTS;
         }
     }
-    //create ?bias string
+    //----create ?bias string
+    var bias_string: []u8 = undefined;
+    // Bias Tensor B is optional! verify the presence
+    if (node.inputs.items.len == 3) {
+        const B_name = try utils.getSanitizedName(node.inputs.items[2].name);
+        bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", B_name, ")" });
+    } else {
+        bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{"null"});
+    }
 
-    //create stride string
+    //----create stride string
+    var stride_string: []u8 = undefined;
+    stride_string = try std.mem.concat(allocator, u8, &[_][]const u8{"&[_]usize{"});
+    var buffer: [3]u8 = undefined;
+    if (strides == null) return error.StrideNotFound;
+    for (strides.?, 0..) |val, i| {
+        if (i > 0) stride_string = try std.mem.concat(allocator, u8, &[_][]const u8{ stride_string, "," });
+        const val_string = std.fmt.bufPrint(&buffer, "{}", .{val}) catch unreachable;
+        stride_string = try std.mem.concat(allocator, u8, &[_][]const u8{ stride_string, val_string });
+    }
+    stride_string = try std.mem.concat(allocator, u8, &[_][]const u8{ stride_string, "}" });
 
-    //create ?pads string
+    //----create ?pads string
+    var pads_string: []u8 = undefined;
+    if (pads != null) {
+        pads_string = try std.mem.concat(allocator, u8, &[_][]const u8{"&[_]usize{"});
+        for (pads.?, 0..) |val, i| {
+            if (i > 0) pads_string = try std.mem.concat(allocator, u8, &[_][]const u8{ pads_string, "," });
+            const val_string = std.fmt.bufPrint(&buffer, "{}", .{val}) catch unreachable;
+            pads_string = try std.mem.concat(allocator, u8, &[_][]const u8{ pads_string, val_string });
+        }
+        pads_string = try std.mem.concat(allocator, u8, &[_][]const u8{ pads_string, "}" });
+    } else {
+        pads_string = try std.mem.concat(allocator, u8, &[_][]const u8{" null"});
+    }
 
-    //create ?dilatations string
-
-    //create ?group string
-
-    //create ?autopad string
+    //----create ?dilatations string
+    var dilat_string: []u8 = undefined;
+    if (dilations != null) {
+        dilat_string = try std.mem.concat(allocator, u8, &[_][]const u8{"&[_]usize{"});
+        for (dilations.?, 0..) |val, i| {
+            if (i > 0) dilat_string = try std.mem.concat(allocator, u8, &[_][]const u8{ dilat_string, "," });
+            const val_string = std.fmt.bufPrint(&buffer, "{}", .{val}) catch unreachable;
+            dilat_string = try std.mem.concat(allocator, u8, &[_][]const u8{ dilat_string, val_string });
+        }
+        dilat_string = try std.mem.concat(allocator, u8, &[_][]const u8{ dilat_string, "}" });
+    } else {
+        dilat_string = try std.mem.concat(allocator, u8, &[_][]const u8{" null"});
+    }
 
     // pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void
-    // _ = try writer.print(
-    //     \\    //                    input        kernel                   output       bias  stride   pads  dilatations  group  auto_pad
-    //     \\    tensMath.conv_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s}  {s},  {s},    {s},   {s},         {},    "{s}"   )
-    // , .{});
+    _ = try writer.print(
+        \\    
+        \\    tensMath.conv_lean(
+        \\        T, //type
+        \\        &tensor_{s}, ///input
+        \\        @constCast(&tensor_{s}), //kernel
+        \\        &tensor_{s}, //output
+        \\        {s}, //bias
+        \\        {s}, //stride
+        \\        {s}, //pads
+        \\        {s}, //dilatations
+        \\        {}, //group
+        \\        "{s}", //auto_pad
+        \\    )
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), //Input
+        try utils.getSanitizedName(node.inputs.items[1].name), //Kernel
+        try utils.getSanitizedName(node.outputs.items[0].name), //Output
+        bias_string, //Bias
+        stride_string, //Strides
+        pads_string, //Pads
+        dilat_string, //Dilatations
+        group, //Group
+        auto_pad,
+    });
 }
 
 inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
@@ -234,14 +292,14 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // Input Tensor C is optional! verify the presence
     if (node.inputs.items.len == 3) {
         const C_name = try utils.getSanitizedName(node.inputs.items[2].name);
-        c_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ ", @constCast(&tensor_", C_name, ")" });
+        c_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", C_name, ")" });
     } else {
-        c_tensor_string = "";
+        c_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{" null"});
     }
 
     _ = try writer.print(
         \\
-        \\    tensMath.gemm_lean(T, &tensor_{s}, @constCast(&tensor_{s}) {s}, {}, {}, {}, {}, &tensor_{s} )
+        \\    tensMath.gemm_lean(T, &tensor_{s}, @constCast(&tensor_{s}), {s}, {}, {}, {}, {}, &tensor_{s} )
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
