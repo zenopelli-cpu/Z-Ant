@@ -62,7 +62,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "MatMul")) {
         try writer.writeAll("// Handle MatMul\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "MaxPool")) {
-        try writer.writeAll("// Handle MaxPool\n");
+        try write_maxPool(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Mul")) {
         try write_mul(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "OneHot")) {
@@ -159,11 +159,11 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //      - strides - INTS : Stride along each spatial axis. If not present, the stride defaults is 1 along each spatial axis.
 
     var auto_pad: []const u8 = "NOTSET";
-    var dilations: ?[]i64 = undefined;
+    var dilations: ?[]i64 = null;
     var group: i64 = 1;
-    var kernel_shape: []i64 = undefined;
+    var kernel_shape: ?[]i64 = null;
     var pads: ?[]i64 = null;
-    var strides: ?[]i64 = undefined; //mandatory
+    var strides: ?[]i64 = null; //mandatory
 
     for (node.nodeProto.attribute) |attr| {
         if (std.mem.indexOf(u8, attr.name, "auto_pad")) |_| {
@@ -180,6 +180,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             if (attr.type == AttributeType.INTS) strides = attr.ints else return error.ConvStridesNotINTS;
         }
     }
+
     //----create ?bias string
     var bias_string: []u8 = undefined;
     // Bias Tensor B is optional! verify the presence
@@ -190,7 +191,8 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{"null"});
     }
 
-    //----create stride string
+    //----create stride string (mandatory)
+    // TODO: implement default stride, see docs above
     if (strides == null) return error.StrideNotFound;
     const stride_string: []const u8 = try utils.i64SliceToUsizeArrayString(strides.?);
 
@@ -213,7 +215,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void
     _ = try writer.print(
         \\    
-        \\    tensMath.conv_lean(
+        \\    tensMath.lean_conv(
         \\        T, //type
         \\        &tensor_{s}, //input
         \\        @constCast(&tensor_{s}), //kernel
@@ -308,6 +310,114 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         transA,
         transB,
         try utils.getSanitizedName(node.outputs.items[0].name), // Output
+    });
+}
+
+inline fn write_maxPool(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    //https://onnx.ai/onnx/operators/onnx__MaxPool.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input data tensor
+    // OUTPUTS:
+    //      - Y (heterogeneous) - T: Output data tensor from average or max pooling across the input tensor.
+    //      - (NOT IMPLEMENTED) Indices (optional, heterogeneous) - I: Indices tensor from max pooling across the input tensor.
+    // ATTRIBUTES:
+    //      - auto_pad - STRING (default is 'NOTSET'): auto_pad must be either NOTSET, SAME_UPPER, SAME_LOWER or VALID
+    //      - ceil_mode - INT (default is '0'): Whether to use ceil or floor (default) to compute the output shape
+    //      - dilations - INTS : Dilation value along each spatial axis of filter. If not present, the dilation defaults to 1 along each spatial axis
+    //      - kernel_shape - INTS (required) : The size of the kernel along each axis.
+    //      - pads - INTS : Padding for the beginning and ending along each spatial axis, it can take any value greater than or equal to 0.
+    //      - storage_order - INT (default is '0'): The storage order of the tensor. 0 is row major, and 1 is column major. This attribute is used only to convert an n-tuple index value into a single integer value for producing the second output.
+    //      - strides - INTS : Stride along each spatial axis. If not present, the stride defaults to 1 along each spatial axis.
+
+    var auto_pad: []const u8 = "NOTSET";
+    var ceil_mode: i64 = 0;
+    var dilations: ?[]i64 = null;
+    var kernel_shape: ?[]i64 = null; //mandatory
+    var pads: ?[]i64 = null;
+    var storage_order: i64 = 0;
+    var strides: ?[]i64 = null;
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.indexOf(u8, attr.name, "auto_pad")) |_| {
+            if (attr.type == AttributeType.STRING) auto_pad = attr.s else return error.MaxPoolAuto_padNotSTRING;
+        } else if (std.mem.indexOf(u8, attr.name, "ceil_mode")) |_| {
+            if (attr.type == AttributeType.INT) ceil_mode = attr.i else return error.MaxPoolCeil_modeNotINT;
+        } else if (std.mem.indexOf(u8, attr.name, "dilations")) |_| {
+            if (attr.type == AttributeType.INTS) dilations = attr.ints else return error.MaxPoolDilatationNoINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "kernel_shape")) |_| {
+            if (attr.type == AttributeType.INTS) kernel_shape = attr.ints else return error.MaxPoolKernelShapeNotINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "pads")) |_| {
+            if (attr.type == AttributeType.INTS) pads = attr.ints else return error.MaxPoolPadsNotINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "storage_order")) |_| {
+            if (attr.type == AttributeType.INT) storage_order = attr.i else return error.MaxPoolStorage_orderNotINT;
+        } else if (std.mem.indexOf(u8, attr.name, "strides")) |_| {
+            if (attr.type == AttributeType.INTS) strides = attr.ints else return error.MaxPoolStridesNotINTS;
+        }
+    }
+
+    //----create kernel_shape string
+    var kernel_shape_string: []const u8 = undefined;
+    if (kernel_shape != null) {
+        kernel_shape_string = try utils.i64SliceToUsizeArrayString(kernel_shape.?);
+    } else {
+        return error.Kernel_shapeNotFound;
+    }
+
+    //----create strides string
+    var strides_string: []const u8 = undefined;
+    if (strides != null) {
+        strides_string = try utils.i64SliceToUsizeArrayString(strides.?);
+    } else {
+        return error.StridesNotFound;
+    }
+
+    //----create dilations string
+    var dilations_string: []const u8 = undefined;
+    if (dilations != null) {
+        dilations_string = try utils.i64SliceToUsizeArrayString(dilations.?);
+    } else {
+        dilations_string = try utils.i64SliceToUsizeArrayString(&[_]i64{ 1, 1, 1, 1 }); // TODO: It is hardcoded in 4D, not the most elegant solution
+    }
+
+    //----create pads string
+    var pads_string: []const u8 = undefined;
+    if (pads != null) {
+        pads_string = try utils.i64SliceToUsizeArrayString(pads.?);
+    } else {
+        return error.PadsNotFound;
+    }
+
+    // pub fn lean_onnx_maxpool(
+    //     comptime T: type,
+    //     input: *Tensor(T),
+    //     output: *Tensor(T),
+    //     kernel_shape: []const usize,
+    //     strides: []const usize,
+    //     dilations: []const usize,
+    //     pads: []const usize,
+    //     auto_pad: AutoPadType,
+    // ) !void
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.lean_onnx_maxpool(
+        \\        T,
+        \\        &tensor_{s}, //Input
+        \\        &tensor_{s}, //Output
+        \\        {s}, //kernel_shape
+        \\        {s}, //strides
+        \\        {s}, //dilations
+        \\        {s}, //pads
+        \\        "{s}", //auto_pad
+        \\    )
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), //Input
+        try utils.getSanitizedName(node.outputs.items[0].name), //Output
+        kernel_shape_string, //kernel_shape
+        strides_string, //strides
+        dilations_string, //dilatations
+        pads_string, //pads
+        auto_pad, //auto_pad
     });
 }
 

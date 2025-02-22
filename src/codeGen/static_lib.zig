@@ -122,7 +122,7 @@ var array_plus214_output_0: [1]T = undefined;
 var tensor_plus214_output_0 = Tensor(T).fromConstBuffer( &array_plus214_output_0, &shape_tensor_plus214_output_0);
 
 
-export fn predict( 
+ export fn predict( 
     input: [*]T,
     input_shape: [*]u32,
     shape_len: u32,
@@ -144,13 +144,13 @@ export fn predict(
     for(0..shape_len) |dim_i| {
         size *= input_shape[dim_i];
     }
-     
+
     //allocating space in memory for the data
     const data = allocator.alloc(T, size) catch return;
     for (0..size) |i| {
         data[i] = input[i]; // Copying input elements 
     }
-    
+
     //converting the shape from [*]u32 to []usize
     const usized_shape: []usize = utils.u32ToUsize(input_shape, shape_len) catch return;
     var tensor_input3 = Tensor(T).fromShape(&allocator, @constCast(usized_shape)) catch return;
@@ -164,9 +164,9 @@ export fn predict(
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Conv operation...\n")));
     }    
-    tensMath.conv_lean(
+    tensMath.lean_conv(
         T, //type
-        &tensor_input3, ///input
+        &tensor_input3, //input
         @constCast(&tensor_parameter5), //kernel
         &tensor_convolution28_output_0, //output
         null, //bias
@@ -189,15 +189,24 @@ export fn predict(
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running MaxPool operation...\n")));
-    }// Handle MaxPool
- catch return; 
+    }
+    tensMath.lean_onnx_maxpool(
+        T,
+        &tensor_relu32_output_0, //Input
+        &tensor_pooling66_output_0, //Output
+        &[_]usize{2,2}, //kernel_shape
+        &[_]usize{2,2}, //strides
+        &[_]usize{1,1,1,1}, //dilations
+        &[_]usize{0,0,0,0}, //pads
+        "NOTSET", //auto_pad
+    ) catch return; 
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Conv operation...\n")));
     }    
-    tensMath.conv_lean(
+    tensMath.lean_conv(
         T, //type
-        &tensor_pooling66_output_0, ///input
+        &tensor_pooling66_output_0, //input
         @constCast(&tensor_parameter87), //kernel
         &tensor_convolution110_output_0, //output
         null, //bias
@@ -220,8 +229,17 @@ export fn predict(
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running MaxPool operation...\n")));
-    }// Handle MaxPool
- catch return; 
+    }
+    tensMath.lean_onnx_maxpool(
+        T,
+        &tensor_relu114_output_0, //Input
+        &tensor_pooling160_output_0, //Output
+        &[_]usize{3,3}, //kernel_shape
+        &[_]usize{3,3}, //strides
+        &[_]usize{1,1,1,1}, //dilations
+        &[_]usize{0,0,0,0}, //pads
+        "NOTSET", //auto_pad
+    ) catch return; 
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Reshape operation...\n")));
@@ -237,7 +255,7 @@ export fn predict(
         log(@constCast(@ptrCast("Running Add operation...\n")));
     }
     tensMath.sum_tensors_lean(T, &tensor_times212_output_0, @constCast(&tensor_parameter194), &tensor_plus214_output_0) catch return;
-    result.* = tensor_Plus214_Output_0.data.ptr;
+    result.* = tensor_plus214_output_0.data.ptr;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Prediction completed.\n")));
