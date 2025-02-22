@@ -128,7 +128,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
         \\
         \\
         \\
-        \\public export fn predict( 
+        \\pub export fn predict( 
         \\    input: [*]T,
         \\    input_shape: [*]u32,
         \\    shape_len: u32,

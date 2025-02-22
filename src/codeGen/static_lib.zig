@@ -119,7 +119,7 @@ var shape_tensor_plus214_output_0: [4]usize = [_]usize{ 1, 1, 1, 1 };
 var array_plus214_output_0: [1]T = undefined;
 var tensor_plus214_output_0 = Tensor(T).fromConstBuffer(&array_plus214_output_0, &shape_tensor_plus214_output_0);
 
-export fn predict( 
+pub export fn predict(
     input: [*]T,
     input_shape: [*]u32,
     shape_len: u32,
@@ -155,15 +155,12 @@ export fn predict(
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Reshape operation...\n")));
     }
-    var shape_usize_tensor_parameter193_reshape1_shape = [_]usize{undefined} ** tensor_parameter193_reshape1_shape.data.len;
-    for (tensor_parameter193_reshape1_shape.data, 0..) |v, i| {
-        shape_usize_tensor_parameter193_reshape1_shape[i] = @intCast(v);
-    }
-    tensMath.reshape_lean(T, @constCast(&tensor_parameter193_reshape1_shape), &shape_usize_tensor_parameter193, 0, &tensor_parameter193_reshape1) catch return;
+    var shape_usize_parameter193_reshape1_shape = [_]usize{for (tensor_parameter193.data) |v| @as(usize, @intCast(v))};
+    tensMath.reshape_lean(T, @constCast(&tensor_parameter193), &shape_usize_parameter193_reshape1_shape, false, &tensor_parameter193_reshape1) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Conv operation...\n")));
-    }    
+    }
     tensMath.conv_lean(
         T, //type
         &tensor_input3, //input
@@ -189,12 +186,21 @@ export fn predict(
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running MaxPool operation...\n")));
-    }// Handle MaxPool
- catch return; 
+    }
+    tensMath.onnx_maxpool_lean(
+        T,
+        &tensor_relu32_output_0, //Input
+        &tensor_pooling66_output_0, //Output
+        &[_]usize{ 2, 2 }, //kernel_shape
+        &[_]usize{ 2, 2 }, //strides
+        &[_]usize{ 1, 1, 1, 1 }, //dilations
+        &[_]usize{ 0, 0, 0, 0 }, //pads
+        "NOTSET", //auto_pad
+    ) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Conv operation...\n")));
-    }    
+    }
     tensMath.conv_lean(
         T, //type
         &tensor_pooling66_output_0, //input
@@ -221,36 +227,32 @@ export fn predict(
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running MaxPool operation...\n")));
     }
-    tensMath.lean_onnx_maxpool(
+    tensMath.onnx_maxpool_lean(
         T,
         &tensor_relu114_output_0, //Input
         &tensor_pooling160_output_0, //Output
-        &[_]usize{3,3}, //kernel_shape
-        &[_]usize{3,3}, //strides
-        &[_]usize{1,1,1,1}, //dilations
-        &[_]usize{0,0,0,0}, //pads
+        &[_]usize{ 3, 3 }, //kernel_shape
+        &[_]usize{ 3, 3 }, //strides
+        &[_]usize{ 1, 1, 1, 1 }, //dilations
+        &[_]usize{ 0, 0, 0, 0 }, //pads
         "NOTSET", //auto_pad
-    ) catch return; 
+    ) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Reshape operation...\n")));
     }
-    var shape_usize_tensor_pooling160_output_0_reshape0_shape = [_]usize{undefined} ** tensor_pooling160_output_0_reshape0_shape.data.len;
-    for (tensor_pooling160_output_0_reshape0_shape.data, 0..) |v, i| {
-        shape_usize_tensor_pooling160_output_0_reshape0_shape[i] = @intCast(v);
-    }
-    tensMath.reshape_lean(T, @constCast(&tensor_pooling160_output_0_reshape0_shape), &shape_usize_tensor_pooling160_output_0, 0, &tensor_pooling160_output_0_reshape0) catch return;
+    var shape_usize_pooling160_output_0_reshape0_shape = [_]usize{for (tensor_pooling160_output_0.data) |v| @as(usize, @intCast(v))};
+    tensMath.reshape_lean(T, @constCast(&tensor_pooling160_output_0), &shape_usize_pooling160_output_0_reshape0_shape, false, &tensor_pooling160_output_0_reshape0) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running MatMul operation...\n")));
     }
-    tensMath.matmul_lean(T, &tensor_pooling160_output_0_reshape0, @constCast(&tensor_parameter193_reshape1), &tensor_times212_output_0) catch return;
+    tensMath.mat_mul_lean(T, &tensor_pooling160_output_0_reshape0, @constCast(&tensor_parameter193_reshape1), &tensor_times212_output_0) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Add operation...\n")));
     }
     tensMath.sum_tensors_lean(T, &tensor_times212_output_0, @constCast(&tensor_parameter194), &tensor_plus214_output_0) catch return;
-    result.* = tensor_plus214_output_0.data.ptr;
     result.* = tensor_plus214_output_0.data.ptr;
 
     if (log_function) |log| {
