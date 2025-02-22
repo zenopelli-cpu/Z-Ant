@@ -411,7 +411,10 @@ pub fn pool_forward(comptime T: type, input: *Tensor(T), kernel: [2]usize, strid
         }
     }
 
-    return .{ .output = output, .used_input = used_input };
+    return .{
+        .output = output,
+        .used_input = used_input
+    };
 }
 
 /// Performs backward pass for pooling operation
@@ -717,6 +720,9 @@ pub fn onnx_maxpool(
     var output = try Tensor(T).fromShape(&pkg_allocator, output_shape);
     errdefer output.deinit();
 
+    var used_input = try Tensor(u8).fromShape(&pkg_allocator, input.shape);
+    errdefer used_input.deinit();
+
     try lean_onnx_maxpool(
         T,
         input,
@@ -730,5 +736,6 @@ pub fn onnx_maxpool(
 
     return .{
         .output = output,
+        .used_input = used_input
     };
 }
