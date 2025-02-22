@@ -823,9 +823,27 @@ pub fn reshape(comptime T: anytype, input: *Tensor(T), newShape: []usize, allowZ
 pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []usize, allowZero: ?bool, output: *Tensor(T)) !void {
     _ = allowZero; //TODO: threat allowZero properly
 
-    @memcpy(output.data, input.data);
+    // Calculate total size of new shape
+    var total_size: usize = 1;
+    for (newShape) |dim| {
+        total_size *= dim;
+    }
 
+    // Verify sizes match
+    if (total_size != input.size) {
+        return TensorError.InputArrayWrongSize;
+    }
+
+    // Update output shape
     for (newShape, 0..) |dim, i| {
         output.shape[i] = dim;
+    }
+    output.size = total_size;
+
+    // Copy data only if sizes match
+    if (output.data.len == input.data.len) {
+        @memcpy(output.data, input.data);
+    } else {
+        return TensorError.InputArrayWrongSize;
     }
 }

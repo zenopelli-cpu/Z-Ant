@@ -1,7 +1,7 @@
-// const std = @import("std");
-// const Tensor = @import("tensor").Tensor;
-// const pkgAllocator = @import("pkgAllocator");
-// const allocator = pkgAllocator.allocator;
+const std = @import("std");
+const Tensor = @import("tensor").Tensor;
+const pkgAllocator = @import("pkgAllocator");
+const allocator = pkgAllocator.allocator;
 
 // test "Static Library - Basic Prediction Test" {
 //     std.debug.print("\n     test: Static Library - Basic Prediction Test\n", .{});
@@ -76,3 +76,108 @@
 //         );
 //     }
 // }
+
+test "Static Library - MNIST Prediction Test" {
+    std.debug.print("\n     test: Static Library - MNIST Prediction Test\n", .{});
+
+    // Create a mock MNIST input (28x28 grayscale image)
+    var input_data: [784]f32 = undefined; // 28*28 = 784
+    // Fill with sample data (creating a simple pattern)
+    for (0..784) |i| {
+        input_data[i] = if (i % 2 == 0) 0.8 else 0.2;
+    }
+
+    var input_shape = [_]u32{ 1, 1, 28, 28 }; // NCHW format
+    var result_buffer: [10]f32 = undefined; // Allocate buffer for 10 MNIST classes
+    var result: [*]f32 = @ptrCast(&result_buffer);
+
+    // Create a logging function
+    const LogFn = fn ([*c]u8) callconv(.C) void;
+    const logFn: LogFn = struct {
+        fn log(msg: [*c]u8) callconv(.C) void {
+            std.debug.print("{s}", .{msg});
+        }
+    }.log;
+
+    // Set the logging function
+    @import("static_lib_hm").setLogFunction(logFn);
+
+    // Run prediction
+    try @import("static_lib").predict(
+        @ptrCast(&input_data),
+        @ptrCast(&input_shape),
+        4, // 4D tensor shape
+        &result,
+    );
+
+    // Print the results (10 classes for MNIST)
+    std.debug.print("\nMNIST Prediction probabilities:\n", .{});
+    for (0..10) |i| {
+        std.debug.print("Digit {d}: {d:.6}\n", .{ i, result[i] });
+    }
+
+    // Verify the probabilities sum to approximately 1.0 (due to softmax)
+    var sum: f32 = 0;
+    for (0..10) |i| {
+        sum += result[i];
+    }
+    const epsilon = 0.0001;
+    try std.testing.expect(sum >= 1.0 - epsilon and sum <= 1.0 + epsilon);
+
+    // Find the predicted digit (highest probability)
+    var max_prob: f32 = result[0];
+    var predicted_digit: usize = 0;
+    for (1..10) |i| {
+        if (result[i] > max_prob) {
+            max_prob = result[i];
+            predicted_digit = i;
+        }
+    }
+    std.debug.print("\nPredicted digit: {d} with confidence: {d:.2}%\n", .{ predicted_digit, max_prob * 100 });
+}
+
+test "Static Library - MNIST Error Cases" {
+    std.debug.print("\n     test: Static Library - MNIST Error Cases\n", .{});
+
+    // Test with wrong input shape
+    {
+        var input_data = [_]f32{1.0} ** 100; // Wrong size
+        var input_shape = [_]u32{ 10, 10 }; // Wrong shape
+        var result: [*]f32 = undefined;
+
+        try @import("static_lib_hm").predict(
+            @ptrCast(&input_data),
+            @ptrCast(&input_shape),
+            2,
+            &result,
+        );
+    }
+
+    // Test with empty input
+    {
+        var input_data = [_]f32{};
+        var input_shape = [_]u32{};
+        var result: [*]f32 = undefined;
+
+        try @import("static_lib_hm").predict(
+            @ptrCast(&input_data),
+            @ptrCast(&input_shape),
+            0,
+            &result,
+        );
+    }
+
+    // Test with wrong number of dimensions
+    {
+        var input_data = [_]f32{1.0} ** 784;
+        var input_shape = [_]u32{784}; // Should be 4D but only 1D
+        var result: [*]f32 = undefined;
+
+        try @import("static_lib_hm").predict(
+            @ptrCast(&input_data),
+            @ptrCast(&input_shape),
+            1,
+            &result,
+        );
+    }
+}

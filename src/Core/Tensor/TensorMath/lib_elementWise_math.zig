@@ -63,8 +63,105 @@ pub fn sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
 }
 // --------- lean SUM
 pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType), outputTensor: *Tensor(outputType)) !void {
-    for (0..t1.data.len) |i| {
-        outputTensor.data[i] = t1.data[i] + t2.data[i];
+    // Handle broadcasting
+    const rank1 = t1.shape.len;
+    const rank2 = t2.shape.len;
+    const max_rank = @max(rank1, rank2);
+
+    // Pad shapes with 1s for broadcasting
+    var shape1 = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(shape1);
+    var shape2 = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(shape2);
+
+    // Initialize with 1s
+    @memset(shape1, 1);
+    @memset(shape2, 1);
+
+    // Copy original shapes from right to left
+    var i: usize = 0;
+    while (i < rank1) : (i += 1) {
+        shape1[max_rank - rank1 + i] = t1.shape[i];
+    }
+    i = 0;
+    while (i < rank2) : (i += 1) {
+        shape2[max_rank - rank2 + i] = t2.shape[i];
+    }
+
+    // Debug print shapes
+    std.debug.print("\n[DEBUG] Original shapes - t1: {any}, t2: {any}", .{ t1.shape, t2.shape });
+    std.debug.print("\n[DEBUG] Padded shapes - shape1: {any}, shape2: {any}", .{ shape1, shape2 });
+
+    // Verify shapes are compatible for broadcasting
+    for (0..max_rank) |dim| {
+        if (shape1[dim] != shape2[dim] and shape1[dim] != 1 and shape2[dim] != 1) {
+            std.debug.print("\n[ERROR] Incompatible shapes for broadcasting - shape1: {any}, shape2: {any}", .{ shape1, shape2 });
+            return TensorMathError.IncompatibleBroadcastShapes;
+        }
+    }
+
+    // Calculate output shape and total size
+    var out_shape = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(out_shape);
+    var total_size: usize = 1;
+    for (0..max_rank) |dim| {
+        out_shape[dim] = @max(shape1[dim], shape2[dim]);
+        total_size *= out_shape[dim];
+    }
+
+    // Calculate strides for both tensors
+    var strides1 = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(strides1);
+    var strides2 = try pkg_allocator.alloc(usize, max_rank);
+    defer pkg_allocator.free(strides2);
+
+    strides1[max_rank - 1] = 1;
+    strides2[max_rank - 1] = 1;
+
+    // Calculate strides from right to left
+    var dim = max_rank - 1;
+    while (dim > 0) : (dim -= 1) {
+        strides1[dim - 1] = strides1[dim] * shape1[dim];
+        strides2[dim - 1] = strides2[dim] * shape2[dim];
+    }
+
+    std.debug.print("\n[DEBUG] Strides - t1: {any}, t2: {any}", .{ strides1, strides2 });
+    std.debug.print("\n[DEBUG] Total size: {}, Output size: {}", .{ total_size, outputTensor.data.len });
+
+    // Verify output tensor has correct size
+    if (outputTensor.data.len != total_size) {
+        std.debug.print("\n[ERROR] Output tensor size mismatch - expected: {}, got: {}", .{ total_size, outputTensor.data.len });
+        return TensorMathError.InputTensorDifferentSize;
+    }
+
+    // Perform addition with broadcasting
+    for (0..total_size) |idx| {
+        var idx1: usize = 0;
+        var idx2: usize = 0;
+        var temp = idx;
+
+        // Calculate input indices
+        for (0..max_rank) |d| {
+            const pos = temp / out_shape[d];
+            temp = temp % out_shape[d];
+
+            // Handle broadcasting for t1
+            const idx1_pos = if (shape1[d] == 1) 0 else pos;
+            idx1 += idx1_pos * strides1[d];
+
+            // Handle broadcasting for t2
+            const idx2_pos = if (shape2[d] == 1) 0 else pos;
+            idx2 += idx2_pos * strides2[d];
+        }
+
+        // Bounds check
+        if (idx1 >= t1.data.len or idx2 >= t2.data.len) {
+            std.debug.print("\n[ERROR] Index out of bounds - idx1: {}, t1.len: {}, idx2: {}, t2.len: {}", .{ idx1, t1.data.len, idx2, t2.data.len });
+            return TensorMathError.InvalidDimensions;
+        }
+
+        // Perform addition
+        outputTensor.data[idx] = t1.data[idx1] + t2.data[idx2];
     }
 }
 

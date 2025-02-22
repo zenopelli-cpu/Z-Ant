@@ -1,4 +1,5 @@
 const std = @import("std");
+const os = std.os;
 const Tensor = @import("tensor").Tensor;
 const tensorMath = @import("tensor_math");
 const ModelOnnx = @import("onnx").ModelProto;
@@ -70,7 +71,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
         try write_ReLU(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Reshape")) {
-        try write_reshape(writer, node);
+        try writer.writeAll("// Handle Reshape\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Resize")) {
         try writer.writeAll("// Handle Resize\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sigmoid")) {
@@ -134,7 +135,7 @@ inline fn write_add(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    tensMath.sum_tensors_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
+        \\    tensMath.sum_tensors_lean(T, T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
@@ -323,7 +324,11 @@ inline fn write_matmul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
+<<<<<<< HEAD
         \\    tensMath.mat_mul_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
+=======
+        \\    tensMath.lean_matmul(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
+>>>>>>> 0f99897 (WIP Model)
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
@@ -470,6 +475,7 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
+<<<<<<< HEAD
 inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     // https://onnx.ai/onnx/operators/onnx__Reshape.html
@@ -503,6 +509,8 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
+=======
+>>>>>>> 0f99897 (WIP Model)
 inline fn write_sigmoid(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //node.inputs.items[0] -> input
     //node.outputs.items[0] -> output
@@ -670,6 +678,8 @@ inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
     const input_shape: []const i64 = readyNode.inputs.items[0].shape;
     const kernel_shape: []const i64 = readyNode.inputs.items[1].shape;
     const stride = readyNode.nodeProto.attribute[1].ints;
+    const dilation = readyNode.nodeProto.attribute[4].ints;
+    const auto_pad = readyNode.nodeProto.attribute[2].s;
 
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
     std.debug.print("\n kernel_shape: []i64 = {any}", .{kernel_shape});
@@ -681,6 +691,9 @@ inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
                 try utils.i64SliceToUsizeSlice(input_shape),
                 try utils.i64SliceToUsizeSlice(kernel_shape),
                 try utils.i64SliceToUsizeSlice(stride),
+                null,
+                try utils.i64SliceToUsizeSlice(dilation),
+                auto_pad,
             ),
         ),
     );
