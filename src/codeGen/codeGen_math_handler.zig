@@ -35,7 +35,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     }
 
     if (std.mem.eql(u8, node.nodeProto.op_type, "Add")) {
-        try writer.writeAll("// Handle Add\n");
+        try write_add(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "AveragePool")) {
         try writer.writeAll("// Handle AveragePool\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "BatchNormalization")) {
@@ -69,7 +69,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
         try write_ReLU(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Reshape")) {
-        try writer.writeAll("// Handle ReShape\n");
+        try write_reshape(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Resize")) {
         try writer.writeAll("// Handle Resize\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sigmoid")) {
@@ -121,6 +121,24 @@ fn write_op_info(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             \\   //      <- {s} 
         , .{output.name});
     }
+}
+
+inline fn write_add(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Add.html
+    // INPUTS:
+    //      - A (heterogeneous) - T: First operand.
+    //      - B (heterogeneous) - T: Second operand.
+    // OUTPUTS:
+    //      - C (heterogeneous) - T: Result, has same element type as two inputs.
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.sum_tensors_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
+        try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
+    });
 }
 
 inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
@@ -337,6 +355,19 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     _ = try writer.print(
         \\
         \\    tensMath.ReLU_lean(T, &tensor_{s}, &tensor_{s})
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name),
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    //node.inputs.items[0] -> input
+    //node.outputs.items[0] -> output
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.reshape_lean(T, &tensor_{s}, &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name),
         try utils.getSanitizedName(node.outputs.items[0].name),
