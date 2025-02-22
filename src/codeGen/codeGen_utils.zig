@@ -341,3 +341,16 @@ pub fn parseNumbers(input: []const u8) ![]i64 {
 
     return list.toOwnedSlice();
 }
+
+pub fn i64SliceToUsizeArrayString(values: []const i64) ![]const u8 {
+    var buffer: [3]u8 = undefined;
+    var res_string = try std.mem.concat(allocator, u8, &[_][]const u8{"&[_]usize{"});
+    for (values, 0..) |val, i| {
+        if (i > 0) res_string = try std.mem.concat(allocator, u8, &[_][]const u8{ res_string, "," });
+        const val_string = std.fmt.bufPrint(&buffer, "{}", .{val}) catch unreachable;
+        res_string = try std.mem.concat(allocator, u8, &[_][]const u8{ res_string, val_string });
+    }
+    res_string = try std.mem.concat(allocator, u8, &[_][]const u8{ res_string, "}" });
+
+    return res_string;
+}

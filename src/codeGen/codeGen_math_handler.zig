@@ -27,6 +27,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     }
     if (codegen_options.log) {
         try writer.print(
+            \\ 
             \\
             \\    if (log_function) |log| {{
             \\        log(@constCast(@ptrCast("Running {s} operation...\n")));
@@ -190,41 +191,21 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     }
 
     //----create stride string
-    var stride_string: []u8 = undefined;
-    stride_string = try std.mem.concat(allocator, u8, &[_][]const u8{"&[_]usize{"});
-    var buffer: [3]u8 = undefined;
     if (strides == null) return error.StrideNotFound;
-    for (strides.?, 0..) |val, i| {
-        if (i > 0) stride_string = try std.mem.concat(allocator, u8, &[_][]const u8{ stride_string, "," });
-        const val_string = std.fmt.bufPrint(&buffer, "{}", .{val}) catch unreachable;
-        stride_string = try std.mem.concat(allocator, u8, &[_][]const u8{ stride_string, val_string });
-    }
-    stride_string = try std.mem.concat(allocator, u8, &[_][]const u8{ stride_string, "}" });
+    const stride_string: []const u8 = try utils.i64SliceToUsizeArrayString(strides.?);
 
     //----create ?pads string
-    var pads_string: []u8 = undefined;
+    var pads_string: []const u8 = undefined;
     if (pads != null) {
-        pads_string = try std.mem.concat(allocator, u8, &[_][]const u8{"&[_]usize{"});
-        for (pads.?, 0..) |val, i| {
-            if (i > 0) pads_string = try std.mem.concat(allocator, u8, &[_][]const u8{ pads_string, "," });
-            const val_string = std.fmt.bufPrint(&buffer, "{}", .{val}) catch unreachable;
-            pads_string = try std.mem.concat(allocator, u8, &[_][]const u8{ pads_string, val_string });
-        }
-        pads_string = try std.mem.concat(allocator, u8, &[_][]const u8{ pads_string, "}" });
+        pads_string = try utils.i64SliceToUsizeArrayString(pads.?);
     } else {
         pads_string = try std.mem.concat(allocator, u8, &[_][]const u8{" null"});
     }
 
     //----create ?dilatations string
-    var dilat_string: []u8 = undefined;
+    var dilat_string: []const u8 = undefined;
     if (dilations != null) {
-        dilat_string = try std.mem.concat(allocator, u8, &[_][]const u8{"&[_]usize{"});
-        for (dilations.?, 0..) |val, i| {
-            if (i > 0) dilat_string = try std.mem.concat(allocator, u8, &[_][]const u8{ dilat_string, "," });
-            const val_string = std.fmt.bufPrint(&buffer, "{}", .{val}) catch unreachable;
-            dilat_string = try std.mem.concat(allocator, u8, &[_][]const u8{ dilat_string, val_string });
-        }
-        dilat_string = try std.mem.concat(allocator, u8, &[_][]const u8{ dilat_string, "}" });
+        dilat_string = try utils.i64SliceToUsizeArrayString(dilations.?);
     } else {
         dilat_string = try std.mem.concat(allocator, u8, &[_][]const u8{" null"});
     }
@@ -364,7 +345,7 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //node.inputs.items[0] -> input
     //node.outputs.items[0] -> output
-
+    //TODO: add allowzero params
     _ = try writer.print(
         \\
         \\    tensMath.reshape_lean(T, &tensor_{s}, &tensor_{s})
