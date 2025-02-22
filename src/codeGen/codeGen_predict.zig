@@ -262,21 +262,23 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
                     mutableNode.ready = true;
                 }
             } else {
-                try write_OutputShape(
+                const size = try write_OutputShape(
                     writer,
                     output,
                 );
                 try write_OutputTensor(
                     writer,
                     output.name,
+                    size,
                 );
             }
         }
     }
 }
 
-fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !void {
+fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !i64 {
     const shape = output.shape;
+    var size: i64 = 1;
     try writer.print(
         \\
         \\
@@ -291,11 +293,14 @@ fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !void {
         try writer.print(
             \\ {}
         , .{shape[i]});
+        size *= shape[i];
     }
 
     try writer.print(
         \\}} ;
     , .{});
+
+    return size;
 }
 
 fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void {
@@ -391,13 +396,13 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
     , .{ sanitized_name, dataTypeString, sanitized_name, sanitized_name });
 }
 
-fn write_OutputTensor(writer: std.fs.File.Writer, name: []const u8) !void {
+fn write_OutputTensor(writer: std.fs.File.Writer, name: []const u8, size: i64) !void {
     const sanitized_name = try utils.getSanitizedName(name);
     try writer.print(
         \\
-        \\var array_{s} = undefined;
+        \\var array_{s}: [{}]T = undefined;
         \\var tensor_{s} = Tensor(T).fromConstBuffer( &array_{s}, &shape_tensor_{s});
-    , .{ sanitized_name, sanitized_name, sanitized_name, sanitized_name });
+    , .{ sanitized_name, size, sanitized_name, sanitized_name, sanitized_name });
 }
 
 fn write_checks(writer: std.fs.File.Writer) !void {

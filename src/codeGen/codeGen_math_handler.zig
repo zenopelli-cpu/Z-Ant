@@ -45,7 +45,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Constant")) {
         try writer.writeAll("// Handle Constant\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Conv")) {
-        try writer.writeAll("// Handle Conv\n");
+        try write_conv(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Div")) {
         try write_div(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Flatten")) {
@@ -121,6 +121,64 @@ fn write_op_info(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             \\   //      <- {s} 
         , .{output.name});
     }
+}
+
+inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    _ = writer;
+    // https://onnx.ai/onnx/operators/onnx__Conv.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input data tensor
+    //      - W (heterogeneous) - T: The weight tensor
+    //      - B (optional, heterogeneous) - T: Optional 1D bias to be added to the convolution, has size of M.
+    // OUTPUT:
+    //      - Y (heterogeneous) - T: Output data tensor that contains the result of the convolution
+    // ATTRIBUTES:
+    //      - auto_pad - STRING (default is 'NOTSET'): auto_pad must be either NOTSET, SAME_UPPER, SAME_LOWER or VALID. Where default value is NOTSET
+    //      - dilations - INTS : dilation value along each spatial axis of the filter. If not present, the dilation defaults is 1 along each spatial axis.
+    //      - group - INT (default is '1'): number of groups input channels and output channels are divided into
+    //      - kernel_shape - INTS : The shape of the convolution kernel. If not present, should be inferred from input W
+    //      - pads - INTS : Padding for the beginning and ending along each spatial axis, it can take any value greater than or equal to 0.
+    //      - strides - INTS : Stride along each spatial axis. If not present, the stride defaults is 1 along each spatial axis.
+
+    var auto_pad: []const u8 = "NOTSET";
+    var dilations: []i64 = undefined;
+    var group: i64 = 1;
+    var kernel_shape: []i64 = undefined;
+    var pads: []i64 = undefined;
+    var strides: []i64 = undefined;
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.indexOf(u8, attr.name, "auto_pad")) |_| {
+            if (attr.type == AttributeType.STRING) auto_pad = attr.s else return error.ConvAuto_padNotSTRING;
+        } else if (std.mem.indexOf(u8, attr.name, "dilations")) |_| {
+            if (attr.type == AttributeType.INTS) dilations = attr.ints else return error.ConvDilatationNoINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "group")) |_| {
+            if (attr.type == AttributeType.INT) group = attr.i else return error.ConvGroupNotINT;
+        } else if (std.mem.indexOf(u8, attr.name, "kernel_shape")) |_| {
+            if (attr.type == AttributeType.INTS) kernel_shape = attr.ints else return error.ConvKernelShapeNotINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "pads")) |_| {
+            if (attr.type == AttributeType.INTS) pads = attr.ints else return error.ConvPadsNotINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "strides")) |_| {
+            if (attr.type == AttributeType.INTS) strides = attr.ints else return error.ConvStridesNotINTS;
+        }
+    }
+    //create ?bias string
+
+    //create stride string
+
+    //create ?pads string
+
+    //create ?dilatations string
+
+    //create ?group string
+
+    //create ?autopad string
+
+    // pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void
+    // _ = try writer.print(
+    //     \\    //                    input        kernel                   output       bias  stride   pads  dilatations  group  auto_pad
+    //     \\    tensMath.conv_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s}  {s},  {s},    {s},   {s},         {},    "{s}"   )
+    // , .{});
 }
 
 inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {

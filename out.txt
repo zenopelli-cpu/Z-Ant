@@ -235,41 +235,53 @@ Description: 2D matrix of size 1x10 (typically dense layer weights)
 
  .......... file created, path:src/codeGen/static_lib.zig
 ====== compute_conv_output_shape node: Convolution28======
- input_shape: []usize = { 1, 1, 28, 28 }
- kernel_shape: []usize = { 8, 1, 5, 5 } 
+ input_shape: []i64 = { 1, 1, 40, 40 }
+ kernel_shape: []i64 = { 8, 1, 5, 5 }
+ stride: []i64 = { 1, 1 }
+ output_shape: []i64 = { 1, 8, 36, 36 }
+====== compute_ReLU_output_shape node: ReLU32======
+ input_shape: []i64 = { 1, 8, 36, 36 }
+====== compute_maxPool_output_shape node: Pooling66======
+ input_shape: []i64 = { 1, 8, 36, 36 }
+ kernel_shape: []i64 = { 2, 2 }
+ stride: []i64 = { 2, 2 }
+ output_shape: []i64 = { 1, 8, 18, 18 }
 ====== compute_conv_output_shape node: Convolution110======
- input_shape: []usize = { 1, 1, 1, 1 }
- kernel_shape: []usize = { 16, 8, 5, 5 } thread 100 panic: integer overflow
-/workspace/src/Core/Tensor/TensorMath/op_convolution.zig:128:68: 0x105f4c9 in get_convolution_output_shape (Codegen)
-    const out_height = try std.math.divExact(usize, input_shape[2] - kernel_shape[2], stride[0]) + 1;
-                                                                   ^
-/workspace/src/codeGen/codeGen_math_handler.zig:394:57: 0x106077f in compute_output_shape (Codegen)
-            &try tensorMath.get_convolution_output_shape(
-                                                        ^
-/workspace/src/codeGen/codeGen_predict.zig:100:41: 0x1061f7d in create (Codegen)
-        try mathGen.compute_output_shape(&newReadyNode);
-                                        ^
-/workspace/src/codeGen/codeGen_predict.zig:191:47: 0x106253c in createReadyGraph (Codegen)
-        const readyNode = try ReadyNode.create(node_ptr);
-                                              ^
-/workspace/src/codeGen/codeGen_predict.zig:116:25: 0x107a929 in writeZigFile (Codegen)
-    try createReadyGraph(model);
-                        ^
-/workspace/src/codeGen/codeGen_main.zig:20:29: 0x107d041 in main (Codegen)
-    try codeGen.writeZigFile(file, model1);
-                            ^
-/opt/zig/lib/std/start.zig:524:37: 0x107f60e in main (Codegen)
-            const result = root.main() catch |err| {
-                                    ^
-???:?:?: 0x769f2a501d8f in ??? (libc.so.6)
-Unwind information for `libc.so.6:0x769f2a501d8f` was not available, trace may be incomplete
-
-codegen
-+- run Codegen failure
-error: the following command terminated unexpectedly:
-/workspace/.zig-cache/o/93d51a9565fe9c73c1b58ba223d8975d/Codegen 
-Build Summary: 2/4 steps succeeded; 1 failed (disable with --summary none)
-codegen transitive failure
-+- run Codegen failure
-error: the following build command failed with exit code 1:
-/workspace/.zig-cache/o/89e82efb57cc29d528ccd05fb44404a9/build /opt/zig/zig /workspace /workspace/.zig-cache /home/vscode/.cache/zig --seed 0x8e4c7ea6 -Zf49cd6960f1416ac codegen
+ input_shape: []i64 = { 1, 8, 18, 18 }
+ kernel_shape: []i64 = { 16, 8, 5, 5 }
+ stride: []i64 = { 1, 1 }
+ output_shape: []i64 = { 1, 16, 14, 14 }
+====== compute_ReLU_output_shape node: ReLU114======
+ input_shape: []i64 = { 1, 16, 14, 14 }
+====== compute_maxPool_output_shape node: Pooling160======
+ input_shape: []i64 = { 1, 16, 14, 14 }
+ kernel_shape: []i64 = { 3, 3 }
+ stride: []i64 = { 3, 3 }
+ output_shape: []i64 = { 1, 16, 4, 4 }
+ -----> set Times212_reshape1 outputs to ready
+    Parameter193_reshape1 --> ready
+ -----> set Convolution28 outputs to ready
+    Convolution28_Output_0 --> ready
+ -----> set Plus30 outputs to ready
+    Plus30_Output_0 --> ready
+ -----> set ReLU32 outputs to ready
+    ReLU32_Output_0 --> ready
+ -----> set Pooling66 outputs to ready
+    Pooling66_Output_0 --> ready
+ -----> set Convolution110 outputs to ready
+    Convolution110_Output_0 --> ready
+ -----> set Plus112 outputs to ready
+    Plus112_Output_0 --> ready
+ -----> set ReLU114 outputs to ready
+    ReLU114_Output_0 --> ready
+ -----> set Pooling160 outputs to ready
+    Pooling160_Output_0 --> ready
+ -----> set Times212_reshape0 outputs to ready
+    Pooling160_Output_0_reshape0 --> ready
+ -----> set Times212 outputs to ready
+    Times212_Output_0 --> ready
+ -----> set Plus214 outputs to ready
+    Plus214_Output_0 --> ready
+#############################################################
++                      EXECUTION ENDED                      +
+#############################################################

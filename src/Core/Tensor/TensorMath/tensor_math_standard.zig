@@ -7,7 +7,6 @@
 
 // ---------- importing standard structural methods ----------
 const shape_math_lib = @import("lib_shape_math.zig");
-const op_pooling = @import("op_pooling.zig");
 
 //---reshape
 pub const reshape = shape_math_lib.reshape;
@@ -18,6 +17,8 @@ pub const concatenate = shape_math_lib.concatenate;
 // TODO: pub const concatenate_lean = shape_math_lib.concatenate_lean;
 pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_shape;
 
+// ---------- importing pooling methods ----------
+const op_pooling = @import("op_pooling.zig");
 //--pooling
 pub const get_pooling_output_shape = op_pooling.get_pooling_output_shape;
 
@@ -55,7 +56,7 @@ pub const convolution_backward_weights = convolution_math_lib.convolution_backwa
 pub const convolution_backward_input = convolution_math_lib.convolution_backward_input;
 pub const get_convolution_output_shape = convolution_math_lib.get_convolution_output_shape;
 pub const Conv = convolution_math_lib.OnnxConv;
-pub const Conv_lean = convolution_math_lib.OnnxConvLean;
+pub const conv_lean = convolution_math_lib.OnnxConvLean;
 
 // ---------- importing standard Pooling methods ----------
 const pooling_math_lib = @import("op_pooling.zig");

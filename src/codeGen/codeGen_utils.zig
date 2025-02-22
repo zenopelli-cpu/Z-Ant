@@ -108,7 +108,7 @@ pub inline fn getSanitizedName(name: []const u8) ![]const u8 {
 /// Returns a List of Ready nodes
 /// A node is considered "computable" if all the node's input Tensors are set as ready
 pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.ArrayList(*ReadyNode) {
-    std.debug.print("\n\n getComputableNodes()", .{});
+    //std.debug.print("\n\n getComputableNodes()", .{});
 
     var set: std.ArrayList(*ReadyNode) = std.ArrayList(*ReadyNode).init(allocator);
     var ready_input_counter: i8 = 0;
@@ -123,7 +123,7 @@ pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.Arr
             }
             if (ready_input_counter == node.inputs.items.len) {
                 try set.append(node);
-                std.debug.print("\n    --- {s} is computable", .{node.nodeProto.name.?});
+                //std.debug.print("\n    --- {s} is computable", .{node.nodeProto.name.?});
             }
             ready_input_counter = 0;
         }

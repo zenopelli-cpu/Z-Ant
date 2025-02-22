@@ -29,10 +29,6 @@ const addPaddingAndDilation = lib_shape_math.addPaddingAndDilation;
 /// TODO: create 2d convolution, atm is 3 or more dimensions
 /// TODO: add better check on output size wrt input and kernel
 ///
-///
-///
-///
-///
 pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void {
     // Input validation
     if (input.shape.len != 4 or kernel.shape.len != 4) {
