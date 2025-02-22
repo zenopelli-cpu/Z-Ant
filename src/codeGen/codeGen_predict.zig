@@ -42,7 +42,7 @@ pub const ReadyTensor = struct {
             return ReadyTensor{ // Check if tensor is an input
                 .name = name,
                 .ready = true,
-                .shape = &[_]i64{ 1, 1, 28, 28 }, //TODO; hardcoded shit, ask to Mirko
+                .shape = try utils.parseNumbers(codegen_options.shape),
             };
         } else if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "images")) |_| return ReadyTensor{ // Check if tensor is images
             .name = name,
