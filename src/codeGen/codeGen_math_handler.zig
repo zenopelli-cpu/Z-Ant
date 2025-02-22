@@ -215,7 +215,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void
     _ = try writer.print(
         \\    
-        \\    tensMath.lean_conv(
+        \\    tensMath.conv_lean(
         \\        T, //type
         \\        &tensor_{s}, //input
         \\        @constCast(&tensor_{s}), //kernel
@@ -323,7 +323,7 @@ inline fn write_matmul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    tensMath.matmul_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
+        \\    tensMath.mat_mul_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
@@ -418,7 +418,7 @@ inline fn write_maxPool(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    tensMath.lean_onnx_maxpool(
+        \\    tensMath.onnx_maxpool_lean(
         \\        T,
         \\        &tensor_{s}, //Input
         \\        &tensor_{s}, //Output
@@ -471,6 +471,7 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 }
 
 inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+
     // https://onnx.ai/onnx/operators/onnx__Reshape.html
     // INPUTS:
     //      - data (heterogeneous) - T: An input tensor.
@@ -480,10 +481,10 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // ATTRIBUTES:
     //      - allowzero - INT (default is '0'): Whether to allow zeros in shape tensor
 
-    var allowzer: bool = false;
+    var allowzer0: bool = false;
     for (node.nodeProto.attribute) |attr| {
         if (std.mem.indexOf(u8, attr.name, "allowzero")) |_| {
-            if (attr.type == AttributeType.INT) allowzer = attr.i != 0;
+            if (attr.type == AttributeType.INT) allowzer0 = attr.i != 0;
         }
     }
 
@@ -491,11 +492,13 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     _ = try writer.print(
         \\
         \\    var shape_usize_{s} = [_]usize{{ for (tensor_{s}.data) |v| @as(usize, @intCast(v)) }};
-        \\    tensMath.reshape_lean(T, @constCast(&tensor_{s}), &shape_usize, {}, &tensor_{s})
+        \\    tensMath.reshape_lean(T, @constCast(&tensor_{s}), &shape_usize_{s}, {s}, &tensor_{s})
     , .{
         shape_name,
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor
-        allowzer,
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor
+        shape_name,
+        if (allowzer0) "true" else "false",
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
     });
 }
