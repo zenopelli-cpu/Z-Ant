@@ -246,15 +246,30 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 }
 
 inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    //node.inputs.items[0] -> input
-    //node.outputs.items[0] -> output
+    // https://onnx.ai/onnx/operators/onnx__Reshape.html
+    // INPUTS:
+    //      - data (heterogeneous) - T: An input tensor.
+    //      - shape (heterogeneous) - tensor(int64): Specified shape for output.
+    // OUTPUTS:
+    //      - reshaped (heterogeneous) - T: Reshaped data.
+    // ATTRIBUTES:
+    //      - allowzero - INT (default is '0'): Whether to allow zeros in shape tensor
+
+    var allowzer: bool = false;
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.indexOf(u8, attr.name, "allowzero")) |_| {
+            if (attr.type == AttributeType.INT) allowzer = attr.i != 0;
+        }
+    }
 
     _ = try writer.print(
         \\
-        \\    tensMath.reshape_lean(T, &tensor_{s}, &tensor_{s})
+        \\    tensMath.reshape_lean(T, &tensor_{s}, @constCast(&tensor_{s}), {}, &tensor_{s})
     , .{
-        try utils.getSanitizedName(node.inputs.items[0].name),
-        try utils.getSanitizedName(node.outputs.items[0].name),
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor
+        try utils.getSanitizedName(node.inputs.items[1].name), // Shape tensor
+        allowzer,
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
     });
 }
 
