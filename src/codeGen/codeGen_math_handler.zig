@@ -215,7 +215,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    
         \\    tensMath.conv_lean(
         \\        T, //type
-        \\        &tensor_{s}, ///input
+        \\        &tensor_{s}, //input
         \\        @constCast(&tensor_{s}), //kernel
         \\        &tensor_{s}, //output
         \\        {s}, //bias
