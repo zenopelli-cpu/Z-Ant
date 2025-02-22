@@ -7,6 +7,8 @@
 
 // ---------- importing standard structural methods ----------
 const shape_math_lib = @import("lib_shape_math.zig");
+const op_pooling = @import("op_pooling.zig");
+
 //---reshape
 pub const reshape = shape_math_lib.reshape;
 pub const reshape_lean = shape_math_lib.reshape_lean;
@@ -15,6 +17,9 @@ pub const reshape_lean = shape_math_lib.reshape_lean;
 pub const concatenate = shape_math_lib.concatenate;
 // TODO: pub const concatenate_lean = shape_math_lib.concatenate_lean;
 pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_shape;
+
+//--pooling
+pub const get_pooling_output_shape = op_pooling.get_pooling_output_shape;
 
 pub const calculateStrides = shape_math_lib.calculateStrides;
 pub const transpose2D = shape_math_lib.transpose2D;

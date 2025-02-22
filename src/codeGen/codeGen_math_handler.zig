@@ -69,7 +69,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
         try write_ReLU(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Reshape")) {
-        try writer.writeAll("// Handle Relu\n");
+        try writer.writeAll("// Handle ReShape\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Resize")) {
         try writer.writeAll("// Handle Resize\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sigmoid")) {
@@ -288,7 +288,7 @@ inline fn write_sum(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Add")) {
         //https://onnx.ai/onnx/operators/onnx__Add.html
-        readyNode.outputs.items[0].shape = readyNode.inputs.items[1].shape;
+        readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Concat")) {
         // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Constant")) {
@@ -314,8 +314,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MatMul")) {
         // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MaxPool")) {
-        // TODO
-        //try compute_maxPool_output_shape(readyNode);
+        try compute_maxPool_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mul")) {
         //https://onnx.ai/onnx/operators/onnx__Mul.html
         try compute_mul_output_shape(readyNode);
@@ -352,60 +351,53 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
 // ---------------- SHAPE COMPUTATION METHODS ----------------
 
 inline fn compute_constant_output_shape(readyNode: *ReadyNode) !void {
-    readyNode.outputs.items[0].shape = try utils.getConstantTensorDims(readyNode.nodeProto);
+    std.debug.print("\n====== compute_constant_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const shape = try utils.getConstantTensorDims(readyNode.nodeProto);
+    std.debug.print("\n output_shape: []i64 = {any}", .{shape});
+    readyNode.outputs.items[0].shape = shape;
 }
 
 inline fn compute_ReLU_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_ReLU_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
     readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
 }
 
 inline fn compute_softmax_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_softmax_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
     readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
 }
 
 inline fn compute_gemm_output_shape(readyNode: *ReadyNode) !void {
-    //inputs.items[0] -> input Tensor
-    //inputs.items[1] -> weight Tensor
-    //inputs.items[2] -> bias Tensor
-    //
-    //output shape = bias shape by definition of gemm
-
+    std.debug.print("\n====== compute_gemm_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
+    std.debug.print("\n weight_shape: []i64 = {any}", .{readyNode.inputs.items[1].shape});
+    std.debug.print("\n bias_shape: []i64 = {any}", .{readyNode.inputs.items[2].shape});
     readyNode.outputs.items[0].shape = readyNode.inputs.items[2].shape;
 }
 
 inline fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
-    //inputs.items[0] ->  Tensor a
-    //inputs.items[1] ->  Tensor b
-    //
-    //output shape =[... , a.rows , b.cols ]
+    std.debug.print("\n====== compute_mul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    std.debug.print("\n input_a_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
+    std.debug.print("\n input_b_shape: []i64 = {any}", .{readyNode.inputs.items[1].shape});
 
     const shape_len = readyNode.outputs.items[0].shape.len;
-
     var newShape = try allocator.alloc(i64, shape_len);
     @memcpy(newShape, readyNode.inputs.items[0].shape);
     newShape[shape_len - 1] = readyNode.inputs.items[1].shape[shape_len - 1];
-
     readyNode.outputs.items[0].shape = newShape;
 }
 
 inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
-    //inputs.items[0] -> input Tensor (X)
-    //inputs.items[1] -> kernel Tensor (W)
-    //
-    //output shape-> input Tensor
-
-    //attributes:
-    //nodeProtop.attribute[0] = kernel_shape -> TODO: search it, it is not fixed to index 0
-    //nodeProtop.attribute[1] = strides -> TODO: search it, it is not fixed to index 1
-
+    std.debug.print("\n====== compute_conv_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     const input_shape: []const i64 = readyNode.inputs.items[0].shape;
     const kernel_shape: []const i64 = readyNode.inputs.items[1].shape;
     const stride = readyNode.nodeProto.attribute[1].ints;
 
-    // DEBUG
-    std.debug.print("\n====== compute_conv_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    std.debug.print("\n input_shape: []usize = {any}", .{try utils.i64SliceToUsizeSlice(input_shape)});
-    std.debug.print("\n kernel_shape: []usize = {any} ", .{try utils.i64SliceToUsizeSlice(kernel_shape)});
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+    std.debug.print("\n kernel_shape: []i64 = {any}", .{kernel_shape});
+    std.debug.print("\n stride: []i64 = {any}", .{stride});
 
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(
         @constCast(
@@ -416,16 +408,30 @@ inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
             ),
         ),
     );
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
-// inline fn compute_maxPool_output_shape(readyNode: *ReadyNode) !void {
-//     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(
-//         @constCast(
-//             &try tensorMath.get_convolution_output_shape(
-//                 try utils.i64SliceToUsizeSlice(input_shape),
-//                 try utils.i64SliceToUsizeSlice(kernel_shape),
-//                 try utils.i64SliceToUsizeSlice(stride),
-//             ),
-//         ),
-//     );
-// }
+inline fn compute_maxPool_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_maxPool_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape: []const i64 = readyNode.inputs.items[0].shape;
+    const kernel_shape = readyNode.nodeProto.attribute[0].ints;
+    const stride = readyNode.nodeProto.attribute[1].ints;
+
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+    std.debug.print("\n kernel_shape: []i64 = {any}", .{kernel_shape});
+    std.debug.print("\n stride: []i64 = {any}", .{stride});
+
+    const kernel_2d = [2]usize{ @intCast(kernel_shape[0]), @intCast(kernel_shape[1]) };
+    const stride_2d = [2]usize{ @intCast(stride[0]), @intCast(stride[1]) };
+
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(
+        @constCast(
+            &try tensorMath.get_pooling_output_shape(
+                try utils.i64SliceToUsizeSlice(input_shape),
+                kernel_2d,
+                stride_2d,
+            ),
+        ),
+    );
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}

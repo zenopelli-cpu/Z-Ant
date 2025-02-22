@@ -348,6 +348,10 @@ pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []
         return TensorMathError.WrongStride;
     }
 
+    if (kernel_shape[2] > input_shape[2] or kernel_shape[3] > input_shape[3]) {
+        return TensorMathError.InvalidDimensions;
+    }
+
     const batch_size = input_shape[0];
     const num_filters = kernel_shape[0];
     const out_height = try std.math.divExact(usize, input_shape[2] - kernel_shape[2], stride[0]) + 1;

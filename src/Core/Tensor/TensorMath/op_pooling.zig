@@ -4,6 +4,27 @@ const pkg_allocator = @import("pkgAllocator").allocator;
 const TensorMathError = @import("errorHandler").TensorMathError;
 const PoolingType = @import("layer").poolingLayer.PoolingType;
 
+pub fn get_pooling_output_shape(input_shape: []const usize, kernel: [2]usize, stride: [2]usize) ![4]usize {
+    if (input_shape.len != 4) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    if (kernel[0] == 0 or kernel[1] == 0 or stride[0] == 0 or stride[1] == 0) {
+        return TensorMathError.WrongStride;
+    }
+
+    if (kernel[0] > input_shape[2] or kernel[1] > input_shape[3]) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    const batch_size = input_shape[0];
+    const channels = input_shape[1];
+    const out_height = (input_shape[2] - kernel[0]) / stride[0] + 1;
+    const out_width = (input_shape[3] - kernel[1]) / stride[1] + 1;
+
+    return [4]usize{ batch_size, channels, out_height, out_width };
+}
+
 // POOLING -----------------------------------------------------------------------------------------------------------------------
 pub fn pool_tensor(
     comptime T: type,
