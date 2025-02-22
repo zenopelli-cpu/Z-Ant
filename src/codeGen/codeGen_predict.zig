@@ -128,7 +128,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, model: ModelOnnx) !void {
         \\
         \\
         \\
-        \\export fn predict( 
+        \\public export fn predict( 
         \\    input: [*]T,
         \\    input_shape: [*]u32,
         \\    shape_len: u32,
@@ -456,7 +456,7 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
         \\
         \\    result.* = tensor_{s}.data.ptr;
         \\
-    , .{networkOutput});
+    , .{try utils.getSanitizedName(networkOutput)});
 
     if (codegen_options.log) {
         _ = try writer.print(

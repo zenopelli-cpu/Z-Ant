@@ -569,7 +569,6 @@ pub fn lean_onnx_maxpool(
     comptime T: type,
     input: *Tensor(T),
     output: *Tensor(T),
-    used_input: *Tensor(u8),
     kernel_shape: []const usize,
     strides: []const usize,
     dilations: []const usize,
@@ -589,6 +588,12 @@ pub fn lean_onnx_maxpool(
     var pad_left: usize = 0;
     var pad_bottom: usize = 0;
     var pad_right: usize = 0;
+
+    // Allocate used_input tensor
+    var used_input_shape = [_]usize{ input.shape[0], input.shape[1], out_height * out_width, input.shape[2], input.shape[3] };
+    var used_input = try Tensor(u8).fromShape(&pkg_allocator, &used_input_shape);
+    errdefer used_input.deinit();
+    @memset(used_input.data, 0);
 
     switch (auto_pad) {
         .NOTSET => {
@@ -685,6 +690,8 @@ pub fn lean_onnx_maxpool(
 }
 
 // Modify the original onnx_maxpool to use the lean version
+//TODO: implement "ceil_mode" and "storage_order" https://onnx.ai/onnx/operators/onnx__MaxPool.html
+
 pub fn onnx_maxpool(
     comptime T: type,
     input: *Tensor(T),
@@ -710,20 +717,10 @@ pub fn onnx_maxpool(
     var output = try Tensor(T).fromShape(&pkg_allocator, output_shape);
     errdefer output.deinit();
 
-    const out_height = output_shape[2];
-    const out_width = output_shape[3];
-
-    // Allocate used_input tensor
-    var used_input_shape = [_]usize{ input.shape[0], input.shape[1], out_height * out_width, input.shape[2], input.shape[3] };
-    var used_input = try Tensor(u8).fromShape(&pkg_allocator, &used_input_shape);
-    errdefer used_input.deinit();
-    @memset(used_input.data, 0);
-
     try lean_onnx_maxpool(
         T,
         input,
         &output,
-        &used_input,
         kernel_shape,
         strides,
         dilations,
@@ -731,5 +728,7 @@ pub fn onnx_maxpool(
         auto_pad,
     );
 
-    return .{ .output = output, .used_input = used_input };
+    return .{
+        .output = output,
+    };
 }

@@ -56,7 +56,7 @@ pub const convolution_backward_weights = convolution_math_lib.convolution_backwa
 pub const convolution_backward_input = convolution_math_lib.convolution_backward_input;
 pub const get_convolution_output_shape = convolution_math_lib.get_convolution_output_shape;
 pub const Conv = convolution_math_lib.OnnxConv;
-pub const conv_lean = convolution_math_lib.OnnxConvLean;
+pub const lean_conv = convolution_math_lib.OnnxConvLean;
 
 // ---------- importing standard Pooling methods ----------
 const pooling_math_lib = @import("op_pooling.zig");
@@ -65,6 +65,7 @@ pub const multidim_pooling = pooling_math_lib.multidim_pooling;
 pub const pool_forward = pooling_math_lib.pool_forward;
 pub const pool_backward = pooling_math_lib.pool_backward;
 pub const onnx_maxpool = pooling_math_lib.onnx_maxpool;
+pub const lean_onnx_maxpool = pooling_math_lib.onnx_maxpool;
 pub const AutoPadType = pooling_math_lib.AutoPadType;
 pub const get_onnx_maxpool_output_shape = pooling_math_lib.get_onnx_maxpool_output_shape;
 
