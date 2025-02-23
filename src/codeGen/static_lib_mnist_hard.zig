@@ -6,8 +6,6 @@ const utils = @import("codeGen_utils.zig");
 const pkgAllocator = @import("pkgAllocator");
 const allocator = pkgAllocator.allocator;
 
-const allocator2 = std.heap.raw_c_allocator; // or whatever allocator you prefer
-
 fn setAllocator(tensor: *Tensor(T), alloc: *const std.mem.Allocator) void {
     tensor.allocator = alloc;
 }

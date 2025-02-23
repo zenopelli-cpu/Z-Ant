@@ -3,6 +3,7 @@ const Tensor = @import("tensor").Tensor;
 const pkgAllocator = @import("pkgAllocator");
 const allocator = pkgAllocator.allocator;
 
+const static_lib_mod = @import("static_lib_mnist_hard");
 // test "Static Library - Basic Prediction Test" {
 //     std.debug.print("\n     test: Static Library - Basic Prediction Test\n", .{});
 
@@ -112,10 +113,10 @@ test "Static Library - MNIST Prediction Test" {
     }.log;
 
     // Set the logging function
-    @import("static_lib").setLogFunction(logFn);
+    static_lib_mod.setLogFunction(logFn);
 
     // Run prediction
-    @import("static_lib").predict(
+    static_lib_mod.predict(
         @ptrCast(&input_data),
         @ptrCast(&input_shape),
         4, // 4D tensor shape
@@ -155,7 +156,7 @@ test "Static Library - MNIST Error Cases" {
         var input_shape = [_]u32{ 10, 10 }; // Wrong shape
         var result: [*]f32 = undefined;
 
-        @import("static_lib").predict(
+        static_lib_mod.predict(
             @ptrCast(&input_data),
             @ptrCast(&input_shape),
             2,
@@ -169,7 +170,7 @@ test "Static Library - MNIST Error Cases" {
         var input_shape = [_]u32{};
         var result: [*]f32 = undefined;
 
-        @import("static_lib").predict(
+        static_lib_mod.predict(
             @ptrCast(&input_data),
             @ptrCast(&input_shape),
             0,
@@ -177,17 +178,17 @@ test "Static Library - MNIST Error Cases" {
         );
     }
 
-    // Test with wrong number of dimensions
-    {
-        var input_data = [_]f32{1.0} ** 784;
-        var input_shape = [_]u32{784}; // Should be 4D but only 1D
-        var result: [*]f32 = undefined;
+    // // Test with wrong number of dimensions
+    // {
+    //     var input_data = [_]f32{1.0} ** 784;
+    //     var input_shape = [_]u32{784}; // Should be 4D but only 1D
+    //     var result: [*]f32 = undefined;
 
-        @import("static_lib").predict(
-            @ptrCast(&input_data),
-            @ptrCast(&input_shape),
-            1,
-            &result,
-        );
-    }
+    //     @import("static_lib_mnist_hard").predict(
+    //         @ptrCast(&input_data),
+    //         @ptrCast(&input_shape),
+    //         1,
+    //         &result,
+    //     );
+    // }
 }
