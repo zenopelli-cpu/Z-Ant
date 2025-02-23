@@ -89,7 +89,10 @@ pub fn TrainDataLoader(
             defer predictions.deinit();
 
             var shape: [2]usize = [_]usize{ load.yTensor.shape[0], 10 };
-            try predictions.reshape(&shape);
+            const reshaped = try allocator.create(Tensor.Tensor(T));
+            reshaped.* = try TensMath.reshape(T, predictions, &shape, null);
+            predictions.deinit();
+            predictions = reshaped;
 
             const loser = Loss.LossFunction(lossType){};
             try DataProc.normalize(T, &load.yTensor, NormalizType.UnityBasedNormalizartion);
@@ -134,7 +137,10 @@ pub fn TrainDataLoader(
             defer predictions.deinit();
 
             var shape: [2]usize = [_]usize{ load.yTensor.shape[0], 10 };
-            try predictions.reshape(&shape);
+            const reshaped = try allocator.create(Tensor.Tensor(T));
+            reshaped.* = try TensMath.reshape(T, predictions, &shape, null);
+            predictions.deinit();
+            predictions = reshaped;
 
             const loser = Loss.LossFunction(lossType){};
             try DataProc.normalize(T, &load.yTensor, NormalizType.UnityBasedNormalizartion);
@@ -224,7 +230,10 @@ pub fn TrainDataLoader2D(
             defer predictions.deinit();
 
             var shape: [2]usize = [_]usize{ load.yTensor.shape[0], 10 };
-            try predictions.reshape(&shape);
+            const reshaped = try allocator.create(Tensor.Tensor(T));
+            reshaped.* = try TensMath.reshape(T, predictions, &shape, null);
+            predictions.deinit();
+            predictions = reshaped;
             //predictions.print();
             // DEBUG try predictions.isSafe();
 
@@ -296,7 +305,10 @@ pub fn TrainDataLoader2D(
             defer predictions.deinit();
 
             var shape: [2]usize = [_]usize{ load.yTensor.shape[0], 10 };
-            try predictions.reshape(&shape);
+            const reshaped = try allocator.create(Tensor.Tensor(T));
+            reshaped.* = try TensMath.reshape(T, predictions, &shape, null);
+            predictions.deinit();
+            predictions = reshaped;
 
             const loser = Loss.LossFunction(lossType){};
             try DataProc.normalize(T, &load.yTensor, NormalizType.UnityBasedNormalizartion);
