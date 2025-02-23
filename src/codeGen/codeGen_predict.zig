@@ -293,7 +293,11 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         \\    defer allocator.free(usized_shape);
         \\    defer tensor_{s}.deinit();
         \\    @memcpy(tensor_{s}.data, data);
-    , .{ try utils.getSanitizedName(globals.networkInput), try utils.getSanitizedName(globals.networkInput) });
+    , .{
+        try utils.getSanitizedName(globals.networkInput),
+        try utils.getSanitizedName(globals.networkInput),
+        try utils.getSanitizedName(globals.networkInput),
+    });
 }
 
 fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
