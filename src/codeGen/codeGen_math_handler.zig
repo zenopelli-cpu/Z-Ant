@@ -13,8 +13,8 @@ const GraphProto = @import("onnx").GraphProto;
 const AttributeType = @import("onnx").AttributeType;
 
 // --- codeGen libs
-const ReadyNode = @import("codeGen_predict.zig").ReadyNode;
-const ReadyTensor = @import("codeGen_predict.zig").ReadyTensor;
+const ReadyNode = @import("globals.zig").ReadyNode;
+const ReadyTensor = @import("globals.zig").ReadyTensor;
 const utils = @import("codeGen_utils.zig");
 const codegen_options = @import("codegen_options");
 
@@ -509,7 +509,6 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 }
 
 inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-
     // https://onnx.ai/onnx/operators/onnx__Reshape.html
     // INPUTS:
     //      - data (heterogeneous) - T: An input tensor.
@@ -642,7 +641,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         //https://onnx.ai/onnx/operators/onnx__Relu.html
         try compute_ReLU_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Reshape")) {
-        // TODO
+        // https://onnx.ai/onnx/operators/onnx__Reshape.html
+        try compute_reshape_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Resize")) {
         // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Shape")) {
@@ -679,6 +679,14 @@ inline fn compute_ReLU_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n====== compute_ReLU_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
     readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
+}
+
+inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_reshape_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
+    std.debug.print("\n new shape: []i64 = {any}", .{readyNode.inputs.items[1].tensorProto.?.int64_data.?});
+    readyNode.outputs.items[0].shape = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
+    std.debug.print("\n output_shape shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
 inline fn compute_softmax_output_shape(readyNode: *ReadyNode) !void {

@@ -4,8 +4,8 @@ const GraphProto = @import("onnx").GraphProto;
 const NodeProto = @import("onnx").NodeProto;
 const TensorProto = @import("onnx").TensorProto;
 const allocator = @import("pkgAllocator").allocator;
-const ReadyNode = @import("codeGen_predict.zig").ReadyNode;
-const ReadyTensor = @import("codeGen_predict.zig").ReadyTensor;
+const ReadyNode = @import("globals.zig").ReadyNode;
+const ReadyTensor = @import("globals.zig").ReadyTensor;
 
 // -------------------- GETTERS --------------------
 
@@ -108,8 +108,6 @@ pub inline fn getSanitizedName(name: []const u8) ![]const u8 {
 /// Returns a List of Ready nodes
 /// A node is considered "computable" if all the node's input Tensors are set as ready
 pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.ArrayList(*ReadyNode) {
-    //std.debug.print("\n\n getComputableNodes()", .{});
-
     var set: std.ArrayList(*ReadyNode) = std.ArrayList(*ReadyNode).init(allocator);
     var ready_input_counter: i8 = 0;
 
