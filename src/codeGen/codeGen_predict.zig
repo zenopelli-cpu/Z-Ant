@@ -246,9 +246,9 @@ fn write_OutputTensor(writer: std.fs.File.Writer, name: []const u8, size: i64) !
     const sanitized_name = try utils.getSanitizedName(name);
     try writer.print(
         \\
-        \\var array_{s}: [{}]T = undefined;
+        \\var array_{s}: [{}]T = [_]T{{0}} ** {};
         \\var tensor_{s} = Tensor(T).fromConstBuffer( &array_{s}, &shape_tensor_{s});
-    , .{ sanitized_name, size, sanitized_name, sanitized_name, sanitized_name });
+    , .{ sanitized_name, size, size, sanitized_name, sanitized_name, sanitized_name });
 }
 
 fn write_checks(writer: std.fs.File.Writer) !void {
