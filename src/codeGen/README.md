@@ -28,7 +28,7 @@ Use a pointer to ReadyTensor when working on it. Pay attention `hasMap.get("key"
 ## The Algorithm
 The crucial part of the code generation is inside [codeGen_predict.zig](codeGen_predict.zig).
 
-First, I populate tensorHashMap by calling `try createReadyTensorHashMap(model)`. In this step, if the shapes are not already present, they are initialized to {1, 1, 1, 1}.
+First, in main, I populate tensorHashMap by calling `try createReadyTensorHashMap(model)`. In this step, if the shapes are not already present, they are initialized to {1, 1, 1, 1}.
 
 Next, I create readyGraph with `try createReadyGraph(model)`. During this phase, the output shapes of each node are also computed.
 

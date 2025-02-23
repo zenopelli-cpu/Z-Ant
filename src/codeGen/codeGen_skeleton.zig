@@ -43,7 +43,7 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     //try write_debug(writer);
 
     // Generate prediction function code
-    try coddeGenPredict.writePredict(writer, model);
+    try coddeGenPredict.writePredict(writer);
 }
 
 /// Writes the required library imports to the generated Zig file.
