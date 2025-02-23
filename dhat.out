@@ -1,0 +1,347 @@
+{"dhatFileVersion":2
+,"mode":"heap","verb":"Allocated"
+,"bklt":true,"bkacc":true
+,"tu":"instrs","Mtu":"Minstr"
+,"tuth":500
+,"cmd":"zig-out/bin/Main"
+,"pid":2221588
+,"te":48217791
+,"tg":26416061
+,"pps":
+ [{"tb":3136,"tbk":1
+  ,"tl":47936530
+  ,"mb":3136,"mbk":1
+  ,"gb":3136,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":3136,"wb":9408
+  ,"fs":[1,2,3,4,5,6,7,8,9,10,11,12]
+  }
+ ,{"tb":32,"tbk":1
+  ,"tl":47915939
+  ,"mb":32,"mbk":1
+  ,"gb":32,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":64,"wb":96
+  ,"acc":[-32,5]
+  ,"fs":[1,2,13,14,15,16,17,18,19,9,10,11,12]
+  }
+ ,{"tb":32,"tbk":1
+  ,"tl":47915975
+  ,"mb":32,"mbk":1
+  ,"gb":32,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":50536,"wb":96
+  ,"acc":[-16,1575,-8,1576,-8,1603]
+  ,"fs":[1,2,13,14,15,16,17,20,21,9,10,11,12]
+  }
+ ,{"tb":3136,"tbk":1
+  ,"tl":47915166
+  ,"mb":3136,"mbk":1
+  ,"gb":3136,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":6272,"wb":12544
+  ,"fs":[1,2,3,4,5,6,7,22,21,9,10,11,12]
+  }
+ ,{"tb":32,"tbk":1
+  ,"tl":33137
+  ,"mb":32,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":0,"wb":96
+  ,"acc":[-32,3]
+  ,"fs":[1,2,13,14,15,16,17,23,24,25,26,9,10,11,12]
+  }
+ ,{"tb":3136,"tbk":1
+  ,"tl":32328
+  ,"mb":3136,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":0,"wb":9408
+  ,"fs":[1,2,3,4,5,6,7,27,24,25,26,9,10,11,12]
+  }
+ ,{"tb":32,"tbk":1
+  ,"tl":12327774
+  ,"mb":0,"mbk":0
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":50296,"wb":96
+  ,"acc":[-8,1575,-8,1574,-16,1575]
+  ,"fs":[1,2,13,14,15,16,17,20,28,26,9,10,11,12]
+  }
+ ,{"tb":4096,"tbk":1
+  ,"tl":12326965
+  ,"mb":4096,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":78400,"wb":15428
+  ,"fs":[1,2,3,4,5,6,7,22,28,26,9,10,11,12]
+  }
+ ,{"tb":8,"tbk":1
+  ,"tl":11480608
+  ,"mb":8,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":8,"wb":24
+  ,"acc":[-8,4]
+  ,"fs":[1,2,13,14,15,16,17,20,29,26,9,10,11,12]
+  }
+ ,{"tb":32,"tbk":1
+  ,"tl":11479819
+  ,"mb":32,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":25088,"wb":100
+  ,"acc":[-4,788,-28,787]
+  ,"fs":[1,2,3,4,5,6,7,22,29,26,9,10,11,12]
+  }
+ ,{"tb":32,"tbk":1
+  ,"tl":11483543
+  ,"mb":32,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":401456,"wb":96
+  ,"acc":[-16,12548,-16,12549]
+  ,"fs":[1,2,13,14,15,16,17,20,30,31,26,9,10,11,12]
+  }
+ ,{"tb":25088,"tbk":1
+  ,"tl":11482734
+  ,"mb":25088,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":25088,"wb":100352
+  ,"fs":[1,2,3,4,5,6,7,22,30,31,26,9,10,11,12]
+  }
+ ,{"tb":16,"tbk":1
+  ,"tl":11473736
+  ,"mb":16,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":48,"wb":48
+  ,"acc":[-16,6]
+  ,"fs":[1,2,13,14,15,16,17,20,32,33,31,26,9,10,11,12]
+  }
+ ,{"tb":78400,"tbk":1
+  ,"tl":11472949
+  ,"mb":78400,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":78400,"wb":313600
+  ,"fs":[1,2,3,4,5,6,7,22,32,33,31,26,9,10,11,12]
+  }
+ ,{"tb":16,"tbk":1
+  ,"tl":9658715
+  ,"mb":16,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":6432,"wb":48
+  ,"acc":[-8,404,-8,406]
+  ,"fs":[1,2,13,14,15,16,17,20,34,31,26,9,10,11,12]
+  }
+ ,{"tb":800,"tbk":1
+  ,"tl":9657928
+  ,"mb":800,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":627200,"wb":3200
+  ,"acc":[-800,788]
+  ,"fs":[1,2,3,4,5,6,7,22,34,31,26,9,10,11,12]
+  }
+ ,{"tb":16,"tbk":1
+  ,"tl":3954785
+  ,"mb":16,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":32,"wb":48
+  ,"acc":[-16,5]
+  ,"fs":[1,2,13,14,15,16,17,35,36,31,26,9,10,11,12]
+  }
+ ,{"tb":16,"tbk":1
+  ,"tl":9574217
+  ,"mb":16,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":200704,"wb":48
+  ,"acc":[-16,12547]
+  ,"fs":[1,2,13,14,15,16,17,20,37,38,31,26,9,10,11,12]
+  }
+ ,{"tb":25088,"tbk":1
+  ,"tl":9573430
+  ,"mb":25088,"mbk":1
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":25088,"wb":125440
+  ,"fs":[1,2,3,4,5,6,7,22,37,38,31,26,9,10,11,12]
+  }
+ ,{"tb":32,"tbk":1
+  ,"tl":64789
+  ,"mb":0,"mbk":0
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":0,"wb":96
+  ,"acc":[-32,3]
+  ,"fs":[1,2,13,14,15,16,17,23,24,25,39,9,10,11,12]
+  }
+ ,{"tb":6272,"tbk":1
+  ,"tl":63980
+  ,"mb":0,"mbk":0
+  ,"gb":0,"gbk":0
+  ,"eb":0,"ebk":0
+  ,"rb":0,"wb":18816
+  ,"fs":[1,2,3,4,5,6,7,27,24,25,39,9,10,11,12]
+  }
+ ,{"tb":32,"tbk":1
+  ,"tl":24611729
+  ,"mb":0,"mbk":0
+  ,"gb":32,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":100472,"wb":96
+  ,"acc":[-8,3143,-8,3142,-16,3143]
+  ,"fs":[1,2,13,14,15,16,17,20,28,39,9,10,11,12]
+  }
+ ,{"tb":10368,"tbk":1
+  ,"tl":24610920
+  ,"mb":0,"mbk":0
+  ,"gb":10368,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":156800,"wb":37380
+  ,"fs":[1,2,3,4,5,6,7,22,28,39,9,10,11,12]
+  }
+ ,{"tb":8,"tbk":1
+  ,"tl":22923415
+  ,"mb":0,"mbk":0
+  ,"gb":8,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":8,"wb":24
+  ,"acc":[-8,4]
+  ,"fs":[1,2,13,14,15,16,17,20,29,39,9,10,11,12]
+  }
+ ,{"tb":64,"tbk":1
+  ,"tl":22922626
+  ,"mb":0,"mbk":0
+  ,"gb":64,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":12544,"wb":196
+  ,"acc":[-4,200,-60,199]
+  ,"fs":[1,2,3,4,5,6,7,22,29,39,9,10,11,12]
+  }
+ ,{"tb":32,"tbk":1
+  ,"tl":22924570
+  ,"mb":0,"mbk":0
+  ,"gb":32,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":200752,"wb":96
+  ,"acc":[-16,6276,-16,6277]
+  ,"fs":[1,2,13,14,15,16,17,20,30,31,39,9,10,11,12]
+  }
+ ,{"tb":12544,"tbk":1
+  ,"tl":22923761
+  ,"mb":0,"mbk":0
+  ,"gb":12544,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":12544,"wb":50176
+  ,"fs":[1,2,3,4,5,6,7,22,30,31,39,9,10,11,12]
+  }
+ ,{"tb":16,"tbk":1
+  ,"tl":22917891
+  ,"mb":0,"mbk":0
+  ,"gb":16,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":48,"wb":48
+  ,"acc":[-16,6]
+  ,"fs":[1,2,13,14,15,16,17,20,32,33,31,39,9,10,11,12]
+  }
+ ,{"tb":156800,"tbk":1
+  ,"tl":22917104
+  ,"mb":156800,"mbk":1
+  ,"gb":156800,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":313600,"wb":627200
+  ,"fs":[1,2,3,4,5,6,7,22,32,33,31,39,9,10,11,12]
+  }
+ ,{"tb":16,"tbk":1
+  ,"tl":19462892
+  ,"mb":16,"mbk":1
+  ,"gb":16,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":102432,"wb":48
+  ,"acc":[-8,6404,-8,6406]
+  ,"fs":[1,2,13,14,15,16,17,20,34,31,39,9,10,11,12]
+  }
+ ,{"tb":12800,"tbk":1
+  ,"tl":19462105
+  ,"mb":12800,"mbk":1
+  ,"gb":12800,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":2508800,"wb":51200
+  ,"fs":[1,2,3,4,5,6,7,22,34,31,39,9,10,11,12]
+  }
+ ,{"tb":16,"tbk":1
+  ,"tl":15345227
+  ,"mb":16,"mbk":1
+  ,"gb":16,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":32,"wb":48
+  ,"acc":[-16,5]
+  ,"fs":[1,2,13,14,15,16,17,35,36,31,39,9,10,11,12]
+  }
+ ,{"tb":16,"tbk":1
+  ,"tl":18149315
+  ,"mb":16,"mbk":1
+  ,"gb":16,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":100352,"wb":48
+  ,"acc":[-16,6275]
+  ,"fs":[1,2,13,14,15,16,17,20,37,38,31,39,9,10,11,12]
+  }
+ ,{"tb":12544,"tbk":1
+  ,"tl":18148528
+  ,"mb":12544,"mbk":1
+  ,"gb":12544,"gbk":1
+  ,"eb":0,"ebk":0
+  ,"rb":12544,"wb":62720
+  ,"fs":[1,2,3,4,5,6,7,22,37,38,31,39,9,10,11,12]
+  }
+ ]
+,"ftbl":
+ ["[root]"
+ ,"0x4848899: malloc (in /usr/libexec/valgrind/vgpreload_dhat-amd64-linux.so)"
+ ,"0x105FBE2: heap.rawCAlloc (heap.zig:188)"
+ ,"0x109514C: rawAlloc (Allocator.zig:86)"
+ ,"0x109514C: mem.Allocator.allocBytesWithAlignment__anon_8742 (Allocator.zig:225)"
+ ,"0x105FD1A: mem.Allocator.allocWithSizeAndAlignment__anon_4766 (Allocator.zig:211)"
+ ,"0x1052448: allocAdvancedWithRetAddr (Allocator.zig:205)"
+ ,"0x1052448: mem.Allocator.alloc__anon_4103 (Allocator.zig:129)"
+ ,"0x10401D9: predict (static_lib_mnist_hard.zig:163)"
+ ,"0x103F94F: main.main (main.zig:60)"
+ ,"0x10504C0: callMain (start.zig:524)"
+ ,"0x10504C0: callMainWithArgs (start.zig:482)"
+ ,"0x10504C0: main (start.zig:497)"
+ ,"0x109544C: rawAlloc (Allocator.zig:86)"
+ ,"0x109544C: mem.Allocator.allocBytesWithAlignment__anon_8744 (Allocator.zig:225)"
+ ,"0x105FE4A: mem.Allocator.allocWithSizeAndAlignment__anon_4767 (Allocator.zig:211)"
+ ,"0x1051D68: allocAdvancedWithRetAddr (Allocator.zig:205)"
+ ,"0x1051D68: mem.Allocator.alloc__anon_4132 (Allocator.zig:129)"
+ ,"0x1051B74: codeGen_utils.u32ToUsize (codeGen_utils.zig:315)"
+ ,"0x1040365: predict (static_lib_mnist_hard.zig:170)"
+ ,"0x1052063: tensor.Tensor(f32).fromShape (tensor.zig:113)"
+ ,"0x1040491: predict (static_lib_mnist_hard.zig:171)"
+ ,"0x105224E: tensor.Tensor(f32).fromShape (tensor.zig:116)"
+ ,"0x1052999: tensor.Tensor(f32).fromArray__anon_4308 (tensor.zig:65)"
+ ,"0x1052EE7: tensor.Tensor(f32).copy (tensor.zig:100)"
+ ,"0x105A757: op_convolution.OnnxConvLean__anon_4305 (op_convolution.zig:129)"
+ ,"0x1040829: predict (static_lib_mnist_hard.zig:185)"
+ ,"0x1052B84: tensor.Tensor(f32).fromArray__anon_4308 (tensor.zig:69)"
+ ,"0x105B040: op_convolution.OnnxConvLean__anon_4305 (op_convolution.zig:139)"
+ ,"0x105B725: op_convolution.OnnxConvLean__anon_4305 (op_convolution.zig:160)"
+ ,"0x10571EE: op_convolution.convolve_tensor_with_bias__anon_4310 (op_convolution.zig:328)"
+ ,"0x105B86C: op_convolution.OnnxConvLean__anon_4305 (op_convolution.zig:175)"
+ ,"0x105417F: op_convolution.im2col__anon_4311 (op_convolution.zig:755)"
+ ,"0x10574BD: op_convolution.convolve_tensor_with_bias__anon_4310 (op_convolution.zig:335)"
+ ,"0x10578DE: op_convolution.convolve_tensor_with_bias__anon_4310 (op_convolution.zig:343)"
+ ,"0x1058133: mat_mul (op_mat_mul.zig:59)"
+ ,"0x1058133: op_convolution.convolve_tensor_with_bias__anon_4310 (op_convolution.zig:357)"
+ ,"0x10585EE: mat_mul (op_mat_mul.zig:74)"
+ ,"0x10585EE: op_convolution.convolve_tensor_with_bias__anon_4310 (op_convolution.zig:357)"
+ ,"0x104551F: predict (static_lib_mnist_hard.zig:228)"
+ ]
+}

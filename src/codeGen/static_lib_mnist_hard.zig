@@ -196,20 +196,20 @@ pub export fn predict(
     ) catch return;
     //tensor_convolution28_output_0.print();
 
-    if (log_function) |log| {
-        log(@constCast(@ptrCast("Running Add operation...\n")));
-    }
+    // if (log_function) |log| {
+    //     log(@constCast(@ptrCast("Running Add operation...\n")));
+    // }
     tensMath.sum_tensors_lean(T, T, &tensor_convolution28_output_0, @constCast(&tensor_parameter6), &tensor_plus30_output_0) catch return;
     //tensor_plus30_output_0.print();
-    if (log_function) |log| {
-        log(@constCast(@ptrCast("Running Relu operation...\n")));
-    }
+    // if (log_function) |log| {
+    //     log(@constCast(@ptrCast("Running Relu operation...\n")));
+    // }
 
     tensMath.ReLU_lean(T, &tensor_plus30_output_0, &tensor_relu32_output_0) catch return;
 
-    if (log_function) |log| {
-        log(@constCast(@ptrCast("Running MaxPool operation...\n")));
-    }
+    // if (log_function) |log| {
+    //     log(@constCast(@ptrCast("Running MaxPool operation...\n")));
+    // }
 
     tensMath.onnx_maxpool_lean(
         T,
@@ -222,9 +222,9 @@ pub export fn predict(
         AutoPadType.NOTSET, //auto_pad
     ) catch return;
 
-    if (log_function) |log| {
-        log(@constCast(@ptrCast("Running Conv operation...\n")));
-    }
+    // if (log_function) |log| {
+    //     log(@constCast(@ptrCast("Running Conv operation...\n")));
+    // }
     tensMath.conv_lean(
         T, //type
         &tensor_pooling66_output_0, //input
@@ -238,19 +238,19 @@ pub export fn predict(
         "SAME_UPPER", //auto_pad
     ) catch return;
 
-    if (log_function) |log| {
-        log(@constCast(@ptrCast("Running Add operation...\n")));
-    }
+    // if (log_function) |log| {
+    //     log(@constCast(@ptrCast("Running Add operation...\n")));
+    // }
     tensMath.sum_tensors_lean(T, T, &tensor_convolution110_output_0, @constCast(&tensor_parameter88), &tensor_plus112_output_0) catch return;
 
-    if (log_function) |log| {
-        log(@constCast(@ptrCast("Running Relu operation...\n")));
-    }
+    // if (log_function) |log| {
+    //     log(@constCast(@ptrCast("Running Relu operation...\n")));
+    // }
     tensMath.ReLU_lean(T, &tensor_plus112_output_0, &tensor_relu114_output_0) catch return;
 
-    if (log_function) |log| {
-        log(@constCast(@ptrCast("Running MaxPool operation...\n")));
-    }
+    // if (log_function) |log| {
+    //     log(@constCast(@ptrCast("Running MaxPool operation...\n")));
+    // }
     tensMath.onnx_maxpool_lean(
         T,
         &tensor_relu114_output_0, //Input
@@ -262,26 +262,26 @@ pub export fn predict(
         AutoPadType.NOTSET, //auto_pad
     ) catch return;
 
-    if (log_function) |log| {
-        log(@constCast(@ptrCast("Running Reshape operation...\n")));
-    }
+    // if (log_function) |log| {
+    //     log(@constCast(@ptrCast("Running Reshape operation...\n")));
+    // }
 
     var shape_usize_pooling160_output_0_reshape0_shape = [_]usize{ 1, 256 }; // Adjust these
 
     tensMath.reshape_lean(T, @constCast(&tensor_pooling160_output_0), &shape_usize_pooling160_output_0_reshape0_shape, false, &tensor_pooling160_output_0_reshape0) catch return;
 
-    if (log_function) |log| {
-        log(@constCast(@ptrCast("Running MatMul operation...\n")));
-    }
+    // if (log_function) |log| {
+    //     log(@constCast(@ptrCast("Running MatMul operation...\n")));
+    // }
     tensMath.mat_mul_lean(T, &tensor_pooling160_output_0_reshape0, @constCast(&tensor_parameter193_reshape1), &tensor_times212_output_0) catch return;
 
-    if (log_function) |log| {
-        log(@constCast(@ptrCast("Running Add operation...\n")));
-    }
+    // if (log_function) |log| {
+    //     log(@constCast(@ptrCast("Running Add operation...\n")));
+    // }
     tensMath.sum_tensors_lean(T, T, &tensor_times212_output_0, @constCast(&tensor_parameter194), &tensor_plus214_output_0) catch return;
     result.* = tensor_plus214_output_0.data.ptr;
 
-    if (log_function) |log| {
-        log(@constCast(@ptrCast("Prediction completed.\n")));
-    }
+    // if (log_function) |log| {
+    //     log(@constCast(@ptrCast("Prediction completed.\n")));
+    // }
 }
