@@ -411,10 +411,7 @@ pub fn pool_forward(comptime T: type, input: *Tensor(T), kernel: [2]usize, strid
         }
     }
 
-    return .{
-        .output = output,
-        .used_input = used_input
-    };
+    return .{ .output = output, .used_input = used_input };
 }
 
 /// Performs backward pass for pooling operation
@@ -592,100 +589,83 @@ pub fn lean_onnx_maxpool(
     var pad_bottom: usize = 0;
     var pad_right: usize = 0;
 
-    // Allocate used_input tensor
-    var used_input_shape = [_]usize{ input.shape[0], input.shape[1], out_height * out_width, input.shape[2], input.shape[3] };
-    var used_input = try Tensor(u8).fromShape(&pkg_allocator, &used_input_shape);
-    errdefer used_input.deinit();
-    @memset(used_input.data, 0);
-
     switch (auto_pad) {
         .NOTSET => {
-            pad_top = pads[0];
-            pad_left = pads[1];
-            pad_bottom = pads[2];
-            pad_right = pads[3];
+            if (pads.len >= 4) {
+                pad_top = pads[0];
+                pad_left = pads[1];
+                pad_bottom = pads[2];
+                pad_right = pads[3];
+            }
         },
         .VALID => {
-            // No padding needed
+            // No padding in VALID mode
         },
         .SAME_UPPER, .SAME_LOWER => {
-            const total_pad_h = (out_height - 1) * strides[0] + ((kernel_shape[0] - 1) * dilations[0] + 1) - input_height;
-            const total_pad_w = (out_width - 1) * strides[1] + ((kernel_shape[1] - 1) * dilations[1] + 1) - input_width;
+            const total_pad_height = (out_height - 1) * strides[0] + kernel_shape[0] - input_height;
+            const total_pad_width = (out_width - 1) * strides[1] + kernel_shape[1] - input_width;
 
             if (auto_pad == .SAME_UPPER) {
-                pad_top = total_pad_h / 2;
-                pad_bottom = total_pad_h - pad_top;
-                pad_left = total_pad_w / 2;
-                pad_right = total_pad_w - pad_left;
+                pad_top = total_pad_height / 2;
+                pad_left = total_pad_width / 2;
+                pad_bottom = total_pad_height - pad_top;
+                pad_right = total_pad_width - pad_left;
             } else {
-                pad_bottom = total_pad_h / 2;
-                pad_top = total_pad_h - pad_bottom;
-                pad_right = total_pad_w / 2;
-                pad_left = total_pad_w - pad_right;
+                pad_bottom = total_pad_height / 2;
+                pad_right = total_pad_width / 2;
+                pad_top = total_pad_height - pad_bottom;
+                pad_left = total_pad_width - pad_right;
             }
         },
     }
 
-    // Main pooling loop
-    for (0..batch_size) |b| {
-        for (0..channels) |c| {
-            for (0..out_height) |out_y| {
-                for (0..out_width) |out_x| {
-                    // Calculate the kernel window boundaries in input coordinates
-                    const in_y_start = @as(i64, @intCast(out_y * strides[0])) - @as(i64, @intCast(pad_top));
-                    const in_x_start = @as(i64, @intCast(out_x * strides[1])) - @as(i64, @intCast(pad_left));
+    // Use stack memory for small kernel sizes
+    var kernel_buffer: [16]T = undefined;
+    var kernel_values: []T = undefined;
+    if (kernel_shape[0] * kernel_shape[1] <= 16) {
+        kernel_values = kernel_buffer[0 .. kernel_shape[0] * kernel_shape[1]];
+    } else {
+        kernel_values = try input.allocator.alloc(T, kernel_shape[0] * kernel_shape[1]);
+        defer input.allocator.free(kernel_values);
+    }
 
-                    std.debug.print("\n=== Window {d},{d} ===\n", .{ out_y, out_x });
-                    std.debug.print("Start coords: y={d}, x={d}\n", .{ in_y_start, in_x_start });
-                    std.debug.print("Kernel: {d}x{d}, Dilations: {d}x{d}\n", .{ kernel_shape[0], kernel_shape[1], dilations[0], dilations[1] });
-                    std.debug.print("Padding: top={d}, left={d}, bottom={d}, right={d}\n", .{ pad_top, pad_left, pad_bottom, pad_right });
+    // Process each batch and channel
+    var b: usize = 0;
+    while (b < batch_size) : (b += 1) {
+        var c: usize = 0;
+        while (c < channels) : (c += 1) {
+            const input_offset = b * channels * input_height * input_width + c * input_height * input_width;
+            const output_offset = b * channels * out_height * out_width + c * out_height * out_width;
 
-                    // Initialize max value to 0 for explicit padding, -inf otherwise
-                    var max_val = if (auto_pad == .NOTSET and (pad_top > 0 or pad_left > 0 or pad_bottom > 0 or pad_right > 0)) 0 else -std.math.inf(f32);
-                    var max_found = false;
+            // Process each output pixel
+            var oh: usize = 0;
+            while (oh < out_height) : (oh += 1) {
+                var ow: usize = 0;
+                while (ow < out_width) : (ow += 1) {
+                    // Calculate input window boundaries
+                    const ih_start = oh * strides[0] -| pad_top;
+                    const iw_start = ow * strides[1] -| pad_left;
+                    const ih_end = @min(ih_start + kernel_shape[0], input_height);
+                    const iw_end = @min(iw_start + kernel_shape[1], input_width);
 
-                    // Iterate over the kernel window
-                    for (0..kernel_shape[0]) |kernel_y| {
-                        for (0..kernel_shape[1]) |kernel_x| {
-                            // Calculate input coordinates
-                            const in_y = in_y_start + @as(i64, @intCast(kernel_y * dilations[0]));
-                            const in_x = in_x_start + @as(i64, @intCast(kernel_x * dilations[1]));
+                    // Find maximum value in the window
+                    var max_val = -std.math.inf(T);
+                    var kernel_idx: usize = 0;
 
-                            // Check if the input coordinates are valid
-                            if (in_y >= 0 and in_y < input_height and in_x >= 0 and in_x < input_width) {
-                                const input_idx = b * channels * input_height * input_width +
-                                    c * input_height * input_width +
-                                    @as(usize, @intCast(in_y)) * input_width +
-                                    @as(usize, @intCast(in_x));
-                                const val = input.data[input_idx];
-                                std.debug.print("  Kernel[{d},{d}] -> Input[{d},{d}] = {e}\n", .{ kernel_y, kernel_x, in_y, in_x, val });
-                                if (!max_found or val > max_val) {
-                                    max_val = val;
-                                    max_found = true;
-                                    std.debug.print("    New max: {e}\n", .{max_val});
-                                }
-                            } else {
-                                std.debug.print("  Kernel[{d},{d}] -> Input[{d},{d}] = 0 (padded)\n", .{ kernel_y, kernel_x, in_y, in_x });
+                    var ih: usize = ih_start;
+                    while (ih < ih_end) : (ih += dilations[0]) {
+                        var iw: usize = iw_start;
+                        while (iw < iw_end) : (iw += dilations[1]) {
+                            if (ih < input_height and iw < input_width) {
+                                const val = input.data[input_offset + ih * input_width + iw];
+                                max_val = @max(max_val, val);
                             }
+                            kernel_idx += 1;
                         }
                     }
 
-                    const out_idx = b * channels * out_height * out_width +
-                        c * out_height * out_width +
-                        out_y * out_width + out_x;
-
-                    std.debug.print("Final max_val={e} at output[{d}]\n", .{ max_val, out_idx });
-
-                    output.data[out_idx] = max_val;
-
-                    // Only mark used input positions for non-padded values that were actually used
-                    if (max_val != -std.math.inf(f32)) {
-                        const window_index = out_y * out_width + out_x;
-                        const used_idx = b * channels * out_height * out_width * input_height * input_width +
-                            c * out_height * out_width * input_height * input_width +
-                            window_index * input_height * input_width;
-                        used_input.data[used_idx] = 1;
-                    }
+                    // Store result
+                    output.data[output_offset + oh * out_width + ow] = max_val;
                 }
             }
         }
@@ -734,8 +714,5 @@ pub fn onnx_maxpool(
         auto_pad,
     );
 
-    return .{
-        .output = output,
-        .used_input = used_input
-    };
+    return .{ .output = output, .used_input = used_input };
 }

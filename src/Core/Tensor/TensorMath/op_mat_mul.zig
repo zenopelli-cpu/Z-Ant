@@ -17,17 +17,27 @@ const UNROLL_FACTOR: usize = 4;
 
 /// Performs classic matrix multiplication on given tensors using the last 2 dimensions
 pub inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T)) !Tensor(T) {
+    // std.debug.print("\nStarting matrix multiplication validation...\n", .{});
 
     // The two tensors needs to have the same dimensions N
-    if (A.shape.len != B.shape.len) return TensorMathError.InputTensorDifferentShape;
+    if (A.shape.len != B.shape.len) {
+        // std.debug.print("Error: Input tensors have different dimensions. A: {}, B: {}\n", .{ A.shape.len, B.shape.len });
+        return TensorMathError.InputTensorDifferentShape;
+    }
 
     const dim_num = A.shape.len;
 
     // The last dimension (number of cols) of A must be equal to the second last dimension (number of rows) of B
-    if (A.shape[dim_num - 1] != B.shape[dim_num - 2]) return TensorMathError.InputTensorsWrongShape;
+    if (A.shape[dim_num - 1] != B.shape[dim_num - 2]) {
+        // std.debug.print("Error: Incompatible matrix dimensions for multiplication. A[{}]={}, B[{}]={}\n", .{ dim_num - 1, A.shape[dim_num - 1], dim_num - 2, B.shape[dim_num - 2] });
+        return TensorMathError.InputTensorsWrongShape;
+    }
 
     // The input tensors must have at least 2 dimensions
-    if (dim_num < 2) return TensorMathError.InputTensorsWrongShape;
+    if (dim_num < 2) {
+        // std.debug.print("Error: Input tensors must have at least 2 dimensions. Got: {}\n", .{dim_num});
+        return TensorMathError.InputTensorsWrongShape;
+    }
 
     // Create output tensor
 
@@ -37,8 +47,11 @@ pub inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor
 
     // Check if the input tensors are empty
     if (M * N == 0 or K == 0) {
+        // std.debug.print("Error: Empty input tensors. M={}, N={}, K={}\n", .{ M, N, K });
         return TensorMathError.InputTensorsWrongShape;
     }
+
+    // std.debug.print("Validation passed, proceeding with multiplication\n", .{});
 
     // Setup output tensor shape
 
@@ -61,7 +74,11 @@ pub inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor
     var Y = try Tensor(T).fromShape(&allocator, out_shape);
     errdefer Y.deinit();
 
-    @memset(Y.data, 0); // probably reduntant as fromShape already fills the tensor with 0
+    // std.debug.print("Output tensor shape: ", .{});
+    // for (Y.shape) |dim| std.debug.print("{} ", .{dim});
+    // std.debug.print("\n", .{});
+
+    @memset(Y.data, 0);
 
     try lean_mat_mul(T, A, B, &Y);
 
@@ -76,6 +93,17 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     const N = B.shape[dim_num - 1];
     const K = A.shape[dim_num - 1];
 
+    // std.debug.print("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
+    // std.debug.print("Input tensor A shape: ", .{});
+    // for (A.shape) |dim| std.debug.print("{} ", .{dim});
+    // std.debug.print("\nInput tensor B shape: ", .{});
+    // for (B.shape) |dim| std.debug.print("{} ", .{dim});
+    // std.debug.print("\n", .{});
+
+    // std.debug.print("Output tensor Y shape: ", .{});
+    // for (Y.shape) |dim| std.debug.print("{} ", .{dim});
+    // std.debug.print("\n", .{});
+
     // SIMD vector type
     const Vec = @Vector(DEFAULT_VECTOR_WIDTH, T);
     const VecOut = @Vector(DEFAULT_VECTOR_WIDTH, T);
@@ -88,6 +116,7 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     // Main matrix multiplication loop with SIMD
     var i: usize = 0;
     while (i < M) : (i += 1) {
+        // if (i % 100 == 0) std.debug.print("Processing row {}/{}\n", .{ i, M });
         const row_offset = i * K;
         const out_offset = i * N;
 
@@ -135,6 +164,8 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
             Y_ptr[out_idx] = sum;
         }
     }
+
+    // std.debug.print("Matrix multiplication completed\n", .{});
 }
 
 /// Function that performs the multiplication of two tensors used in a recursive way to handle multidimensional tensors

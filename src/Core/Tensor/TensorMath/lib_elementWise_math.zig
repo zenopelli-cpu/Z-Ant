@@ -63,20 +63,76 @@ pub fn sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
 }
 // --------- lean SUM
 pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType), outputTensor: *Tensor(outputType)) !void {
-    // Handle broadcasting
+    // Simple case: same size tensors
+    if (t1.size == t2.size) {
+        // Use unrolled loop for small sizes to avoid SIMD overhead
+        if (t1.size <= 8) {
+            comptime var unroll = 0;
+            inline while (unroll < 8) : (unroll += 1) {
+                if (unroll < t1.size) {
+                    outputTensor.data[unroll] = @as(outputType, t1.data[unroll] + t2.data[unroll]);
+                }
+            }
+            return;
+        }
+
+        // Use SIMD for larger sizes
+        const vector_len = std.simd.suggestVectorLength(inputType) orelse 4;
+        const Vec = @Vector(vector_len, inputType);
+
+        // Process 4 vectors at once to exploit instruction-level parallelism
+        const chunk_size = vector_len * 4;
+        const chunks = t1.size / chunk_size;
+        var i: usize = 0;
+
+        while (i < chunks * chunk_size) : (i += chunk_size) {
+            inline for (0..4) |offset| {
+                const v1: Vec = t1.data[i + offset * vector_len ..][0..vector_len].*;
+                const v2: Vec = t2.data[i + offset * vector_len ..][0..vector_len].*;
+                const result = v1 + v2;
+                comptime var j = 0;
+                inline while (j < vector_len) : (j += 1) {
+                    outputTensor.data[i + offset * vector_len + j] = @as(outputType, result[j]);
+                }
+            }
+        }
+
+        // Handle remaining elements with simple loop
+        while (i < t1.size) : (i += 1) {
+            outputTensor.data[i] = @as(outputType, t1.data[i] + t2.data[i]);
+        }
+        return;
+    }
+
+    // Broadcasting case - use stack arrays for small ranks to avoid allocations
     const rank1 = t1.shape.len;
     const rank2 = t2.shape.len;
     const max_rank = @max(rank1, rank2);
 
-    // Pad shapes with 1s for broadcasting
-    var shape1 = try pkg_allocator.alloc(usize, max_rank);
-    defer pkg_allocator.free(shape1);
-    var shape2 = try pkg_allocator.alloc(usize, max_rank);
-    defer pkg_allocator.free(shape2);
+    // Use stack arrays for common tensor ranks (up to 4D)
+    var stack_shape1: [4]usize = [_]usize{1} ** 4;
+    var stack_shape2: [4]usize = [_]usize{1} ** 4;
+    var stack_strides1: [4]usize = undefined;
+    var stack_strides2: [4]usize = undefined;
+    var stack_out_strides: [4]usize = undefined;
+    var stack_indices: [4]usize = [_]usize{0} ** 4;
 
-    // Initialize with 1s
-    @memset(shape1, 1);
-    @memset(shape2, 1);
+    const shape1 = if (max_rank <= 4) stack_shape1[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    const shape2 = if (max_rank <= 4) stack_shape2[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    const strides1 = if (max_rank <= 4) stack_strides1[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    const strides2 = if (max_rank <= 4) stack_strides2[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    const out_strides = if (max_rank <= 4) stack_out_strides[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    const indices = if (max_rank <= 4) stack_indices[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+
+    // Only defer if we actually allocated
+    if (max_rank > 4) {
+        defer pkg_allocator.free(shape1);
+        defer pkg_allocator.free(shape2);
+        defer pkg_allocator.free(strides1);
+        defer pkg_allocator.free(strides2);
+        defer pkg_allocator.free(out_strides);
+        defer pkg_allocator.free(indices);
+    }
 
     // Copy original shapes from right to left
     var i: usize = 0;
@@ -88,80 +144,63 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
         shape2[max_rank - rank2 + i] = t2.shape[i];
     }
 
-    // Debug print shapes
-    std.debug.print("\n[DEBUG] Original shapes - t1: {any}, t2: {any}", .{ t1.shape, t2.shape });
-    std.debug.print("\n[DEBUG] Padded shapes - shape1: {any}, shape2: {any}", .{ shape1, shape2 });
-
-    // Verify shapes are compatible for broadcasting
+    // Verify shapes and calculate output shape
     for (0..max_rank) |dim| {
         if (shape1[dim] != shape2[dim] and shape1[dim] != 1 and shape2[dim] != 1) {
-            std.debug.print("\n[ERROR] Incompatible shapes for broadcasting - shape1: {any}, shape2: {any}", .{ shape1, shape2 });
             return TensorMathError.IncompatibleBroadcastShapes;
         }
+        outputTensor.shape[dim] = @max(shape1[dim], shape2[dim]);
     }
-
-    // Calculate output shape and total size
-    var out_shape = try pkg_allocator.alloc(usize, max_rank);
-    defer pkg_allocator.free(out_shape);
-    var total_size: usize = 1;
-    for (0..max_rank) |dim| {
-        out_shape[dim] = @max(shape1[dim], shape2[dim]);
-        total_size *= out_shape[dim];
-    }
-
-    // Calculate strides for both tensors
-    var strides1 = try pkg_allocator.alloc(usize, max_rank);
-    defer pkg_allocator.free(strides1);
-    var strides2 = try pkg_allocator.alloc(usize, max_rank);
-    defer pkg_allocator.free(strides2);
-
-    strides1[max_rank - 1] = 1;
-    strides2[max_rank - 1] = 1;
 
     // Calculate strides from right to left
-    var dim = max_rank - 1;
-    while (dim > 0) : (dim -= 1) {
-        strides1[dim - 1] = strides1[dim] * shape1[dim];
-        strides2[dim - 1] = strides2[dim] * shape2[dim];
-    }
-
-    std.debug.print("\n[DEBUG] Strides - t1: {any}, t2: {any}", .{ strides1, strides2 });
-    std.debug.print("\n[DEBUG] Total size: {}, Output size: {}", .{ total_size, outputTensor.data.len });
-
-    // Verify output tensor has correct size
-    if (outputTensor.data.len != total_size) {
-        std.debug.print("\n[ERROR] Output tensor size mismatch - expected: {}, got: {}", .{ total_size, outputTensor.data.len });
-        return TensorMathError.InputTensorDifferentSize;
+    var stride: usize = 1;
+    i = max_rank;
+    while (i > 0) {
+        i -= 1;
+        out_strides[i] = stride;
+        strides1[i] = if (shape1[i] > 1) stride else 0;
+        strides2[i] = if (shape2[i] > 1) stride else 0;
+        stride *= outputTensor.shape[i];
     }
 
     // Perform addition with broadcasting
-    for (0..total_size) |idx| {
+    @memset(indices, 0);
+
+    i = 0;
+    while (i < outputTensor.size) : (i += 1) {
+        // Calculate indices for current position
+        var temp = i;
+        for (0..max_rank) |dim| {
+            const idx = max_rank - 1 - dim;
+            indices[idx] = temp / out_strides[idx];
+            temp = temp % out_strides[idx];
+        }
+
+        // Calculate input indices considering broadcasting
         var idx1: usize = 0;
         var idx2: usize = 0;
-        var temp = idx;
 
-        // Calculate input indices
-        for (0..max_rank) |d| {
-            const pos = temp / out_shape[d];
-            temp = temp % out_shape[d];
-
-            // Handle broadcasting for t1
-            const idx1_pos = if (shape1[d] == 1) 0 else pos;
-            idx1 += idx1_pos * strides1[d];
-
-            // Handle broadcasting for t2
-            const idx2_pos = if (shape2[d] == 1) 0 else pos;
-            idx2 += idx2_pos * strides2[d];
+        // For same shape tensors, use the same index calculation
+        if (std.mem.eql(usize, shape1, shape2)) {
+            idx1 = i;
+            idx2 = i;
+        } else {
+            // For broadcasting case
+            for (0..max_rank) |dim| {
+                const pos = indices[dim];
+                // For t1: if dimension is 1, don't increment index (broadcasting)
+                if (shape1[dim] > 1) {
+                    idx1 += pos * strides1[dim];
+                }
+                // For t2: if dimension is 1, don't increment index (broadcasting)
+                if (shape2[dim] > 1) {
+                    const t2_pos = pos % shape2[dim];
+                    idx2 += t2_pos * strides2[dim];
+                }
+            }
         }
 
-        // Bounds check
-        if (idx1 >= t1.data.len or idx2 >= t2.data.len) {
-            std.debug.print("\n[ERROR] Index out of bounds - idx1: {}, t1.len: {}, idx2: {}, t2.len: {}", .{ idx1, t1.data.len, idx2, t2.data.len });
-            return TensorMathError.InvalidDimensions;
-        }
-
-        // Perform addition
-        outputTensor.data[idx] = t1.data[idx1] + t2.data[idx2];
+        outputTensor.data[i] = t1.data[idx1] + t2.data[idx2];
     }
 }
 
