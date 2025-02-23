@@ -332,7 +332,7 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("model_import_export", modelImportExport_mod);
     unit_tests.root_module.addImport("pkgAllocator", allocator_mod);
     unit_tests.root_module.addImport("tensor_math_lean", tensor_math_lean_mod);
-    unit_tests.root_module.addImport("static_lib_mnist_hard", static_lib_mnist_hard_mod);
+    unit_tests.root_module.addImport("static_lib_mnist_hard", static_lib_mod);
 
     unit_tests.linkLibC();
 
@@ -347,7 +347,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    test_static_lib.root_module.addImport("static_lib_mnist_hard", static_lib_mnist_hard_mod);
+    test_static_lib.root_module.addImport("static_lib_mnist_hard", static_lib_mod);
     test_static_lib.root_module.addImport("tensor", tensor_mod);
     test_static_lib.root_module.addImport("pkgAllocator", allocator_mod);
     test_static_lib.linkLibC();
