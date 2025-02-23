@@ -32,6 +32,27 @@ pub fn build(b: *std.Build) void {
     const tensor_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_standard.zig") });
     const tensor_math_lean_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_lean.zig") });
 
+    // Create modules from the source files in the `src/utils/` directory.
+    const typeConv_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/typeConverter.zig") });
+    const errorHandler_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/errorHandler.zig") });
+    const modelImportExport_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/model_import_export.zig") });
+    const allocator_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/allocator.zig") });
+    allocator_mod.addOptions("build_options", build_options);
+
+    // Create modules from the source files in the `src/DataHandler/` directory.
+    const dataloader_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataLoader.zig") });
+    const dataProcessor_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataProcessor.zig") });
+    const trainer_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/trainer.zig") });
+
+    // static_lib module for MNIST
+    const static_lib_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
+    const static_lib_mnist_hard_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib_mnist_hard.zig") });
+
+    // Add dependencies for static_lib_mnist_hard_mod
+    static_lib_mnist_hard_mod.addImport("pkgAllocator", allocator_mod);
+    static_lib_mnist_hard_mod.addImport("tensor", tensor_mod);
+    static_lib_mnist_hard_mod.addImport("tensor_math", tensor_math_mod);
+
     // Create modules from the source files in the `src/Model/` directory.
     const loss_mod = b.createModule(.{ .root_source_file = b.path("src/Model/lossFunction.zig") });
     const model_mod = b.createModule(.{ .root_source_file = b.path("src/Model/model.zig") });
@@ -48,21 +69,6 @@ pub fn build(b: *std.Build) void {
 
     // onnx module
     const onnx_mod = b.createModule(.{ .root_source_file = b.path("src/onnx/onnx.zig") });
-
-    // static_lib module for MNIST
-    const static_lib_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
-
-    // Create modules from the source files in the `src/DataHandler/` directory.
-    const dataloader_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataLoader.zig") });
-    const dataProcessor_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataProcessor.zig") });
-    const trainer_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/trainer.zig") });
-
-    // Create modules from the source files in the `src/utils/` directory.
-    const typeConv_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/typeConverter.zig") });
-    const errorHandler_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/errorHandler.zig") });
-    const modelImportExport_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/model_import_export.zig") });
-    const allocator_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/allocator.zig") });
-    allocator_mod.addOptions("build_options", build_options);
 
     // Add dependencies for static_lib_mod
     static_lib_mod.addImport("pkgAllocator", allocator_mod);
@@ -326,7 +332,7 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("model_import_export", modelImportExport_mod);
     unit_tests.root_module.addImport("pkgAllocator", allocator_mod);
     unit_tests.root_module.addImport("tensor_math_lean", tensor_math_lean_mod);
-    unit_tests.root_module.addImport("static_lib", static_lib_mod);
+    unit_tests.root_module.addImport("static_lib_mnist_hard", static_lib_mnist_hard_mod);
 
     unit_tests.linkLibC();
 
@@ -341,7 +347,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    test_static_lib.root_module.addImport("static_lib", static_lib_mod);
+    test_static_lib.root_module.addImport("static_lib_mnist_hard", static_lib_mnist_hard_mod);
     test_static_lib.root_module.addImport("tensor", tensor_mod);
     test_static_lib.root_module.addImport("pkgAllocator", allocator_mod);
     test_static_lib.linkLibC();
