@@ -21,7 +21,7 @@ pub fn main() !void {
     var model = try onnx.parseFromFile(gpa_allocator, "datasets/models/mnist-8/mnist-8.onnx");
     defer model.deinit(gpa_allocator);
 
-    onnx.printStructure(&model);
+    //onnx.printStructure(&model);
 
     const file_path = "src/codeGen/static_lib.zig";
     var file = try std.fs.cwd().createFile(file_path, .{});

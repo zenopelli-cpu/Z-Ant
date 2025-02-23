@@ -53,7 +53,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Flatten")) {
         try writer.writeAll("// Handle Flatten\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gather")) {
-        try write_gather(writer, node);
+        //try write_gather(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gemm")) {
         try write_gemm(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "LeakyRelu")) {
