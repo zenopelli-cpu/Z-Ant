@@ -11,7 +11,11 @@ const shape_math_lib = @import("lib_shape_math.zig");
 pub const reshape = shape_math_lib.reshape;
 pub const reshape_lean = shape_math_lib.reshape_lean;
 
-//--concatenate
+//---gather
+pub const gather = shape_math_lib.gather;
+pub const gather_lean = shape_math_lib.lean_gather;
+
+//---concatenate
 pub const concatenate = shape_math_lib.concatenate;
 // TODO: pub const concatenate_lean = shape_math_lib.concatenate_lean;
 pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_shape;
@@ -19,6 +23,7 @@ pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_s
 pub const calculateStrides = shape_math_lib.calculateStrides;
 pub const transpose2D = shape_math_lib.transpose2D;
 pub const transposeDefault = shape_math_lib.transposeDefault;
+pub const transposeLastTwo = shape_math_lib.transposeLastTwo;
 pub const addPaddingAndDilation = shape_math_lib.addPaddingAndDilation;
 pub const flip = shape_math_lib.flip;
 

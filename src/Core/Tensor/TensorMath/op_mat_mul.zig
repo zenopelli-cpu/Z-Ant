@@ -15,7 +15,8 @@ const BLOCK_SIZE_K: usize = 32;
 const DEFAULT_VECTOR_WIDTH: usize = std.simd.suggestVectorLength(f32) orelse 4;
 const UNROLL_FACTOR: usize = 4;
 
-/// Performs classic matrix multiplication on given tensors using the last 2 dimensions
+// TODO: add support for matrix multiplication for matrix distribuited in multi-batch/multi-channel tensors (for example of shape {2, 3, 5, 5}), now supports only tensors with shape {1, 1, N, M}
+/// Performs classic matrix multiplication on given tensors using the least 2 dimensions
 pub inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T)) !Tensor(T) {
 
     // The two tensors needs to have the same dimensions N
