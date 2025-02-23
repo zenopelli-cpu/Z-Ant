@@ -189,7 +189,7 @@ test "Gemm Y = a A*B + bC with broadcasting, custom parameters v2" {
     t3.deinit();
 }
 
-// this test is not passed as now, I think changes in dot_product are needed
+// NOTE: as 22/02 this test is not passed as mat_mul, used by gemm, doesn't support multiplication of matrix distribuited in multiple batches/channels but only tensor with a shape like {1, 1, N, M}, once mat_mul is updated this test should pass
 // test "Gemm Y = a A*B + bC with broadcasting, custom parameters, multiple batch/channels" {
 //     std.debug.print("\n     test: Gemm Y = a A*B + bC with broadcasting, custom parameters, multiple batch/channels", .{});
 
@@ -259,7 +259,7 @@ test "Gemm Y = a A*B + bC with broadcasting, custom parameters v2" {
 
 //     var result_tensor = try TensMath.gemm(f32, &t1, &t2, &t3, 2, 3, true, true);
 
-// debug
+//     debug
 //     for (0..result_tensor.data.len) |i|
 //         std.debug.print("\nres[{d}] {d}", .{ i, result_tensor.data[i] });
 
