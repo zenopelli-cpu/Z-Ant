@@ -6,10 +6,11 @@ const pkg_allocator = @import("pkgAllocator").allocator;
 const TensMath = @import("tensor_math_standard.zig");
 const LeanTensMath = @import("tensor_math_lean.zig");
 
-// Note that this functions needs SIMD optimizations
+// Note that this function cuold benefit from SIMD optimizations
 
 /// Implements the GEMM operator from the ONNX standard https://onnx.ai/onnx/operators/onnx__Gemm.html Y = alpha*A*B + beta*C
-/// As for now the broadcasting only accours in rows and cols dimensions, while batch and channel dimensions must have the same size
+/// NOTE: (IMPORTANT FOR CODE GEN) Since multibatch/multichannel is not supported by mat_mul neither gemm does. Remove this note and edit "discrepancies from the standard onnx" if this is changed in the future.
+/// The broadcasting only accours in rows and cols dimensions, while batch and channel dimensions must have the same size between the operands.
 pub fn gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(T), alpha: f32, beta: f32, transA: bool, transB: bool) !Tensor(T) {
     var cond_A: usize = 0;
     var cond_B: usize = 0;
@@ -85,17 +86,18 @@ pub fn gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(T), a
 }
 
 /// Lean version of gemm, output Tensor must be preconstructed and 0 filled
+/// NOTE: (IMPORTANT FOR CODE GEN) Since multibatch/multichannel is not supported by mat_mul neither gemm does. Remove this note and edit "discrepancies from the standard onnx" if this is changed in the future.
 pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(T), alpha: f32, beta: f32, transA: bool, transB: bool, result: *Tensor(T)) !void {
     var actual_A_ptr = A;
     var actual_B_ptr = B;
 
     // applying transposition
     if (transA) {
-        var actual_A = try transposeLastTwo(T, A);
+        var actual_A = try TensMath.transposeLastTwo(T, A);
         actual_A_ptr = &actual_A;
     }
     if (transB) {
-        var actual_B = try transposeLastTwo(T, B);
+        var actual_B = try TensMath.transposeLastTwo(T, B);
         actual_B_ptr = &actual_B;
     }
 
@@ -170,53 +172,4 @@ pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(
     if (transB) {
         actual_B_ptr.deinit();
     }
-}
-
-// TODO: move it in lib_shape_math.zig, add test
-/// Given a 4D tensor it returns the tensor with the last 2 dimensions transposed. Operates on both data and shape, does not modify self, used by gemm.
-pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T) {
-
-    // Veryfing correct shape
-    if (tensor.shape.len != 4) {
-        return TensorMathError.InputTensorsWrongShape;
-    }
-
-    const batch = tensor.shape[0];
-    const channel = tensor.shape[1];
-    const rows = tensor.shape[2];
-    const cols = tensor.shape[3];
-    const total = batch * channel * rows * cols;
-
-    // New shape
-    const newShape = try pkg_allocator.alloc(usize, 4);
-    errdefer pkg_allocator.free(newShape);
-    newShape[0] = batch;
-    newShape[1] = channel;
-    newShape[2] = cols;
-    newShape[3] = rows;
-
-    // New data
-    const outData = try tensor.allocator.alloc(T, total);
-    errdefer tensor.allocator.free(outData);
-
-    // Traspose the elements within the matrix
-    for (0..batch) |b| {
-        for (0..channel) |c| {
-            for (0..rows) |i| {
-                for (0..cols) |j| {
-                    const index_in = (((b * channel) + c) * rows + i) * cols + j;
-                    const index_out = (((b * channel) + c) * cols + j) * rows + i;
-                    outData[index_out] = tensor.data[index_in];
-                }
-            }
-        }
-    }
-
-    // Build tensor and return
-    return Tensor(T){
-        .data = outData,
-        .size = total,
-        .shape = newShape,
-        .allocator = tensor.allocator,
-    };
 }
