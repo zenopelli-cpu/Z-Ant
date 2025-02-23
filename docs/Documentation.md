@@ -104,7 +104,7 @@ The two procedures currently implemented are:
 - Tensor directed general training, through the ```trainTensor()``` function.
 - Traning through data loaded from a file, well accustomed and optimized for MNIST datasets, through the ```TrainDataLoader()``` function.
 
-Both take in the respective Loader or Tensor, and train it in accordance to the training data provided.
+Both take in the respective Loader/Tensor, and train it in accordance to the training data provided.
 
 # Codegen and static library
 
