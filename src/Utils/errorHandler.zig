@@ -76,6 +76,7 @@ pub const TensorError = error{
     UnsupportedMode,
     UnsupportedDimension,
     InvalidSplitSize,
+    InvalidRank,
 };
 
 /// A union type to represent any of the errors
@@ -158,6 +159,7 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         TensorError.UnsupportedMode => "Tensor: unsupported interpolation mode",
         TensorError.UnsupportedDimension => "Tensor: operation not supported for this tensor dimension",
         TensorError.InvalidSplitSize => "Tensor: invalid split size for tensor dimension",
+        TensorError.InvalidRank => "Tensor: the tensor rank is not suitable for operations",
 
         else => "Unknown error type",
     };
