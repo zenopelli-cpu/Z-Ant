@@ -349,11 +349,17 @@ inline fn write_maxPool(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //      - strides - INTS : Stride along each spatial axis. If not present, the stride defaults to 1 along each spatial axis.
 
     var auto_pad: []const u8 = "NOTSET";
+
     var ceil_mode: i64 = 0;
+
     var dilations: ?[]i64 = null;
+
     var kernel_shape: ?[]i64 = null; //mandatory
+
     var pads: ?[]i64 = null;
+
     var storage_order: i64 = 0;
+
     var strides: ?[]i64 = null;
 
     for (node.nodeProto.attribute) |attr| {
@@ -427,7 +433,7 @@ inline fn write_maxPool(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\        {s}, //strides
         \\        {s}, //dilations
         \\        {s}, //pads
-        \\        "{s}", //auto_pad
+        \\        tensMath.AutoPadType.{s}, //auto_pad
         \\    )
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), //Input
@@ -489,17 +495,19 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         }
     }
 
-    const shape_name = try utils.getSanitizedName(node.inputs.items[1].name);
     _ = try writer.print(
         \\
-        \\    var shape_usize_{s} = [_]usize{{ for (tensor_{s}.data) |v| @as(usize, @intCast(v)) }};
-        \\    tensMath.reshape_lean(T, @constCast(&tensor_{s}), &shape_usize_{s}, {s}, &tensor_{s})
+        \\    tensMath.reshape_lean(
+        \\        T, //type
+        \\        @constCast(&tensor_{s}), //Input tensor
+        \\        utils.i64SliceToUsizeSlice(tensor_{s}.data) catch return, //New shape
+        \\        {s}, //allowzero
+        \\        &tensor_{s}, //Output tensor
+        \\    )
     , .{
-        shape_name,
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor
-        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor
-        shape_name,
-        if (allowzer0) "true" else "false",
+        try utils.getSanitizedName(node.inputs.items[1].name), // Input shape tensor
+        if (allowzer0) "true" else "false", //allowzer0
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
     });
 }
