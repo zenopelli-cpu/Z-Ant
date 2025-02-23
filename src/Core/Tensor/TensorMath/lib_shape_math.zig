@@ -823,14 +823,29 @@ pub fn reshape(comptime T: anytype, input: *Tensor(T), newShape: []usize, allowZ
 pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []usize, allowZero: ?bool, output: *Tensor(T)) !void {
     _ = allowZero; //TODO: threat allowZero properly
 
+    // std.debug.print("\nReshape Debug:", .{});
+    // std.debug.print("\n  Input shape: ", .{});
+    // for (input.shape) |s| {
+    //     std.debug.print("{d} ", .{s});
+    // }
+    // std.debug.print("\n  New shape: ", .{});
+    // for (newShape) |s| {
+    //     std.debug.print("{d} ", .{s});
+    // }
+
     // Calculate total size of new shape
     var total_size: usize = 1;
     for (newShape) |dim| {
         total_size *= dim;
     }
+    // std.debug.print("\n  Total size from new shape: {d}", .{total_size});
+    // std.debug.print("\n  Input size: {d}", .{input.size});
+    // std.debug.print("\n  Output data len: {d}", .{output.data.len});
+    // std.debug.print("\n  Input data len: {d}", .{input.data.len});
 
     // Verify sizes match
     if (total_size != input.size) {
+        //std.debug.print("\n  Error: Size mismatch!", .{});
         return TensorError.InputArrayWrongSize;
     }
 
@@ -843,7 +858,9 @@ pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []usize, a
     // Copy data only if sizes match
     if (output.data.len == input.data.len) {
         @memcpy(output.data, input.data);
+        //std.debug.print("\n  Data copied successfully", .{});
     } else {
+        //std.debug.print("\n  Error: Data length mismatch!", .{});
         return TensorError.InputArrayWrongSize;
     }
 }

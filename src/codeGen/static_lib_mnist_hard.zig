@@ -1,16 +1,35 @@
+const std = @import("std");
 const Tensor = @import("tensor").Tensor;
 const tensMath = @import("tensor_math");
+const AutoPadType = tensMath.AutoPadType;
+const utils = @import("codeGen_utils.zig");
 const pkgAllocator = @import("pkgAllocator");
 const allocator = pkgAllocator.allocator;
-const utils = @import("codeGen_utils.zig");
+
+const allocator2 = std.heap.raw_c_allocator; // or whatever allocator you prefer
+
+fn setAllocator(tensor: *Tensor(T), alloc: *const std.mem.Allocator) void {
+    tensor.allocator = alloc;
+}
+
+fn setAllAllocators() void {
+    setAllocator(&tensor_relu32_output_0, &allocator);
+    setAllocator(&tensor_pooling66_output_0, &allocator);
+    setAllocator(&tensor_convolution110_output_0, &allocator);
+    setAllocator(&tensor_plus112_output_0, &allocator);
+    setAllocator(&tensor_relu114_output_0, &allocator);
+    setAllocator(&tensor_pooling160_output_0, &allocator);
+    setAllocator(&tensor_pooling160_output_0_reshape0, &allocator);
+    setAllocator(&tensor_times212_output_0, &allocator);
+    setAllocator(&tensor_plus214_output_0, &allocator);
+}
 
 var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
 
 pub export fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {
     log_function = func;
 }
-
-var buf: [4096 * 10]u8 = undefined;
+var buf: [4096 * 10]u8 = undefined; // Increased buffer size from 14 to 20
 var fba_state = @import("std").heap.FixedBufferAllocator.init(&buf);
 const fba = fba_state.allocator();
 const T = f32;
@@ -71,8 +90,8 @@ const tensor_parameter194 = Tensor(f32).fromConstBuffer(&array_parameter194, &sh
 // +         Initializing output Tensors             +
 // ---------------------------------------------------
 
-var shape_tensor_parameter193_reshape1: [4]usize = [_]usize{ 1, 1, 1, 1 };
-var array_parameter193_reshape1: [1]T = undefined;
+var shape_tensor_parameter193_reshape1: [2]usize = [_]usize{ 256, 10 };
+var array_parameter193_reshape1: [2560]T = undefined;
 var tensor_parameter193_reshape1 = Tensor(T).fromConstBuffer(&array_parameter193_reshape1, &shape_tensor_parameter193_reshape1);
 
 var shape_tensor_convolution28_output_0: [4]usize = [_]usize{ 1, 8, 28, 28 };
@@ -88,11 +107,11 @@ var array_relu32_output_0: [6272]T = undefined;
 var tensor_relu32_output_0 = Tensor(T).fromConstBuffer(&array_relu32_output_0, &shape_tensor_relu32_output_0);
 
 var shape_tensor_pooling66_output_0: [4]usize = [_]usize{ 1, 8, 14, 14 };
-var array_pooling66_output_0: [1568]T = undefined;
+var array_pooling66_output_0: [1568]T = [_]T{0} ** 1568;
 var tensor_pooling66_output_0 = Tensor(T).fromConstBuffer(&array_pooling66_output_0, &shape_tensor_pooling66_output_0);
 
 var shape_tensor_convolution110_output_0: [4]usize = [_]usize{ 1, 16, 14, 14 };
-var array_convolution110_output_0: [3136]T = undefined;
+var array_convolution110_output_0: [3136]T = [_]T{0} ** 3136;
 var tensor_convolution110_output_0 = Tensor(T).fromConstBuffer(&array_convolution110_output_0, &shape_tensor_convolution110_output_0);
 
 var shape_tensor_plus112_output_0: [4]usize = [_]usize{ 1, 16, 14, 14 };
@@ -107,16 +126,16 @@ var shape_tensor_pooling160_output_0: [4]usize = [_]usize{ 1, 16, 4, 4 };
 var array_pooling160_output_0: [256]T = undefined;
 var tensor_pooling160_output_0 = Tensor(T).fromConstBuffer(&array_pooling160_output_0, &shape_tensor_pooling160_output_0);
 
-var shape_tensor_pooling160_output_0_reshape0: [4]usize = [_]usize{ 1, 1, 1, 1 };
-var array_pooling160_output_0_reshape0: [1]T = undefined;
+var shape_tensor_pooling160_output_0_reshape0: [2]usize = [_]usize{ 1, 256 };
+var array_pooling160_output_0_reshape0: [256]T = undefined;
 var tensor_pooling160_output_0_reshape0 = Tensor(T).fromConstBuffer(&array_pooling160_output_0_reshape0, &shape_tensor_pooling160_output_0_reshape0);
 
-var shape_tensor_times212_output_0: [4]usize = [_]usize{ 1, 1, 1, 1 };
-var array_times212_output_0: [1]T = undefined;
+var shape_tensor_times212_output_0: [2]usize = [_]usize{ 1, 10 };
+var array_times212_output_0: [10]T = undefined;
 var tensor_times212_output_0 = Tensor(T).fromConstBuffer(&array_times212_output_0, &shape_tensor_times212_output_0);
 
-var shape_tensor_plus214_output_0: [4]usize = [_]usize{ 1, 1, 1, 1 };
-var array_plus214_output_0: [1]T = undefined;
+var shape_tensor_plus214_output_0: [2]usize = [_]usize{ 1, 10 };
+var array_plus214_output_0: [10]T = undefined;
 var tensor_plus214_output_0 = Tensor(T).fromConstBuffer(&array_plus214_output_0, &shape_tensor_plus214_output_0);
 
 pub export fn predict(
@@ -125,6 +144,7 @@ pub export fn predict(
     shape_len: u32,
     result: *[*]T,
 ) void {
+    setAllAllocators();
     if (log_function) |log| {
         log(@constCast(@ptrCast("Starting prediction...\n")));
     }
@@ -143,6 +163,7 @@ pub export fn predict(
 
     //allocating space in memory for the data
     const data = allocator.alloc(T, size) catch return;
+    defer allocator.free(data);
     for (0..size) |i| {
         data[i] = input[i]; // Copying input elements
     }
@@ -150,12 +171,14 @@ pub export fn predict(
     //converting the shape from [*]u32 to []usize
     const usized_shape: []usize = utils.u32ToUsize(input_shape, shape_len) catch return;
     var tensor_input3 = Tensor(T).fromShape(&allocator, @constCast(usized_shape)) catch return;
+    defer tensor_input3.deinit();
+    defer allocator.free(usized_shape);
     @memcpy(tensor_input3.data, data);
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Reshape operation...\n")));
     }
-    var shape_usize_parameter193_reshape1_shape = [_]usize{for (tensor_parameter193.data) |v| @as(usize, @intCast(v))};
+    var shape_usize_parameter193_reshape1_shape = [_]usize{ 256, 10 }; // Adjust these
     tensMath.reshape_lean(T, @constCast(&tensor_parameter193), &shape_usize_parameter193_reshape1_shape, false, &tensor_parameter193_reshape1) catch return;
 
     if (log_function) |log| {
@@ -173,20 +196,23 @@ pub export fn predict(
         1, //group
         "SAME_UPPER", //auto_pad
     ) catch return;
+    //tensor_convolution28_output_0.print();
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Add operation...\n")));
     }
     tensMath.sum_tensors_lean(T, T, &tensor_convolution28_output_0, @constCast(&tensor_parameter6), &tensor_plus30_output_0) catch return;
-
+    //tensor_plus30_output_0.print();
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Relu operation...\n")));
     }
+
     tensMath.ReLU_lean(T, &tensor_plus30_output_0, &tensor_relu32_output_0) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running MaxPool operation...\n")));
     }
+
     tensMath.onnx_maxpool_lean(
         T,
         &tensor_relu32_output_0, //Input
@@ -195,7 +221,7 @@ pub export fn predict(
         &[_]usize{ 2, 2 }, //strides
         &[_]usize{ 1, 1, 1, 1 }, //dilations
         &[_]usize{ 0, 0, 0, 0 }, //pads
-        "NOTSET", //auto_pad
+        AutoPadType.NOTSET, //auto_pad
     ) catch return;
 
     if (log_function) |log| {
@@ -235,13 +261,15 @@ pub export fn predict(
         &[_]usize{ 3, 3 }, //strides
         &[_]usize{ 1, 1, 1, 1 }, //dilations
         &[_]usize{ 0, 0, 0, 0 }, //pads
-        "NOTSET", //auto_pad
+        AutoPadType.NOTSET, //auto_pad
     ) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Reshape operation...\n")));
     }
-    var shape_usize_pooling160_output_0_reshape0_shape = [_]usize{for (tensor_pooling160_output_0.data) |v| @as(usize, @intCast(v))};
+
+    var shape_usize_pooling160_output_0_reshape0_shape = [_]usize{ 1, 256 }; // Adjust these
+
     tensMath.reshape_lean(T, @constCast(&tensor_pooling160_output_0), &shape_usize_pooling160_output_0_reshape0_shape, false, &tensor_pooling160_output_0_reshape0) catch return;
 
     if (log_function) |log| {

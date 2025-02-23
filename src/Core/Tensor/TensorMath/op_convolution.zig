@@ -30,24 +30,24 @@ const addPaddingAndDilation = lib_shape_math.addPaddingAndDilation;
 /// TODO: add better check on output size wrt input and kernel
 ///
 pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void {
-    std.debug.print("\n[DEBUG] OnnxConvLean - Starting", .{});
-    std.debug.print("\n[DEBUG] Input shape: {any}", .{input.shape});
-    std.debug.print("\n[DEBUG] Kernel shape: {any}", .{kernel.shape});
-    std.debug.print("\n[DEBUG] Output shape: {any}", .{output.shape});
-    std.debug.print("\n[DEBUG] Stride: {any}", .{stride});
-    if (pads) |p| {
-        std.debug.print("\n[DEBUG] Pads: {any}", .{p});
-    }
-    if (dilations) |d| {
-        std.debug.print("\n[DEBUG] Dilations: {any}", .{d});
-    }
-    if (auto_pad) |ap| {
-        std.debug.print("\n[DEBUG] Auto pad: {s}", .{ap});
-    }
+    // std.debug.print("\n[DEBUG] OnnxConvLean - Starting", .{});
+    // std.debug.print("\n[DEBUG] Input shape: {any}", .{input.shape});
+    // std.debug.print("\n[DEBUG] Kernel shape: {any}", .{kernel.shape});
+    // std.debug.print("\n[DEBUG] Output shape: {any}", .{output.shape});
+    // std.debug.print("\n[DEBUG] Stride: {any}", .{stride});
+    // if (pads) |p| {
+    //     //std.debug.print("\n[DEBUG] Pads: {any}", .{p});
+    // }
+    // if (dilations) |d| {
+    //     //std.debug.print("\n[DEBUG] Dilations: {any}", .{d});
+    // }
+    // if (auto_pad) |ap| {
+    //     //std.debug.print("\n[DEBUG] Auto pad: {s}", .{ap});
+    // }
 
     // Input validation
     if (input.shape.len != 4 or kernel.shape.len != 4) {
-        std.debug.print("\n[ERROR] Invalid dimensions - input shape len: {}, kernel shape len: {}", .{ input.shape.len, kernel.shape.len });
+        //std.debug.print("\n[ERROR] Invalid dimensions - input shape len: {}, kernel shape len: {}", .{ input.shape.len, kernel.shape.len });
         return TensorMathError.InvalidDimensions;
     }
 
@@ -57,13 +57,13 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     const kernel_height = kernel.shape[2];
     const kernel_width = kernel.shape[3];
 
-    std.debug.print("\n[DEBUG] Input dimensions: h={}, w={}", .{ in_height, in_width });
-    std.debug.print("\n[DEBUG] Kernel dimensions: h={}, w={}", .{ kernel_height, kernel_width });
-    std.debug.print("\n[DEBUG] Output channels: {}", .{out_channels});
+    // std.debug.print("\n[DEBUG] Input dimensions: h={}, w={}", .{ in_height, in_width });
+    // std.debug.print("\n[DEBUG] Kernel dimensions: h={}, w={}", .{ kernel_height, kernel_width });
+    // std.debug.print("\n[DEBUG] Output channels: {}", .{out_channels});
 
     // Group validation - currently only supporting group=1
     if (group != null and group.? != 1) {
-        std.debug.print("\n[ERROR] Invalid group value: {}", .{group.?});
+        //std.debug.print("\n[ERROR] Invalid group value: {}", .{group.?});
         return TensorMathError.InvalidDimensions;
     }
 
@@ -73,8 +73,8 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
     const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else d[0] else 1;
 
-    std.debug.print("\n[DEBUG] Effective stride: h={}, w={}", .{ stride_h, stride_w });
-    std.debug.print("\n[DEBUG] Effective dilation: h={}, w={}", .{ dilation_h, dilation_w });
+    // std.debug.print("\n[DEBUG] Effective stride: h={}, w={}", .{ stride_h, stride_w });
+    // std.debug.print("\n[DEBUG] Effective dilation: h={}, w={}", .{ dilation_h, dilation_w });
 
     // Calculate padding
     var pad_h_begin: usize = 0;
@@ -88,7 +88,7 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
         const dilated_kernel_h = (kernel_height - 1) * dilation_h + 1;
         const dilated_kernel_w = (kernel_width - 1) * dilation_w + 1;
 
-        std.debug.print("\n[DEBUG] Dilated kernel dimensions: h={}, w={}", .{ dilated_kernel_h, dilated_kernel_w });
+        // std.debug.print("\n[DEBUG] Dilated kernel dimensions: h={}, w={}", .{ dilated_kernel_h, dilated_kernel_w });
 
         if (std.mem.eql(u8, pad_mode, "SAME_UPPER") or std.mem.eql(u8, pad_mode, "SAME_LOWER")) {
             const out_height = in_height;
@@ -121,9 +121,9 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
         }
     }
 
-    std.debug.print("\n[DEBUG] Padding values:", .{});
-    std.debug.print("\n  h_begin={}, h_end={}", .{ pad_h_begin, pad_h_end });
-    std.debug.print("\n  w_begin={}, w_end={}", .{ pad_w_begin, pad_w_end });
+    // std.debug.print("\n[DEBUG] Padding values:", .{});
+    // std.debug.print("\n  h_begin={}, h_end={}", .{ pad_h_begin, pad_h_end });
+    // std.debug.print("\n  w_begin={}, w_end={}", .{ pad_w_begin, pad_w_end });
 
     // Create a copy of input for padding
     var padded_input = try input.copy();
@@ -132,7 +132,7 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     // Initialize padded input with zeros
     var padded_shape = [_]usize{ input.shape[0], input.shape[1], input.shape[2] + pad_h_begin + pad_h_end, input.shape[3] + pad_w_begin + pad_w_end };
 
-    std.debug.print("\n[DEBUG] Creating padded input with shape: {any}", .{padded_shape});
+    // std.debug.print("\n[DEBUG] Creating padded input with shape: {any}", .{padded_shape});
 
     // Create new padded tensor
     padded_input.deinit(); // Clean up the copy we don't need
@@ -151,7 +151,7 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
         }
     }
 
-    std.debug.print("\n[DEBUG] Padded input shape: {any}", .{padded_input.shape});
+    // std.debug.print("\n[DEBUG] Padded input shape: {any}", .{padded_input.shape});
 
     // If bias is not provided, create a zero bias tensor
     var zero_bias: Tensor(T) = undefined;
@@ -160,16 +160,16 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
         zero_bias = try Tensor(T).fromShape(&pkg_allocator, &bias_shape);
         errdefer zero_bias.deinit();
         try zero_bias.set(0, 0);
-        std.debug.print("\n[DEBUG] Created zero bias tensor with shape: {any}", .{bias_shape});
+        // std.debug.print("\n[DEBUG] Created zero bias tensor with shape: {any}", .{bias_shape});
     }
 
     // Create stride and dilation arrays
     var stride_arr = [_]usize{ stride_h, stride_w };
     var dilation_arr = [_]usize{ dilation_h, dilation_w };
 
-    std.debug.print("\n[DEBUG] Calling convolve_tensor_with_bias", .{});
-    std.debug.print("\n  stride: {any}", .{stride_arr});
-    std.debug.print("\n  dilation: {any}", .{dilation_arr});
+    // std.debug.print("\n[DEBUG] Calling convolve_tensor_with_bias", .{});
+    // std.debug.print("\n  stride: {any}", .{stride_arr});
+    // std.debug.print("\n  dilation: {any}", .{dilation_arr});
 
     // Call convolve_tensor_with_bias with the dilation parameter
     var result = try convolve_tensor_with_bias(
@@ -182,7 +182,7 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     );
     defer result.deinit();
 
-    std.debug.print("\n[DEBUG] Convolution result shape: {any}", .{result.shape});
+    // std.debug.print("\n[DEBUG] Convolution result shape: {any}", .{result.shape});
 
     if (bias == null) {
         zero_bias.deinit();
@@ -194,11 +194,11 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
             if (result.shape[2] != expected_out_height or result.shape[3] != expected_out_width) {
                 var shape = [_]usize{ input.shape[0], out_channels, expected_out_height, expected_out_width };
 
-                std.debug.print("\n[DEBUG] Validating output shape: {any} against expected: {any}", .{ output.shape[0..4], shape });
+                // std.debug.print("\n[DEBUG] Validating output shape: {any} against expected: {any}", .{ output.shape[0..4], shape });
 
                 // Validate output tensor shape
                 if (!std.mem.eql(usize, &shape, output.shape[0..4])) {
-                    std.debug.print("\n[ERROR] Output shape mismatch", .{});
+                    // std.debug.print("\n[ERROR] Output shape mismatch", .{});
                     return TensorMathError.InvalidDimensions;
                 }
 
@@ -206,7 +206,7 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
                 const h_offset = @divFloor(result.shape[2] - expected_out_height, 2);
                 const w_offset = @divFloor(result.shape[3] - expected_out_width, 2);
 
-                std.debug.print("\n[DEBUG] Copying center portion with offsets: h={}, w={}", .{ h_offset, w_offset });
+                // std.debug.print("\n[DEBUG] Copying center portion with offsets: h={}, w={}", .{ h_offset, w_offset });
 
                 // Copy the center portion of the result
                 for (0..input.shape[0]) |b| {
@@ -232,19 +232,19 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
 
     // Copy result to output tensor
     if (!std.mem.eql(usize, result.shape[0..4], output.shape[0..4])) {
-        std.debug.print("\n[ERROR] Final output shape mismatch - result: {any}, output: {any}", .{ result.shape[0..4], output.shape[0..4] });
+        // std.debug.print("\n[ERROR] Final output shape mismatch - result: {any}, output: {any}", .{ result.shape[0..4], output.shape[0..4] });
         return TensorMathError.InvalidDimensions;
     }
 
-    std.debug.print("\n[DEBUG] Data lengths - result: {}, output: {}", .{ result.data.len, output.data.len });
+    // std.debug.print("\n[DEBUG] Data lengths - result: {}, output: {}", .{ result.data.len, output.data.len });
 
     if (result.data.len != output.data.len) {
-        std.debug.print("\n[ERROR] Data length mismatch between result and output tensors", .{});
+        // std.debug.print("\n[ERROR] Data length mismatch between result and output tensors", .{});
         return TensorMathError.InvalidDimensions;
     }
 
     @memcpy(output.data, result.data);
-    std.debug.print("\n[DEBUG] OnnxConvLean completed successfully", .{});
+    //  std.debug.print("\n[DEBUG] OnnxConvLean completed successfully", .{});
 }
 
 pub fn convolve_tensor_with_bias(

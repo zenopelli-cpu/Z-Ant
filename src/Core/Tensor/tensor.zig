@@ -90,6 +90,10 @@ pub fn Tensor(comptime T: type) type {
             return constructMultidimensionalArray(self.allocator, T, self.data, self.shape, 0, dimension);
         }
 
+        fn setAllocator(tensor: *Tensor(T), alloc: *const std.mem.Allocator) void {
+            tensor.allocator = alloc;
+        }
+
         /// Returns a Tensor witch is the copy of this Tensor (self).
         /// It sobstitute init(), but defer yourTensor.deinit() is still necessary.
         pub fn copy(self: *@This()) !Tensor(T) {
