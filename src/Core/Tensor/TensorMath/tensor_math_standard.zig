@@ -101,6 +101,10 @@ pub const equal = logical_math_lib.equal;
 
 // ---------- importing standard activation function methods ----------
 const activation_math_lib = @import("lib_activation_function_math.zig");
+
+//Reduce_mean
+pub const reduce_mean = reduction_math_lib.reduce_mean;
+pub const reduce_mean_lean = reduction_math_lib.lean_reduce_mean;
 //ReLU
 pub const ReLU = activation_math_lib.ReLU_standard;
 pub const ReLU_lean = activation_math_lib.lean_ReLU;

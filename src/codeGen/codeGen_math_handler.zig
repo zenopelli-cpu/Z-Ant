@@ -68,6 +68,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_mul(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "OneHot")) {
         try writer.writeAll("// Handle OneHot\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "ReduceMean")) {
+        try write_reduceMean(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
         try write_ReLU(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Reshape")) {
@@ -464,6 +466,35 @@ inline fn write_mul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
+inline fn write_reduceMean(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    var keepdims: bool = true;
+    var noop_with_empty_axes: bool = false;
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "keepdims")) {
+            if (attr.type == AttributeType.INT) keepdims = attr.i != 0;
+        } else if (std.mem.eql(u8, attr.name, "noop_with_empty_axes")) {
+            if (attr.type == AttributeType.INT) noop_with_empty_axes = attr.i != 0;
+        }
+    }
+
+    var axes_str: []const u8 = "null";
+    if (node.inputs.items.len > 1) {
+        axes_str = try std.fmt.allocPrint(allocator, "&tensor_{s}.data", .{try utils.getSanitizedName(node.inputs.items[1].name)});
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.reduce_mean_lean(T, &tensor_{s}, &tensor_{s}, {s}, {s}, {s})
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name),
+        try utils.getSanitizedName(node.outputs.items[0].name),
+        axes_str,
+        if (keepdims) "true" else "false",
+        if (noop_with_empty_axes) "true" else "false",
+    });
+}
+
 inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //node.inputs.items[0] -> input
     //node.outputs.items[0] -> output
@@ -605,6 +636,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         try compute_mul_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "OneHot")) {
         // TODO
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "ReduceMean")) {
+        try compute_reduceMean_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Relu")) {
         //https://onnx.ai/onnx/operators/onnx__Relu.html
         try compute_ReLU_output_shape(readyNode);
@@ -723,5 +756,58 @@ inline fn compute_maxPool_output_shape(readyNode: *ReadyNode) !void {
             ),
         ),
     );
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_reduceMean_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_reduceMean_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape: []const i64 = readyNode.inputs.items[0].shape;
+
+    var keepdims: bool = true;
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "keepdims")) {
+            if (attr.type == AttributeType.INT) keepdims = attr.i != 0;
+        }
+    }
+
+    // If we have axes input tensor
+    if (readyNode.inputs.items.len > 1) {
+        const axes = readyNode.inputs.items[1].shape;
+        std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+        std.debug.print("\n axes: []i64 = {any}", .{axes});
+
+        // If keepdims is true, the reduced dimensions are retained with length 1
+        if (keepdims) {
+            var newShape = try allocator.alloc(i64, input_shape.len);
+            @memcpy(newShape, input_shape);
+            for (axes) |axis| {
+                newShape[@as(usize, @intCast(axis))] = 1;
+            }
+            readyNode.outputs.items[0].shape = newShape;
+        } else {
+            // If keepdims is false, the reduced dimensions are removed
+            var newShape = try allocator.alloc(i64, input_shape.len - axes.len);
+            var j: usize = 0;
+            outer: for (input_shape, 0..) |dim, i| {
+                for (axes) |axis| {
+                    if (i == @as(usize, @intCast(axis))) continue :outer;
+                }
+                newShape[j] = dim;
+                j += 1;
+            }
+            readyNode.outputs.items[0].shape = newShape;
+        }
+    } else {
+        // If no axes specified, reduce all dimensions to 1 if keepdims is true, or to a scalar if false
+        if (keepdims) {
+            var newShape = try allocator.alloc(i64, input_shape.len);
+            for (newShape, 0..) |_, i| {
+                newShape[i] = 1;
+            }
+            readyNode.outputs.items[0].shape = newShape;
+        } else {
+            readyNode.outputs.items[0].shape = &[_]i64{1};
+        }
+    }
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }

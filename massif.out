@@ -1,0 +1,645 @@
+desc: --stacks=yes --massif-out-file=massif.out --time-unit=i --detailed-freq=100 --max-snapshots=100
+cmd: zig-out/bin/Main
+time_unit: i
+#-----------
+snapshot=0
+#-----------
+time=0
+mem_heap_B=0
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=1
+#-----------
+time=29854089
+mem_heap_B=36540
+mem_heap_extra_B=124
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=2
+#-----------
+time=53934980
+mem_heap_B=36540
+mem_heap_extra_B=124
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=3
+#-----------
+time=72401988
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=26416
+heap_tree=peak
+n1: 43000 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n2: 43000 0x105C9E2: heap.rawCAlloc (heap.zig:188)
+  n1: 42848 0x109200C: rawAlloc (Allocator.zig:86)
+   n1: 42848 0x109200C: mem.Allocator.allocBytesWithAlignment__anon_8742 (Allocator.zig:225)
+    n1: 42848 0x105CB1A: mem.Allocator.allocWithSizeAndAlignment__anon_4764 (Allocator.zig:211)
+     n1: 42848 0x1052738: allocAdvancedWithRetAddr (Allocator.zig:205)
+      n4: 42848 0x1052738: mem.Allocator.alloc__anon_4105 (Allocator.zig:129)
+       n5: 38912 0x105253E: tensor.Tensor(f32).fromShape (tensor.zig:116)
+        n1: 12800 0x1055DAA: op_convolution.convolve_tensor_with_bias__anon_4312 (op_convolution.zig:311)
+         n2: 12800 0x105827C: op_convolution.OnnxConvLean__anon_4307 (op_convolution.zig:175)
+          n1: 12800 0x10457CF: predict (static_lib_mnist_hard.zig:228)
+           n1: 12800 0x103FBA0: main.main (main.zig:63)
+            n1: 12800 0x1050770: callMain (start.zig:524)
+             n1: 12800 0x1050770: callMainWithArgs (start.zig:482)
+              n0: 12800 0x1050770: main (start.zig:497)
+          n0: 0 in 1 place, below massif's threshold (1.00%)
+        n1: 12544 0x1055C25: op_convolution.convolve_tensor_with_bias__anon_4312 (op_convolution.zig:305)
+         n2: 12544 0x105827C: op_convolution.OnnxConvLean__anon_4307 (op_convolution.zig:175)
+          n1: 12544 0x10457CF: predict (static_lib_mnist_hard.zig:228)
+           n1: 12544 0x103FBA0: main.main (main.zig:63)
+            n1: 12544 0x1050770: callMain (start.zig:524)
+             n1: 12544 0x1050770: callMainWithArgs (start.zig:482)
+              n0: 12544 0x1050770: main (start.zig:497)
+          n0: 0 in 1 place, below massif's threshold (1.00%)
+        n2: 10368 0x1057A50: op_convolution.OnnxConvLean__anon_4307 (op_convolution.zig:139)
+         n1: 10368 0x10457CF: predict (static_lib_mnist_hard.zig:228)
+          n1: 10368 0x103FBA0: main.main (main.zig:63)
+           n1: 10368 0x1050770: callMain (start.zig:524)
+            n1: 10368 0x1050770: callMainWithArgs (start.zig:482)
+             n0: 10368 0x1050770: main (start.zig:497)
+         n0: 0 in 1 place, below massif's threshold (1.00%)
+        n1: 3136 0x1040741: predict (static_lib_mnist_hard.zig:171)
+         n1: 3136 0x103FBA0: main.main (main.zig:63)
+          n1: 3136 0x1050770: callMain (start.zig:524)
+           n1: 3136 0x1050770: callMainWithArgs (start.zig:482)
+            n0: 3136 0x1050770: main (start.zig:497)
+        n0: 64 in 1 place, below massif's threshold (1.00%)
+       n1: 3136 0x1040489: predict (static_lib_mnist_hard.zig:163)
+        n1: 3136 0x103FBA0: main.main (main.zig:63)
+         n1: 3136 0x1050770: callMain (start.zig:524)
+          n1: 3136 0x1050770: callMainWithArgs (start.zig:482)
+           n0: 3136 0x1050770: main (start.zig:497)
+       n1: 800 0x1054094: op_convolution.Im2ColIterator(f32).init (op_convolution.zig:740)
+        n1: 800 0x1055E90: op_convolution.convolve_tensor_with_bias__anon_4312 (op_convolution.zig:323)
+         n2: 800 0x105827C: op_convolution.OnnxConvLean__anon_4307 (op_convolution.zig:175)
+          n1: 800 0x10457CF: predict (static_lib_mnist_hard.zig:228)
+           n1: 800 0x103FBA0: main.main (main.zig:63)
+            n1: 800 0x1050770: callMain (start.zig:524)
+             n1: 800 0x1050770: callMainWithArgs (start.zig:482)
+              n0: 800 0x1050770: main (start.zig:497)
+          n0: 0 in 1 place, below massif's threshold (1.00%)
+       n0: 0 in 1 place, below massif's threshold (1.00%)
+  n0: 152 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=4
+#-----------
+time=89714535
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=5
+#-----------
+time=116503130
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24680
+heap_tree=empty
+#-----------
+snapshot=6
+#-----------
+time=153610365
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=7
+#-----------
+time=181224608
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=8
+#-----------
+time=199767964
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=9
+#-----------
+time=226553106
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=10
+#-----------
+time=253337965
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=11
+#-----------
+time=271073603
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24960
+heap_tree=empty
+#-----------
+snapshot=12
+#-----------
+time=307328924
+mem_heap_B=6336
+mem_heap_extra_B=32
+mem_stacks_B=19696
+heap_tree=empty
+#-----------
+snapshot=13
+#-----------
+time=337012510
+mem_heap_B=36540
+mem_heap_extra_B=124
+mem_stacks_B=24688
+heap_tree=empty
+#-----------
+snapshot=14
+#-----------
+time=356787548
+mem_heap_B=36540
+mem_heap_extra_B=124
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=15
+#-----------
+time=376562659
+mem_heap_B=6336
+mem_heap_extra_B=32
+mem_stacks_B=19544
+heap_tree=empty
+#-----------
+snapshot=16
+#-----------
+time=402959108
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=17
+#-----------
+time=438803810
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=18
+#-----------
+time=463527751
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=19
+#-----------
+time=488251604
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=20
+#-----------
+time=519156769
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=21
+#-----------
+time=537699885
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=22
+#-----------
+time=562424066
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=23
+#-----------
+time=587148042
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=24
+#-----------
+time=611871859
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=25
+#-----------
+time=642776817
+mem_heap_B=36540
+mem_heap_extra_B=124
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=26
+#-----------
+time=661319992
+mem_heap_B=36540
+mem_heap_extra_B=124
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=27
+#-----------
+time=686044111
+mem_heap_B=6336
+mem_heap_extra_B=32
+mem_stacks_B=19696
+heap_tree=empty
+#-----------
+snapshot=28
+#-----------
+time=723130371
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24680
+heap_tree=empty
+#-----------
+snapshot=29
+#-----------
+time=762277571
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=30
+#-----------
+time=782881554
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24688
+heap_tree=empty
+#-----------
+snapshot=31
+#-----------
+time=803485646
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=32
+#-----------
+time=834405395
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24960
+heap_tree=empty
+#-----------
+snapshot=33
+#-----------
+time=855009582
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=34
+#-----------
+time=875613554
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24680
+heap_tree=empty
+#-----------
+snapshot=35
+#-----------
+time=906519633
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=36
+#-----------
+time=927123777
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=37
+#-----------
+time=958029754
+mem_heap_B=36540
+mem_heap_extra_B=124
+mem_stacks_B=24680
+heap_tree=empty
+#-----------
+snapshot=38
+#-----------
+time=978633884
+mem_heap_B=36540
+mem_heap_extra_B=124
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=39
+#-----------
+time=999239032
+mem_heap_B=6336
+mem_heap_extra_B=32
+mem_stacks_B=19696
+heap_tree=empty
+#-----------
+snapshot=40
+#-----------
+time=1030174907
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=41
+#-----------
+time=1050778879
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24680
+heap_tree=empty
+#-----------
+snapshot=42
+#-----------
+time=1081684958
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=43
+#-----------
+time=1102289062
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=44
+#-----------
+time=1122893021
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24824
+heap_tree=empty
+#-----------
+snapshot=45
+#-----------
+time=1153799136
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=46
+#-----------
+time=1174403132
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24688
+heap_tree=empty
+#-----------
+snapshot=47
+#-----------
+time=1205309206
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24824
+heap_tree=empty
+#-----------
+snapshot=48
+#-----------
+time=1225913225
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24680
+heap_tree=empty
+#-----------
+snapshot=49
+#-----------
+time=1256819486
+mem_heap_B=36540
+mem_heap_extra_B=124
+mem_stacks_B=24680
+heap_tree=empty
+#-----------
+snapshot=50
+#-----------
+time=1274132064
+mem_heap_B=36540
+mem_heap_extra_B=124
+mem_stacks_B=24680
+heap_tree=empty
+#-----------
+snapshot=51
+#-----------
+time=1291444716
+mem_heap_B=36540
+mem_heap_extra_B=124
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=52
+#-----------
+time=1308757395
+mem_heap_B=6336
+mem_heap_extra_B=32
+mem_stacks_B=19696
+heap_tree=empty
+#-----------
+snapshot=53
+#-----------
+time=1326070168
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=54
+#-----------
+time=1343382798
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=55
+#-----------
+time=1360695358
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=56
+#-----------
+time=1378007935
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=57
+#-----------
+time=1395343885
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24960
+heap_tree=empty
+#-----------
+snapshot=58
+#-----------
+time=1412656434
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24688
+heap_tree=empty
+#-----------
+snapshot=59
+#-----------
+time=1429968998
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=60
+#-----------
+time=1447281581
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=61
+#-----------
+time=1464594158
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=62
+#-----------
+time=1481906731
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=detailed
+n1: 43000 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n2: 43000 0x105C9E2: heap.rawCAlloc (heap.zig:188)
+  n1: 42848 0x109200C: rawAlloc (Allocator.zig:86)
+   n1: 42848 0x109200C: mem.Allocator.allocBytesWithAlignment__anon_8742 (Allocator.zig:225)
+    n1: 42848 0x105CB1A: mem.Allocator.allocWithSizeAndAlignment__anon_4764 (Allocator.zig:211)
+     n1: 42848 0x1052738: allocAdvancedWithRetAddr (Allocator.zig:205)
+      n4: 42848 0x1052738: mem.Allocator.alloc__anon_4105 (Allocator.zig:129)
+       n5: 38912 0x105253E: tensor.Tensor(f32).fromShape (tensor.zig:116)
+        n1: 12800 0x1055DAA: op_convolution.convolve_tensor_with_bias__anon_4312 (op_convolution.zig:311)
+         n2: 12800 0x105827C: op_convolution.OnnxConvLean__anon_4307 (op_convolution.zig:175)
+          n1: 12800 0x10457CF: predict (static_lib_mnist_hard.zig:228)
+           n1: 12800 0x103FBA0: main.main (main.zig:63)
+            n1: 12800 0x1050770: callMain (start.zig:524)
+             n1: 12800 0x1050770: callMainWithArgs (start.zig:482)
+              n0: 12800 0x1050770: main (start.zig:497)
+          n0: 0 in 1 place, below massif's threshold (1.00%)
+        n1: 12544 0x1055C25: op_convolution.convolve_tensor_with_bias__anon_4312 (op_convolution.zig:305)
+         n2: 12544 0x105827C: op_convolution.OnnxConvLean__anon_4307 (op_convolution.zig:175)
+          n1: 12544 0x10457CF: predict (static_lib_mnist_hard.zig:228)
+           n1: 12544 0x103FBA0: main.main (main.zig:63)
+            n1: 12544 0x1050770: callMain (start.zig:524)
+             n1: 12544 0x1050770: callMainWithArgs (start.zig:482)
+              n0: 12544 0x1050770: main (start.zig:497)
+          n0: 0 in 1 place, below massif's threshold (1.00%)
+        n2: 10368 0x1057A50: op_convolution.OnnxConvLean__anon_4307 (op_convolution.zig:139)
+         n1: 10368 0x10457CF: predict (static_lib_mnist_hard.zig:228)
+          n1: 10368 0x103FBA0: main.main (main.zig:63)
+           n1: 10368 0x1050770: callMain (start.zig:524)
+            n1: 10368 0x1050770: callMainWithArgs (start.zig:482)
+             n0: 10368 0x1050770: main (start.zig:497)
+         n0: 0 in 1 place, below massif's threshold (1.00%)
+        n1: 3136 0x1040741: predict (static_lib_mnist_hard.zig:171)
+         n1: 3136 0x103FBA0: main.main (main.zig:63)
+          n1: 3136 0x1050770: callMain (start.zig:524)
+           n1: 3136 0x1050770: callMainWithArgs (start.zig:482)
+            n0: 3136 0x1050770: main (start.zig:497)
+        n0: 64 in 1 place, below massif's threshold (1.00%)
+       n1: 3136 0x1040489: predict (static_lib_mnist_hard.zig:163)
+        n1: 3136 0x103FBA0: main.main (main.zig:63)
+         n1: 3136 0x1050770: callMain (start.zig:524)
+          n1: 3136 0x1050770: callMainWithArgs (start.zig:482)
+           n0: 3136 0x1050770: main (start.zig:497)
+       n1: 800 0x1054094: op_convolution.Im2ColIterator(f32).init (op_convolution.zig:740)
+        n1: 800 0x1055E90: op_convolution.convolve_tensor_with_bias__anon_4312 (op_convolution.zig:323)
+         n2: 800 0x105827C: op_convolution.OnnxConvLean__anon_4307 (op_convolution.zig:175)
+          n1: 800 0x10457CF: predict (static_lib_mnist_hard.zig:228)
+           n1: 800 0x103FBA0: main.main (main.zig:63)
+            n1: 800 0x1050770: callMain (start.zig:524)
+             n1: 800 0x1050770: callMainWithArgs (start.zig:482)
+              n0: 800 0x1050770: main (start.zig:497)
+          n0: 0 in 1 place, below massif's threshold (1.00%)
+       n0: 0 in 1 place, below massif's threshold (1.00%)
+  n0: 152 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=63
+#-----------
+time=1499219308
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=64
+#-----------
+time=1516531868
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=65
+#-----------
+time=1533844445
+mem_heap_B=43000
+mem_heap_extra_B=112
+mem_stacks_B=24832
+heap_tree=empty
+#-----------
+snapshot=66
+#-----------
+time=1551157337
+mem_heap_B=6336
+mem_heap_extra_B=32
+mem_stacks_B=19544
+heap_tree=empty
