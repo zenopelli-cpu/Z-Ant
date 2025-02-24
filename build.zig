@@ -48,6 +48,14 @@ pub fn build(b: *std.Build) void {
     const static_lib_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
     const static_lib_mnist_hard_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib_mnist_hard.zig") });
 
+    // static_lib module for sentiment
+    const static_lib_sentiment_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib_sentiment.zig") });
+
+    // Add dependencies for static_lib_sentiment_mod
+    static_lib_sentiment_mod.addImport("pkgAllocator", allocator_mod);
+    static_lib_sentiment_mod.addImport("tensor", tensor_mod);
+    static_lib_sentiment_mod.addImport("tensor_math", tensor_math_mod);
+
     // Add dependencies for static_lib_mnist_hard_mod
     static_lib_mnist_hard_mod.addImport("pkgAllocator", allocator_mod);
     static_lib_mnist_hard_mod.addImport("tensor", tensor_mod);
@@ -343,11 +351,11 @@ pub fn build(b: *std.Build) void {
 
     // Add test for static_lib
     const test_static_lib = b.addTest(.{
-        .root_source_file = b.path("tests/CodeGen/test_static_lib.zig"),
+        .root_source_file = b.path("tests/CodeGen/test_static_lib_sentiment.zig"),
         .target = target,
         .optimize = optimize,
     });
-    test_static_lib.root_module.addImport("static_lib_mnist_hard", static_lib_mnist_hard_mod);
+    test_static_lib.root_module.addImport("static_lib_sentiment", static_lib_sentiment_mod);
     test_static_lib.root_module.addImport("tensor", tensor_mod);
     test_static_lib.root_module.addImport("pkgAllocator", allocator_mod);
     test_static_lib.linkLibC();

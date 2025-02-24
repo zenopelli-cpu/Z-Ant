@@ -599,6 +599,40 @@ inline fn write_sum(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     , .{try utils.getSanitizedName(node.outputs.items[0].name)});
 }
 
+inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Gather.html
+    // INPUTS:
+    //      - data (heterogeneous) - T: Tensor of rank r >= 1.
+    //      - indices (heterogeneous) - tensor(int64): Tensor of int64 indices, of any rank q.
+    // OUTPUTS:
+    //      - output (heterogeneous) - T: Tensor of rank q + r - 1.
+    // ATTRIBUTES:
+    //      - axis (int, default is 0): Which axis to gather on. Negative value means counting dimensions from the back.
+
+    var axis: i64 = 0;
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "axis")) {
+            if (attr.type == AttributeType.INT) axis = attr.i;
+        }
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.gather_lean(
+        \\        T, //type
+        \\        @constCast(&tensor_{s}), //data tensor
+        \\        &tensor_{s}, //indices tensor
+        \\        {}, //axis
+        \\        &tensor_{s}, //output tensor
+        \\    )
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input data tensor
+        try utils.getSanitizedName(node.inputs.items[1].name), // Input indices tensor
+        axis, // Selected axis
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
+    });
+}
+
 // ----------------------------------- SHAPE inference -----------------------------------
 
 pub fn compute_output_shape(readyNode: *ReadyNode) !void {

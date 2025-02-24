@@ -90,31 +90,66 @@ pub inline fn lean_reduce_mean(
     _: bool, // keepdims (unused since output shape is pre-determined)
     noop_with_empty_axes: bool,
 ) !void {
+    std.debug.print("\n[DEBUG] lean_reduce_mean:", .{});
+    std.debug.print("\n  Input tensor shape: ", .{});
+    for (input_tensor.shape) |s| std.debug.print("{d} ", .{s});
+    std.debug.print("\n  Output tensor shape: ", .{});
+    for (output_tensor.shape) |s| std.debug.print("{d} ", .{s});
+    std.debug.print("\n  Axes: ", .{});
+    if (axes) |a| {
+        if (a.len == 0) {
+            std.debug.print("empty", .{});
+        } else {
+            for (a) |axis| std.debug.print("{d} ", .{axis});
+        }
+    } else {
+        std.debug.print("null", .{});
+    }
+    std.debug.print("\n  noop_with_empty_axes: {}", .{noop_with_empty_axes});
+
     // Handle empty axes case
     if (axes == null or axes.?.len == 0) {
         if (noop_with_empty_axes) {
+            std.debug.print("\n  Performing identity operation (noop)", .{});
             // Act as identity operation
             @memcpy(output_tensor.data, input_tensor.data);
             return;
         }
         // Reduce over all dimensions
+        std.debug.print("\n  Reducing over all dimensions", .{});
         var sum: T = 0;
         for (input_tensor.data) |val| {
             sum += val;
         }
         output_tensor.data[0] = sum / @as(T, @floatFromInt(input_tensor.size));
+        std.debug.print("\n  Final result (all dims): {d}", .{output_tensor.data[0]});
         return;
     }
 
-    // Convert negative axes to positive
-    var actual_axes = try input_tensor.allocator.alloc(usize, axes.?.len);
-    defer input_tensor.allocator.free(actual_axes);
+    // Validate axes
+    if (axes.?.len == 0) return TensorMathError.InvalidAxes;
+    for (axes.?) |axis| {
+        const abs_axis = if (axis < 0)
+            @as(i64, @intCast(input_tensor.shape.len)) + axis
+        else
+            axis;
+        if (abs_axis < 0 or abs_axis >= input_tensor.shape.len) {
+            std.debug.print("\n  Error: Axis {d} out of bounds for tensor of rank {d}", .{ axis, input_tensor.shape.len });
+            return TensorMathError.InvalidAxes;
+        }
+    }
 
+    // Convert negative axes to positive
+    var actual_axes = try pkg_allocator.alloc(usize, axes.?.len);
+    defer pkg_allocator.free(actual_axes);
+
+    std.debug.print("\n  Converting axes to positive indices:", .{});
     for (axes.?, 0..) |axis, i| {
         actual_axes[i] = if (axis < 0)
             @intCast(@as(i64, @intCast(input_tensor.shape.len)) + axis)
         else
             @intCast(axis);
+        std.debug.print("\n    axis {d} -> {d}", .{ axis, actual_axes[i] });
     }
 
     // Calculate the size of dimensions being reduced
@@ -122,13 +157,14 @@ pub inline fn lean_reduce_mean(
     for (actual_axes) |axis| {
         reduce_size *= input_tensor.shape[axis];
     }
+    std.debug.print("\n  Total elements to reduce per output: {d}", .{reduce_size});
 
     // Initialize output values to 0
     @memset(output_tensor.data, 0);
 
     // Calculate strides for input tensor
-    var input_strides = try input_tensor.allocator.alloc(usize, input_tensor.shape.len);
-    defer input_tensor.allocator.free(input_strides);
+    var input_strides = try pkg_allocator.alloc(usize, input_tensor.shape.len);
+    defer pkg_allocator.free(input_strides);
 
     var stride: usize = 1;
     var i = input_tensor.shape.len;
@@ -149,8 +185,8 @@ pub inline fn lean_reduce_mean(
         // Calculate base index from non-reduced dimensions
         var non_reduced_dim: usize = 0;
         var output_dim: usize = 0;
-        var remaining_dims = try input_tensor.allocator.alloc(usize, input_tensor.shape.len);
-        defer input_tensor.allocator.free(remaining_dims);
+        var remaining_dims = try pkg_allocator.alloc(usize, input_tensor.shape.len);
+        defer pkg_allocator.free(remaining_dims);
         var num_remaining: usize = 0;
 
         // First pass: collect non-reduced dimensions in order
@@ -162,8 +198,8 @@ pub inline fn lean_reduce_mean(
         }
 
         // Calculate output strides
-        var output_strides = try input_tensor.allocator.alloc(usize, num_remaining);
-        defer input_tensor.allocator.free(output_strides);
+        var output_strides = try pkg_allocator.alloc(usize, num_remaining);
+        defer pkg_allocator.free(output_strides);
         var out_stride: usize = 1;
         var stride_idx = num_remaining;
         while (stride_idx > 0) {
@@ -192,10 +228,10 @@ pub inline fn lean_reduce_mean(
         std.debug.print("\n  Reduction info: count={d}, base_idx={d}", .{ count, base_idx });
 
         // Calculate the size and stride for each reduced dimension
-        var reduced_sizes = try input_tensor.allocator.alloc(usize, actual_axes.len);
-        defer input_tensor.allocator.free(reduced_sizes);
-        var reduced_strides = try input_tensor.allocator.alloc(usize, actual_axes.len);
-        defer input_tensor.allocator.free(reduced_strides);
+        var reduced_sizes = try pkg_allocator.alloc(usize, actual_axes.len);
+        defer pkg_allocator.free(reduced_sizes);
+        var reduced_strides = try pkg_allocator.alloc(usize, actual_axes.len);
+        defer pkg_allocator.free(reduced_strides);
 
         // Store sizes and strides in reverse order to match the memory layout
         for (actual_axes, 0..) |axis, axis_idx| {
