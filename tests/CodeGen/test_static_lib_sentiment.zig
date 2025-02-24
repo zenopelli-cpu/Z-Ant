@@ -107,6 +107,7 @@ test "Static Library - MNIST Prediction Test" {
     );
 
     std.debug.print("\nPrediction results:\n", .{});
+    std.debug.print("{} ", .{result[0]});
 }
 
 test "Static Library - MNIST Error Cases" {
@@ -124,6 +125,8 @@ test "Static Library - MNIST Error Cases" {
             2,
             &result,
         );
+        //print result
+
     }
 
     // Test with empty input

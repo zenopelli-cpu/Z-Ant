@@ -295,7 +295,7 @@ pub fn build(b: *std.Build) void {
 
     const static_lib = b.addStaticLibrary(.{
         .name = "static_lib",
-        .root_source_file = b.path("src/codeGen/static_lib_mnist_hard.zig"),
+        .root_source_file = b.path("src/codeGen/static_lib_sentiment.zig"),
         .target = target,
         .optimize = optimize,
     });
