@@ -43,7 +43,7 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     //try write_debug(writer);
 
     // Generate prediction function code
-    try coddeGenPredict.writePredict(writer, model);
+    try coddeGenPredict.writePredict(writer);
 }
 
 /// Writes the required library imports to the generated Zig file.
@@ -59,6 +59,7 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
 fn write_libraries(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
+        \\ const std = @import("std");
         \\ const Tensor = @import("tensor").Tensor;
         \\ const tensMath = @import("tensor_math");
         \\ const pkgAllocator = @import("pkgAllocator");
