@@ -11,21 +11,37 @@ const codeGen_mathHandl = @import("codeGen_math_handler.zig");
 const codeGen_predict = @import("codeGen_predict.zig");
 
 const codegen_options = @import("codegen_options");
+const globals = @import("globals.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const gpa_allocator = gpa.allocator();
 
-    var model1 = try onnx.parseFromFile(gpa_allocator, "datasets/models/Sentiment/sentiment_analysis_it.onnx");
-    defer model1.deinit(gpa_allocator);
+    var model = try onnx.parseFromFile(gpa_allocator, "datasets/models/mnist-8/mnist-8.onnx");
+    defer model.deinit(gpa_allocator);
 
-    onnx.printStructure(&model1);
+    //onnx.printStructure(&model);
 
     const file_path = "src/codeGen/static_lib.zig";
     var file = try std.fs.cwd().createFile(file_path, .{});
     std.debug.print("\n .......... file created, path:{s}", .{file_path});
     defer file.close();
 
-    try codeGen.writeZigFile(file, model1);
+    //create the hashMap
+    try globals.populateReadyTensorHashMap(model);
+
+    //DEBUG
+    //utils.printTensorHashMap(tensorHashMap);
+
+    //DEBUG
+    //try utils.printOperations(model.graph.?);
+
+    //create the ReadyGraph
+    try globals.populateReadyGraph(model);
+
+    //DEBUG
+    //try utils.printNodeList(readyGraph);
+
+    try codeGen.writeZigFile(file, model);
 }
