@@ -286,9 +286,9 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         } else if (std.mem.indexOf(u8, attr.name, "beta")) |_| {
             if (attr.type == AttributeType.FLOAT) beta = attr.f else return error.GemmBetaNotFLOAT;
         } else if (std.mem.indexOf(u8, attr.name, "transA")) |_| {
-            if (attr.type == AttributeType.INT) transA = if (attr.i != 0) false else true else return error.GemmTransANotINT;
+            if (attr.type == AttributeType.INT) transA = if (attr.i != 0) true else false else return error.GemmTransANotINT;
         } else if (std.mem.indexOf(u8, attr.name, "transB")) |_| {
-            if (attr.type == AttributeType.INT) transB = if (attr.i != 0) false else true else return error.GemmTransBNotINT;
+            if (attr.type == AttributeType.INT) transB = if (attr.i != 0) true else false else return error.GemmTransBNotINT;
         }
     }
 
@@ -303,15 +303,15 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    tensMath.gemm_lean(T, &tensor_{s}, @constCast(&tensor_{s}), {s}, {}, {}, {}, {}, &tensor_{s} )
+        \\    tensMath.gemm_lean(T, &tensor_{s}, @constCast(&tensor_{s}), {s}, {}, {}, {s}, {s}, &tensor_{s} )
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
         c_tensor_string,
         alpha,
         beta,
-        transA,
-        transB,
+        if (transA) "true" else "false",
+        if (transB) "true" else "false",
         try utils.getSanitizedName(node.outputs.items[0].name), // Output
     });
 }
