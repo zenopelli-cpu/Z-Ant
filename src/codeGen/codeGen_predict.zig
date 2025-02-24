@@ -247,7 +247,7 @@ fn write_OutputTensor(writer: std.fs.File.Writer, name: []const u8, size: i64) !
     try writer.print(
         \\
         \\var array_{s}: [{}]T = [_]T{{0}} ** {};
-        \\var tensor_{s} = Tensor(T).fromConstBuffer( &array_{s}, &shape_tensor_{s});
+        \\var tensor_{s} = Tensor(T).fromConstBuffer( &allocator, &array_{s}, &shape_tensor_{s});
     , .{ sanitized_name, size, size, sanitized_name, sanitized_name, sanitized_name });
 }
 

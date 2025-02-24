@@ -606,6 +606,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Concat")) {
         // TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Constant")) {
         //https://onnx.ai/onnx/operators/onnx__Constant.html
         try compute_constant_output_shape(readyNode);
@@ -617,17 +618,21 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         readyNode.outputs.items[0].shape = readyNode.inputs.items[1].shape;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Flatten")) {
         // TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
         // TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gemm")) {
         //https://onnx.ai/onnx/operators/onnx__Gemm.html
         try compute_gemm_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LeakyRelu")) {
         // TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LogSoftmax")) {
         // TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MatMul")) {
-        // TODO
+        try compute_mul_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MaxPool")) {
         try compute_maxPool_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mul")) {
@@ -635,6 +640,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         try compute_mul_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "OneHot")) {
         // TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "ReduceMean")) {
         try compute_reduceMean_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Relu")) {
@@ -645,21 +651,28 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         try compute_reshape_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Resize")) {
         // TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Shape")) {
         // TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sigmoid")) {
-        // TODO
+        //TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Softmax")) {
         //https://onnx.ai/onnx/operators/onnx__Softmax.html
         try compute_softmax_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Slice")) {
         // TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Split")) {
         // TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sub")) {
         // TODO
+        return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Transpose")) {
         // TODO
+        return error.OperationWIP;
     } else {
         std.debug.print("\n\n ERROR! output shape computation for {s} is not available in codeGen_math_handler.compute_output_shape() \n\n", .{readyNode.nodeProto.op_type});
         return error.OperationNotSupported;
@@ -703,16 +716,45 @@ inline fn compute_gemm_output_shape(readyNode: *ReadyNode) !void {
     readyNode.outputs.items[0].shape = readyNode.inputs.items[2].shape;
 }
 
-inline fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
-    std.debug.print("\n====== compute_mul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    std.debug.print("\n input_a_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
-    std.debug.print("\n input_b_shape: []i64 = {any}", .{readyNode.inputs.items[1].shape});
+fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
+    const input_a = readyNode.inputs.items[0];
+    const input_b = readyNode.inputs.items[1];
 
-    const shape_len = readyNode.outputs.items[0].shape.len;
-    var newShape = try allocator.alloc(i64, shape_len);
-    @memcpy(newShape, readyNode.inputs.items[0].shape);
-    newShape[shape_len - 1] = readyNode.inputs.items[1].shape[shape_len - 1];
-    readyNode.outputs.items[0].shape = newShape;
+    std.debug.print("\n====== compute_mul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    std.debug.print("\n input_a_shape: []i64 = {any}", .{input_a.shape});
+    std.debug.print("\n input_b_shape: []i64 = {any}", .{input_b.shape});
+
+    if (input_a.shape.len < 2 or input_b.shape.len < 2) {
+        return error.InvalidShape;
+    }
+
+    const a_rows = input_a.shape[input_a.shape.len - 2];
+    const a_cols = input_a.shape[input_a.shape.len - 1];
+    const b_rows = input_b.shape[input_b.shape.len - 2];
+    const b_cols = input_b.shape[input_b.shape.len - 1];
+
+    if (a_cols != b_rows) {
+        return error.ShapeMismatch;
+    }
+
+    var output_shape: std.ArrayList(i64) = std.ArrayList(i64).init(allocator);
+    defer output_shape.deinit();
+
+    // Broadcast the batch dimensions
+    const a_batch = input_a.shape.len - 2;
+    const b_batch = input_b.shape.len - 2;
+    const batch_dims = if (a_batch < b_batch) a_batch else b_batch;
+
+    for (0..batch_dims) |i| {
+        try output_shape.append(if (input_a.shape[i] > input_b.shape[i]) input_a.shape[i] else input_b.shape[i]);
+    }
+
+    // Append output matrix dimensions
+    try output_shape.append(a_rows);
+    try output_shape.append(b_cols);
+
+    // Update the shape of the output tensor
+    readyNode.outputs.items[0].shape = try output_shape.toOwnedSlice();
 }
 
 inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {

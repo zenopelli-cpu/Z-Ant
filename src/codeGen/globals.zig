@@ -148,26 +148,23 @@ pub fn addToTensorHashMap(name: []const u8) !void {
 
         //if input
         if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "input") != null) {
-            const readyTensor: ReadyTensor = try ReadyTensor.createInput(name);
             //add the readyTensor to the HashMap
-            try tensorHashMap.put(name, readyTensor);
+            try tensorHashMap.put(name, try ReadyTensor.createInput(name));
             std.debug.print("\n ----- Tensor {s} is INPUT!! ", .{name});
             return;
         }
         //if input
         if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "constant") != null) {
-            const readyTensor: ReadyTensor = try ReadyTensor.createConstant(name);
             //add the readyTensor to the HashMap
-            try tensorHashMap.put(name, readyTensor);
+            try tensorHashMap.put(name, try ReadyTensor.createConstant(name));
             std.debug.print("\n ----- Tensor {s} is CONSTANT!! ", .{name});
             return;
         }
 
         //else default
 
-        const readyTensor: ReadyTensor = try ReadyTensor.createLink(name);
         //add the readyTensor to the HashMap
-        try tensorHashMap.put(name, readyTensor);
+        try tensorHashMap.put(name, try ReadyTensor.createLink(name));
         std.debug.print("\n ----- Tensor {s} is LINK!! ", .{name});
     }
 }
@@ -179,7 +176,6 @@ pub fn populateReadyGraph(model: ModelOnnx) !void {
 
     for (graph.nodes) |node_ptr| { //for each NodeProto in the GraphProto
 
-        const readyNode = try ReadyNode.create(node_ptr);
-        try readyGraph.append(readyNode);
+        try readyGraph.append(try ReadyNode.create(node_ptr));
     }
 }
