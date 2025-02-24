@@ -555,49 +555,84 @@ fn transpose(comptime T: type, t: *Tensor(T), perms: []usize) !Tensor(T) {
 
 /// Given a 4D tensor it returns the tensor with the last 2 dimensions transposed. Operates on both data and shape, does not modify self, used by gemm.
 pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T) {
+    std.debug.print("\n[DEBUG] transposeLastTwo:", .{});
+    std.debug.print("\n  Input tensor shape: ", .{});
+    for (tensor.shape) |s| std.debug.print("{d} ", .{s});
 
-    // Veryfing correct shape
-    if (tensor.shape.len != 4) {
+    // Verifying correct shape
+    if (tensor.shape.len != 2 and tensor.shape.len != 4) {
+        std.debug.print("\n  Error: Expected 2D or 4D tensor, got {d}D", .{tensor.shape.len});
         return TensorMathError.InputTensorsWrongShape;
     }
 
-    const batch = tensor.shape[0];
-    const channel = tensor.shape[1];
-    const rows = tensor.shape[2];
-    const cols = tensor.shape[3];
-    const total = batch * channel * rows * cols;
+    var rows: usize = undefined;
+    var cols: usize = undefined;
+    var total: usize = undefined;
+    var newShape: []usize = undefined;
 
-    // New shape
-    const newShape = try pkg_allocator.alloc(usize, 4);
-    errdefer pkg_allocator.free(newShape);
-    newShape[0] = batch;
-    newShape[1] = channel;
-    newShape[2] = cols;
-    newShape[3] = rows;
+    if (tensor.shape.len == 2) {
+        rows = tensor.shape[0];
+        cols = tensor.shape[1];
+        total = rows * cols;
+        newShape = try pkg_allocator.alloc(usize, 2);
+        errdefer pkg_allocator.free(newShape);
+        newShape[0] = cols;
+        newShape[1] = rows;
+    } else { // 4D case
+        const batch = tensor.shape[0];
+        const channel = tensor.shape[1];
+        rows = tensor.shape[2];
+        cols = tensor.shape[3];
+        total = batch * channel * rows * cols;
+        newShape = try pkg_allocator.alloc(usize, 4);
+        errdefer pkg_allocator.free(newShape);
+        newShape[0] = batch;
+        newShape[1] = channel;
+        newShape[2] = cols;
+        newShape[3] = rows;
+    }
 
-    // New data
-    const outData = try tensor.allocator.alloc(T, total);
-    errdefer tensor.allocator.free(outData);
+    std.debug.print("\n  Rows: {d}, Cols: {d}, Total: {d}", .{ rows, cols, total });
+    std.debug.print("\n  New shape: ", .{});
+    for (newShape) |s| std.debug.print("{d} ", .{s});
 
-    // Traspose the elements within the matrix
-    for (0..batch) |b| {
-        for (0..channel) |c| {
-            for (0..rows) |i| {
-                for (0..cols) |j| {
-                    const index_in = (((b * channel) + c) * rows + i) * cols + j;
-                    const index_out = (((b * channel) + c) * cols + j) * rows + i;
-                    outData[index_out] = tensor.data[index_in];
+    // Create a non-const copy of the input data using pkg_allocator
+    const outData = try pkg_allocator.alloc(T, total);
+    errdefer pkg_allocator.free(outData);
+
+    std.debug.print("\n  Transposing data...", .{});
+
+    if (tensor.shape.len == 2) {
+        // Simple 2D transpose - Fixed indexing
+        for (0..rows) |i| {
+            for (0..cols) |j| {
+                outData[j * rows + i] = tensor.data[i * cols + j];
+            }
+        }
+    } else {
+        // 4D transpose of last two dimensions
+        const batch = tensor.shape[0];
+        const channel = tensor.shape[1];
+        for (0..batch) |b| {
+            for (0..channel) |c| {
+                for (0..rows) |i| {
+                    for (0..cols) |j| {
+                        const index_in = (((b * channel) + c) * rows + i) * cols + j;
+                        const index_out = (((b * channel) + c) * cols + j) * rows + i;
+                        outData[index_out] = tensor.data[index_in];
+                    }
                 }
             }
         }
     }
 
-    // Build tensor and return
+    std.debug.print("\n  Transpose complete", .{});
+
     return Tensor(T){
         .data = outData,
         .size = total,
         .shape = newShape,
-        .allocator = tensor.allocator,
+        .allocator = &pkg_allocator,
     };
 }
 
@@ -920,7 +955,6 @@ pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []usize, a
 /// The shape of the output tensor is the same as the shape of the data tensor, with the axis dimension replaced with the shape of the indices tensor.
 /// The output tensor is created by copying elements from the input tensor using the indices tensor.
 pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), selected_axis: isize) !Tensor(T) {
-
     // Scalar data tensor is not allowed
     if (data.shape.len == 0) {
         return TensorError.InvalidRank;
@@ -935,8 +969,7 @@ pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), se
     // If axis is negative, convert it to a positive index
     const axis: usize = @intCast(if (selected_axis < 0) number_dimensions + selected_axis else selected_axis);
 
-    // All index values must be within bounds [0, s-1] where s is the lenght of the chosen axis.
-    // See note above for details on indices bound values
+    // All index values must be within bounds [0, s-1] where s is the length of the chosen axis
     for (0..indices.size) |i| {
         if (indices.data[i] >= data.shape[axis] or indices.data[i] < 0) {
             return TensorError.IndexOutOfBounds;
@@ -945,27 +978,35 @@ pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), se
 
     // Calculate the shape of the output tensor:
     // [data.shape[0..axis], indices.shape..., data.shape[axis+1..]]
-    const output_shape_len = data.shape.len - 1 + indices.shape.len;
-    const output_shape = try data.allocator.alloc(usize, output_shape_len);
-    defer data.allocator.free(output_shape);
+    const output_shape_len = data.shape.len + indices.shape.len - 1;
+    const output_shape = try pkg_allocator.alloc(usize, output_shape_len);
+    defer pkg_allocator.free(output_shape);
+    errdefer pkg_allocator.free(output_shape);
 
     // Copy the dimensions before the axis
     for (0..axis) |i| {
         output_shape[i] = data.shape[i];
     }
 
-    // Copy the indices tensor's shape
-    for (0..indices.shape.len) |i| {
-        output_shape[axis + i] = indices.shape[i];
+    // Copy indices shape
+    var indices_idx: usize = 0;
+    while (indices_idx < indices.shape.len) : (indices_idx += 1) {
+        output_shape[axis + indices_idx] = indices.shape[indices_idx];
     }
 
     // Copy the dimensions after the axis
-    for (0..(data.shape.len - axis - 1)) |i| {
-        output_shape[axis + indices.shape.len + i] = data.shape[axis + 1 + i];
+    for (axis + 1..data.shape.len) |i| {
+        output_shape[axis + indices.shape.len + (i - axis - 1)] = data.shape[i];
+    }
+
+    // Calculate total size
+    var total_size: usize = 1;
+    for (output_shape) |dim| {
+        total_size *= dim;
     }
 
     // Create output tensor
-    var output = try Tensor(T).fromShape(data.allocator, output_shape);
+    var output = try Tensor(T).fromShape(&pkg_allocator, output_shape);
     errdefer output.deinit();
 
     try lean_gather(T, data, indices, selected_axis, &output);
@@ -976,6 +1017,16 @@ pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), se
 /// Lean version of gather
 /// NOTE: (IMPORTANT FOR CODE GEN) according to onnx standard, values in indices tensor can be negative and if so they are converted to positive values by adding the size of the axis pointed dimension of the data tensor. For performance and code clarity reasons (check + double casting) we support only positive indices instead, remove this note and edit "discrepancies from the standard onnx" if this is changed in the future.
 pub fn lean_gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), selected_axis: isize, output: *Tensor(T)) !void {
+    std.debug.print("\n[GATHER DEBUG] Data shape: ", .{});
+    for (data.shape) |s| std.debug.print("{d} ", .{s});
+
+    std.debug.print("\n[GATHER DEBUG] Indices shape: ", .{});
+    for (indices.shape) |s| std.debug.print("{d} ", .{s});
+
+    std.debug.print("\n[GATHER DEBUG] Output shape: ", .{});
+    for (output.shape) |s| std.debug.print("{d} ", .{s});
+
+    std.debug.print("\n[GATHER DEBUG] Selected axis: {d}\n", .{selected_axis});
 
     //If axis is negative, convert it to a positive index
     const number_dimensions: isize = @intCast(data.shape.len);
@@ -989,9 +1040,10 @@ pub fn lean_gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize
 
     var inner_size: usize = 1;
     for ((axis + 1)..data.shape.len) |i| {
-        std.debug.print("\ninner_size = {d}\ndata.shape[{d}] = {d}", .{ inner_size, i, data.shape[i] });
         inner_size *= data.shape[i];
     }
+
+    std.debug.print("[GATHER DEBUG] Outer size: {d}, Inner size: {d}, Indices size: {d}\n", .{ outer_size, inner_size, indices_size });
 
     // Iterate over each "outer" segment
     for (0..outer_size) |outer_idx| {
@@ -1006,14 +1058,16 @@ pub fn lean_gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize
             // Calculate the starting offset in the output tensor
             const output_offset = (outer_idx * indices_size + idx) * inner_size;
 
-            // Debug Prints (optional, can be commented out after debugging)
-            // std.debug.print("Outer Index: {}, Gather Index: {}, Data Offset: {}, Output Offset: {}\n", .{ outer_idx, gather_idx, data_offset, output_offset });
-            // std.debug.print("Copying from input data[{}] = {}\n", .{ data_offset, data.data[data_offset] });
+            std.debug.print("[GATHER DEBUG] Outer idx: {d}, Gather idx: {d}, Data offset: {d}, Output offset: {d}\n", .{ outer_idx, gather_idx, data_offset, output_offset });
 
             // Perform the data copy using std.mem.copy
             @memcpy(output.data[output_offset .. output_offset + inner_size], data.data[data_offset .. data_offset + inner_size]);
 
-            // std.debug.print("Copied to output data[{}] = {}\n", .{ output_offset, output_data[output_offset] });
+            std.debug.print("[GATHER DEBUG] Copied data: ", .{});
+            for (data.data[data_offset .. data_offset + inner_size]) |val| {
+                std.debug.print("{d} ", .{val});
+            }
+            std.debug.print("\n", .{});
         }
     }
 }

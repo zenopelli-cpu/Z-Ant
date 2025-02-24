@@ -47,6 +47,7 @@ pub const TensorMathError = error{
     EmptyTensorList,
     DivisionError,
     InvalidPadding,
+    InvalidAxes,
 };
 
 /// Tensor errors
@@ -132,6 +133,7 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         TensorMathError.EmptyTensorList => "TensorMath: empty tensor list provided",
         TensorMathError.DivisionError => "TensorMath: division error encountered",
         TensorMathError.InvalidPadding => "TensorMath: invalid padding mode or values",
+        TensorMathError.InvalidAxes => "TensorMath: invalid axes",
 
         //TENSOR
         TensorError.TensorNotInitialized => "Tensor: tensor not initialized",
