@@ -9,7 +9,7 @@ const std = @import("std");
 const zant = @import("../../../zant.zig");
 
 const Tensor = zant.core.tensor.Tensor; // Import Tensor type
-const pkg_allocator = zant.utils.allocator;
+const pkg_allocator = zant.utils.allocator.allocator;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 const Converter = zant.utils.type_converter;
 

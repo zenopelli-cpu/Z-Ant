@@ -492,8 +492,7 @@ pub fn Tensor(comptime T: type) type {
         /// axes: Which axes to slice (if null, assumes [0,1,2,...])
         /// steps: Step sizes for each axis (if null, assumes all 1s)
         pub fn slice_onnx(self: *Tensor(T), starts: []const i64, ends: []const i64, axes: ?[]const i64, steps: ?[]const i64) !Tensor(T) {
-            const shapeMath = @import("tensor_m");
-            return shapeMath.slice_onnx(T, self, starts, ends, axes, steps);
+            return tMath.slice_onnx(T, self, starts, ends, axes, steps);
         }
 
         // Ensures the input shape is 4D by padding with 1s if necessary. Returns an error if the shape

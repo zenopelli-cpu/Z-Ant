@@ -62,9 +62,10 @@ fn write_libraries(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\ const std = @import("std");
-        \\ const Tensor = @import("tensor").Tensor;
-        \\ const tensMath = @import("tensor_math");
-        \\ const pkgAllocator = @import("pkgAllocator");
+        \\ const zant = @import("zant");
+        \\ const Tensor = zant.core.tensor.Tensor;
+        \\ const tensMath = zant.core.tensor.math_standard;
+        \\ const pkgAllocator = zant.utils.allocator;
         \\ const allocator = pkgAllocator.allocator;
         \\ const utils = @import("codeGen_utils.zig");
         \\
