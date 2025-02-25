@@ -1028,3 +1028,294 @@ test "gather along axis 0 and axis 1" {
     const result0 = TensMath.gather(u8, &inputTensor0, &indicesTensor0, invalidAxis);
     try std.testing.expect(result0 == TensorError.InvalidAxis);
 }
+
+test "get_slice_output_shape basic slicing" {
+    std.debug.print("\n     test: get_slice_output_shape basic slicing", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var input_shape = [_]usize{ 5, 5, 5 };
+    var starts = [_]i64{ 1, 1, 1 };
+    var ends = [_]i64{ 4, 4, 4 };
+
+    // Test basic slicing without steps or axes
+    {
+        const output_shape = try TensMath.get_slice_output_shape(&input_shape, &starts, &ends, null, null);
+        defer allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 3), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 3), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 3), output_shape[1]);
+        try std.testing.expectEqual(@as(usize, 3), output_shape[2]);
+    }
+
+    // Test with steps
+    {
+        var steps = [_]i64{ 2, 2, 2 };
+        const output_shape = try TensMath.get_slice_output_shape(&input_shape, &starts, &ends, null, &steps);
+        defer allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 3), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[1]);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[2]);
+    }
+
+    // Test with negative indices
+    {
+        var neg_starts = [_]i64{ -3, -3, -3 };
+        var neg_ends = [_]i64{ -1, -1, -1 };
+        const output_shape = try TensMath.get_slice_output_shape(&input_shape, &neg_starts, &neg_ends, null, null);
+        defer allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 3), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[1]);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[2]);
+    }
+}
+
+test "get_slice_output_shape with axes and negative steps" {
+    std.debug.print("\n     test: get_slice_output_shape with axes and negative steps", .{});
+    const allocator = pkgAllocator.allocator;
+
+    var input_shape = [_]usize{ 5, 5, 5 };
+
+    // Test with specific axes
+    {
+        var starts = [_]i64{1};
+        var ends = [_]i64{4};
+        var axes = [_]i64{1}; // Only slice along axis 1
+
+        const output_shape = try TensMath.get_slice_output_shape(&input_shape, &starts, &ends, &axes, null);
+        defer allocator.free(output_shape);
+
+        std.debug.print("\n     Specific axes test - output shape: ", .{});
+        for (output_shape) |dim| {
+            std.debug.print("{} ", .{dim});
+        }
+        std.debug.print("\n", .{});
+
+        try std.testing.expectEqual(@as(usize, 3), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 5), output_shape[0]); // unchanged
+        try std.testing.expectEqual(@as(usize, 3), output_shape[1]); // sliced
+        try std.testing.expectEqual(@as(usize, 5), output_shape[2]); // unchanged
+    }
+
+    // Test with negative steps
+    {
+        var starts = [_]i64{ 4, 4, 4 };
+        var ends = [_]i64{ 1, 1, 1 };
+        var steps = [_]i64{ -1, -1, -1 };
+
+        std.debug.print("\n     Negative steps test - inputs:", .{});
+        std.debug.print("\n     starts: {} {} {}", .{ starts[0], starts[1], starts[2] });
+        std.debug.print("\n     ends: {} {} {}", .{ ends[0], ends[1], ends[2] });
+        std.debug.print("\n     steps: {} {} {}", .{ steps[0], steps[1], steps[2] });
+
+        const output_shape = try TensMath.get_slice_output_shape(&input_shape, &starts, &ends, null, &steps);
+        defer allocator.free(output_shape);
+
+        std.debug.print("\n     Negative steps test - output shape: ", .{});
+        for (output_shape) |dim| {
+            std.debug.print("{} ", .{dim});
+        }
+        std.debug.print("\n", .{});
+
+        try std.testing.expectEqual(@as(usize, 3), output_shape.len);
+        // For negative steps, we expect:
+        // start = 4, end = 1, step = -1
+        // Elements will be: 4, 3, 2, 1 (4 elements)
+        try std.testing.expectEqual(@as(usize, 4), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 4), output_shape[1]);
+        try std.testing.expectEqual(@as(usize, 4), output_shape[2]);
+    }
+}
+
+test "get_slice_output_shape error cases" {
+    std.debug.print("\n     test: get_slice_output_shape error cases", .{});
+
+    var input_shape = [_]usize{ 5, 5, 5 };
+
+    // Test mismatched starts and ends lengths
+    {
+        var starts = [_]i64{ 1, 2 };
+        var ends = [_]i64{4};
+        try std.testing.expectError(TensorError.InvalidSliceIndices, TensMath.get_slice_output_shape(&input_shape, &starts, &ends, null, null));
+    }
+
+    // Test invalid axes length
+    {
+        var starts = [_]i64{ 1, 2 };
+        var ends = [_]i64{ 4, 5 };
+        var axes = [_]i64{1}; // Wrong length
+        try std.testing.expectError(TensorError.InvalidSliceIndices, TensMath.get_slice_output_shape(&input_shape, &starts, &ends, &axes, null));
+    }
+
+    // Test invalid steps
+    {
+        var starts = [_]i64{1};
+        var ends = [_]i64{4};
+        var steps = [_]i64{0}; // Zero step not allowed
+        try std.testing.expectError(TensorError.InvalidSliceStep, TensMath.get_slice_output_shape(&input_shape, &starts, &ends, null, &steps));
+    }
+
+    // Test axis out of bounds
+    {
+        var starts = [_]i64{1};
+        var ends = [_]i64{4};
+        var axes = [_]i64{5}; // Out of bounds
+        try std.testing.expectError(TensorError.InvalidSliceIndices, TensMath.get_slice_output_shape(&input_shape, &starts, &ends, &axes, null));
+    }
+}
+
+test "transpose_onnx basic operations" {
+    std.debug.print("\n     test: transpose_onnx basic operations", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Test Case 1: Basic 2D transpose without perm
+    {
+        // Create a 2x3 tensor
+        var inputArray = [_][3]f32{
+            [_]f32{ 1.0, 2.0, 3.0 },
+            [_]f32{ 4.0, 5.0, 6.0 },
+        };
+        var shape = [_]usize{ 2, 3 };
+        var tensor1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+        defer tensor1.deinit();
+
+        var outputArray = [_][2]f32{
+            [_]f32{ 0.0, 0.0 },
+            [_]f32{ 0.0, 0.0 },
+            [_]f32{ 0.0, 0.0 },
+        };
+        var outputShape = [_]usize{ 3, 2 };
+        var output1 = try Tensor(f32).fromArray(&allocator, &outputArray, &outputShape);
+        defer output1.deinit();
+
+        // Transpose without perm (should reverse dimensions)
+        try TensMath.transpose_onnx_lean(f32, &tensor1, null, &output1);
+
+        // Check shape
+        try std.testing.expectEqual(@as(usize, 3), output1.shape[0]);
+        try std.testing.expectEqual(@as(usize, 2), output1.shape[1]);
+
+        // Expected data after transpose: [1, 4, 2, 5, 3, 6]
+        const expected = [_]f32{ 1.0, 4.0, 2.0, 5.0, 3.0, 6.0 };
+        for (output1.data, 0..) |val, i| {
+            try std.testing.expectEqual(expected[i], val);
+        }
+    }
+
+    // Test Case 2: 3D tensor with custom permutation
+    {
+        // Create a 2x2x3 tensor
+        var inputArray = [_][2][3]f32{
+            [_][3]f32{
+                [_]f32{ 1.0, 2.0, 3.0 },
+                [_]f32{ 4.0, 5.0, 6.0 },
+            },
+            [_][3]f32{
+                [_]f32{ 7.0, 8.0, 9.0 },
+                [_]f32{ 10.0, 11.0, 12.0 },
+            },
+        };
+        var shape = [_]usize{ 2, 2, 3 };
+        var tensor2 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+        defer tensor2.deinit();
+
+        var outputArray = [_][2][2]f32{
+            [_][2]f32{
+                [_]f32{ 0.0, 0.0 },
+                [_]f32{ 0.0, 0.0 },
+            },
+            [_][2]f32{
+                [_]f32{ 0.0, 0.0 },
+                [_]f32{ 0.0, 0.0 },
+            },
+            [_][2]f32{
+                [_]f32{ 0.0, 0.0 },
+                [_]f32{ 0.0, 0.0 },
+            },
+        };
+        var outputShape = [_]usize{ 3, 2, 2 };
+        var output2 = try Tensor(f32).fromArray(&allocator, &outputArray, &outputShape);
+        defer output2.deinit();
+
+        // Transpose with perm [2, 1, 0]
+        const perm = [_]usize{ 2, 1, 0 };
+        try TensMath.transpose_onnx_lean(f32, &tensor2, &perm, &output2);
+
+        // Check shape
+        try std.testing.expectEqual(@as(usize, 3), output2.shape[0]);
+        try std.testing.expectEqual(@as(usize, 2), output2.shape[1]);
+        try std.testing.expectEqual(@as(usize, 2), output2.shape[2]);
+
+        // Expected data after transpose with perm [2, 1, 0]
+        const expected = [_]f32{ 1.0, 7.0, 4.0, 10.0, 2.0, 8.0, 5.0, 11.0, 3.0, 9.0, 6.0, 12.0 };
+        for (output2.data, 0..) |val, i| {
+            try std.testing.expectEqual(expected[i], val);
+        }
+    }
+
+    // Test Case 3: Error handling - invalid permutation
+    {
+        var inputArray = [_][3]f32{
+            [_]f32{ 1.0, 2.0, 3.0 },
+            [_]f32{ 4.0, 5.0, 6.0 },
+        };
+        var shape = [_]usize{ 2, 3 };
+        var tensor3 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+        defer tensor3.deinit();
+
+        var outputArray = [_][2]f32{
+            [_]f32{ 0.0, 0.0 },
+            [_]f32{ 0.0, 0.0 },
+            [_]f32{ 0.0, 0.0 },
+        };
+        var outputShape = [_]usize{ 3, 2 };
+        var output3 = try Tensor(f32).fromArray(&allocator, &outputArray, &outputShape);
+        defer output3.deinit();
+
+        // Try with invalid permutation (wrong length)
+        const invalid_perm = [_]usize{ 0, 1, 2 }; // 3 values for 2D tensor
+        const result = TensMath.transpose_onnx_lean(f32, &tensor3, &invalid_perm, &output3);
+        try std.testing.expectError(TensorError.InvalidPermutation, result);
+    }
+}
+
+test "get_transpose_output_shape basic operations" {
+    std.debug.print("\n     test: get_transpose_output_shape basic operations", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Test Case 1: Basic 2D shape without perm
+    {
+        const input_shape = [_]usize{ 2, 3 };
+        const output_shape = try TensMath.get_transpose_output_shape(&input_shape, null);
+        defer allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 2), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 3), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[1]);
+    }
+
+    // Test Case 2: 3D shape with custom permutation
+    {
+        const input_shape = [_]usize{ 2, 3, 4 };
+        const perm = [_]usize{ 2, 0, 1 };
+        const output_shape = try TensMath.get_transpose_output_shape(&input_shape, &perm);
+        defer allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 3), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 4), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[1]);
+        try std.testing.expectEqual(@as(usize, 3), output_shape[2]);
+    }
+
+    // Test Case 3: Error handling - invalid permutation
+    {
+        const input_shape = [_]usize{ 2, 3 };
+        const invalid_perm = [_]usize{ 0, 1, 2 }; // 3 values for 2D shape
+        const result = TensMath.get_transpose_output_shape(&input_shape, &invalid_perm);
+        try std.testing.expectError(TensorError.InvalidPermutation, result);
+    }
+}

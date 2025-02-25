@@ -81,7 +81,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Softmax")) {
         try write_softmax(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Slice")) {
-        try writer.writeAll("// Handle Slice\n");
+        try write_slice(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Split")) {
         try writer.writeAll("// Handle Split\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sub")) {
@@ -89,7 +89,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sum")) {
         try write_sum(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Transpose")) {
-        try writer.writeAll("// Handle Transpose\n");
+        try write_transpose(writer, node);
     } else {
         return error.OperationNotSupported;
     }
@@ -555,6 +555,60 @@ inline fn write_sigmoid(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
+inline fn write_slice(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Slice.html
+    // INPUTS:
+    //      - input (heterogeneous) - T: Tensor of data to extract slices from.
+    //      - starts (heterogeneous) - T1: 1-D tensor of starting indices of corresponding axis in `axes`.
+    //      - ends (heterogeneous) - T1: 1-D tensor of ending indices (exclusive) of corresponding axis in `axes`.
+    //      - axes (heterogeneous) - T1: 1-D tensor of axes that `starts` and `ends` apply to.
+    //      - steps (heterogeneous) - T1: 1-D tensor of slice step of corresponding axis in `axes`.
+    // OUTPUTS:
+    //      - output (heterogeneous) - T: Sliced data tensor.
+
+    // First, get the sanitized names for all tensors
+    const input_name = try utils.getSanitizedName(node.inputs.items[0].name);
+    const starts_name = try utils.getSanitizedName(node.inputs.items[1].name);
+    const ends_name = try utils.getSanitizedName(node.inputs.items[2].name);
+    const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
+
+    // Handle optional axes and steps inputs
+    var axes_str = "null";
+    var steps_str = "null";
+
+    if (node.inputs.items.len > 3) {
+        const axes_name = try utils.getSanitizedName(node.inputs.items[3].name);
+        axes_str = try std.fmt.allocPrint(allocator, "&tensor_{s}.data", .{axes_name});
+    }
+    if (node.inputs.items.len > 4) {
+        const steps_name = try utils.getSanitizedName(node.inputs.items[4].name);
+        steps_str = try std.fmt.allocPrint(allocator, "&tensor_{s}.data", .{steps_name});
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.lean_slice_onnx(
+        \\        T, //type
+        \\        @constCast(&tensor_{s}), //input tensor
+        \\        &tensor_{s}.data, //starts
+        \\        &tensor_{s}.data, //ends
+        \\        {s}, //axes
+        \\        {s}, //steps
+        \\        &tensor_{s}, //output tensor
+        \\    )
+    , .{
+        input_name,
+        starts_name,
+        ends_name,
+        axes_str,
+        steps_str,
+        output_name,
+    });
+
+    if (axes_str.len > 4) allocator.free(axes_str);
+    if (steps_str.len > 4) allocator.free(steps_str);
+}
+
 inline fn write_softmax(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //node.inputs.items[0] -> input
     //node.outputs.items[0] -> output
@@ -598,38 +652,81 @@ inline fn write_sum(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     , .{try utils.getSanitizedName(node.outputs.items[0].name)});
 }
 
-inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    // https://onnx.ai/onnx/operators/onnx__Gather.html
+inline fn write_transpose(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Transpose.html
     // INPUTS:
-    //      - data (heterogeneous) - T: Tensor of rank r >= 1.
-    //      - indices (heterogeneous) - tensor(int64): Tensor of int64 indices, of any rank q.
+    //      - data (heterogeneous) - T: An input tensor.
     // OUTPUTS:
-    //      - output (heterogeneous) - T: Tensor of rank q + r - 1.
+    //      - transposed (heterogeneous) - T: Transposed output.
     // ATTRIBUTES:
-    //      - axis (int, default is 0): Which axis to gather on. Negative value means counting dimensions from the back.
+    //      - perm - INTS: A list of integers. By default, reverse the dimensions,
+    //        otherwise permute the axes according to the values given.
 
-    var axis: i64 = 0;
+    // Get the perm attribute if it exists
+    var perm_str = "null";
     for (node.nodeProto.attribute) |attr| {
-        if (std.mem.eql(u8, attr.name, "axis")) {
-            if (attr.type == AttributeType.INT) axis = attr.i;
+        if (std.mem.eql(u8, attr.name, "perm")) {
+            if (attr.type == AttributeType.INTS) {
+                perm_str = try utils.i64SliceToUsizeArrayString(attr.ints.?);
+            }
         }
     }
 
     _ = try writer.print(
         \\
-        \\    tensMath.gather_lean(
+        \\    tensMath.transpose_onnx_lean(
         \\        T, //type
-        \\        @constCast(&tensor_{s}), //data tensor
-        \\        &tensor_{s}, //indices tensor
-        \\        {}, //axis
+        \\        @constCast(&tensor_{s}), //input tensor
+        \\        {s}, //perm
         \\        &tensor_{s}, //output tensor
         \\    )
     , .{
-        try utils.getSanitizedName(node.inputs.items[0].name), // Input data tensor
-        try utils.getSanitizedName(node.inputs.items[1].name), // Input indices tensor
-        axis, // Selected axis
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor
+        perm_str, // Permutation array
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
     });
+}
+
+inline fn compute_transpose_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_transpose_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+
+    // Get the perm attribute if it exists
+    var perm: ?[]i64 = null;
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "perm")) {
+            if (attr.type == AttributeType.INTS) {
+                perm = attr.ints;
+            }
+        }
+    }
+
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+    std.debug.print("\n perm: []i64 = {any}", .{perm});
+
+    // If no perm is provided, reverse the dimensions
+    var output_shape = try allocator.alloc(i64, input_shape.len);
+    if (perm) |p| {
+        // Validate perm length
+        if (p.len != input_shape.len) {
+            return error.InvalidPermutation;
+        }
+        // Apply permutation
+        for (p, 0..) |axis, i| {
+            if (axis < 0 or axis >= @as(i64, @intCast(input_shape.len))) {
+                return error.InvalidPermutation;
+            }
+            output_shape[i] = input_shape[@intCast(axis)];
+        }
+    } else {
+        // Reverse dimensions
+        for (input_shape, 0..) |_, i| {
+            output_shape[i] = input_shape[input_shape.len - 1 - i];
+        }
+    }
+
+    readyNode.outputs.items[0].shape = output_shape;
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
 // ----------------------------------- SHAPE inference -----------------------------------
@@ -696,8 +793,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         //https://onnx.ai/onnx/operators/onnx__Softmax.html
         try compute_softmax_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Slice")) {
-        // TODO
-        return error.OperationWIP;
+        try compute_slice_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Split")) {
         // TODO
         return error.OperationWIP;
@@ -705,8 +801,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         // TODO
         return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Transpose")) {
-        // TODO
-        return error.OperationWIP;
+        try compute_transpose_output_shape(readyNode);
     } else {
         std.debug.print("\n\n ERROR! output shape computation for {s} is not available in codeGen_math_handler.compute_output_shape() \n\n", .{readyNode.nodeProto.op_type});
         return error.OperationNotSupported;
@@ -893,5 +988,42 @@ inline fn compute_reduceMean_output_shape(readyNode: *ReadyNode) !void {
             readyNode.outputs.items[0].shape = &[_]i64{1};
         }
     }
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_slice_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_slice_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    const starts = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
+    const ends = readyNode.inputs.items[2].tensorProto.?.int64_data.?;
+
+    var axes: ?[]i64 = null;
+    var steps: ?[]i64 = null;
+
+    // Get axes if provided (input 3)
+    if (readyNode.inputs.items.len > 3) {
+        axes = readyNode.inputs.items[3].tensorProto.?.int64_data.?;
+    }
+
+    // Get steps if provided (input 4)
+    if (readyNode.inputs.items.len > 4) {
+        steps = readyNode.inputs.items[4].tensorProto.?.int64_data.?;
+    }
+
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+    std.debug.print("\n starts: []i64 = {any}", .{starts});
+    std.debug.print("\n ends: []i64 = {any}", .{ends});
+    std.debug.print("\n axes: []i64 = {any}", .{axes});
+    std.debug.print("\n steps: []i64 = {any}", .{steps});
+
+    const output_shape = try tensorMath.get_slice_output_shape(
+        try utils.i64SliceToUsizeSlice(input_shape),
+        starts,
+        ends,
+        axes,
+        steps,
+    );
+
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(@constCast(&output_shape));
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
