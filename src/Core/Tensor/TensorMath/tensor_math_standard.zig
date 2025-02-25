@@ -90,6 +90,10 @@ pub const sum_tensor_list_lean = elementWise_math_lib.lean_sum_tensor_list;
 //--sub
 pub const sub_tensors = elementWise_math_lib.sub_tensors;
 
+//--shape
+pub const shape_onnx = shape_math_lib.shape_onnx;
+pub const shape_onnx_lean = shape_math_lib.lean_shape_onnx;
+pub const get_shape_output_shape = shape_math_lib.get_shape_output_shape;
 //--slice
 pub const slice_onnx = shape_math_lib.slice_onnx;
 pub const slice_onnx_lean = shape_math_lib.lean_slice_onnx;

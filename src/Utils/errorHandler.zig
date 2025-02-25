@@ -79,6 +79,7 @@ pub const TensorError = error{
     InvalidSplitSize,
     InvalidRank,
     InvalidPermutation,
+    ShapeMismatch,
 };
 
 /// A union type to represent any of the errors

@@ -1319,3 +1319,203 @@ test "get_transpose_output_shape basic operations" {
         try std.testing.expectError(TensorError.InvalidPermutation, result);
     }
 }
+
+test "shape_onnx basic operations" {
+    std.debug.print("\n     test: shape_onnx basic operations", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Test Case 1: Basic operation
+    {
+        var inputArray = [_][2][3]f32{
+            [_][3]f32{
+                [_]f32{ 1.0, 2.0, 3.0 },
+                [_]f32{ 4.0, 5.0, 6.0 },
+            },
+            [_][3]f32{
+                [_]f32{ 7.0, 8.0, 9.0 },
+                [_]f32{ 10.0, 11.0, 12.0 },
+            },
+        };
+        var shape = [_]usize{ 2, 2, 3 };
+        var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+        defer tensor.deinit();
+
+        var output = try TensMath.shape_onnx(f32, &tensor, null, null);
+        defer output.deinit();
+
+        // Check output shape
+        try std.testing.expectEqual(@as(usize, 1), output.shape.len);
+        try std.testing.expectEqual(@as(usize, 3), output.shape[0]);
+
+        // Check output data
+        try std.testing.expectEqual(@as(i64, 2), output.data[0]);
+        try std.testing.expectEqual(@as(i64, 2), output.data[1]);
+        try std.testing.expectEqual(@as(i64, 3), output.data[2]);
+    }
+
+    // Test Case 2: With start and end parameters
+    {
+        var inputArray = [_][2][3]f32{
+            [_][3]f32{
+                [_]f32{ 1.0, 2.0, 3.0 },
+                [_]f32{ 4.0, 5.0, 6.0 },
+            },
+            [_][3]f32{
+                [_]f32{ 7.0, 8.0, 9.0 },
+                [_]f32{ 10.0, 11.0, 12.0 },
+            },
+        };
+        var shape = [_]usize{ 2, 2, 3 };
+        var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+        defer tensor.deinit();
+
+        var output = try TensMath.shape_onnx(f32, &tensor, 1, 3);
+        defer output.deinit();
+
+        // Check output shape
+        try std.testing.expectEqual(@as(usize, 1), output.shape.len);
+        try std.testing.expectEqual(@as(usize, 2), output.shape[0]);
+
+        // Check output data
+        try std.testing.expectEqual(@as(i64, 2), output.data[0]);
+        try std.testing.expectEqual(@as(i64, 3), output.data[1]);
+    }
+}
+
+test "lean_shape_onnx basic operations" {
+    std.debug.print("\n     test: lean_shape_onnx basic operations", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Test Case 1: Basic operation with pre-allocated output tensor
+    {
+        var inputArray = [_][2][3]f32{
+            [_][3]f32{
+                [_]f32{ 1.0, 2.0, 3.0 },
+                [_]f32{ 4.0, 5.0, 6.0 },
+            },
+            [_][3]f32{
+                [_]f32{ 7.0, 8.0, 9.0 },
+                [_]f32{ 10.0, 11.0, 12.0 },
+            },
+        };
+        var shape = [_]usize{ 2, 2, 3 };
+        var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+        defer tensor.deinit();
+
+        var outputArray = [_]i64{ 0, 0, 0 };
+        var outputShape = [_]usize{3};
+        var output = try Tensor(i64).fromArray(&allocator, &outputArray, &outputShape);
+        defer output.deinit();
+
+        try TensMath.shape_onnx_lean(f32, &tensor, null, null, &output);
+
+        // Check output data
+        try std.testing.expectEqual(@as(i64, 2), output.data[0]);
+        try std.testing.expectEqual(@as(i64, 2), output.data[1]);
+        try std.testing.expectEqual(@as(i64, 3), output.data[2]);
+    }
+
+    // Test Case 2: Shape mismatch error
+    {
+        var inputArray = [_][2][3]f32{
+            [_][3]f32{
+                [_]f32{ 1.0, 2.0, 3.0 },
+                [_]f32{ 4.0, 5.0, 6.0 },
+            },
+            [_][3]f32{
+                [_]f32{ 7.0, 8.0, 9.0 },
+                [_]f32{ 10.0, 11.0, 12.0 },
+            },
+        };
+        var shape = [_]usize{ 2, 2, 3 };
+        var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+        defer tensor.deinit();
+
+        var outputArray = [_]i64{ 0, 0 };
+        var outputShape = [_]usize{2};
+        var output = try Tensor(i64).fromArray(&allocator, &outputArray, &outputShape);
+        defer output.deinit();
+
+        // Should return ShapeMismatch error
+        try std.testing.expectError(TensorError.ShapeMismatch, TensMath.shape_onnx_lean(f32, &tensor, null, null, &output));
+    }
+
+    // Test Case 3: With start and end parameters
+    {
+        var inputArray = [_][2][3]f32{
+            [_][3]f32{
+                [_]f32{ 1.0, 2.0, 3.0 },
+                [_]f32{ 4.0, 5.0, 6.0 },
+            },
+            [_][3]f32{
+                [_]f32{ 7.0, 8.0, 9.0 },
+                [_]f32{ 10.0, 11.0, 12.0 },
+            },
+        };
+        var shape = [_]usize{ 2, 2, 3 };
+        var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+        defer tensor.deinit();
+
+        var outputArray = [_]i64{ 0, 0 };
+        var outputShape = [_]usize{2};
+        var output = try Tensor(i64).fromArray(&allocator, &outputArray, &outputShape);
+        defer output.deinit();
+
+        try TensMath.shape_onnx_lean(f32, &tensor, 1, 3, &output);
+
+        // Check output data
+        try std.testing.expectEqual(@as(i64, 2), output.data[0]);
+        try std.testing.expectEqual(@as(i64, 3), output.data[1]);
+    }
+}
+
+// ... existing code ...
+
+test "get_shape_output_shape" {
+    const testing = std.testing;
+
+    // Test case 1: Basic shape without start/end
+    {
+        const input_shape = [_]usize{ 2, 3, 4 };
+        const result = try TensMath.get_shape_output_shape(&input_shape, null, null);
+        defer pkgAllocator.allocator.free(result);
+        try testing.expectEqual(@as(usize, 1), result.len);
+        try testing.expectEqual(@as(usize, 3), result[0]); // Should output [3] since no slicing
+    }
+
+    // Test case 2: Shape with start parameter
+    {
+        const input_shape = [_]usize{ 2, 3, 4, 5 };
+        const result = try TensMath.get_shape_output_shape(&input_shape, 1, null);
+        defer pkgAllocator.allocator.free(result);
+        try testing.expectEqual(@as(usize, 1), result.len);
+        try testing.expectEqual(@as(usize, 3), result[0]); // Should output [3] for dimensions 1 to end
+    }
+
+    // Test case 3: Shape with both start and end
+    {
+        const input_shape = [_]usize{ 2, 3, 4, 5, 6 };
+        const result = try TensMath.get_shape_output_shape(&input_shape, 1, 3);
+        defer pkgAllocator.allocator.free(result);
+        try testing.expectEqual(@as(usize, 1), result.len);
+        try testing.expectEqual(@as(usize, 2), result[0]); // Should output [2] for dimensions 1 to 3
+    }
+
+    // Test case 4: Shape with negative indices
+    {
+        const input_shape = [_]usize{ 2, 3, 4, 5 };
+        const result = try TensMath.get_shape_output_shape(&input_shape, -2, -1);
+        defer pkgAllocator.allocator.free(result);
+        try testing.expectEqual(@as(usize, 1), result.len);
+        try testing.expectEqual(@as(usize, 1), result[0]); // Should output [1] for dimensions -2 to -1
+    }
+
+    // Test case 5: Empty range
+    {
+        const input_shape = [_]usize{ 2, 3, 4 };
+        const result = try TensMath.get_shape_output_shape(&input_shape, 2, 1);
+        defer pkgAllocator.allocator.free(result);
+        try testing.expectEqual(@as(usize, 1), result.len);
+        try testing.expectEqual(@as(usize, 0), result[0]); // Should output [0] for invalid range
+    }
+}
