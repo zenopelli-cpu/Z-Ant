@@ -818,8 +818,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         // TODO
         return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
-        // TODO
-        return error.OperationWIP;
+        try compute_gather_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gemm")) {
         //https://onnx.ai/onnx/operators/onnx__Gemm.html
         try compute_gemm_output_shape(readyNode);
@@ -1124,6 +1123,58 @@ inline fn compute_shape_output_shape(readyNode: *ReadyNode) !void {
 
     // Shape operator always outputs a 1D tensor
     readyNode.outputs.items[0].shape = try allocator.dupe(i64, &[_]i64{@intCast(output_size)});
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_gather_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_gather_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const data_shape = readyNode.inputs.items[0].shape;
+    const indices_shape = readyNode.inputs.items[1].shape;
+
+    // Get axis attribute, default is 0
+    var axis: i64 = 0;
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "axis")) {
+            if (attr.type == AttributeType.INT) axis = attr.i;
+        }
+    }
+
+    // Handle negative axis
+    if (axis < 0) {
+        axis += @as(i64, @intCast(data_shape.len));
+    }
+
+    std.debug.print("\n data_shape: []i64 = {any}", .{data_shape});
+    std.debug.print("\n indices_shape: []i64 = {any}", .{indices_shape});
+    std.debug.print("\n axis: {}", .{axis});
+
+    // Calculate output shape:
+    // - Take all dimensions from data before axis
+    // - Add all dimensions from indices
+    // - Take all dimensions from data after axis
+    const output_rank = data_shape.len + indices_shape.len - 1;
+    var output_shape = try allocator.alloc(i64, output_rank);
+
+    // Copy dimensions from data before axis
+    var out_idx: usize = 0;
+    for (0..@as(usize, @intCast(axis))) |i| {
+        output_shape[out_idx] = data_shape[i];
+        out_idx += 1;
+    }
+
+    // Copy dimensions from indices
+    for (indices_shape) |dim| {
+        output_shape[out_idx] = dim;
+        out_idx += 1;
+    }
+
+    // Copy remaining dimensions from data after axis
+    for (@as(usize, @intCast(axis + 1))..data_shape.len) |i| {
+        output_shape[out_idx] = data_shape[i];
+        out_idx += 1;
+    }
+
+    readyNode.outputs.items[0].shape = output_shape;
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
