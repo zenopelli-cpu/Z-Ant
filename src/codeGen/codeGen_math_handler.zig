@@ -524,13 +524,24 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             if (attr.type == AttributeType.INT) allowzer0 = attr.i != 0;
         }
     }
+    // const newShape_tensor_parameter193_reshape1_shapee: []usize = utils.i64SliceToUsizeSlice(tensor_pooling160_output_0_reshape0_shape.data) catch return;
+    // defer allocator.free(newShape_tensor_parameter193_reshape1_shapee);
+    _ = try writer.print(
+        \\
+        \\    const newShape_tensor_{s}: []usize = utils.i64SliceToUsizeSlice(tensor_{s}.data) catch return;
+        \\    defer allocator.free(newShape_tensor_{s});
+    , .{
+        try utils.getSanitizedName(node.inputs.items[1].name),
+        try utils.getSanitizedName(node.inputs.items[1].name),
+        try utils.getSanitizedName(node.inputs.items[1].name),
+    });
 
     _ = try writer.print(
         \\
         \\    tensMath.reshape_lean(
         \\        T, //type
         \\        @constCast(&tensor_{s}), //Input tensor
-        \\        utils.i64SliceToUsizeSlice(tensor_{s}.data) catch return, //New shape
+        \\        newShape_tensor_{s}, //New shape
         \\        {s}, //allowzero
         \\        &tensor_{s}, //Output tensor
         \\    )
