@@ -88,6 +88,9 @@ pub const mul_lean = elementWise_math_lib.mul_lean;
 //--div
 pub const div = elementWise_math_lib.div;
 pub const div_lean = elementWise_math_lib.div_lean;
+//--tanh
+pub const tanh = elementWise_math_lib.tanh;
+pub const tanh_lean = elementWise_math_lib.tanh_lean;
 
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");

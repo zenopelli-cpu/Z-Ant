@@ -13,6 +13,7 @@ pub const sum_tensors = lean_elementWise_math_lib.lean_sum_tensors;
 //pub const sub_tensors = lean_elementWise_math_lib.sub_tensors;
 pub const mul = lean_elementWise_math_lib.mul_lean;
 pub const div = lean_elementWise_math_lib.div_lean;
+pub const tanh = lean_elementWise_math_lib.tanh_lean;
 pub const sum_tensor_list = lean_elementWise_math_lib.lean_sum_tensor_list;
 
 // ---------- importing lean Convolution methods ----------

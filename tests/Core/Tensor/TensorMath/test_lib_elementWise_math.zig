@@ -4,6 +4,7 @@ const TensMath = @import("tensor_m");
 const Tensor = @import("tensor").Tensor;
 const TensorError = @import("errorHandler").TensorError;
 const TensorMathError = @import("errorHandler").TensorMathError;
+const TypeError = @import("errorHandler").TypeError;
 
 test "Sum two tensors on CPU architecture" {
     std.debug.print("\n     test: Sum two tensors on CPU architecture", .{});
@@ -380,4 +381,28 @@ test "Sum list of tensors - type promotion" {
     try std.testing.expectEqual(result.data[1], 200);
     try std.testing.expectEqual(result.data[2], 200);
     try std.testing.expectEqual(result.data[3], 200);
+}
+
+test "test tensor element-wise tanh with valid f32 tensor" {
+    std.debug.print("\n     test: tensor element-wise tanh with valid f32 tensor", .{});
+    const allocator = std.testing.allocator;
+
+    var inputArray: [2][3]f32 = [_][3]f32{
+        [_]f32{ 0.0, 1.0, -1.0 },
+        [_]f32{ 0.5, -0.5, 2.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    var result = try TensMath.tanh(f32, &tensor);
+    defer result.deinit();
+
+    const epsilon: f32 = 1e-6;
+    for (0..result.size) |i| {
+        const expected = std.math.tanh(tensor.data[i]);
+        try std.testing.expect(std.math.approxEqAbs(f32, result.data[i], expected, epsilon) == true);
+    }
 }
