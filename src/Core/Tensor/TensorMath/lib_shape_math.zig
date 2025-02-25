@@ -1503,3 +1503,128 @@ pub fn get_transpose_output_shape(input_shape: []const usize, perm: ?[]const usi
 
     return output_shape;
 }
+
+pub fn get_gather_output_shape(input_shape: []const usize, indices_shape: []const usize, selected_axis: isize) ![]usize {
+    // Scalar data tensor is not allowed
+    if (input_shape.len == 0) {
+        return TensorError.InvalidRank;
+    }
+
+    // Validate that the axis is within the tensor's dimensions
+    const number_dimensions: isize = @intCast(input_shape.len);
+    if (selected_axis >= number_dimensions or selected_axis < -1 * number_dimensions) {
+        return TensorError.InvalidAxis;
+    }
+
+    // If axis is negative, convert it to a positive index
+    const axis: usize = @intCast(if (selected_axis < 0) number_dimensions + selected_axis else selected_axis);
+
+    // Calculate the shape of the output tensor:
+    // [input_shape[0..axis], indices_shape..., input_shape[axis+1..]]
+    const output_shape_len = input_shape.len + indices_shape.len - 1;
+    const output_shape = try pkg_allocator.alloc(usize, output_shape_len);
+    errdefer pkg_allocator.free(output_shape);
+
+    // Copy the dimensions before the axis
+    for (0..axis) |i| {
+        output_shape[i] = input_shape[i];
+    }
+
+    // Copy indices shape
+    var indices_idx: usize = 0;
+    while (indices_idx < indices_shape.len) : (indices_idx += 1) {
+        output_shape[axis + indices_idx] = indices_shape[indices_idx];
+    }
+
+    // Copy the dimensions after the axis
+    for (axis + 1..input_shape.len) |i| {
+        output_shape[axis + indices_shape.len + (i - axis - 1)] = input_shape[i];
+    }
+
+    return output_shape;
+}
+
+/// Implements the ONNX Shape operator (https://onnx.ai/onnx/operators/onnx__Shape.html)
+/// Takes a tensor as input and outputs a 1D int64 tensor containing the shape of the input tensor.
+/// Optional start and end parameters can be used to compute a slice of the input tensor's shape.
+pub fn shape_onnx(comptime T: type, input: *const Tensor(T), start: ?i64, end: ?i64) !Tensor(i64) {
+    const rank = input.shape.len;
+
+    // Handle start parameter
+    var start_axis: i64 = start orelse 0;
+    if (start_axis < 0) start_axis += @as(i64, @intCast(rank));
+    start_axis = @max(0, @min(start_axis, @as(i64, @intCast(rank - 1))));
+
+    // Handle end parameter
+    var end_axis: i64 = end orelse @as(i64, @intCast(rank));
+    if (end_axis < 0) end_axis += @as(i64, @intCast(rank));
+    end_axis = @max(start_axis, @min(end_axis, @as(i64, @intCast(rank))));
+
+    // Calculate output size and create output tensor
+    const output_size = @max(0, end_axis - start_axis);
+    var shape = [_]usize{@intCast(output_size)};
+    const initial_data = try pkg_allocator.alloc(i64, output_size);
+    defer pkg_allocator.free(initial_data);
+    @memset(initial_data, 0);
+    var output = try Tensor(i64).fromArray(&pkg_allocator, initial_data, shape[0..]);
+    errdefer output.deinit();
+
+    // Copy shape values to output tensor
+    var i: usize = 0;
+    while (i < output_size) : (i += 1) {
+        const idx = @as(usize, @intCast(start_axis)) + i;
+        output.data[i] = @intCast(input.shape[idx]);
+    }
+
+    return output;
+}
+
+/// Lean version of shape_onnx that operates on an existing output tensor
+pub fn lean_shape_onnx(comptime T: type, input: *const Tensor(T), start: ?i64, end: ?i64, output: *Tensor(i64)) !void {
+    const rank = input.shape.len;
+
+    // Handle start parameter
+    var start_axis: i64 = start orelse 0;
+    if (start_axis < 0) start_axis += @as(i64, @intCast(rank));
+    start_axis = @max(0, @min(start_axis, @as(i64, @intCast(rank - 1))));
+
+    // Handle end parameter
+    var end_axis: i64 = end orelse @as(i64, @intCast(rank));
+    if (end_axis < 0) end_axis += @as(i64, @intCast(rank));
+    end_axis = @max(start_axis, @min(end_axis, @as(i64, @intCast(rank))));
+
+    // Calculate output size and validate output tensor shape
+    const output_size = @max(0, end_axis - start_axis);
+    if (output.shape.len != 1 or output.shape[0] != output_size) {
+        return TensorError.ShapeMismatch;
+    }
+
+    // Copy shape values to output tensor
+    var i: usize = 0;
+    while (i < output_size) : (i += 1) {
+        const idx = @as(usize, @intCast(start_axis)) + i;
+        output.data[i] = @intCast(input.shape[idx]);
+    }
+}
+
+/// Calculate the output shape for an ONNX Shape operation without performing the operation
+pub fn get_shape_output_shape(input_shape: []const usize, start: ?i64, end: ?i64) ![]usize {
+    const rank = input_shape.len;
+
+    // Handle start parameter
+    var start_axis: i64 = start orelse 0;
+    if (start_axis < 0) start_axis += @as(i64, @intCast(rank));
+    start_axis = @max(0, @min(start_axis, @as(i64, @intCast(rank - 1))));
+
+    // Handle end parameter
+    var end_axis: i64 = end orelse @as(i64, @intCast(rank));
+    if (end_axis < 0) end_axis += @as(i64, @intCast(rank));
+    end_axis = @max(start_axis, @min(end_axis, @as(i64, @intCast(rank))));
+
+    // Shape operator always outputs a 1D tensor
+    const output_size = @max(0, end_axis - start_axis);
+    var output_shape = try pkg_allocator.alloc(usize, 1);
+    output_shape[0] = @intCast(output_size);
+
+    return output_shape;
+}

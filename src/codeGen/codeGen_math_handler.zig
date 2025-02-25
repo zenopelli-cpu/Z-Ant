@@ -90,6 +90,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_sum(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Transpose")) {
         try write_transpose(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Shape")) {
+        try write_shape(writer, node);
     } else {
         return error.OperationNotSupported;
     }
@@ -849,8 +851,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         // TODO
         return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Shape")) {
-        // TODO
-        return error.OperationWIP;
+        try compute_shape_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sigmoid")) {
         //TODO
         return error.OperationWIP;
@@ -1091,4 +1092,75 @@ inline fn compute_slice_output_shape(readyNode: *ReadyNode) !void {
 
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_shape_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_shape_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+
+    // Get start and end attributes if they exist
+    var start: ?i64 = null;
+    var end: ?i64 = null;
+
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "start")) {
+            if (attr.type == AttributeType.INT) start = attr.i;
+        } else if (std.mem.eql(u8, attr.name, "end")) {
+            if (attr.type == AttributeType.INT) end = attr.i;
+        }
+    }
+
+    // Calculate output size
+    const rank = input_shape.len;
+    var start_axis: i64 = start orelse 0;
+    if (start_axis < 0) start_axis += @as(i64, @intCast(rank));
+    start_axis = @max(0, @min(start_axis, @as(i64, @intCast(rank - 1))));
+
+    var end_axis: i64 = end orelse @as(i64, @intCast(rank));
+    if (end_axis < 0) end_axis += @as(i64, @intCast(rank));
+    end_axis = @max(start_axis, @min(end_axis, @as(i64, @intCast(rank))));
+
+    const output_size = @max(0, end_axis - start_axis);
+
+    // Shape operator always outputs a 1D tensor
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, &[_]i64{@intCast(output_size)});
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn write_shape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Shape.html
+    // INPUTS:
+    //      - data (heterogeneous) - T: An input tensor.
+    // OUTPUTS:
+    //      - shape (heterogeneous) - T1: Shape of the input tensor
+    // ATTRIBUTES:
+    //      - start - INT: First dimension to take
+    //      - end - INT: Last dimension to take
+
+    var start: ?i64 = null;
+    var end: ?i64 = null;
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "start")) {
+            if (attr.type == AttributeType.INT) start = attr.i;
+        } else if (std.mem.eql(u8, attr.name, "end")) {
+            if (attr.type == AttributeType.INT) end = attr.i;
+        }
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.shape_onnx(
+        \\        T, //type
+        \\        @constCast(&tensor_{s}), //input tensor
+        \\        {s}, //start
+        \\        {s}, //end
+        \\        &tensor_{s}, //output tensor
+        \\    )
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name),
+        if (start) |s| try std.fmt.allocPrint(allocator, "{}", .{s}) else "null",
+        if (end) |e| try std.fmt.allocPrint(allocator, "{}", .{e}) else "null",
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
 }
