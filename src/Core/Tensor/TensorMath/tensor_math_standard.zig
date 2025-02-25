@@ -89,6 +89,12 @@ pub const sum_tensor_list = elementWise_math_lib.sum_tensor_list;
 pub const sum_tensor_list_lean = elementWise_math_lib.lean_sum_tensor_list;
 //--sub
 pub const sub_tensors = elementWise_math_lib.sub_tensors;
+
+//--slice
+pub const slice_onnx = shape_math_lib.slice_onnx;
+pub const slice_onnx_lean = shape_math_lib.lean_slice_onnx;
+pub const get_slice_output_shape = shape_math_lib.get_slice_output_shape;
+
 //TODO: pub const sub_tensors_lean = elementWise_math_lib.sub_tensors_lean;
 //--mul
 pub const lean_matmul = op_mat_mul.lean_mat_mul;
@@ -126,3 +132,8 @@ pub const sigmoid_backward = activation_math_lib.sigmoid_backward;
 pub const softmax = activation_math_lib.softmax;
 pub const softmax_lean = activation_math_lib.lean_softmax;
 pub const softmax_backward = activation_math_lib.softmax_backward;
+
+//Transpose
+pub const transpose_onnx = shape_math_lib.transpose_onnx;
+pub const transpose_onnx_lean = shape_math_lib.transpose_onnx_lean;
+pub const get_transpose_output_shape = shape_math_lib.get_transpose_output_shape;

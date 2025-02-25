@@ -78,6 +78,7 @@ pub const TensorError = error{
     UnsupportedDimension,
     InvalidSplitSize,
     InvalidRank,
+    InvalidPermutation,
 };
 
 /// A union type to represent any of the errors

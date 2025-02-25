@@ -175,6 +175,7 @@ pub fn build(b: *std.Build) void {
     // Add necessary imports for the tensor module.
     tensor_mod.addImport("tensor_m", tensor_math_mod);
     tensor_mod.addImport("errorHandler", errorHandler_mod);
+    tensor_mod.addImport("pkgAllocator", allocator_mod);
 
     // ************************************************TENSOR MATH DEPENDENCIES************************************************
     // Add necessary imports for the tensor math module.
