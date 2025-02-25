@@ -10,8 +10,9 @@
 //!
 //!
 const std = @import("std");
-const Tensor = @import("tensor").Tensor;
-const pkg_allocator = @import("pkgAllocator").allocator;
+const zant = @import("../../../zant.zig");
+const Tensor = zant.core.tensor.Tensor;
+const pkg_allocator = zant.utils.allocator;
 const lib = @import("lib.zig");
 
 var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;

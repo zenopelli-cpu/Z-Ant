@@ -1,6 +1,7 @@
 const std = @import("std");
+const zant = @import("zant");
 const predict_lib = @import("predict_lib");
-const Tensor = @import("tensor");
+const Tensor = zant.tensor.Tensor;
 
 pub fn main() !void {
 

@@ -1,6 +1,7 @@
 const std = @import("std");
-const onnx = @import("onnx");
-const codeGen = @import("codeGen");
+const zant = @import("zant");
+const onnx = zant.onnx;
+const codeGen = @import("codeGen_skeleton.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
