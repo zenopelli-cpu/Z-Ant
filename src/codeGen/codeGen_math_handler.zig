@@ -53,7 +53,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Flatten")) {
         try writer.writeAll("// Handle Flatten\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gather")) {
-        //try write_gather(writer, node);
+        try write_gather(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gemm")) {
         try write_gemm(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "LeakyRelu")) {
@@ -258,6 +258,59 @@ inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
+    });
+}
+
+inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Gather.html
+    // INPUTS:
+    //      - data (heterogeneous) - T: Tensor of rank r >= 1.
+    //      - indices (heterogeneous) - tensor(int64): Tensor of int64 indices, of any rank q.
+    // OUTPUTS:
+    //      - output (heterogeneous) - T: Tensor of rank q + r - 1.
+    // ATTRIBUTES:
+    //      - axis (int, default is 0): Which axis to gather on. Negative value means counting dimensions from the back.
+
+    var axis: i64 = 0;
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "axis")) {
+            if (attr.type == AttributeType.INT) axis = attr.i;
+        }
+    }
+
+    const indices_name = try utils.getSanitizedName(node.inputs.items[1].name);
+
+    _ = try writer.print(
+        \\    
+        \\    //creating the indices Tensor(usize)
+        \\    
+        \\    var usize_slice_{s} = utils.i64SliceToUsizeSlice(tensor_{s}.data);
+        \\    var usize_tensor_{s} = Tensor(usize).fromConstBuffer(&allocator, usize_slice_{s}, &tensor_{s}.shape);
+        \\    defer usize_tensor_{s}.deinit();
+        \\    
+    , .{
+        indices_name, //usize_slice_
+        indices_name, //i64SliceToUsizeSlice
+        indices_name, //usize_tensor_
+        indices_name, //usize_slice_
+        indices_name, //tensor_.sahpe
+        indices_name, //usize_tensor_.deinit
+    });
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.gather_lean(
+        \\        T, //type
+        \\        @constCast(&tensor_{s}), //data tensor
+        \\        &usize_tensor_{s}, //indices tensor
+        \\        {}, //axis
+        \\        &tensor_{s}, //output tensor
+        \\    )
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input data tensor
+        indices_name, // Input indices tensor
+        axis, // Selected axis
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
     });
 }
 
@@ -584,13 +637,14 @@ inline fn write_slice(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
 
     // Handle optional axes and steps inputs
-    var axes_str = "null";
-    var steps_str = "null";
+    var axes_str: []const u8 = "null";
+    var steps_str: []const u8 = "null";
 
     if (node.inputs.items.len > 3) {
         const axes_name = try utils.getSanitizedName(node.inputs.items[3].name);
         axes_str = try std.fmt.allocPrint(allocator, "&tensor_{s}.data", .{axes_name});
     }
+
     if (node.inputs.items.len > 4) {
         const steps_name = try utils.getSanitizedName(node.inputs.items[4].name);
         steps_str = try std.fmt.allocPrint(allocator, "&tensor_{s}.data", .{steps_name});
@@ -674,11 +728,11 @@ inline fn write_transpose(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //        otherwise permute the axes according to the values given.
 
     // Get the perm attribute if it exists
-    var perm_str = "null";
+    var perm_str: []const u8 = "null";
     for (node.nodeProto.attribute) |attr| {
         if (std.mem.eql(u8, attr.name, "perm")) {
             if (attr.type == AttributeType.INTS) {
-                perm_str = try utils.i64SliceToUsizeArrayString(attr.ints.?);
+                perm_str = try utils.i64SliceToUsizeArrayString(attr.ints);
             }
         }
     }
@@ -1035,6 +1089,6 @@ inline fn compute_slice_output_shape(readyNode: *ReadyNode) !void {
         steps,
     );
 
-    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(@constCast(&output_shape));
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
