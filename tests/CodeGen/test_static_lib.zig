@@ -3,7 +3,8 @@ const Tensor = @import("tensor").Tensor;
 const pkgAllocator = @import("pkgAllocator");
 const allocator = pkgAllocator.allocator;
 
-const static_lib_mod = @import("static_lib_mnist_hard");
+const static_lib_mod = @import("static_lib");
+
 // test "Static Library - Basic Prediction Test" {
 //     std.debug.print("\n     test: Static Library - Basic Prediction Test\n", .{});
 

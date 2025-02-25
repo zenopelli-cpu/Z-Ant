@@ -278,7 +278,7 @@ pub fn printTensorHashMap(map: std.StringHashMap(ReadyTensor)) void {
 
 // ----------------- DATA TYPE management -------------
 
-pub fn i64SliceToUsizeSlice(input: []const i64) ![]usize {
+pub inline fn i64SliceToUsizeSlice(input: []const i64) ![]usize {
     var output = try allocator.alloc(usize, input.len);
 
     const maxUsize = std.math.maxInt(usize);

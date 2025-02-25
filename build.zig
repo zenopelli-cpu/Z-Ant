@@ -337,6 +337,7 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("pkgAllocator", allocator_mod);
     unit_tests.root_module.addImport("tensor_math_lean", tensor_math_lean_mod);
     unit_tests.root_module.addImport("static_lib_mnist_hard", static_lib_mnist_hard_mod);
+    unit_tests.root_module.addImport("static_lib", static_lib_mod);
 
     unit_tests.linkLibC();
 
