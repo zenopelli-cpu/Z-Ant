@@ -852,8 +852,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Shape")) {
         try compute_shape_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sigmoid")) {
-        //TODO
-        return error.OperationWIP;
+        try compute_sigmoid_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Softmax")) {
         //https://onnx.ai/onnx/operators/onnx__Softmax.html
         try compute_softmax_output_shape(readyNode);
@@ -1175,6 +1174,16 @@ inline fn compute_gather_output_shape(readyNode: *ReadyNode) !void {
     }
 
     readyNode.outputs.items[0].shape = output_shape;
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_sigmoid_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_sigmoid_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // Sigmoid is element-wise, output shape is identical to input shape
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
