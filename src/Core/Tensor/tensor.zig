@@ -3,10 +3,17 @@
 //! the concept of scalars, vectors, and matrices to higher dimensions. A scalar is a 0-dimensional
 //! tensor, a vector is a 1-dimensional tensor, and a matrix is a 2-dimensional tensor. Tensors can extend
 //! to even higher dimensions (3D, 4D, etc.).
+pub const math_lean = @import("TensorMath/tensor_math_standard.zig");
+pub const math_standard = @import("TensorMath/tensor_math_standard.zig");
+pub const math_base = @import("TensorMath/tensor_math_base.zig");
+
 const std = @import("std");
-const tMath = @import("tensor_m");
-const TensorError = @import("errorHandler").TensorError;
-const ArgumentError = @import("errorHandler").ArgumentError;
+const zant = @import("../../zant.zig");
+
+const tMath = math_standard;
+const error_handler = zant.utils.error_handler;
+const TensorError = error_handler.TensorError;
+const ArgumentError = error_handler.ArgumentError;
 
 pub var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
 

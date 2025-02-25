@@ -1,14 +1,16 @@
 const std = @import("std");
-const Tensor = @import("tensor").Tensor;
-const ModelOnnx = @import("onnx").ModelProto;
-const DataType = @import("onnx").DataType;
-const TensorProto = @import("onnx").TensorProto;
-const allocator = @import("pkgAllocator").allocator;
+const zant = @import("zant");
+
+const Tensor = zant.core.tensor.Tensor;
+const tensorMath = zant.core.tensor.math_standard;
+const onnx = zant.onnx;
+const ModelOnnx = onnx.ModelProto;
+const DataType = onnx.DataType;
+const TensorProto = onnx.TensorProto;
+const allocator = zant.utils.allocator.allocator;
 const codeGenInitializers = @import("codeGen_initializers.zig");
 const coddeGenPredict = @import("codeGen_predict.zig");
-const tensorMath = @import("tensor_math");
 const codegen_options = @import("codegen_options");
-const utils = @import("codeGen_utils.zig");
 
 /// Writes a Zig source file containing the generated code for an ONNX model.
 ///
