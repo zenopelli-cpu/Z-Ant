@@ -25,6 +25,7 @@ pub const OnnxConvLean = lean_op_convolution.OnnxConvLean;
 const shape_math_lib = @import("lib_shape_math.zig");
 pub const reshape = shape_math_lib.reshape_lean;
 pub const gather = shape_math_lib.lean_gather;
+pub const unsqueeze = shape_math_lib.unsqueeze_lean;
 pub const get_resize_output_shape = shape_math_lib.get_resize_output_shape;
 pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_shape;
 pub const get_split_output_shapes = shape_math_lib.get_split_output_shapes;
