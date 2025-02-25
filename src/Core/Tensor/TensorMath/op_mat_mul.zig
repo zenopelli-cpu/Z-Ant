@@ -13,7 +13,7 @@ const BLOCK_SIZE_K: usize = 32;
 
 // Use largest available SIMD width
 const DEFAULT_VECTOR_WIDTH: usize = std.simd.suggestVectorLength(f32) orelse 4;
-const UNROLL_FACTOR: usize = 4;
+const UNROLL_FACTOR: usize = 10;
 
 // TODO: add support for matrix multiplication for matrix distribuited in multi-batch/multi-channel tensors (for example of shape {2, 3, 5, 5}), now supports only tensors with shape {1, 1, N, M}
 /// Performs classic matrix multiplication on given tensors using the least 2 dimensions
