@@ -1,3 +1,6 @@
+//! read this before proceding!!!!!
+//! https://github.com/onnx/onnx/blob/main/onnx/onnx.proto
+
 const std = @import("std");
 const protobuf = @import("protobuf.zig");
 
@@ -455,6 +458,19 @@ pub const NodeProto = struct {
     }
 };
 
+// onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L460
+//TAGS:
+//  - 1 : node, type: NodeProto repeated
+//  - 2 : name
+//  - 5 : initializer, type: TensorProto repeated
+//  - 10: doc_string
+//  - 11: input, type: ValueInfoProto repeated
+//  - 12: output, type: ValueInfoProto repeated
+//  - 13: value_info, type: ValueInfoProto repeated
+//  - 14: quantization_annotation, type: TensorAnnotation repeated
+//  - 15: sparse_initializer, type: TensorProto repeated
+//  - 16: metadata_props, type: StringStringEntryProto repeated
+//  - 3, 4, 6, 7, 8, 9 are reserved
 pub const GraphProto = struct {
     name: ?[]const u8,
     nodes: []*NodeProto,
@@ -499,61 +515,52 @@ pub const GraphProto = struct {
             const tag = try reader.readTag();
             switch (tag.field_number) {
                 1 => { // node
-                    std.debug.print("\n\n ........GRAPH PROTO READING node ", .{});
-
                     var node_reader = try reader.readLengthDelimited();
                     const node_ptr = try reader.allocator.create(NodeProto);
                     node_ptr.* = try NodeProto.parse(&node_reader);
                     try nodes.append(node_ptr);
                 },
                 2 => { // name
-                    std.debug.print("\n\n ........GRAPH PROTO READING name ", .{});
-
                     graph.name = try reader.readString(reader.allocator);
                 },
-                3, 5 => { // initializer (repeated)
-                    std.debug.print("\n\n ........GRAPH PROTO READING initializer ", .{});
-
+                5 => { // initializer (repeated)
                     var tensor_reader = try reader.readLengthDelimited();
                     const tensor_ptr = try reader.allocator.create(TensorProto);
                     tensor_ptr.* = try TensorProto.parse(&tensor_reader);
                     try initializers.append(tensor_ptr);
                 },
-                4 => { // doc_string
-                    std.debug.print("\n\n ........GRAPH PROTO READING doc_string ", .{});
-
+                10 => { // doc_string
                     var str_reader = try reader.readLengthDelimited();
                     _ = try str_reader.readString(reader.allocator);
                 },
-                6 => { // sparse_initializer
-                    std.debug.print("\n\n ........GRAPH PROTO READING sparse_initializer ", .{});
 
-                    var sparse_reader = try reader.readLengthDelimited();
-                    while (sparse_reader.hasMore()) {
-                        _ = try sparse_reader.readVarint();
-                    }
+                11 => { // input
+                    std.debug.print("\n\n ........GRAPH PROTO READING input ", .{});
+                    _ = try reader.readLengthDelimited(); //var input_reader
+                    // const input_ptr = try reader.allocator.create(ValueInfoProto);
+                    // input_ptr.* = try ValueInfoProto.parse(&input_reader);
+                    // try inputs.append(input_ptr);
                 },
-                7 => { // input
-                    std.debug.print("\n\n ........GRAPH PROTO READING INPUT ", .{});
-
-                    var input_reader = try reader.readLengthDelimited();
-                    const input_ptr = try reader.allocator.create(ValueInfoProto);
-                    input_ptr.* = try ValueInfoProto.parse(&input_reader);
-                    try inputs.append(input_ptr);
-                },
-                8 => { // output
+                12 => { // output
                     // TODO: This field contains a list of ValueInfoProto messages, each representing an output of the graph.
                     // It provides information about the outputs' names, types, and shapes.
                     std.debug.print("\n\n ........GRAPH PROTO READING output ", .{});
                     _ = try reader.readLengthDelimited();
                 },
-                9 => { // value_info
+                13 => { // value_info
                     //TODO: This optional field holds a list of ValueInfoProto messages that describe intermediate values within the graph.
                     //While it's not mandatory for a value to appear in this list, when present, it offers detailed information about the values computed at various stages of the graph.
                     std.debug.print("\n\n ........GRAPH PROTO READING value_info ", .{});
                     _ = try reader.readLengthDelimited();
                 },
-                10 => { // quantization_annotation
+                15 => { // sparse_initializer
+                    var sparse_reader = try reader.readLengthDelimited();
+                    while (sparse_reader.hasMore()) {
+                        _ = try sparse_reader.readVarint();
+                    }
+                },
+
+                14 => { // quantization_annotation
                     //This field carries information mapping tensors to their quantization parameters, such as scale and zero-point tensors.
                     // For instance, for a tensor 'a', this field might indicate that 'a_scale' and 'a_zero_point' are its associated quantization parameters.
                     std.debug.print("\n\n ........GRAPH PROTO READING quantization_annotation ", .{});
@@ -561,6 +568,8 @@ pub const GraphProto = struct {
                     _ = try reader.readLengthDelimited();
                 },
                 else => {
+                    std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} ", .{tag});
+
                     var unknown_reader = try reader.readLengthDelimited();
                     while (unknown_reader.hasMore()) {
                         _ = try unknown_reader.readVarint();
