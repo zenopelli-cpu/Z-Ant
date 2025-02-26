@@ -579,7 +579,6 @@ pub fn lean_onnx_maxpool(
     const channels = input.shape[1];
     const input_height = input.shape[2];
     const input_width = input.shape[3];
-
     const out_height = output.shape[2];
     const out_width = output.shape[3];
 
@@ -598,13 +597,10 @@ pub fn lean_onnx_maxpool(
                 pad_right = pads[3];
             }
         },
-        .VALID => {
-            // No padding in VALID mode
-        },
+        .VALID => {},
         .SAME_UPPER, .SAME_LOWER => {
             const total_pad_height = (out_height - 1) * strides[0] + kernel_shape[0] - input_height;
             const total_pad_width = (out_width - 1) * strides[1] + kernel_shape[1] - input_width;
-
             if (auto_pad == .SAME_UPPER) {
                 pad_top = total_pad_height / 2;
                 pad_left = total_pad_width / 2;
@@ -617,16 +613,6 @@ pub fn lean_onnx_maxpool(
                 pad_left = total_pad_width - pad_right;
             }
         },
-    }
-
-    // Use stack memory for small kernel sizes
-    var kernel_buffer: [16]T = undefined;
-    var kernel_values: []T = undefined;
-    if (kernel_shape[0] * kernel_shape[1] <= 16) {
-        kernel_values = kernel_buffer[0 .. kernel_shape[0] * kernel_shape[1]];
-    } else {
-        kernel_values = try input.allocator.alloc(T, kernel_shape[0] * kernel_shape[1]);
-        defer input.allocator.free(kernel_values);
     }
 
     // Process each batch and channel
@@ -642,28 +628,26 @@ pub fn lean_onnx_maxpool(
             while (oh < out_height) : (oh += 1) {
                 var ow: usize = 0;
                 while (ow < out_width) : (ow += 1) {
-                    // Calculate input window boundaries
-                    const ih_start = oh * strides[0] -| pad_top;
-                    const iw_start = ow * strides[1] -| pad_left;
-                    const ih_end = @min(ih_start + kernel_shape[0], input_height);
-                    const iw_end = @min(iw_start + kernel_shape[1], input_width);
+                    // Calculate starting input position
+                    const ih_start = @as(isize, @intCast(oh * strides[0])) - @as(isize, @intCast(pad_top));
+                    const iw_start = @as(isize, @intCast(ow * strides[1])) - @as(isize, @intCast(pad_left));
 
                     // Find maximum value in the window
                     var max_val = -std.math.inf(T);
-                    var kernel_idx: usize = 0;
-
-                    var ih: usize = ih_start;
-                    while (ih < ih_end) : (ih += dilations[0]) {
-                        var iw: usize = iw_start;
-                        while (iw < iw_end) : (iw += dilations[1]) {
-                            if (ih < input_height and iw < input_width) {
-                                const val = input.data[input_offset + ih * input_width + iw];
+                    var kh: usize = 0;
+                    while (kh < kernel_shape[0]) : (kh += 1) {
+                        var kw: usize = 0;
+                        while (kw < kernel_shape[1]) : (kw += 1) {
+                            const ih = ih_start + @as(isize, @intCast(kh * dilations[0]));
+                            const iw = iw_start + @as(isize, @intCast(kw * dilations[1]));
+                            if (ih >= 0 and ih < @as(isize, @intCast(input_height)) and
+                                iw >= 0 and iw < @as(isize, @intCast(input_width)))
+                            {
+                                const val = input.data[input_offset + @as(usize, @intCast(ih)) * input_width + @as(usize, @intCast(iw))];
                                 max_val = @max(max_val, val);
                             }
-                            kernel_idx += 1;
                         }
                     }
-
                     // Store result
                     output.data[output_offset + oh * out_width + ow] = max_val;
                 }
@@ -671,7 +655,6 @@ pub fn lean_onnx_maxpool(
         }
     }
 }
-
 // Modify the original onnx_maxpool to use the lean version
 //TODO: implement "ceil_mode" and "storage_order" https://onnx.ai/onnx/operators/onnx__MaxPool.html
 
