@@ -20,6 +20,8 @@ pub var tensorHashMap: std.StringHashMap(ReadyTensor) = std.StringHashMap(ReadyT
 pub var networkInput: []const u8 = undefined;
 pub var networkOutput: []const u8 = undefined;
 
+pub var inputType: type = f32;
+
 pub const TensorTag = enum {
     INITIALIZER,
     CONSTANT,

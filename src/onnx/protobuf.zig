@@ -80,6 +80,16 @@ pub const ProtoReader = struct {
         return result;
     }
 
+    pub fn readInt32(self: *ProtoReader) !i32 {
+        const n = try self.readVarint();
+        return @bitCast((n >> 1) ^ (~(n & 1) + 1));
+    }
+
+    pub fn readInt64(self: *ProtoReader) !i64 {
+        const n = try self.readVarint();
+        return @bitCast((n >> 1) ^ (~(n & 1) + 1));
+    }
+
     pub fn readFixed32(self: *ProtoReader) !u32 {
         if (self.pos + 4 > self.buffer.len) {
             return Error.EndOfBuffer;
