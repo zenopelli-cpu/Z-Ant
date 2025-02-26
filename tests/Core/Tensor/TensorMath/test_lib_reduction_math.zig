@@ -117,3 +117,63 @@ test "reduce_mean" {
         }
     }
 }
+
+test "reduce_mean_advanced" {
+    std.debug.print("\n     test:reduce_mean_advanced", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Test case 1: 3D tensor with non-contiguous axes
+    {
+        var shape: [3]usize = [_]usize{ 2, 3, 4 };
+        var input_array: [24]f32 = [_]f32{
+            1,  2,  3,  4,
+            5,  6,  7,  8,
+            9,  10, 11, 12,
+            13, 14, 15, 16,
+            17, 18, 19, 20,
+            21, 22, 23, 24,
+        };
+        var t1 = try Tensor(f32).fromArray(&allocator, &input_array, &shape);
+        defer t1.deinit();
+
+        // Reduce along first and last axes (0 and 2)
+        var axes = [_]i64{ 0, 2 };
+        var result = try TensMath.reduce_mean(f32, &t1, &axes, true, false);
+        defer result.deinit();
+
+        // Expected shape: [1, 3, 1]
+        try std.testing.expectEqual(@as(usize, 3), result.shape.len);
+        try std.testing.expectEqual(@as(usize, 1), result.shape[0]);
+        try std.testing.expectEqual(@as(usize, 3), result.shape[1]);
+        try std.testing.expectEqual(@as(usize, 1), result.shape[2]);
+
+        // Expected values: [[[ 8.5 ], [ 12.5 ], [ 16.5 ]]]
+        try std.testing.expectApproxEqAbs(@as(f32, 8.5), result.data[0], 0.0001);
+        try std.testing.expectApproxEqAbs(@as(f32, 12.5), result.data[1], 0.0001);
+        try std.testing.expectApproxEqAbs(@as(f32, 16.5), result.data[2], 0.0001);
+    }
+
+    // Test case 2: 4D tensor with single axis reduction
+    {
+        var shape: [4]usize = [_]usize{ 2, 2, 2, 2 };
+        var input_array: [16]f32 = [_]f32{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        var t1 = try Tensor(f32).fromArray(&allocator, &input_array, &shape);
+        defer t1.deinit();
+
+        // Reduce along axis 1
+        var axes = [_]i64{1};
+        var result = try TensMath.reduce_mean(f32, &t1, &axes, false, false);
+        defer result.deinit();
+
+        // Expected shape: [2, 2, 2]
+        try std.testing.expectEqual(@as(usize, 3), result.shape.len);
+        try std.testing.expectEqual(@as(usize, 2), result.shape[0]);
+        try std.testing.expectEqual(@as(usize, 2), result.shape[1]);
+        try std.testing.expectEqual(@as(usize, 2), result.shape[2]);
+
+        // Check first few expected values
+        try std.testing.expectApproxEqAbs(@as(f32, 3.0), result.data[0], 0.0001);
+        try std.testing.expectApproxEqAbs(@as(f32, 4.0), result.data[1], 0.0001);
+        try std.testing.expectApproxEqAbs(@as(f32, 5.0), result.data[2], 0.0001);
+    }
+}
