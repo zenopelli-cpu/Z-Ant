@@ -3,6 +3,7 @@
 *.o
 *.a
 *.txt
+*.txt
 
 # Ignore temporary files
 *.log

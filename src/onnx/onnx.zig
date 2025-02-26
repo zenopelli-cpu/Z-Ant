@@ -1,6 +1,9 @@
+<<<<<<< HEAD
 //! read this before proceding!!!!!
 //! https://github.com/onnx/onnx/blob/main/onnx/onnx.proto
 
+=======
+>>>>>>> 7c48cf228560d5aeafc96d938083eaaf1ce7174c
 const std = @import("std");
 const protobuf = @import("protobuf.zig");
 
@@ -61,6 +64,7 @@ pub const AttributeType = enum {
     SPARSE_TENSORS,
 };
 
+<<<<<<< HEAD
 pub const ValueInfoProto = struct {
     name: []const u8,
     type: TensorTypeProto,
@@ -100,6 +104,8 @@ pub const ValueInfoProto = struct {
     }
 };
 
+=======
+>>>>>>> 7c48cf228560d5aeafc96d938083eaaf1ce7174c
 pub const AttributeProto = struct {
     name: []const u8,
     type: AttributeType,
@@ -133,6 +139,7 @@ pub const AttributeProto = struct {
     }
 };
 
+<<<<<<< HEAD
 pub const TensorShapeProto = struct {
     dims: []i64,
 
@@ -215,6 +222,8 @@ pub const TensorTypeProto = struct {
     }
 };
 
+=======
+>>>>>>> 7c48cf228560d5aeafc96d938083eaaf1ce7174c
 pub const TensorProto = struct {
     dims: []i64,
     data_type: DataType,
@@ -458,6 +467,7 @@ pub const NodeProto = struct {
     }
 };
 
+<<<<<<< HEAD
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L460
 //TAGS:
 //  - 1 : node, type: NodeProto repeated
@@ -471,11 +481,16 @@ pub const NodeProto = struct {
 //  - 15: sparse_initializer, type: TensorProto repeated
 //  - 16: metadata_props, type: StringStringEntryProto repeated
 //  - 3, 4, 6, 7, 8, 9 are reserved
+=======
+>>>>>>> 7c48cf228560d5aeafc96d938083eaaf1ce7174c
 pub const GraphProto = struct {
     name: ?[]const u8,
     nodes: []*NodeProto,
     initializers: []*TensorProto,
+<<<<<<< HEAD
     inputs: []*ValueInfoProto,
+=======
+>>>>>>> 7c48cf228560d5aeafc96d938083eaaf1ce7174c
 
     pub fn deinit(self: *GraphProto, allocator: std.mem.Allocator) void {
         if (self.name) |n| allocator.free(n);
