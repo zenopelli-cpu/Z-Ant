@@ -18,7 +18,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const gpa_allocator = gpa.allocator();
 
-    var model = try onnx.parseFromFile(gpa_allocator, "datasets/models/mnist-8/mnist-8.onnx");
+    var model = try onnx.parseFromFile(gpa_allocator, "datasets/models/Wake/wake_word_detector.onnx");
     defer model.deinit(gpa_allocator);
 
     //onnx.printStructure(&model);

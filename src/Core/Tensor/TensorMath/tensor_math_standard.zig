@@ -19,7 +19,7 @@ pub const gather_lean = shape_math_lib.lean_gather;
 //--unsqueeze
 pub const unsqueeze = shape_math_lib.unsqueeze;
 pub const unsqueeze_lean = shape_math_lib.unsqueeze_lean;
-
+pub const get_unsqueeze_output_shape = shape_math_lib.get_unsqueeze_output_shape;
 //---concatenate
 pub const concatenate = shape_math_lib.concatenate;
 // TODO: pub const concatenate_lean = shape_math_lib.concatenate_lean;
