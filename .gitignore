@@ -31,6 +31,6 @@ callgring.*
 massif.*
 
 # NN models
-*.onnx
+datasets/models/*/*.onnx
 
 
