@@ -1084,6 +1084,7 @@ pub fn slice_onnx(comptime T: type, input: *Tensor(T), starts: []const i64, ends
     errdefer output.deinit();
 
     try lean_slice_onnx(T, input, starts, ends, axes, steps, &output);
+    return output;
 }
 /// Implements https://onnx.ai/onnx/operators/onnx__Unsqueeze.html
 /// Insert single-dimensional entries into the shape of the data tensor.
