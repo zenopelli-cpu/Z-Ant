@@ -866,6 +866,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Transpose")) {
         try compute_transpose_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Unsqueeze")) {
+        try compute_unsqueeze_output_shape(readyNode);
     } else {
         std.debug.print("\n\n ERROR! output shape computation for {s} is not available in codeGen_math_handler.compute_output_shape() \n\n", .{readyNode.nodeProto.op_type});
         return error.OperationNotSupported;
@@ -954,22 +956,36 @@ inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n====== compute_conv_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     const input_shape: []const i64 = readyNode.inputs.items[0].shape;
     const kernel_shape: []const i64 = readyNode.inputs.items[1].shape;
-    const stride = readyNode.nodeProto.attribute[1].ints;
-    const dilation = readyNode.nodeProto.attribute[4].ints;
-    const auto_pad = readyNode.nodeProto.attribute[2].s;
+
+    var stride: ?[]i64 = null;
+    var dilation: ?[]i64 = null;
+    var auto_pad: []const u8 = "NOTSET";
+
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "strides")) {
+            if (attr.type == AttributeType.INTS) stride = attr.ints;
+        } else if (std.mem.eql(u8, attr.name, "dilations")) {
+            if (attr.type == AttributeType.INTS) dilation = attr.ints;
+        } else if (std.mem.eql(u8, attr.name, "auto_pad")) {
+            if (attr.type == AttributeType.STRING) auto_pad = attr.s;
+        }
+    }
+
+    if (stride == null) return error.StridesNotFound;
+    if (dilation == null) return error.DilationsNotFound;
 
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
     std.debug.print("\n kernel_shape: []i64 = {any}", .{kernel_shape});
-    std.debug.print("\n stride: []i64 = {any}", .{stride});
+    std.debug.print("\n stride: []i64 = {any}", .{stride.?});
 
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(
         @constCast(
             &try tensorMath.get_convolution_output_shape(
                 try utils.i64SliceToUsizeSlice(input_shape),
                 try utils.i64SliceToUsizeSlice(kernel_shape),
-                try utils.i64SliceToUsizeSlice(stride),
+                try utils.i64SliceToUsizeSlice(stride.?),
                 null,
-                try utils.i64SliceToUsizeSlice(dilation),
+                try utils.i64SliceToUsizeSlice(dilation.?),
                 auto_pad,
             ),
         ),
@@ -980,15 +996,27 @@ inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
 inline fn compute_maxPool_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n====== compute_maxPool_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     const input_shape: []const i64 = readyNode.inputs.items[0].shape;
-    const kernel_shape = readyNode.nodeProto.attribute[0].ints;
-    const stride = readyNode.nodeProto.attribute[1].ints;
+
+    var kernel_shape: ?[]i64 = null;
+    var stride: ?[]i64 = null;
+
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "kernel_shape")) {
+            if (attr.type == AttributeType.INTS) kernel_shape = attr.ints;
+        } else if (std.mem.eql(u8, attr.name, "strides")) {
+            if (attr.type == AttributeType.INTS) stride = attr.ints;
+        }
+    }
+
+    if (kernel_shape == null) return error.KernelShapeNotFound;
+    if (stride == null) return error.StridesNotFound;
 
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
-    std.debug.print("\n kernel_shape: []i64 = {any}", .{kernel_shape});
-    std.debug.print("\n stride: []i64 = {any}", .{stride});
+    std.debug.print("\n kernel_shape: []i64 = {any}", .{kernel_shape.?});
+    std.debug.print("\n stride: []i64 = {any}", .{stride.?});
 
-    const kernel_2d = [2]usize{ @intCast(kernel_shape[0]), @intCast(kernel_shape[1]) };
-    const stride_2d = [2]usize{ @intCast(stride[0]), @intCast(stride[1]) };
+    const kernel_2d = [2]usize{ @intCast(kernel_shape.?[0]), @intCast(kernel_shape.?[1]) };
+    const stride_2d = [2]usize{ @intCast(stride.?[0]), @intCast(stride.?[1]) };
 
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(
         @constCast(
@@ -1223,4 +1251,28 @@ inline fn write_shape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         if (end) |e| try std.fmt.allocPrint(allocator, "{}", .{e}) else "null",
         try utils.getSanitizedName(node.outputs.items[0].name),
     });
+}
+
+inline fn compute_unsqueeze_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_unsqueeze_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+
+    // Get axes from attributes
+    var axes: []const i64 = undefined;
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "axes")) {
+            if (attr.type == AttributeType.INTS) {
+                axes = attr.ints;
+                break;
+            }
+        }
+    }
+
+    const output_shape = try tensorMath.get_unsqueeze_output_shape(
+        try utils.i64SliceToUsizeSlice(input_shape),
+        axes,
+    );
+
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
