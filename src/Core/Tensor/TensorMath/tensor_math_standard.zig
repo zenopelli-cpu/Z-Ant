@@ -16,6 +16,10 @@ pub const reshape_lean = shape_math_lib.reshape_lean;
 pub const gather = shape_math_lib.gather;
 pub const gather_lean = shape_math_lib.lean_gather;
 
+//--unsqueeze
+pub const unsqueeze = shape_math_lib.unsqueeze;
+pub const unsqueeze_lean = shape_math_lib.unsqueeze_lean;
+
 //---concatenate
 pub const concatenate = shape_math_lib.concatenate;
 // TODO: pub const concatenate_lean = shape_math_lib.concatenate_lean;
@@ -107,6 +111,9 @@ pub const mul_lean = elementWise_math_lib.mul_lean;
 //--div
 pub const div = elementWise_math_lib.div;
 pub const div_lean = elementWise_math_lib.div_lean;
+//--tanh
+pub const tanh = elementWise_math_lib.tanh;
+pub const tanh_lean = elementWise_math_lib.tanh_lean;
 
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");
