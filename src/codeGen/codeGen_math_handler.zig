@@ -286,7 +286,7 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    
         \\    //creating the indices Tensor(usize)
         \\    
-        \\    var usize_slice_{s} = utils.i64SliceToUsizeSlice(tensor_{s}.data);
+        \\    const usize_slice_{s} = utils.sliceToUsizeSlice(tensor_{s}.data);
         \\    var usize_tensor_{s} = Tensor(usize).fromConstBuffer(&allocator, usize_slice_{s}, &tensor_{s}.shape);
         \\    defer usize_tensor_{s}.deinit();
         \\    

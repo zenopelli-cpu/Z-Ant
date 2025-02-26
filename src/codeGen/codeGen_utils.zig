@@ -309,6 +309,33 @@ pub fn usizeSliceToI64Slice(input: []usize) ![]const i64 {
     return output;
 }
 
+pub inline fn sliceToUsizeSlice(comptime T: type, input: []const T) ![]usize {
+    // Ensure T is an integer type.
+    comptime {
+        if (@typeInfo(T) != .Int) {
+            @compileError("sliceToUsizeSlice only supports integer types");
+        }
+    }
+
+    var output = try allocator.alloc(usize, input.len);
+    const maxUsize = std.math.maxInt(usize);
+
+    for (input, 0..) |value, index| {
+        // If T is signed, check for negative values.
+        if (@typeInfo(T).Int.signed and value < 0) {
+            return error.NegativeValue;
+        }
+        // Promote value to u128 for a safe comparison.
+        const uvalue: u128 = @intCast(value);
+        const maxCast: u128 = @intCast(maxUsize);
+        if (uvalue > maxCast) {
+            return error.ValueTooLarge;
+        }
+        output[index] = @intCast(value);
+    }
+    return output;
+}
+
 pub fn u32ToUsize(input: [*]u32, size: u32) ![]usize {
     var output = try allocator.alloc(usize, size);
 
