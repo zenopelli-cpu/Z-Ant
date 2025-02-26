@@ -1603,3 +1603,826 @@ test "test unsqueeze duplicate axis error" {
 
     try std.testing.expectError(TensorError.DuplicateAxis, TensMath.unsqueeze(f32, &tensor, &axesTensor));
 }
+
+test "Reshape - Basic" {
+    std.debug.print("\n     test: Reshape - Basic ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Reshape to 3x2
+    var new_shape: [2]usize = [_]usize{ 3, 2 };
+    var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
+    defer reshaped.deinit();
+
+    // Verify shape
+    try std.testing.expect(reshaped.shape[0] == 3);
+    try std.testing.expect(reshaped.shape[1] == 2);
+    try std.testing.expect(reshaped.size == 6);
+
+    // Verify data is preserved in row-major order
+    try std.testing.expect(reshaped.data[0] == 1);
+    try std.testing.expect(reshaped.data[1] == 2);
+    try std.testing.expect(reshaped.data[2] == 3);
+    try std.testing.expect(reshaped.data[3] == 4);
+    try std.testing.expect(reshaped.data[4] == 5);
+    try std.testing.expect(reshaped.data[5] == 6);
+}
+
+test "Reshape - Multi-dimensional" {
+    std.debug.print("\n     test: Reshape - Multi-dimensional ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x2x2 tensor
+    var inputArray: [2][2][2]u8 = [_][2][2]u8{
+        [_][2]u8{
+            [_]u8{ 1, 2 },
+            [_]u8{ 3, 4 },
+        },
+        [_][2]u8{
+            [_]u8{ 5, 6 },
+            [_]u8{ 7, 8 },
+        },
+    };
+    var shape: [3]usize = [_]usize{ 2, 2, 2 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Reshape to 2x4
+    var new_shape: [2]usize = [_]usize{ 2, 4 };
+    var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
+    defer reshaped.deinit();
+
+    // Verify shape
+    try std.testing.expect(reshaped.shape[0] == 2);
+    try std.testing.expect(reshaped.shape[1] == 4);
+    try std.testing.expect(reshaped.size == 8);
+
+    // Verify data preservation
+    for (0..8) |i| {
+        try std.testing.expect(reshaped.data[i] == i + 1);
+    }
+}
+
+test "Reshape - Error case" {
+    std.debug.print("\n     test: Reshape - Error case ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Try to reshape to invalid size (2x4)
+    var invalid_shape: [2]usize = [_]usize{ 2, 4 };
+    try std.testing.expectError(TensorError.InputArrayWrongSize, TensMath.reshape(u8, &tensor, &invalid_shape, null));
+}
+
+test "Reshape - Same size different dimensions" {
+    std.debug.print("\n     test: Reshape - Same size different dimensions ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Reshape to 1x6
+    var new_shape: [2]usize = [_]usize{ 1, 6 };
+    var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
+    defer reshaped.deinit();
+
+    // Verify shape
+    try std.testing.expect(reshaped.shape[0] == 1);
+    try std.testing.expect(reshaped.shape[1] == 6);
+    try std.testing.expect(reshaped.size == 6);
+
+    // Verify data preservation
+    for (0..6) |i| {
+        try std.testing.expect(reshaped.data[i] == i + 1);
+    }
+}
+
+test "gather - negative axis" {
+    std.debug.print("\n     test: gather - negative axis", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Initialize input tensor: 2x3 matrix
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var inputShape: [2]usize = [_]usize{ 2, 3 };
+    var inputTensor = try Tensor(u8).fromArray(&allocator, &inputArray, &inputShape);
+    defer inputTensor.deinit();
+
+    // Initialize indices tensor: [1]
+    var indicesArray: [1]usize = [_]usize{1};
+    var indicesShape: [1]usize = [_]usize{1};
+    var indicesTensor = try Tensor(usize).fromArray(&allocator, &indicesArray, &indicesShape);
+    defer indicesTensor.deinit();
+
+    // Gather along axis -2 (equivalent to axis 0)
+    var gatheredTensor = try TensMath.gather(u8, &inputTensor, &indicesTensor, -2);
+    defer gatheredTensor.deinit();
+
+    // Expected: [4, 5, 6]
+    try std.testing.expect(gatheredTensor.shape[0] == 1);
+    try std.testing.expect(gatheredTensor.shape[1] == 3);
+    try std.testing.expect(gatheredTensor.data[0] == 4);
+    try std.testing.expect(gatheredTensor.data[1] == 5);
+    try std.testing.expect(gatheredTensor.data[2] == 6);
+}
+
+test "gather - invalid indices" {
+    std.debug.print("\n     test: gather - invalid indices", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Initialize input tensor: 2x2 matrix
+    var inputArray: [2][2]u8 = [_][2]u8{
+        [_]u8{ 1, 2 },
+        [_]u8{ 3, 4 },
+    };
+    var inputShape: [2]usize = [_]usize{ 2, 2 };
+    var inputTensor = try Tensor(u8).fromArray(&allocator, &inputArray, &inputShape);
+    defer inputTensor.deinit();
+
+    // Initialize indices tensor with invalid index
+    var indicesArray: [1]usize = [_]usize{2}; // Invalid index (only 0,1 are valid)
+    var indicesShape: [1]usize = [_]usize{1};
+    var indicesTensor = try Tensor(usize).fromArray(&allocator, &indicesArray, &indicesShape);
+    defer indicesTensor.deinit();
+
+    // Should return error for out of bounds index
+    try std.testing.expectError(TensorError.IndexOutOfBounds, TensMath.gather(u8, &inputTensor, &indicesTensor, 0));
+}
+
+test "gather - multi-dimensional indices" {
+    std.debug.print("\n     test: gather - multi-dimensional indices", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Initialize input tensor: 3x3 matrix
+    var inputArray: [3][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+        [_]u8{ 7, 8, 9 },
+    };
+    var inputShape: [2]usize = [_]usize{ 3, 3 };
+    var inputTensor = try Tensor(u8).fromArray(&allocator, &inputArray, &inputShape);
+    defer inputTensor.deinit();
+
+    // Initialize 2D indices tensor: [[0,2], [1,1]]
+    var indicesArray: [2][2]usize = [_][2]usize{
+        [_]usize{ 0, 2 },
+        [_]usize{ 1, 1 },
+    };
+    var indicesShape: [2]usize = [_]usize{ 2, 2 };
+    var indicesTensor = try Tensor(usize).fromArray(&allocator, &indicesArray, &indicesShape);
+    defer indicesTensor.deinit();
+
+    // Gather along axis 0
+    var gatheredTensor = try TensMath.gather(u8, &inputTensor, &indicesTensor, 0);
+    defer gatheredTensor.deinit();
+
+    // Expected shape: [2, 2, 3]
+    try std.testing.expect(gatheredTensor.shape[0] == 2);
+    try std.testing.expect(gatheredTensor.shape[1] == 2);
+    try std.testing.expect(gatheredTensor.shape[2] == 3);
+
+    // Check first row (indices 0,2): [1,2,3], [7,8,9]
+    try std.testing.expect(gatheredTensor.data[0] == 1);
+    try std.testing.expect(gatheredTensor.data[1] == 2);
+    try std.testing.expect(gatheredTensor.data[2] == 3);
+    try std.testing.expect(gatheredTensor.data[3] == 7);
+    try std.testing.expect(gatheredTensor.data[4] == 8);
+    try std.testing.expect(gatheredTensor.data[5] == 9);
+
+    // Check second row (indices 1,1): [4,5,6], [4,5,6]
+    try std.testing.expect(gatheredTensor.data[6] == 4);
+    try std.testing.expect(gatheredTensor.data[7] == 5);
+    try std.testing.expect(gatheredTensor.data[8] == 6);
+    try std.testing.expect(gatheredTensor.data[9] == 4);
+    try std.testing.expect(gatheredTensor.data[10] == 5);
+    try std.testing.expect(gatheredTensor.data[11] == 6);
+}
+
+test "gather - single element tensor" {
+    std.debug.print("\n     test: gather - single element tensor", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Initialize input tensor: [[[1]]]
+    var inputArray: [1][1][1]u8 = [_][1][1]u8{[_][1]u8{[_]u8{1}}};
+    var inputShape: [3]usize = [_]usize{ 1, 1, 1 };
+    var inputTensor = try Tensor(u8).fromArray(&allocator, &inputArray, &inputShape);
+    defer inputTensor.deinit();
+
+    // Initialize indices tensor: [0]
+    var indicesArray: [1]usize = [_]usize{0};
+    var indicesShape: [1]usize = [_]usize{1};
+    var indicesTensor = try Tensor(usize).fromArray(&allocator, &indicesArray, &indicesShape);
+    defer indicesTensor.deinit();
+
+    // Test gathering on each axis
+    inline for (0..3) |axis| {
+        var gatheredTensor = try TensMath.gather(u8, &inputTensor, &indicesTensor, axis);
+        defer gatheredTensor.deinit();
+
+        try std.testing.expect(gatheredTensor.data[0] == 1);
+        try std.testing.expect(gatheredTensor.size == 1);
+    }
+}
+
+test "unsqueeze - basic" {
+    std.debug.print("\n     test: unsqueeze - basic", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    var inputArray: [2][3]f32 = [_][3]f32{
+        [_]f32{ 1.0, 2.0, 3.0 },
+        [_]f32{ 4.0, 5.0, 6.0 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+    var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Add dimension at axis 1
+    var axesArray: [1]i64 = [_]i64{1};
+    var axesShape: [1]usize = [_]usize{1};
+    var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+    defer axesTensor.deinit();
+
+    var result = try TensMath.unsqueeze(f32, &tensor, &axesTensor);
+    defer result.deinit();
+
+    // Expected shape: [2, 1, 3]
+    try std.testing.expect(result.shape.len == 3);
+    try std.testing.expect(result.shape[0] == 2);
+    try std.testing.expect(result.shape[1] == 1);
+    try std.testing.expect(result.shape[2] == 3);
+
+    // Data should be preserved
+    for (0..6) |i| {
+        try std.testing.expect(result.data[i] == tensor.data[i]);
+    }
+}
+
+test "unsqueeze - multiple axes" {
+    std.debug.print("\n     test: unsqueeze - multiple axes", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x2 tensor
+    var inputArray: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 2 };
+    var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Add dimensions at axes 0 and 2
+    var axesArray: [2]i64 = [_]i64{ 0, 2 };
+    var axesShape: [1]usize = [_]usize{2};
+    var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+    defer axesTensor.deinit();
+
+    var result = try TensMath.unsqueeze(f32, &tensor, &axesTensor);
+    defer result.deinit();
+
+    // Expected shape: [1, 2, 1, 2]
+    try std.testing.expect(result.shape.len == 4);
+    try std.testing.expect(result.shape[0] == 1);
+    try std.testing.expect(result.shape[1] == 2);
+    try std.testing.expect(result.shape[2] == 1);
+    try std.testing.expect(result.shape[3] == 2);
+
+    // Data should be preserved
+    for (0..4) |i| {
+        try std.testing.expect(result.data[i] == tensor.data[i]);
+    }
+}
+
+test "unsqueeze - negative axes" {
+    std.debug.print("\n     test: unsqueeze - negative axes", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    var inputArray: [2][3]f32 = [_][3]f32{
+        [_]f32{ 1.0, 2.0, 3.0 },
+        [_]f32{ 4.0, 5.0, 6.0 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+    var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Add dimension at axis -1 (equivalent to 2)
+    var axesArray: [1]i64 = [_]i64{-1};
+    var axesShape: [1]usize = [_]usize{1};
+    var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+    defer axesTensor.deinit();
+
+    var result = try TensMath.unsqueeze(f32, &tensor, &axesTensor);
+    defer result.deinit();
+
+    // Expected shape: [2, 3, 1]
+    try std.testing.expect(result.shape.len == 3);
+    try std.testing.expect(result.shape[0] == 2);
+    try std.testing.expect(result.shape[1] == 3);
+    try std.testing.expect(result.shape[2] == 1);
+
+    // Data should be preserved
+    for (0..6) |i| {
+        try std.testing.expect(result.data[i] == tensor.data[i]);
+    }
+}
+
+test "unsqueeze - scalar tensor" {
+    std.debug.print("\n     test: unsqueeze - scalar tensor", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 1x1 tensor
+    var inputArray: [1][1]f32 = [_][1]f32{[_]f32{42.0}};
+    var shape: [2]usize = [_]usize{ 1, 1 };
+    var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Add dimensions at multiple positions
+    var axesArray: [3]i64 = [_]i64{ 0, 2, 3 };
+    var axesShape: [1]usize = [_]usize{3};
+    var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+    defer axesTensor.deinit();
+
+    var result = try TensMath.unsqueeze(f32, &tensor, &axesTensor);
+    defer result.deinit();
+
+    // Expected shape: [1, 1, 1, 1, 1]
+    try std.testing.expect(result.shape.len == 5);
+    for (result.shape) |dim| {
+        try std.testing.expect(dim == 1);
+    }
+
+    // Data should be preserved
+    try std.testing.expect(result.data[0] == 42.0);
+}
+
+test "unsqueeze - error cases" {
+    std.debug.print("\n     test: unsqueeze - error cases", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x2 tensor
+    var inputArray: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 2 };
+    var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Test 1: Invalid axis (too large)
+    {
+        var axesArray: [1]i64 = [_]i64{5};
+        var axesShape: [1]usize = [_]usize{1};
+        var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+        defer axesTensor.deinit();
+
+        try std.testing.expectError(TensorError.AxisOutOfBounds, TensMath.unsqueeze(f32, &tensor, &axesTensor));
+    }
+
+    // Test 2: Invalid axis (too negative)
+    {
+        var axesArray: [1]i64 = [_]i64{-5};
+        var axesShape: [1]usize = [_]usize{1};
+        var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+        defer axesTensor.deinit();
+
+        try std.testing.expectError(TensorError.AxisOutOfBounds, TensMath.unsqueeze(f32, &tensor, &axesTensor));
+    }
+}
+
+test "Concatenate tensors with mismatched shapes" {
+    std.debug.print("\n     test: Concatenate tensors with mismatched shapes", .{});
+    var allocator = pkgAllocator.allocator;
+
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+
+    var inputArray2: [2][3]f32 = [_][3]f32{
+        [_]f32{ 5.0, 6.0, 7.0 },
+        [_]f32{ 8.0, 9.0, 10.0 },
+    };
+
+    var shape1: [2]usize = [_]usize{ 2, 2 };
+    var shape2: [2]usize = [_]usize{ 2, 3 };
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape1);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
+    defer t2.deinit();
+
+    var tensors = [_]Tensor(f32){ t1, t2 };
+
+    // Should fail when trying to concatenate along axis 0 due to mismatched shapes
+    try std.testing.expectError(TensorError.MismatchedShape, TensMath.concatenate(f32, &allocator, &tensors, 0));
+
+    // Should succeed when concatenating along axis 1
+    var result = try TensMath.concatenate(f32, &allocator, &tensors, 1);
+    defer result.deinit();
+
+    try std.testing.expect(result.shape[0] == 2);
+    try std.testing.expect(result.shape[1] == 5);
+
+    const expected_data: [2][5]f32 = [_][5]f32{
+        [_]f32{ 1.0, 2.0, 5.0, 6.0, 7.0 },
+        [_]f32{ 3.0, 4.0, 8.0, 9.0, 10.0 },
+    };
+
+    for (0..2) |i| {
+        for (0..5) |j| {
+            try std.testing.expect(result.data[i * 5 + j] == expected_data[i][j]);
+        }
+    }
+}
+
+test "Concatenate tensors with mismatched ranks" {
+    std.debug.print("\n     test: Concatenate tensors with mismatched ranks", .{});
+    var allocator = pkgAllocator.allocator;
+
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+
+    var inputArray2: [2]f32 = [_]f32{ 5.0, 6.0 };
+
+    var shape1: [2]usize = [_]usize{ 2, 2 };
+    var shape2: [1]usize = [_]usize{2};
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape1);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
+    defer t2.deinit();
+
+    var tensors = [_]Tensor(f32){ t1, t2 };
+
+    // Should fail when trying to concatenate tensors with different ranks
+    try std.testing.expectError(TensorError.MismatchedRank, TensMath.concatenate(f32, &allocator, &tensors, 0));
+}
+
+test "Concatenate tensors with invalid axis" {
+    std.debug.print("\n     test: Concatenate tensors with invalid axis", .{});
+    var allocator = pkgAllocator.allocator;
+
+    var inputArray1: [2][2]f32 = [_][2]f32{
+        [_]f32{ 1.0, 2.0 },
+        [_]f32{ 3.0, 4.0 },
+    };
+
+    var inputArray2: [2][2]f32 = [_][2]f32{
+        [_]f32{ 5.0, 6.0 },
+        [_]f32{ 7.0, 8.0 },
+    };
+
+    var shape: [2]usize = [_]usize{ 2, 2 };
+
+    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape);
+    defer t2.deinit();
+
+    var tensors = [_]Tensor(f32){ t1, t2 };
+
+    // Should fail when axis is out of bounds
+    try std.testing.expectError(TensorError.AxisOutOfBounds, TensMath.concatenate(f32, &allocator, &tensors, 2));
+    try std.testing.expectError(TensorError.AxisOutOfBounds, TensMath.concatenate(f32, &allocator, &tensors, -3));
+}
+
+test "get_concatenate_output_shape - 3D tensors" {
+    std.debug.print("\n     test: get_concatenate_output_shape - 3D tensors", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Test shapes for 3D tensors
+    var shapes = [_][]const usize{
+        &[_]usize{ 2, 2, 2 },
+        &[_]usize{ 2, 2, 3 },
+    };
+
+    // Test concatenation along last axis (axis 2)
+    {
+        const output_shape = try TensMath.get_concatenate_output_shape(&shapes, 2);
+        defer allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 3), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[1]);
+        try std.testing.expectEqual(@as(usize, 5), output_shape[2]); // 2 + 3
+    }
+
+    // Test concatenation along middle axis (axis 1)
+    var shapes_axis1 = [_][]const usize{
+        &[_]usize{ 2, 2, 3 },
+        &[_]usize{ 2, 3, 3 },
+    };
+
+    {
+        const output_shape = try TensMath.get_concatenate_output_shape(&shapes_axis1, 1);
+        defer allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 3), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 5), output_shape[1]); // 2 + 3
+        try std.testing.expectEqual(@as(usize, 3), output_shape[2]);
+    }
+}
+
+test "get_concatenate_output_shape - mismatched shapes" {
+    std.debug.print("\n     test: get_concatenate_output_shape - mismatched shapes", .{});
+
+    // Test shapes with mismatched dimensions
+    var shapes = [_][]const usize{
+        &[_]usize{ 2, 2 },
+        &[_]usize{ 2, 3 },
+    };
+
+    // Should fail along axis 0 (mismatched non-concat dimensions)
+    try std.testing.expectError(TensorError.MismatchedShape, TensMath.get_concatenate_output_shape(&shapes, 0));
+
+    // Should succeed along axis 1
+    {
+        const output_shape = try TensMath.get_concatenate_output_shape(&shapes, 1);
+        defer pkgAllocator.allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 2), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 5), output_shape[1]); // 2 + 3
+    }
+}
+
+test "get_concatenate_output_shape - mismatched ranks" {
+    std.debug.print("\n     test: get_concatenate_output_shape - mismatched ranks", .{});
+
+    // Test shapes with different ranks
+    var shapes = [_][]const usize{
+        &[_]usize{ 2, 2 },
+        &[_]usize{2},
+    };
+
+    // Should fail due to mismatched ranks
+    try std.testing.expectError(TensorError.MismatchedRank, TensMath.get_concatenate_output_shape(&shapes, 0));
+}
+
+test "get_concatenate_output_shape - invalid axis" {
+    std.debug.print("\n     test: get_concatenate_output_shape - invalid axis", .{});
+
+    var shapes = [_][]const usize{
+        &[_]usize{ 2, 2 },
+        &[_]usize{ 2, 2 },
+    };
+
+    // Test positive out of bounds axis
+    try std.testing.expectError(TensorError.AxisOutOfBounds, TensMath.get_concatenate_output_shape(&shapes, 2));
+
+    // Test negative out of bounds axis
+    try std.testing.expectError(TensorError.AxisOutOfBounds, TensMath.get_concatenate_output_shape(&shapes, -3));
+
+    // Test valid negative axis
+    {
+        const output_shape = try TensMath.get_concatenate_output_shape(&shapes, -1);
+        defer pkgAllocator.allocator.free(output_shape);
+
+        try std.testing.expectEqual(@as(usize, 2), output_shape.len);
+        try std.testing.expectEqual(@as(usize, 2), output_shape[0]);
+        try std.testing.expectEqual(@as(usize, 4), output_shape[1]); // 2 + 2
+    }
+}
+
+test "flip - 2D tensor" {
+    std.debug.print("\n     test: flip - 2D tensor", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Test case 1: 2x3 matrix
+    {
+        var input_array = [_][3]i8{
+            [_]i8{ 1, 2, 3 },
+            [_]i8{ 4, 5, 6 },
+        };
+        var shape = [_]usize{ 2, 3 };
+        var tensor = try Tensor(i8).fromArray(&allocator, &input_array, &shape);
+        defer tensor.deinit();
+
+        var flipped = try TensMath.flip(i8, &tensor);
+        defer flipped.deinit();
+
+        // Expected: [[6, 5, 4], [3, 2, 1]]
+        try std.testing.expectEqual(@as(i8, 6), flipped.data[0]);
+        try std.testing.expectEqual(@as(i8, 5), flipped.data[1]);
+        try std.testing.expectEqual(@as(i8, 4), flipped.data[2]);
+        try std.testing.expectEqual(@as(i8, 3), flipped.data[3]);
+        try std.testing.expectEqual(@as(i8, 2), flipped.data[4]);
+        try std.testing.expectEqual(@as(i8, 1), flipped.data[5]);
+    }
+
+    // Test case 2: Square matrix
+    {
+        var input_array = [_][2]i8{
+            [_]i8{ 1, 2 },
+            [_]i8{ 3, 4 },
+        };
+        var shape = [_]usize{ 2, 2 };
+        var tensor = try Tensor(i8).fromArray(&allocator, &input_array, &shape);
+        defer tensor.deinit();
+
+        var flipped = try TensMath.flip(i8, &tensor);
+        defer flipped.deinit();
+
+        // Expected: [[4, 3], [2, 1]]
+        try std.testing.expectEqual(@as(i8, 4), flipped.data[0]);
+        try std.testing.expectEqual(@as(i8, 3), flipped.data[1]);
+        try std.testing.expectEqual(@as(i8, 2), flipped.data[2]);
+        try std.testing.expectEqual(@as(i8, 1), flipped.data[3]);
+    }
+}
+
+test "flip - 3D tensor" {
+    std.debug.print("\n     test: flip - 3D tensor", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // 2x2x2 tensor
+    var input_array = [_][2][2]i8{
+        [_][2]i8{
+            [_]i8{ 1, 2 },
+            [_]i8{ 3, 4 },
+        },
+        [_][2]i8{
+            [_]i8{ 5, 6 },
+            [_]i8{ 7, 8 },
+        },
+    };
+    var shape = [_]usize{ 2, 2, 2 };
+    var tensor = try Tensor(i8).fromArray(&allocator, &input_array, &shape);
+    defer tensor.deinit();
+
+    var flipped = try TensMath.flip(i8, &tensor);
+    defer flipped.deinit();
+
+    // Each 2x2 matrix should be flipped independently
+    // Expected first matrix: [[4, 3], [2, 1]]
+    // Expected second matrix: [[8, 7], [6, 5]]
+    try std.testing.expectEqual(@as(i8, 4), flipped.data[0]);
+    try std.testing.expectEqual(@as(i8, 3), flipped.data[1]);
+    try std.testing.expectEqual(@as(i8, 2), flipped.data[2]);
+    try std.testing.expectEqual(@as(i8, 1), flipped.data[3]);
+    try std.testing.expectEqual(@as(i8, 8), flipped.data[4]);
+    try std.testing.expectEqual(@as(i8, 7), flipped.data[5]);
+    try std.testing.expectEqual(@as(i8, 6), flipped.data[6]);
+    try std.testing.expectEqual(@as(i8, 5), flipped.data[7]);
+
+    // Check shape preservation
+    try std.testing.expectEqual(@as(usize, 2), flipped.shape[0]);
+    try std.testing.expectEqual(@as(usize, 2), flipped.shape[1]);
+    try std.testing.expectEqual(@as(usize, 2), flipped.shape[2]);
+    try std.testing.expectEqual(@as(usize, 8), flipped.size);
+}
+
+test "get_split_output_shapes - basic functionality" {
+    std.debug.print("\n     test: get_split_output_shapes - basic functionality", .{});
+
+    // Test case 1: Split along axis 0
+    {
+        var input_shape = [_]usize{ 4, 3, 2 };
+        var split_sizes = [_]usize{ 1, 3 };
+        const output_shapes = try TensMath.get_split_output_shapes(&input_shape, 0, &split_sizes);
+        defer {
+            for (output_shapes) |shape| {
+                pkgAllocator.allocator.free(shape);
+            }
+            pkgAllocator.allocator.free(output_shapes);
+        }
+
+        try std.testing.expectEqual(@as(usize, 2), output_shapes.len);
+        // First split: [1, 3, 2]
+        try std.testing.expectEqual(@as(usize, 1), output_shapes[0][0]);
+        try std.testing.expectEqual(@as(usize, 3), output_shapes[0][1]);
+        try std.testing.expectEqual(@as(usize, 2), output_shapes[0][2]);
+        // Second split: [3, 3, 2]
+        try std.testing.expectEqual(@as(usize, 3), output_shapes[1][0]);
+        try std.testing.expectEqual(@as(usize, 3), output_shapes[1][1]);
+        try std.testing.expectEqual(@as(usize, 2), output_shapes[1][2]);
+    }
+
+    // Test case 2: Split along last axis
+    {
+        var input_shape = [_]usize{ 2, 4 };
+        var split_sizes = [_]usize{ 2, 2 };
+        const output_shapes = try TensMath.get_split_output_shapes(&input_shape, 1, &split_sizes);
+        defer {
+            for (output_shapes) |shape| {
+                pkgAllocator.allocator.free(shape);
+            }
+            pkgAllocator.allocator.free(output_shapes);
+        }
+
+        try std.testing.expectEqual(@as(usize, 2), output_shapes.len);
+        // Both splits: [2, 2]
+        for (output_shapes) |shape| {
+            try std.testing.expectEqual(@as(usize, 2), shape[0]);
+            try std.testing.expectEqual(@as(usize, 2), shape[1]);
+        }
+    }
+}
+
+test "get_split_output_shapes - negative axis" {
+    std.debug.print("\n     test: get_split_output_shapes - negative axis", .{});
+
+    var input_shape = [_]usize{ 2, 6, 3 };
+    var split_sizes = [_]usize{ 2, 4 };
+
+    // Test with axis -2 (equivalent to axis 1)
+    const output_shapes = try TensMath.get_split_output_shapes(&input_shape, -2, &split_sizes);
+    defer {
+        for (output_shapes) |shape| {
+            pkgAllocator.allocator.free(shape);
+        }
+        pkgAllocator.allocator.free(output_shapes);
+    }
+
+    try std.testing.expectEqual(@as(usize, 2), output_shapes.len);
+    // First split: [2, 2, 3]
+    try std.testing.expectEqual(@as(usize, 2), output_shapes[0][0]);
+    try std.testing.expectEqual(@as(usize, 2), output_shapes[0][1]);
+    try std.testing.expectEqual(@as(usize, 3), output_shapes[0][2]);
+    // Second split: [2, 4, 3]
+    try std.testing.expectEqual(@as(usize, 2), output_shapes[1][0]);
+    try std.testing.expectEqual(@as(usize, 4), output_shapes[1][1]);
+    try std.testing.expectEqual(@as(usize, 3), output_shapes[1][2]);
+}
+
+test "get_split_output_shapes - error cases" {
+    std.debug.print("\n     test: get_split_output_shapes - error cases", .{});
+
+    var input_shape = [_]usize{ 2, 3, 4 };
+
+    // Test case 1: Invalid axis (too large)
+    {
+        var split_sizes = [_]usize{1};
+        try std.testing.expectError(TensorError.InvalidAxis, TensMath.get_split_output_shapes(&input_shape, 3, &split_sizes));
+    }
+
+    // Test case 2: Invalid axis (too negative)
+    {
+        var split_sizes = [_]usize{1};
+        try std.testing.expectError(TensorError.InvalidAxis, TensMath.get_split_output_shapes(&input_shape, -4, &split_sizes));
+    }
+
+    // Test case 3: Split sizes don't match dimension size
+    {
+        var split_sizes = [_]usize{ 1, 1 }; // Sum = 2, but dimension size is 3
+        try std.testing.expectError(TensorError.InvalidSplitSize, TensMath.get_split_output_shapes(&input_shape, 1, &split_sizes));
+    }
+
+    // Test case 4: Empty dimension
+    {
+        var empty_shape = [_]usize{ 0, 2 };
+        try std.testing.expectError(TensorError.InvalidSplitSize, TensMath.get_split_output_shapes(&empty_shape, 0, null));
+    }
+}
+
+test "get_split_output_shapes - default split" {
+    std.debug.print("\n     test: get_split_output_shapes - default split", .{});
+
+    // When split_sizes is null, should split into equal parts
+    var input_shape = [_]usize{ 2, 3, 4 };
+    const output_shapes = try TensMath.get_split_output_shapes(&input_shape, 1, null);
+    defer {
+        for (output_shapes) |shape| {
+            pkgAllocator.allocator.free(shape);
+        }
+        pkgAllocator.allocator.free(output_shapes);
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), output_shapes.len);
+    try std.testing.expectEqual(@as(usize, 2), output_shapes[0][0]);
+    try std.testing.expectEqual(@as(usize, 3), output_shapes[0][1]);
+    try std.testing.expectEqual(@as(usize, 4), output_shapes[0][2]);
+}
