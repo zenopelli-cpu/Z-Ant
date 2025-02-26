@@ -30,4 +30,7 @@ static_lib.zig
 callgring.*
 massif.*
 
+# NN models
+*.onnx
+
 
