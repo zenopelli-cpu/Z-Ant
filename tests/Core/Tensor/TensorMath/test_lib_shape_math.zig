@@ -1520,3 +1520,87 @@ test "get_shape_output_shape" {
         try testing.expectEqual(@as(usize, 0), result[0]); // Should output [0] for invalid range
     }
 }
+
+// f23 input tensor with [2, 3] shape and axes = [1] => expected output: [2, 1, 3]
+test "test unsqueeze valid" {
+    std.debug.print("\n     test: unsqueeze valid\n", .{});
+    const allocator = std.testing.allocator;
+
+    // Input tensor
+    var inputArray: [2][3]f32 = [_][3]f32{
+        [_]f32{ 1.0, 2.0, 3.0 },
+        [_]f32{ 4.0, 5.0, 6.0 },
+    };
+    var inputShape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &inputShape);
+    defer tensor.deinit();
+
+    // Axes tensor: unsqueeze in position 1
+    var axesArray: [1]i64 = [_]i64{1};
+    var axesShape: [1]usize = [_]usize{1};
+    var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+    defer axesTensor.deinit();
+
+    var result = try TensMath.unsqueeze(f32, &tensor, &axesTensor);
+    defer result.deinit();
+
+    // Verify output shape [2, 1, 3]
+    try std.testing.expect(result.shape.len == 3);
+    try std.testing.expect(result.shape[0] == 2);
+    try std.testing.expect(result.shape[1] == 1);
+    try std.testing.expect(result.shape[2] == 3);
+
+    // Verify data
+    for (0..tensor.size) |i| {
+        try std.testing.expect(result.data[i] == tensor.data[i]);
+    }
+}
+
+// -------------------------------------------------------------
+// Test for AxisOutOfBounds error
+test "test unsqueeze axis out of bounds error" {
+    std.debug.print("\n test: unsqueeze axis out of bounds error\n", .{});
+    const allocator = std.testing.allocator;
+
+    var inputArray: [2][3]f32 = [_][3]f32{
+        [_]f32{ 1.0, 2.0, 3.0 },
+        [_]f32{ 4.0, 5.0, 6.0 },
+    };
+    var inputShape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &inputShape);
+    defer tensor.deinit();
+
+    // 3 is not a valid axes {0, 1, 2} are valid
+    var axesArray: [1]i64 = [_]i64{3};
+    var axesShape: [1]usize = [_]usize{1};
+    var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+    defer axesTensor.deinit();
+
+    try std.testing.expectError(TensorError.AxisOutOfBounds, TensMath.unsqueeze(f32, &tensor, &axesTensor));
+}
+
+// -------------------------------------------------------------
+// Test for DuplicateAxis error
+test "test unsqueeze duplicate axis error" {
+    std.debug.print("\n test: unsqueeze duplicate axis error\n", .{});
+    const allocator = std.testing.allocator;
+
+    var inputArray: [2][3]f32 = [_][3]f32{
+        [_]f32{ 1.0, 2.0, 3.0 },
+        [_]f32{ 4.0, 5.0, 6.0 },
+    };
+    var inputShape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &inputShape);
+    defer tensor.deinit();
+
+    // Axes tensor contains a dupliacate
+    var axesArray: [2]i64 = [_]i64{ 0, 0 };
+    var axesShape: [1]usize = [_]usize{2};
+    var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+    defer axesTensor.deinit();
+
+    try std.testing.expectError(TensorError.DuplicateAxis, TensMath.unsqueeze(f32, &tensor, &axesTensor));
+}

@@ -432,3 +432,31 @@ pub inline fn div_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), re
         result.data[i] = lhs.data[i] / rhs.data[i];
     }
 }
+
+// -----------------------------------------------
+// --------------------- TANH --------------------
+// -----------------------------------------------
+// --------- standard TANH
+/// Compute element-wise the hyperbolic tangent of the given tensor.
+pub fn tanh(comptime T: anytype, input: *Tensor(T)) !Tensor(T) {
+    // Verify that T is among the supported types:
+    // tensor(double), tensor(float), tensor(float16)
+    if (!(std.meta.eql(T, f64) or std.meta.eql(T, f32) or std.meta.eql(T, f16))) {
+        return TypeError.UnsupportedType;
+    }
+
+    // Allocating output tensor with the same shape of the input
+    var result = try Tensor(T).fromShape(input.allocator, input.shape);
+
+    tanh_lean(T, input, &result);
+
+    return result;
+}
+
+// --------- lean TANH
+pub inline fn tanh_lean(comptime T: anytype, input: *Tensor(T), result: *Tensor(T)) void {
+    // Compute tanh(x) for each element of the tensor
+    for (0..input.size) |i| {
+        result.data[i] = std.math.tanh(input.data[i]);
+    }
+}
