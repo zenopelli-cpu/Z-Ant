@@ -300,86 +300,75 @@ pub fn convolve_tensor_with_bias(
 }
 
 pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []const usize, stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, auto_pad: ?[]const u8) ![4]usize {
-    if (input_shape.len != 4 or kernel_shape.len != 4) {
+    if (input_shape.len != kernel_shape.len) {
         return TensorMathError.InvalidDimensions;
     }
 
+    const rank = input_shape.len;
+    const spatial_dims = rank - 2; // Remove batch and channel dimensions
+
+    // Extract dimensions
     const batch_size = input_shape[0];
-    const in_height = input_shape[2];
-    const in_width = input_shape[3];
     const out_channels = kernel_shape[0];
-    const kernel_height = kernel_shape[2];
-    const kernel_width = kernel_shape[3];
 
-    // Set default values for stride (default is 1)
-    const stride_h = if (stride.len > 0) stride[0] else 1;
-    const stride_w = if (stride.len > 1) stride[1] else 1;
+    // Initialize output shape array
+    var output_shape = [4]usize{ batch_size, out_channels, 0, 0 };
 
-    // Set default values for dilation (default is 1)
-    const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
-    const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else 1 else 1;
+    // Process each spatial dimension
+    for (0..spatial_dims) |i| {
+        const spatial_idx = i + 2;
+        const in_size = input_shape[spatial_idx];
+        const kernel_size = kernel_shape[spatial_idx];
 
-    // Calculate dilated kernel dimensions
-    const dilated_kernel_h = (kernel_height - 1) * dilation_h + 1;
-    const dilated_kernel_w = (kernel_width - 1) * dilation_w + 1;
+        // Get stride (default 1)
+        const stride_size = if (i < stride.len) stride[i] else 1;
 
-    var pad_h_begin: usize = 0;
-    var pad_h_end: usize = 0;
-    var pad_w_begin: usize = 0;
-    var pad_w_end: usize = 0;
+        // Get dilation (default 1)
+        const dilation_size = if (dilations) |d| if (i < d.len) d[i] else 1 else 1;
 
-    // Handle auto_pad modes
-    if (auto_pad) |pad_mode| {
-        if (std.mem.eql(u8, pad_mode, "VALID")) {
-            // No padding
-        } else if (std.mem.eql(u8, pad_mode, "SAME_UPPER") or std.mem.eql(u8, pad_mode, "SAME_LOWER")) {
-            // Calculate total padding needed
-            const out_height = @divFloor(in_height + stride_h - 1, stride_h);
-            const out_width = @divFloor(in_width + stride_w - 1, stride_w);
+        // Calculate dilated kernel size
+        const dilated_kernel = (kernel_size - 1) * dilation_size + 1;
 
-            const total_pad_h = @max((out_height - 1) * stride_h + dilated_kernel_h - in_height, 0);
-            const total_pad_w = @max((out_width - 1) * stride_w + dilated_kernel_w - in_width, 0);
+        var pad_begin: usize = 0;
+        var pad_end: usize = 0;
 
-            if (std.mem.eql(u8, pad_mode, "SAME_UPPER")) {
-                // For odd padding, extra padding goes at the end
-                pad_h_begin = total_pad_h / 2;
-                pad_h_end = total_pad_h - pad_h_begin;
-                pad_w_begin = total_pad_w / 2;
-                pad_w_end = total_pad_w - pad_w_begin;
-            } else { // SAME_LOWER
-                // For odd padding, extra padding goes at the beginning
-                pad_h_end = total_pad_h / 2;
-                pad_h_begin = total_pad_h - pad_h_end;
-                pad_w_end = total_pad_w / 2;
-                pad_w_begin = total_pad_w - pad_w_end;
+        // Handle padding
+        if (auto_pad) |pad_mode| {
+            if (std.mem.eql(u8, pad_mode, "VALID")) {
+                // No padding
+            } else if (std.mem.eql(u8, pad_mode, "SAME_UPPER") or std.mem.eql(u8, pad_mode, "SAME_LOWER")) {
+                const out_size = @divFloor(in_size + stride_size - 1, stride_size);
+                const total_pad = @max((out_size - 1) * stride_size + dilated_kernel - in_size, 0);
+
+                if (std.mem.eql(u8, pad_mode, "SAME_UPPER")) {
+                    pad_begin = total_pad / 2;
+                    pad_end = total_pad - pad_begin;
+                } else {
+                    pad_end = total_pad / 2;
+                    pad_begin = total_pad - pad_end;
+                }
+            } else if (!std.mem.eql(u8, pad_mode, "NOTSET")) {
+                return TensorMathError.InvalidPadding;
             }
-        } else if (!std.mem.eql(u8, pad_mode, "NOTSET")) {
-            return TensorMathError.InvalidPadding;
         }
-    }
 
-    // Handle explicit padding if auto_pad is NOTSET or not provided
-    if ((auto_pad == null or std.mem.eql(u8, auto_pad.?, "NOTSET")) and pads != null) {
-        const p = pads.?;
-        if (p.len >= 4) {
-            pad_h_begin = p[0];
-            pad_w_begin = p[1];
-            pad_h_end = p[2];
-            pad_w_end = p[3];
+        // Handle explicit padding
+        if ((auto_pad == null or std.mem.eql(u8, auto_pad.?, "NOTSET")) and pads != null) {
+            const p = pads.?;
+            if (i * 2 + 1 < p.len) {
+                pad_begin = p[i];
+                pad_end = p[i + spatial_dims];
+            }
         }
+
+        // Calculate output dimension
+        const out_size = @divFloor(in_size + pad_begin + pad_end - dilated_kernel, stride_size) + 1;
+        if (out_size <= 0) return TensorMathError.InvalidDimensions;
+
+        output_shape[spatial_idx] = out_size;
     }
 
-    // Calculate output dimensions using ONNX formula:
-    // out_dim = floor((in_dim + pad_begin + pad_end - dilated_kernel_size) / stride) + 1
-    const out_height = @divFloor(in_height + pad_h_begin + pad_h_end - dilated_kernel_h, stride_h) + 1;
-    const out_width = @divFloor(in_width + pad_w_begin + pad_w_end - dilated_kernel_w, stride_w) + 1;
-
-    // Check for valid output dimensions
-    if (out_height <= 0 or out_width <= 0) {
-        return TensorMathError.InvalidDimensions;
-    }
-
-    return [4]usize{ batch_size, out_channels, out_height, out_width };
+    return output_shape;
 }
 
 pub fn convolution_backward_biases(comptime T: type, dValues: *Tensor(T)) !Tensor(T) {
