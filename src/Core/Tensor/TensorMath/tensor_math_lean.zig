@@ -13,6 +13,7 @@ pub const sum_tensors = lean_elementWise_math_lib.lean_sum_tensors;
 //pub const sub_tensors = lean_elementWise_math_lib.sub_tensors;
 pub const mul = lean_elementWise_math_lib.mul_lean;
 pub const div = lean_elementWise_math_lib.div_lean;
+pub const tanh = lean_elementWise_math_lib.tanh_lean;
 pub const sum_tensor_list = lean_elementWise_math_lib.lean_sum_tensor_list;
 
 // ---------- importing lean Convolution methods ----------
@@ -24,6 +25,7 @@ pub const OnnxConvLean = lean_op_convolution.OnnxConvLean;
 const shape_math_lib = @import("lib_shape_math.zig");
 pub const reshape = shape_math_lib.reshape_lean;
 pub const gather = shape_math_lib.lean_gather;
+pub const unsqueeze = shape_math_lib.unsqueeze_lean;
 pub const get_resize_output_shape = shape_math_lib.get_resize_output_shape;
 pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_shape;
 pub const get_split_output_shapes = shape_math_lib.get_split_output_shapes;
