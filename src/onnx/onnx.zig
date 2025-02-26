@@ -42,6 +42,22 @@ pub const DataType = enum(i32) {
     FLOAT4E2M1 = 23,
 };
 
+pub const AttributeType = enum {
+    UNDEFINED,
+    FLOAT,
+    INT,
+    STRING,
+    TENSOR,
+    GRAPH,
+    SPARSE_TENSOR,
+    FLOATS,
+    INTS,
+    STRINGS,
+    TENSORS,
+    GRAPHS,
+    SPARSE_TENSORS,
+};
+
 pub const ValueInfoProto = struct {
     name: []const u8,
     type: TensorTypeProto,
@@ -79,22 +95,6 @@ pub const ValueInfoProto = struct {
 
         return value_info;
     }
-};
-
-pub const AttributeType = enum {
-    UNDEFINED,
-    FLOAT,
-    INT,
-    STRING,
-    TENSOR,
-    GRAPH,
-    SPARSE_TENSOR,
-    FLOATS,
-    INTS,
-    STRINGS,
-    TENSORS,
-    GRAPHS,
-    SPARSE_TENSORS,
 };
 
 pub const AttributeProto = struct {
@@ -542,16 +542,20 @@ pub const GraphProto = struct {
                     try inputs.append(input_ptr);
                 },
                 8 => { // output
+                    // TODO: This field contains a list of ValueInfoProto messages, each representing an output of the graph.
+                    // It provides information about the outputs' names, types, and shapes.
                     std.debug.print("\n\n ........GRAPH PROTO READING output ", .{});
-
                     _ = try reader.readLengthDelimited();
                 },
                 9 => { // value_info
+                    //TODO: This optional field holds a list of ValueInfoProto messages that describe intermediate values within the graph.
+                    //While it's not mandatory for a value to appear in this list, when present, it offers detailed information about the values computed at various stages of the graph.
                     std.debug.print("\n\n ........GRAPH PROTO READING value_info ", .{});
-
                     _ = try reader.readLengthDelimited();
                 },
                 10 => { // quantization_annotation
+                    //This field carries information mapping tensors to their quantization parameters, such as scale and zero-point tensors.
+                    // For instance, for a tensor 'a', this field might indicate that 'a_scale' and 'a_zero_point' are its associated quantization parameters.
                     std.debug.print("\n\n ........GRAPH PROTO READING quantization_annotation ", .{});
 
                     _ = try reader.readLengthDelimited();
