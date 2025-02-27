@@ -29,7 +29,7 @@ pub fn main() !void {
     defer file.close();
 
     //create the hashMap
-    // try globals.populateReadyTensorHashMap(model);
+    try globals.populateReadyTensorHashMap(model);
 
     //DEBUG
     //utils.printTensorHashMap(tensorHashMap);
@@ -38,10 +38,10 @@ pub fn main() !void {
     //try utils.printOperations(model.graph.?);
 
     //create the ReadyGraph
-    // try globals.populateReadyGraph(model);
+    try globals.populateReadyGraph(model);
 
     //DEBUG
     //try utils.printNodeList(readyGraph);
 
-    // try codeGen.writeZigFile(file, model);
+    try codeGen.writeZigFile(file, model);
 }
