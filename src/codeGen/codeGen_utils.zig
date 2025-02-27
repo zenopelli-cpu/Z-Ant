@@ -309,6 +309,31 @@ pub fn usizeSliceToI64Slice(input: []usize) ![]const i64 {
     return output;
 }
 
+/// Converts any integer value to usize with proper bounds checking
+/// Returns error.NegativeValue if the input is negative (for signed types)
+/// Returns error.ValueTooLarge if the input exceeds the maximum usize value
+pub inline fn toUsize(comptime T: type, value: T) !usize {
+    // Ensure T is an integer type
+    comptime {
+        if (@typeInfo(T) != .Int) {
+            @compileError("toUsize only supports integer types");
+        }
+    }
+
+    // Check for negative values if T is signed
+    if (@typeInfo(T).Int.signed and value < 0) {
+        return error.NegativeValue;
+    }
+
+    // Check if value exceeds maximum usize
+    const maxUsize = std.math.maxInt(usize);
+    if (@as(u128, @intCast(if (@typeInfo(T).Int.signed) @as(u128, @intCast(@max(0, value))) else @as(u128, @intCast(value)))) > maxUsize) {
+        return error.ValueTooLarge;
+    }
+
+    return @intCast(value);
+}
+
 pub inline fn sliceToUsizeSlice(comptime T: type, input: []const T) ![]usize {
     // Ensure T is an integer type.
     comptime {
