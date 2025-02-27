@@ -1,4 +1,4 @@
-//! read this before proceding!!!!!
+//! Stop whatever you are doing and read this before proceding!
 //! https://github.com/onnx/onnx/blob/main/onnx/onnx.proto
 
 const std = @import("std");
@@ -61,34 +61,54 @@ pub const AttributeType = enum {
     SPARSE_TENSORS,
 };
 
+//https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L193
+//TAGS:
+//  - 1 : name, string
+//  - 2 : type, TypeProto
+//  - 3 : doc_string, string
+//  - 4 : TODO metadata_props, StringStringEntryProto
+
 pub const ValueInfoProto = struct {
-    name: []const u8,
-    type: TensorTypeProto,
+    name: ?[]const u8,
+    type: ?*TypeProto,
+    doc_string: ?[]const u8,
 
     pub fn deinit(self: *ValueInfoProto, allocator: std.mem.Allocator) void {
-        allocator.free(self.name);
-        self.type.deinit(allocator);
+        if (self.name) |n| allocator.free(n);
+        if (self.doc_string) |doc_string| allocator.free(doc_string);
+        if (self.type) |t| {
+            t.deinit(allocator);
+            allocator.destroy(t);
+        }
     }
 
     pub fn parse(reader: *protobuf.ProtoReader) !ValueInfoProto {
         var value_info = ValueInfoProto{
             .name = undefined,
             .type = undefined,
+            .doc_string = undefined,
         };
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
             switch (tag.field_number) {
                 1 => { // name
+                    std.debug.print("\n ................ ValueInfoProto READING name ", .{});
                     value_info.name = try reader.readString(reader.allocator);
                 },
                 2 => { // type
-                    var type_reader = try reader.readLengthDelimited();
-                    value_info.type = try TensorTypeProto.parse(&type_reader);
+                    std.debug.print("\n ................ ValueInfoProto READING type ", .{});
+
+                    var type_reader = try reader.readLengthDelimited(); //var type_reader
+                    const type_ptr = try reader.allocator.create(TypeProto);
+                    type_ptr.* = try TypeProto.parse(&type_reader);
+                    value_info.type = type_ptr;
                 },
                 3 => { // doc_string
-                    var doc_reader = try reader.readLengthDelimited();
-                    _ = try doc_reader.readString(reader.allocator);
+                    std.debug.print("\n ................ ValueInfoProto READING doc_string ", .{});
+
+                    _ = try reader.readLengthDelimited(); //var doc_reader
+                    // _ = try doc_reader.readString(reader.allocator);
                 },
                 else => {
                     try reader.skipField(tag.wire_type);
@@ -130,6 +150,107 @@ pub const AttributeProto = struct {
             },
             else => {},
         }
+    }
+
+    fn parseSingleAttribute(attr_reader: *protobuf.ProtoReader, allocator: std.mem.Allocator) !AttributeProto {
+        var attr = AttributeProto{
+            .name = "",
+            .type = .UNDEFINED,
+        };
+
+        var floats_list = std.ArrayList(f32).init(allocator);
+        defer floats_list.deinit();
+        var ints_list = std.ArrayList(i64).init(allocator);
+        defer ints_list.deinit();
+        var strings_list = std.ArrayList([]const u8).init(allocator);
+        defer {
+            for (strings_list.items) |s| allocator.free(s);
+            strings_list.deinit();
+        }
+
+        errdefer {
+            for (strings_list.items) |s| allocator.free(s);
+        }
+
+        while (attr_reader.hasMore()) {
+            const attr_tag = try attr_reader.readTag();
+            //DEBUG
+            //std.debug.print("Parsing attribute field {d} with wire type {}\n", .{ attr_tag.field_number, attr_tag.wire_type });
+            switch (attr_tag.field_number) {
+                1 => { // name
+                    attr.name = try attr_reader.readString(allocator);
+                    // Pre-set type for known Conv attributes
+                    if (std.mem.eql(u8, attr.name, "dilations") or
+                        std.mem.eql(u8, attr.name, "kernel_shape") or
+                        std.mem.eql(u8, attr.name, "pads") or
+                        std.mem.eql(u8, attr.name, "strides"))
+                    {
+                        attr.type = .INTS;
+                    }
+                },
+                20 => { // type
+                    const value = try attr_reader.readVarint();
+                    // Only set type if it's not already set to INTS
+                    if (attr.type != .INTS) {
+                        attr.type = @enumFromInt(@as(u8, @intCast(value)));
+                    }
+                },
+                2 => { // single float (f)
+                    const value = try attr_reader.readFixed32();
+                    attr.f = @bitCast(value);
+                    if (attr.type != .INTS) attr.type = .FLOAT;
+                },
+                3 => { // single int (i)
+                    const value = try attr_reader.readVarint();
+                    attr.i = @intCast(value);
+                    if (attr.type != .INTS) attr.type = .INT;
+                },
+                4 => { // single string (s)
+                    attr.s = try attr_reader.readString(allocator);
+                    if (attr.type != .INTS) attr.type = .STRING;
+                },
+                5 => { // single tensor (t)
+                    var tensor_reader = try attr_reader.readLengthDelimited();
+                    const tensor_ptr = try allocator.create(TensorProto);
+                    tensor_ptr.* = try TensorProto.parse(&tensor_reader);
+                    attr.t = tensor_ptr;
+                    if (attr.type != .INTS) attr.type = .TENSOR;
+                },
+                6 => { // repeated float (floats)
+                    if (attr_tag.wire_type == .LengthDelimited) {
+                        var floats_reader = try attr_reader.readLengthDelimited();
+                        while (floats_reader.hasMore()) {
+                            if (floats_reader.available() < 4) break;
+                            const v = try floats_reader.readFixed32();
+                            try floats_list.append(@bitCast(v));
+                        }
+                    } else {
+                        const v = try attr_reader.readFixed32();
+                        try floats_list.append(@bitCast(v));
+                    }
+                    if (attr.type != .INTS) attr.type = .FLOATS;
+                },
+                7, 8 => { // repeated int64 (ints) or potential repeated int
+                    const v = try attr_reader.readVarint();
+                    try ints_list.append(@intCast(v));
+                    //DEBUG
+                    //std.debug.print("Added int value {d} to {s}\n", .{ v, attr.name });
+                    if (attr.type != .INTS) attr.type = .INTS;
+                },
+                else => {
+                    try attr_reader.skipField(attr_tag.wire_type);
+                },
+            }
+        }
+
+        switch (attr.type) {
+            .FLOATS => attr.floats = try floats_list.toOwnedSlice(),
+            .INTS => attr.ints = try ints_list.toOwnedSlice(),
+            .STRINGS => attr.strings = try strings_list.toOwnedSlice(),
+            else => {},
+        }
+
+        return attr;
     }
 };
 
@@ -174,37 +295,307 @@ pub const TensorShapeProto = struct {
     }
 };
 
-pub const TensorTypeProto = struct {
-    elem_type: u32,
-    shape: ?*TensorShapeProto,
+//https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L719
+//TAG oneof:
+//  - 1: tensor_type, type: TypeProto.Tensor
+//  - 4: sequence_type, type: TypeProto.Sequence
+//  - 5: map_type, type: TypeProto.Map
+//  - 6: denotation, type: []const u8
+//  - 8: TODO sparse_tensor_type, type: TypeProto.SparseTensor
+//  - 9: optional_type, type: TypeProto.Optional
+pub const TypeProto = struct {
+    //TENSOR TAG:
+    //  - 1: elem_type int32
+    //  - 2: shape TensorShapeProto
+    pub const Tensor = struct {
+        elem_type: u32,
+        shape: ?*TensorShapeProto,
 
-    pub fn deinit(self: *TensorTypeProto, allocator: std.mem.Allocator) void {
-        _ = self;
-        _ = allocator;
-        // if (self.shape) |*s| {
-        //     s.deinit(allocator);
-        //     allocator.destroy(s);
-        // }
+        pub fn deinit(self: *Tensor, allocator: std.mem.Allocator) void {
+            if (self.shape) |s| {
+                s.deinit(allocator);
+                allocator.destroy(s);
+            }
+        }
+
+        pub fn parse(reader: *protobuf.ProtoReader) !Tensor {
+            var tensor = Tensor{
+                .elem_type = 0,
+                .shape = null,
+            };
+
+            _ = &tensor;
+
+            while (reader.hasMore()) {
+                const tag = try reader.readTag();
+                std.debug.print("\n .............................. tensor TAG: {any} ", .{tag});
+
+                switch (tag.field_number) {
+                    1 => { //elem_type
+                        std.debug.print("\n .............................. Tensor READING elem_type ", .{});
+                        _ = try reader.readLengthDelimited();
+                    },
+                    2 => { //shape
+                        std.debug.print("\n .............................. Tensor READING tensor_type ", .{});
+                        _ = try reader.readLengthDelimited();
+                    },
+                    else => {
+                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        unreachable;
+                    },
+                }
+            }
+
+            return tensor;
+        }
+    };
+
+    //SEQUENCE TAG:
+    //  - 1: elem_type TypeProto
+    pub const Sequence = struct {
+        elem_type: ?*TypeProto,
+
+        pub fn deinit(self: *Sequence, allocator: std.mem.Allocator) void {
+            if (self.elem_type) |e| {
+                e.deinit(allocator);
+                allocator.destroy(e);
+            }
+        }
+
+        pub fn parse(reader: *protobuf.ProtoReader) !Sequence {
+            var sequence = Sequence{
+                .elem_type = null,
+            };
+
+            _ = &sequence;
+
+            while (reader.hasMore()) {
+                const tag = try reader.readTag();
+                std.debug.print("\n .............................. Sequence TAG: {any} ", .{tag});
+
+                switch (tag.field_number) {
+                    1 => { //elem_type
+                        std.debug.print("\n .............................. Sequence READING elem_type ", .{});
+                        _ = try reader.readLengthDelimited();
+                    },
+                    else => {
+                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        unreachable;
+                    },
+                }
+            }
+
+            return sequence;
+        }
+    };
+
+    //MAP TAG:
+    //  - 1: key_type u32
+    //  - 2: value_type TypeProto
+    pub const Map = struct {
+        key_type: u32,
+        value_type: ?*TypeProto,
+
+        pub fn deinit(self: *Map, allocator: std.mem.Allocator) void {
+            if (self.value_type) |v| {
+                v.deinit(allocator);
+                allocator.destroy(v);
+            }
+        }
+
+        pub fn parse(reader: *protobuf.ProtoReader) !Tensor {
+            var map = Map{
+                .key_type = 0,
+                .value_type = null,
+            };
+
+            _ = &map;
+
+            while (reader.hasMore()) {
+                const tag = try reader.readTag();
+                std.debug.print("\n .............................. Map TAG: {any} ", .{tag});
+
+                switch (tag.field_number) {
+                    1 => { //elem_type
+                        std.debug.print("\n .............................. Map READING elem_type ", .{});
+                        _ = try reader.readLengthDelimited();
+                    },
+                    2 => { //value_type
+                        std.debug.print("\n .............................. Map READING value_type ", .{});
+                        _ = try reader.readLengthDelimited();
+                    },
+                    else => {
+                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        unreachable;
+                    },
+                }
+            }
+
+            return map;
+        }
+    };
+
+    //SPARSE TENSOR
+    //  - 1: elem_type int32
+    //  - 2: shape TensorShapeProto
+    pub const SparseTensor = struct {
+        elem_type: u32,
+        shape: ?*TensorShapeProto,
+
+        pub fn deinit(self: *SparseTensor, allocator: std.mem.Allocator) void {
+            if (self.shape) |s| {
+                s.deinit(allocator);
+                allocator.destroy(s);
+            }
+        }
+
+        pub fn parse(reader: *protobuf.ProtoReader) !SparseTensor {
+            var sparse_tensor = SparseTensor{
+                .elem_type = 0,
+                .shape = null,
+            };
+
+            _ = &sparse_tensor;
+
+            while (reader.hasMore()) {
+                const tag = try reader.readTag();
+                std.debug.print("\n .............................. tensor TAG: {any} ", .{tag});
+
+                switch (tag.field_number) {
+                    1 => { //elem_type
+                        std.debug.print("\n .............................. Tensor READING elem_type ", .{});
+                        _ = try reader.readLengthDelimited();
+                    },
+                    2 => { //shape
+                        std.debug.print("\n .............................. Tensor READING tensor_type ", .{});
+                        _ = try reader.readLengthDelimited();
+                    },
+                    else => {
+                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        unreachable;
+                    },
+                }
+            }
+
+            return sparse_tensor;
+        }
+    }; //TODO
+
+    //TAG OPTIONAL
+    //  - 1: elem_type TypeProto
+    pub const Optional = struct {
+        elem_type: ?*TypeProto,
+
+        pub fn deinit(self: *Optional, allocator: std.mem.Allocator) void {
+            if (self.elem_type) |e| {
+                e.deinit(allocator);
+                allocator.destroy(e);
+            }
+        }
+
+        pub fn parse(reader: *protobuf.ProtoReader) !Sequence {
+            var opt = Optional{
+                .elem_type = null,
+            };
+
+            _ = &opt;
+
+            while (reader.hasMore()) {
+                const tag = try reader.readTag();
+                std.debug.print("\n .............................. Optional TAG: {any} ", .{tag});
+
+                switch (tag.field_number) {
+                    1 => { //elem_type
+                        std.debug.print("\n .............................. Optional READING elem_type ", .{});
+                        _ = try reader.readLengthDelimited();
+                    },
+                    else => {
+                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        unreachable;
+                    },
+                }
+            }
+
+            return opt;
+        }
+    };
+
+    elem_type: u32,
+    tensor_type: ?*Tensor,
+    sequence_type: ?*Sequence,
+    map_type: ?*Map,
+    sparse_tensor_type: ?*SparseTensor, //TODO
+    optional_type: ?*Optional,
+    denotation: ?[]const u8,
+
+    pub fn deinit(self: *TypeProto, allocator: std.mem.Allocator) void {
+        if (self.tensor_type) |s| {
+            s.deinit(allocator);
+            allocator.destroy(s);
+        }
+        if (self.sequence_type) |st| {
+            st.deinit(allocator);
+            allocator.destroy(st);
+        }
+        if (self.map_type) |m| {
+            m.deinit(allocator);
+            allocator.destroy(m);
+        }
+        if (self.sparse_tensor_type) |stt| {
+            stt.deinit(allocator);
+            allocator.destroy(stt);
+        }
+        if (self.optional_type) |ot| {
+            ot.deinit(allocator);
+            allocator.destroy(ot);
+        }
+
+        if (self.denotation) |d| allocator.free(d);
     }
 
-    pub fn parse(reader: *protobuf.ProtoReader) !TensorTypeProto {
-        var tensor_type = TensorTypeProto{
+    pub fn parse(reader: *protobuf.ProtoReader) !TypeProto {
+        var tensor_type = TypeProto{
             .elem_type = 0,
-            .shape = null,
+            .tensor_type = null,
+            .sequence_type = null,
+            .map_type = null,
+            .sparse_tensor_type = null, //TODO
+            .optional_type = null,
+            .denotation = null,
         };
+
+        _ = &tensor_type;
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
+            std.debug.print("\n ........................ TypeProto TAG: {any} ", .{tag});
+
             switch (tag.field_number) {
-                1 => { // elem_type
-                    tensor_type.elem_type = try reader.readFixed32();
+                1 => { //tensor_type
+                    std.debug.print("\n ........................ TypeProto READING tensor_type ", .{});
+                    _ = try reader.readLengthDelimited();
                 },
-                2 => { // shape
-                    var shape_reader = try reader.readLengthDelimited();
-                    const shape_ptr = try reader.allocator.create(TensorShapeProto);
-                    shape_ptr.* = try TensorShapeProto.parse(&shape_reader);
-                    tensor_type.shape = shape_ptr;
+                4 => { //sequence_type
+                    std.debug.print("\n ........................ TypeProto READING sequence_type ", .{});
+                    _ = try reader.readLengthDelimited();
                 },
+                5 => { //map_type
+                    std.debug.print("\n ........................ TypeProto READING map_type ", .{});
+                    _ = try reader.readLengthDelimited();
+                },
+                6 => { //denotation
+                    std.debug.print("\n ........................ TypeProto READING denotation ", .{});
+                    _ = try reader.readLengthDelimited();
+                },
+                8 => { // TODO sparse_tensor_type
+                    std.debug.print("\n ........................ TypeProto READING sparse_tensor_type ", .{});
+                    _ = try reader.readLengthDelimited();
+                },
+                9 => { //optional_type
+                    std.debug.print("\n ........................ TypeProto READING sparse_tensor_type ", .{});
+                    _ = try reader.readLengthDelimited();
+                },
+
                 else => {
                     try reader.skipField(tag.wire_type);
                 },
@@ -439,7 +830,7 @@ pub const NodeProto = struct {
                 5 => { // attribute (repeated)
                     var attr_reader = try reader.readLengthDelimited();
                     const attr_ptr = try reader.allocator.create(AttributeProto);
-                    attr_ptr.* = try parseSingleAttribute(&attr_reader, reader.allocator);
+                    attr_ptr.* = try AttributeProto.parseSingleAttribute(&attr_reader, reader.allocator);
                     try attributes.append(attr_ptr);
                 },
                 7 => { // domain
@@ -536,10 +927,10 @@ pub const GraphProto = struct {
 
                 11 => { // input
                     std.debug.print("\n\n ........GRAPH PROTO READING input ", .{});
-                    _ = try reader.readLengthDelimited(); //var input_reader
-                    // const input_ptr = try reader.allocator.create(ValueInfoProto);
-                    // input_ptr.* = try ValueInfoProto.parse(&input_reader);
-                    // try inputs.append(input_ptr);
+                    var input_reader = try reader.readLengthDelimited(); //var input_reader
+                    const input_ptr = try reader.allocator.create(ValueInfoProto);
+                    input_ptr.* = try ValueInfoProto.parse(&input_reader);
+                    try inputs.append(input_ptr);
                 },
                 12 => { // output
                     // TODO: This field contains a list of ValueInfoProto messages, each representing an output of the graph.
@@ -584,110 +975,6 @@ pub const GraphProto = struct {
         return graph;
     }
 };
-
-fn parseSingleAttribute(
-    attr_reader: *protobuf.ProtoReader,
-    allocator: std.mem.Allocator,
-) !AttributeProto {
-    var attr = AttributeProto{
-        .name = "",
-        .type = .UNDEFINED,
-    };
-
-    var floats_list = std.ArrayList(f32).init(allocator);
-    defer floats_list.deinit();
-    var ints_list = std.ArrayList(i64).init(allocator);
-    defer ints_list.deinit();
-    var strings_list = std.ArrayList([]const u8).init(allocator);
-    defer {
-        for (strings_list.items) |s| allocator.free(s);
-        strings_list.deinit();
-    }
-
-    errdefer {
-        for (strings_list.items) |s| allocator.free(s);
-    }
-
-    while (attr_reader.hasMore()) {
-        const attr_tag = try attr_reader.readTag();
-        //DEBUG
-        //std.debug.print("Parsing attribute field {d} with wire type {}\n", .{ attr_tag.field_number, attr_tag.wire_type });
-        switch (attr_tag.field_number) {
-            1 => { // name
-                attr.name = try attr_reader.readString(allocator);
-                // Pre-set type for known Conv attributes
-                if (std.mem.eql(u8, attr.name, "dilations") or
-                    std.mem.eql(u8, attr.name, "kernel_shape") or
-                    std.mem.eql(u8, attr.name, "pads") or
-                    std.mem.eql(u8, attr.name, "strides"))
-                {
-                    attr.type = .INTS;
-                }
-            },
-            20 => { // type
-                const value = try attr_reader.readVarint();
-                // Only set type if it's not already set to INTS
-                if (attr.type != .INTS) {
-                    attr.type = @enumFromInt(@as(u8, @intCast(value)));
-                }
-            },
-            2 => { // single float (f)
-                const value = try attr_reader.readFixed32();
-                attr.f = @bitCast(value);
-                if (attr.type != .INTS) attr.type = .FLOAT;
-            },
-            3 => { // single int (i)
-                const value = try attr_reader.readVarint();
-                attr.i = @intCast(value);
-                if (attr.type != .INTS) attr.type = .INT;
-            },
-            4 => { // single string (s)
-                attr.s = try attr_reader.readString(allocator);
-                if (attr.type != .INTS) attr.type = .STRING;
-            },
-            5 => { // single tensor (t)
-                var tensor_reader = try attr_reader.readLengthDelimited();
-                const tensor_ptr = try allocator.create(TensorProto);
-                tensor_ptr.* = try TensorProto.parse(&tensor_reader);
-                attr.t = tensor_ptr;
-                if (attr.type != .INTS) attr.type = .TENSOR;
-            },
-            6 => { // repeated float (floats)
-                if (attr_tag.wire_type == .LengthDelimited) {
-                    var floats_reader = try attr_reader.readLengthDelimited();
-                    while (floats_reader.hasMore()) {
-                        if (floats_reader.available() < 4) break;
-                        const v = try floats_reader.readFixed32();
-                        try floats_list.append(@bitCast(v));
-                    }
-                } else {
-                    const v = try attr_reader.readFixed32();
-                    try floats_list.append(@bitCast(v));
-                }
-                if (attr.type != .INTS) attr.type = .FLOATS;
-            },
-            7, 8 => { // repeated int64 (ints) or potential repeated int
-                const v = try attr_reader.readVarint();
-                try ints_list.append(@intCast(v));
-                //DEBUG
-                //std.debug.print("Added int value {d} to {s}\n", .{ v, attr.name });
-                if (attr.type != .INTS) attr.type = .INTS;
-            },
-            else => {
-                try attr_reader.skipField(attr_tag.wire_type);
-            },
-        }
-    }
-
-    switch (attr.type) {
-        .FLOATS => attr.floats = try floats_list.toOwnedSlice(),
-        .INTS => attr.ints = try ints_list.toOwnedSlice(),
-        .STRINGS => attr.strings = try strings_list.toOwnedSlice(),
-        else => {},
-    }
-
-    return attr;
-}
 
 pub const ModelProto = struct {
     ir_version: Version,
