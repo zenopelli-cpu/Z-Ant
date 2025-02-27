@@ -334,7 +334,7 @@ pub inline fn toUsize(comptime T: type, value: T) !usize {
     return @intCast(value);
 }
 
-pub inline fn sliceToUsizeSlice(comptime T: type, input: []const T) ![]usize {
+pub inline fn sliceToUsizeSlice(comptime T: type, input: []const T) []usize {
     // Ensure T is an integer type.
     comptime {
         if (@typeInfo(T) != .Int) {
@@ -342,19 +342,19 @@ pub inline fn sliceToUsizeSlice(comptime T: type, input: []const T) ![]usize {
         }
     }
 
-    var output = try allocator.alloc(usize, input.len);
+    var output = allocator.alloc(usize, input.len) catch @panic("Out of memory in sliceToUsizeSlice");
     const maxUsize = std.math.maxInt(usize);
 
     for (input, 0..) |value, index| {
         // If T is signed, check for negative values.
         if (@typeInfo(T).Int.signed and value < 0) {
-            return error.NegativeValue;
+            @panic("Negative value in sliceToUsizeSlice");
         }
         // Promote value to u128 for a safe comparison.
         const uvalue: u128 = @intCast(value);
         const maxCast: u128 = @intCast(maxUsize);
         if (uvalue > maxCast) {
-            return error.ValueTooLarge;
+            @panic("Value too large in sliceToUsizeSlice");
         }
         output[index] = @intCast(value);
     }

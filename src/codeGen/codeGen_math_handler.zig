@@ -1300,7 +1300,7 @@ inline fn write_shape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    tensMath.shape_onnx(
+        \\    tensMath.shape_onnx_lean(
         \\        T, //type
         \\        @constCast(&tensor_{s}), //input tensor
         \\        {s}, //start
@@ -1560,21 +1560,28 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             }
         }
     }
-
+    
     defer if (needs_free) allocator.free(axes_str);
 
     // Generate code to convert the input shape to the output shape
     try writer.print(
+        \\     
+        \\    var axes_shape_{s} = [_]usize{{1}};
+        \\    var axes_tensor_{s} = Tensor(i64).fromArray(&allocator, {s}, &axes_shape_{s}) catch return;
         \\
         \\    tensMath.unsqueeze_lean(
         \\        T, //type
         \\        @constCast(&tensor_{s}), //input tensor
-        \\        {s}, //axes
+        \\        &axes_tensor_{s}, //axes
         \\        &tensor_{s}, //output tensor
         \\    )
     , .{
         input_name,
+        input_name,
         axes_str,
+        input_name,
+        input_name,
+        input_name,
         output_name,
     });
 }
