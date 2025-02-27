@@ -278,17 +278,17 @@ pub fn printTensorHashMap(map: std.StringHashMap(ReadyTensor)) void {
 
 // ----------------- DATA TYPE management -------------
 
-pub inline fn i64SliceToUsizeSlice(input: []const i64) []usize {
-    var output = allocator.alloc(usize, input.len) catch @panic("Out of memory in i64SliceToUsizeSlice");
+pub inline fn i64SliceToUsizeSlice(input: []const i64) ![]usize {
+    var output = try allocator.alloc(usize, input.len);
 
     const maxUsize = std.math.maxInt(usize);
 
     for (input, 0..) |value, index| {
         if (value < 0) {
-            @panic("Negative value in i64SliceToUsizeSlice");
+            return error.NegativeValue;
         }
         if (value > maxUsize) {
-            @panic("Value too large in i64SliceToUsizeSlice");
+            return error.ValueTooLarge;
         }
         output[index] = @intCast(value);
     }
@@ -321,13 +321,13 @@ pub inline fn toUsize(comptime T: type, value: T) !usize {
     }
 
     // Check for negative values if T is signed
-    if (@typeInfo(T).Int.signedness == .signed and value < 0) {
+    if (@typeInfo(T).Int.signed and value < 0) {
         return error.NegativeValue;
     }
 
     // Check if value exceeds maximum usize
     const maxUsize = std.math.maxInt(usize);
-    if (@as(u128, @intCast(if (@typeInfo(T).Int.signedness == .signed) @as(u128, @intCast(@max(0, value))) else @as(u128, @intCast(value)))) > maxUsize) {
+    if (@as(u128, @intCast(if (@typeInfo(T).Int.signed) @as(u128, @intCast(@max(0, value))) else @as(u128, @intCast(value)))) > maxUsize) {
         return error.ValueTooLarge;
     }
 
@@ -347,7 +347,7 @@ pub inline fn sliceToUsizeSlice(comptime T: type, input: []const T) []usize {
 
     for (input, 0..) |value, index| {
         // If T is signed, check for negative values.
-        if (@typeInfo(T).Int.signedness == .signed and value < 0) {
+        if (@typeInfo(T).Int.signed and value < 0) {
             @panic("Negative value in sliceToUsizeSlice");
         }
         // Promote value to u128 for a safe comparison.
