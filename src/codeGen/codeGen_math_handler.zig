@@ -63,6 +63,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try writer.writeAll("// Handle Conv\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Div")) {
         try write_div(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Tanh")) {
+        try write_tanh(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Flatten")) {
         try writer.writeAll("// Handle Flatten\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gather")) {
@@ -123,6 +125,22 @@ inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
+    });
+}
+
+inline fn write_tanh(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Tanh.html
+    // INPUTS:
+    //      - A (heterogeneous) - T:
+    // OUTPUTS:
+    //      - B (heterogeneous) - T: The hyperbolic tangent values of the input tensor computed element-wise, same type
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.tanh_lean(T, &tensor_{s}, &tensor_{s})
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor B
     });
 }
 
@@ -285,6 +303,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Div")) {
         //https://onnx.ai/onnx/operators/onnx__Div.html
         readyNode.outputs.items[0].shape = readyNode.inputs.items[1].shape;
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Tanh")) {
+        //https://onnx.ai/onnx/operators/onnx__Tanh.html
+        readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Flatten")) {
         // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
