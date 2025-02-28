@@ -67,7 +67,6 @@ pub const AttributeType = enum {
 //  - 2 : type, TypeProto
 //  - 3 : doc_string, string
 //  - 4 : TODO metadata_props, StringStringEntryProto
-
 pub const ValueInfoProto = struct {
     name: ?[]const u8,
     type: ?*TypeProto,
@@ -106,17 +105,39 @@ pub const ValueInfoProto = struct {
                 },
                 3 => { // doc_string
                     std.debug.print("\n ................ ValueInfoProto READING doc_string ", .{});
-
-                    _ = try reader.readLengthDelimited(); //var doc_reader
-                    // _ = try doc_reader.readString(reader.allocator);
+                    value_info.doc_string = try reader.readString(reader.allocator);
                 },
                 else => {
+                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for ValueInfoProto", .{tag});
                     try reader.skipField(tag.wire_type);
                 },
             }
         }
 
         return value_info;
+    }
+
+    pub fn print(self: *ValueInfoProto) void {
+        std.debug.print("ValueInfo:\n", .{});
+
+        if (self.name) |n| {
+            std.debug.print("  Name: {s}\n", .{n});
+        } else {
+            std.debug.print("  Name: (none)\n", .{});
+        }
+
+        if (self.type) |t| {
+            std.debug.print("  Type:\n", .{});
+            t.print();
+        } else {
+            std.debug.print("  Type: (none)\n", .{});
+        }
+
+        if (self.doc_string) |doc| {
+            std.debug.print("  Doc: {s}\n", .{doc});
+        } else {
+            std.debug.print("  Doc: (none)\n", .{});
+        }
     }
 };
 
@@ -152,7 +173,7 @@ pub const AttributeProto = struct {
         }
     }
 
-    fn parseSingleAttribute(attr_reader: *protobuf.ProtoReader, allocator: std.mem.Allocator) !AttributeProto {
+    pub fn parseSingleAttribute(attr_reader: *protobuf.ProtoReader, allocator: std.mem.Allocator) !AttributeProto {
         var attr = AttributeProto{
             .name = "",
             .type = .UNDEFINED,
@@ -252,18 +273,78 @@ pub const AttributeProto = struct {
 
         return attr;
     }
+
+    pub fn print(self: *AttributeProto) void {
+        std.debug.print("Attribute:\n", .{});
+        std.debug.print("  Name: {s}\n", .{self.name});
+        std.debug.print("  Type: {}\n", .{self.type});
+
+        if (self.f != 0) {
+            std.debug.print("  Float: {}\n", .{self.f});
+        }
+
+        if (self.i != 0) {
+            std.debug.print("  Int: {}\n", .{self.i});
+        }
+
+        if (self.s.len > 0) {
+            std.debug.print("  String: \"{s}\"\n", .{self.s});
+        }
+
+        if (self.t) |tensor| {
+            std.debug.print("  Tensor:\n", .{});
+            tensor.print();
+        }
+
+        if (self.floats.len > 0) {
+            std.debug.print("  Floats: [", .{});
+            for (self.floats, 0..) |val, i| {
+                if (i > 0) std.debug.print(", ", .{});
+                std.debug.print("{}", .{val});
+            }
+            std.debug.print("]\n", .{});
+        }
+
+        if (self.ints.len > 0) {
+            std.debug.print("  Ints: [", .{});
+            for (self.ints, 0..) |val, i| {
+                if (i > 0) std.debug.print(", ", .{});
+                std.debug.print("{}", .{val});
+            }
+            std.debug.print("]\n", .{});
+        }
+
+        if (self.strings.len > 0) {
+            std.debug.print("  Strings: [", .{});
+            for (self.strings, 0..) |val, i| {
+                if (i > 0) std.debug.print(", ", .{});
+                std.debug.print("\"{s}\"", .{val});
+            }
+            std.debug.print("]\n", .{});
+        }
+    }
 };
 
+//https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L700
+//The struct Dimension is not present, instead the dimensions are saved inside .dims
+//TAGS:
+//  - 1 : dims
+//      - 1.1 : dim_value, i64
+//      - 1.2: TODO dim_param, string
+//      - 1.3: denotation, string
 pub const TensorShapeProto = struct {
     dims: []i64,
+    denotation: ?[]const u8,
 
     pub fn deinit(self: *TensorShapeProto, allocator: std.mem.Allocator) void {
         allocator.free(self.dims);
+        if (self.denotation) |d| allocator.free(d);
     }
 
     pub fn parse(reader: *protobuf.ProtoReader) !TensorShapeProto {
         var shape = TensorShapeProto{
             .dims = &[_]i64{},
+            .denotation = null,
         };
 
         var dims_list = std.ArrayList(i64).init(reader.allocator);
@@ -271,29 +352,55 @@ pub const TensorShapeProto = struct {
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
+            std.debug.print("\n ................................. shape TAG: {any} ", .{tag});
+
             switch (tag.field_number) {
                 1 => { // dim
                     var dim_reader = try reader.readLengthDelimited();
                     while (dim_reader.hasMore()) {
                         const dim_tag = try dim_reader.readTag();
-                        if (dim_tag.field_number == 1) { // dim_value
-                            const dim_value = try dim_reader.readFixed64();
-                            try dims_list.append(@bitCast(dim_value));
-                        } else {
-                            std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
-                            unreachable;
+                        std.debug.print("\n .................................... dim TAG: {any} ", .{dim_tag});
+                        switch (dim_tag.field_number) {
+                            1 => { // i64 dim_value
+                                const dim_value = try dim_reader.readVarint(); //const dim_value
+                                try dims_list.append(@bitCast(dim_value));
+                            },
+                            3 => {
+                                shape.denotation = try reader.readString(dim_reader.allocator);
+                            },
+                            else => {
+                                std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorShapeProto\n\n", .{tag});
+                                try reader.skipField(tag.wire_type);
+                            },
                         }
                     }
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
-                    unreachable;
+                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorShapeProto\n\n ", .{tag});
+                    try reader.skipField(tag.wire_type);
                 },
             }
         }
 
         shape.dims = try dims_list.toOwnedSlice();
         return shape;
+    }
+
+    pub fn print(self: *TensorShapeProto) void {
+        std.debug.print("Tensor Shape:\n", .{});
+
+        std.debug.print("  Dims: [", .{});
+        for (self.dims, 0..) |dim, i| {
+            if (i > 0) std.debug.print(", ", .{});
+            std.debug.print("{}", .{dim});
+        }
+        std.debug.print("]\n", .{});
+
+        if (self.denotation) |d| {
+            std.debug.print("  Denotation: {s}\n", .{d});
+        } else {
+            std.debug.print("  Denotation: (none)\n", .{});
+        }
     }
 };
 
@@ -304,7 +411,7 @@ pub const TensorShapeProto = struct {
 //  - 5: map_type, type: TypeProto.Map
 //  - 6: denotation, type: []const u8
 //  - 8: TODO sparse_tensor_type, type: TypeProto.SparseTensor
-//  - 9: optional_type, type: TypeProto.Optional
+//  - 9: TODO: optional_type, type: TypeProto.Optional
 pub const TypeProto = struct {
     //TENSOR TAG:
     //  - 1: elem_type int32
@@ -340,19 +447,31 @@ pub const TypeProto = struct {
                     2 => { //shape
                         std.debug.print("\n .............................. Tensor READING shape ", .{});
 
-                        _ = try reader.readLengthDelimited(); //var shape_reader
-                        // const shape_ptr = try reader.allocator.create(TensorShapeProto);
-                        // shape_ptr.* = try TensorShapeProto.parse(&shape_reader);
-                        // tensor.shape = shape_ptr;
+                        var shape_reader = try reader.readLengthDelimited(); //var shape_reader
+                        const shape_ptr = try reader.allocator.create(TensorShapeProto);
+                        shape_ptr.* = try TensorShapeProto.parse(&shape_reader);
+                        tensor.shape = shape_ptr;
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
-                        unreachable;
+                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
+                        try reader.skipField(tag.wire_type);
                     },
                 }
             }
 
             return tensor;
+        }
+
+        pub fn print(self: *Tensor) void {
+            std.debug.print("Tensor:\n", .{});
+            std.debug.print("  Element Type: {}\n", .{self.elem_type});
+
+            if (self.shape) |s| {
+                std.debug.print("  Shape:\n", .{});
+                s.print();
+            } else {
+                std.debug.print("  Shape: (none)\n", .{});
+            }
         }
     };
 
@@ -385,13 +504,24 @@ pub const TypeProto = struct {
                         _ = try reader.readLengthDelimited();
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for ", .{tag});
                         unreachable;
                     },
                 }
             }
 
             return sequence;
+        }
+
+        pub fn print(self: *Sequence) void {
+            std.debug.print("Sequence:\n", .{});
+
+            if (self.elem_type) |t| {
+                std.debug.print("  Element Type:\n", .{});
+                t.print();
+            } else {
+                std.debug.print("  Element Type: (none)\n", .{});
+            }
         }
     };
 
@@ -439,6 +569,18 @@ pub const TypeProto = struct {
 
             return map;
         }
+
+        pub fn print(self: *Map) void {
+            std.debug.print("Map:\n", .{});
+            std.debug.print("  Key Type: {}\n", .{self.key_type});
+
+            if (self.value_type) |v| {
+                std.debug.print("  Value Type:\n", .{});
+                v.print();
+            } else {
+                std.debug.print("  Value Type: (none)\n", .{});
+            }
+        }
     };
 
     //SPARSE TENSOR
@@ -485,7 +627,19 @@ pub const TypeProto = struct {
 
             return sparse_tensor;
         }
-    }; //TODO
+
+        pub fn print(self: *SparseTensor) void {
+            std.debug.print("SparseTensor:\n", .{});
+            std.debug.print("  Element Type: {}\n", .{self.elem_type});
+
+            if (self.shape) |s| {
+                std.debug.print("  Shape:\n", .{});
+                s.print();
+            } else {
+                std.debug.print("  Shape: (none)\n", .{});
+            }
+        }
+    };
 
     //TAG OPTIONAL
     //  - 1: elem_type TypeProto
@@ -523,6 +677,17 @@ pub const TypeProto = struct {
             }
 
             return opt;
+        }
+
+        pub fn print(self: *Optional) void {
+            std.debug.print("Optional:\n", .{});
+
+            if (self.elem_type) |t| {
+                std.debug.print("  Element Type:\n", .{});
+                t.print();
+            } else {
+                std.debug.print("  Element Type: (none)\n", .{});
+            }
         }
     };
 
@@ -582,15 +747,15 @@ pub const TypeProto = struct {
                     ensor_type_ptr.* = try Tensor.parse(&tensor_type_reader);
                     typeProto.tensor_type = ensor_type_ptr;
                 },
-                4 => { //sequence_type
+                4 => { //TODO sequence_type
                     std.debug.print("\n ........................ TypeProto READING sequence_type ", .{});
                     _ = try reader.readLengthDelimited();
                 },
-                5 => { //map_type
+                5 => { //TODO map_type
                     std.debug.print("\n ........................ TypeProto READING map_type ", .{});
                     _ = try reader.readLengthDelimited();
                 },
-                6 => { //denotation
+                6 => { // TODO denotation
                     std.debug.print("\n ........................ TypeProto READING denotation ", .{});
                     _ = try reader.readLengthDelimited();
                 },
@@ -598,20 +763,63 @@ pub const TypeProto = struct {
                     std.debug.print("\n ........................ TypeProto READING sparse_tensor_type ", .{});
                     _ = try reader.readLengthDelimited();
                 },
-                9 => { //optional_type
+                9 => { // TODO optional_type
                     std.debug.print("\n ........................ TypeProto READING sparse_tensor_type ", .{});
                     _ = try reader.readLengthDelimited();
                 },
-
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
-                    unreachable;
-                    // try reader.skipField(tag.wire_type);
+                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TypeProto", .{tag});
+                    try reader.skipField(tag.wire_type);
                 },
             }
         }
 
         return typeProto;
+    }
+
+    pub fn print(self: *TypeProto) void {
+        std.debug.print("TypeProto:\n", .{});
+
+        if (self.tensor_type) |t| {
+            std.debug.print("  Tensor Type:\n", .{});
+            t.print();
+        } else {
+            std.debug.print("  Tensor Type: (none)\n", .{});
+        }
+
+        if (self.sequence_type) |s| {
+            std.debug.print("  Sequence Type:\n", .{});
+            s.print();
+        } else {
+            std.debug.print("  Sequence Type: (none)\n", .{});
+        }
+
+        if (self.map_type) |m| {
+            std.debug.print("  Map Type:\n", .{});
+            m.print();
+        } else {
+            std.debug.print("  Map Type: (none)\n", .{});
+        }
+
+        if (self.sparse_tensor_type) |st| {
+            std.debug.print("  Sparse Tensor Type:\n", .{});
+            st.print();
+        } else {
+            std.debug.print("  Sparse Tensor Type: (none)\n", .{});
+        }
+
+        if (self.optional_type) |o| {
+            std.debug.print("  Optional Type:\n", .{});
+            o.print();
+        } else {
+            std.debug.print("  Optional Type: (none)\n", .{});
+        }
+
+        if (self.denotation) |d| {
+            std.debug.print("  Denotation: {s}\n", .{d});
+        } else {
+            std.debug.print("  Denotation: (none)\n", .{});
+        }
     }
 };
 
@@ -753,12 +961,92 @@ pub const TensorProto = struct {
                     }
                     tensor.uint64_data = try data.toOwnedSlice();
                 },
-                else => try reader.skipField(tag.wire_type),
+                else => {
+                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
+                    try reader.skipField(tag.wire_type);
+                },
             }
         }
 
         tensor.dims = try dims.toOwnedSlice();
         return tensor;
+    }
+
+    pub fn print(self: *TensorProto) void {
+        std.debug.print("Tensor:\n", .{});
+
+        if (self.name) |n| {
+            std.debug.print("  Name: {s}\n", .{n});
+        } else {
+            std.debug.print("  Name: (none)\n", .{});
+        }
+
+        std.debug.print("  Data Type: {}\n", .{self.data_type});
+
+        std.debug.print("  Dims: [", .{});
+        for (self.dims, 0..) |dim, i| {
+            if (i > 0) std.debug.print(", ", .{});
+            std.debug.print("{}", .{dim});
+        }
+        std.debug.print("]\n", .{});
+
+        if (self.raw_data) |raw| {
+            std.debug.print("  Raw Data: {} bytes\n", .{raw.len});
+        }
+
+        if (self.float_data) |data| {
+            std.debug.print("  Float Data: [", .{});
+            for (data, 0..) |val, i| {
+                if (i > 0) std.debug.print(", ", .{});
+                std.debug.print("{}", .{val});
+            }
+            std.debug.print("]\n", .{});
+        }
+
+        if (self.int32_data) |data| {
+            std.debug.print("  Int32 Data: [", .{});
+            for (data, 0..) |val, i| {
+                if (i > 0) std.debug.print(", ", .{});
+                std.debug.print("{}", .{val});
+            }
+            std.debug.print("]\n", .{});
+        }
+
+        if (self.int64_data) |data| {
+            std.debug.print("  Int64 Data: [", .{});
+            for (data, 0..) |val, i| {
+                if (i > 0) std.debug.print(", ", .{});
+                std.debug.print("{}", .{val});
+            }
+            std.debug.print("]\n", .{});
+        }
+
+        if (self.double_data) |data| {
+            std.debug.print("  Double Data: [", .{});
+            for (data, 0..) |val, i| {
+                if (i > 0) std.debug.print(", ", .{});
+                std.debug.print("{}", .{val});
+            }
+            std.debug.print("]\n", .{});
+        }
+
+        if (self.uint64_data) |data| {
+            std.debug.print("  UInt64 Data: [", .{});
+            for (data, 0..) |val, i| {
+                if (i > 0) std.debug.print(", ", .{});
+                std.debug.print("{}", .{val});
+            }
+            std.debug.print("]\n", .{});
+        }
+
+        if (self.string_data) |data| {
+            std.debug.print("  String Data: [", .{});
+            for (data, 0..) |val, i| {
+                if (i > 0) std.debug.print(", ", .{});
+                std.debug.print("\"{s}\"", .{val});
+            }
+            std.debug.print("]\n", .{});
+        }
     }
 };
 
@@ -846,6 +1134,7 @@ pub const NodeProto = struct {
                     node.domain = try reader.readString(reader.allocator);
                 },
                 else => {
+                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for NodeProto\n\n", .{tag});
                     try reader.skipField(tag.wire_type);
                 },
             }
@@ -856,6 +1145,41 @@ pub const NodeProto = struct {
         node.attribute = try attributes.toOwnedSlice();
         return node;
     }
+
+    pub fn print(self: *NodeProto) void {
+        std.debug.print("Node:\n", .{});
+
+        if (self.name) |n| {
+            std.debug.print("  Name: {s}\n", .{n});
+        } else {
+            std.debug.print("  Name: (none)\n", .{});
+        }
+
+        std.debug.print("  Op Type: {s}\n", .{self.op_type});
+
+        if (self.domain) |d| {
+            std.debug.print("  Domain: {s}\n", .{d});
+        } else {
+            std.debug.print("  Domain: (none)\n", .{});
+        }
+
+        std.debug.print("  Inputs: ", .{});
+        for (self.input) |inp| {
+            std.debug.print("{s} ", .{inp});
+        }
+        std.debug.print("\n", .{});
+
+        std.debug.print("  Outputs: ", .{});
+        for (self.output) |out| {
+            std.debug.print("{s} ", .{out});
+        }
+        std.debug.print("\n", .{});
+
+        std.debug.print("  Attributes:\n", .{});
+        for (self.attribute) |attr| {
+            attr.print();
+        }
+    }
 };
 
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L460
@@ -863,19 +1187,21 @@ pub const NodeProto = struct {
 //  - 1 : node, type: NodeProto repeated
 //  - 2 : name
 //  - 5 : initializer, type: TensorProto repeated
-//  - 10: doc_string
+//  - 10: doc_string, optional
 //  - 11: input, type: ValueInfoProto repeated
 //  - 12: output, type: ValueInfoProto repeated
 //  - 13: value_info, type: ValueInfoProto repeated
-//  - 14: quantization_annotation, type: TensorAnnotation repeated
-//  - 15: sparse_initializer, type: TensorProto repeated
-//  - 16: metadata_props, type: StringStringEntryProto repeated
+//  - 14: TODO: quantization_annotation, type: TensorAnnotation repeated
+//  - 15: TODO: sparse_initializer, type: TensorProto repeated
+//  - 16: TODO: metadata_props, type: StringStringEntryProto repeated
 //  - 3, 4, 6, 7, 8, 9 are reserved
 pub const GraphProto = struct {
     name: ?[]const u8,
     nodes: []*NodeProto,
     initializers: []*TensorProto,
     inputs: []*ValueInfoProto,
+    outputs: []*ValueInfoProto,
+    value_info: []*ValueInfoProto,
 
     pub fn deinit(self: *GraphProto, allocator: std.mem.Allocator) void {
         if (self.name) |n| allocator.free(n);
@@ -884,16 +1210,30 @@ pub const GraphProto = struct {
             allocator.destroy(node);
         }
         allocator.free(self.nodes);
+
         for (self.initializers) |init| {
             init.deinit(allocator);
             allocator.destroy(init);
         }
         allocator.free(self.initializers);
-        for (self.inputs) |input| { // Add this block
+
+        for (self.inputs) |input| {
             input.deinit(allocator);
             allocator.destroy(input);
         }
         allocator.free(self.inputs);
+
+        for (self.outputs) |output| {
+            output.deinit(allocator);
+            allocator.destroy(output);
+        }
+        allocator.free(self.outputs);
+
+        for (self.value_info) |vi| {
+            vi.deinit(allocator);
+            allocator.destroy(vi);
+        }
+        allocator.free(self.value_info);
     }
 
     pub fn parse(reader: *protobuf.ProtoReader) !GraphProto {
@@ -902,6 +1242,8 @@ pub const GraphProto = struct {
             .nodes = &[_]*NodeProto{},
             .initializers = &[_]*TensorProto{},
             .inputs = &[_]*ValueInfoProto{},
+            .outputs = &[_]*ValueInfoProto{},
+            .value_info = &[_]*ValueInfoProto{},
         };
 
         var nodes = std.ArrayList(*NodeProto).init(reader.allocator);
@@ -910,6 +1252,10 @@ pub const GraphProto = struct {
         defer initializers.deinit();
         var inputs = std.ArrayList(*ValueInfoProto).init(reader.allocator);
         defer inputs.deinit();
+        var outputs = std.ArrayList(*ValueInfoProto).init(reader.allocator);
+        defer outputs.deinit();
+        var value_infos = std.ArrayList(*ValueInfoProto).init(reader.allocator);
+        defer value_infos.deinit();
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
@@ -936,36 +1282,28 @@ pub const GraphProto = struct {
 
                 11 => { // input
                     std.debug.print("\n\n ........GRAPH PROTO READING input ", .{});
-                    var input_reader = try reader.readLengthDelimited(); //var input_reader
+                    var input_reader = try reader.readLengthDelimited();
                     const input_ptr = try reader.allocator.create(ValueInfoProto);
                     input_ptr.* = try ValueInfoProto.parse(&input_reader);
                     try inputs.append(input_ptr);
                 },
                 12 => { // output
-                    // TODO: This field contains a list of ValueInfoProto messages, each representing an output of the graph.
+                    // This field contains a list of ValueInfoProto messages, each representing an output of the graph.
                     // It provides information about the outputs' names, types, and shapes.
                     std.debug.print("\n\n ........GRAPH PROTO READING output ", .{});
-                    _ = try reader.readLengthDelimited();
+                    var output_reader = try reader.readLengthDelimited();
+                    const output_ptr = try reader.allocator.create(ValueInfoProto);
+                    output_ptr.* = try ValueInfoProto.parse(&output_reader);
+                    try outputs.append(output_ptr);
                 },
                 13 => { // value_info
-                    //TODO: This optional field holds a list of ValueInfoProto messages that describe intermediate values within the graph.
+                    //This optional field holds a list of ValueInfoProto messages that describe intermediate values within the graph.
                     //While it's not mandatory for a value to appear in this list, when present, it offers detailed information about the values computed at various stages of the graph.
                     std.debug.print("\n\n ........GRAPH PROTO READING value_info ", .{});
-                    _ = try reader.readLengthDelimited();
-                },
-                15 => { // sparse_initializer
-                    var sparse_reader = try reader.readLengthDelimited();
-                    while (sparse_reader.hasMore()) {
-                        _ = try sparse_reader.readVarint();
-                    }
-                },
-
-                14 => { // quantization_annotation
-                    //This field carries information mapping tensors to their quantization parameters, such as scale and zero-point tensors.
-                    // For instance, for a tensor 'a', this field might indicate that 'a_scale' and 'a_zero_point' are its associated quantization parameters.
-                    std.debug.print("\n\n ........GRAPH PROTO READING quantization_annotation ", .{});
-
-                    _ = try reader.readLengthDelimited();
+                    var value_info_reader = try reader.readLengthDelimited(); //var value_info_reader
+                    const value_info_ptr = try reader.allocator.create(ValueInfoProto);
+                    value_info_ptr.* = try ValueInfoProto.parse(&value_info_reader);
+                    try value_infos.append(value_info_ptr);
                 },
                 else => {
                     std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} ", .{tag});
@@ -981,7 +1319,38 @@ pub const GraphProto = struct {
         graph.nodes = try nodes.toOwnedSlice();
         graph.initializers = try initializers.toOwnedSlice();
         graph.inputs = try inputs.toOwnedSlice();
+        graph.outputs = try outputs.toOwnedSlice();
+        graph.value_info = try value_infos.toOwnedSlice();
+
         return graph;
+    }
+
+    pub fn print(self: *GraphProto) void {
+        if (self.name) |n| {
+            std.debug.print("Graph Name: {s}\n", .{n});
+        } else {
+            std.debug.print("Graph Name: (none)\n", .{});
+        }
+
+        std.debug.print("Nodes:\n", .{});
+        for (self.nodes) |node| {
+            node.print();
+        }
+
+        std.debug.print("Initializers:\n", .{});
+        for (self.initializers) |initializer| {
+            initializer.print();
+        }
+
+        std.debug.print("Inputs:\n", .{});
+        for (self.inputs) |input| {
+            input.print();
+        }
+
+        std.debug.print("Outputs:\n", .{});
+        for (self.outputs) |output| {
+            output.print();
+        }
     }
 };
 
