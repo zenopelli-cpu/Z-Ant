@@ -1560,7 +1560,7 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             }
         }
     }
-    
+
     defer if (needs_free) allocator.free(axes_str);
 
     // Generate code to convert the input shape to the output shape

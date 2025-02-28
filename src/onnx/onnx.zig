@@ -277,15 +277,17 @@ pub const TensorShapeProto = struct {
                     while (dim_reader.hasMore()) {
                         const dim_tag = try dim_reader.readTag();
                         if (dim_tag.field_number == 1) { // dim_value
-                            const dim_value = try dim_reader.readInt64();
-                            try dims_list.append(dim_value);
+                            const dim_value = try dim_reader.readFixed64();
+                            try dims_list.append(@bitCast(dim_value));
                         } else {
-                            try dim_reader.skipField(dim_tag.wire_type);
+                            std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                            unreachable;
                         }
                     }
                 },
                 else => {
-                    try reader.skipField(tag.wire_type);
+                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                    unreachable;
                 },
             }
         }
@@ -333,11 +335,15 @@ pub const TypeProto = struct {
                 switch (tag.field_number) {
                     1 => { //elem_type
                         std.debug.print("\n .............................. Tensor READING elem_type ", .{});
-                        _ = try reader.readLengthDelimited();
+                        tensor.elem_type = @intCast(try reader.readVarint());
                     },
                     2 => { //shape
-                        std.debug.print("\n .............................. Tensor READING tensor_type ", .{});
-                        _ = try reader.readLengthDelimited();
+                        std.debug.print("\n .............................. Tensor READING shape ", .{});
+
+                        _ = try reader.readLengthDelimited(); //var shape_reader
+                        // const shape_ptr = try reader.allocator.create(TensorShapeProto);
+                        // shape_ptr.* = try TensorShapeProto.parse(&shape_reader);
+                        // tensor.shape = shape_ptr;
                     },
                     else => {
                         std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
@@ -520,7 +526,6 @@ pub const TypeProto = struct {
         }
     };
 
-    elem_type: u32,
     tensor_type: ?*Tensor,
     sequence_type: ?*Sequence,
     map_type: ?*Map,
@@ -549,13 +554,11 @@ pub const TypeProto = struct {
             ot.deinit(allocator);
             allocator.destroy(ot);
         }
-
         if (self.denotation) |d| allocator.free(d);
     }
 
     pub fn parse(reader: *protobuf.ProtoReader) !TypeProto {
-        var tensor_type = TypeProto{
-            .elem_type = 0,
+        var typeProto = TypeProto{
             .tensor_type = null,
             .sequence_type = null,
             .map_type = null,
@@ -564,7 +567,7 @@ pub const TypeProto = struct {
             .denotation = null,
         };
 
-        _ = &tensor_type;
+        _ = &typeProto;
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
@@ -573,7 +576,11 @@ pub const TypeProto = struct {
             switch (tag.field_number) {
                 1 => { //tensor_type
                     std.debug.print("\n ........................ TypeProto READING tensor_type ", .{});
-                    _ = try reader.readLengthDelimited();
+
+                    var tensor_type_reader = try reader.readLengthDelimited();
+                    const ensor_type_ptr = try reader.allocator.create(Tensor);
+                    ensor_type_ptr.* = try Tensor.parse(&tensor_type_reader);
+                    typeProto.tensor_type = ensor_type_ptr;
                 },
                 4 => { //sequence_type
                     std.debug.print("\n ........................ TypeProto READING sequence_type ", .{});
@@ -597,12 +604,14 @@ pub const TypeProto = struct {
                 },
 
                 else => {
-                    try reader.skipField(tag.wire_type);
+                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                    unreachable;
+                    // try reader.skipField(tag.wire_type);
                 },
             }
         }
 
-        return tensor_type;
+        return typeProto;
     }
 };
 
