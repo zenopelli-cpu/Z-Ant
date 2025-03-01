@@ -55,6 +55,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try writer.writeAll("// Handle AveragePool\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "BatchNormalization")) {
         try writer.writeAll("// Handle BatchNormalization\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Ceil")) {
+        try write_ceil(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Concat")) {
         try writer.writeAll("// Handle Concat\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Constant")) {
@@ -63,8 +65,6 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try writer.writeAll("// Handle Conv\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Div")) {
         try write_div(writer, node);
-    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Tanh")) {
-        try write_tanh(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Flatten")) {
         try writer.writeAll("// Handle Flatten\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gather")) {
@@ -101,6 +101,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try writer.writeAll("// Handle Sub\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sum")) {
         try write_sum(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Tanh")) {
+        try write_tanh(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Transpose")) {
         try writer.writeAll("// Handle Transpose\n");
     } else {
@@ -108,6 +110,22 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     }
 
     try writer.writeAll(" catch return;");
+}
+
+inline fn write_ceil(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Ceil.html
+    // INPUTS:
+    //      - A (heterogeneous) - T:
+    // OUTPUTS:
+    //      - B (heterogeneous) - T: The ceil values of the input tensor computed element-wise, same type
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.ceil_lean(T, &tensor_{s}, &tensor_{s})
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor B
+    });
 }
 
 inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
@@ -125,22 +143,6 @@ inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
-    });
-}
-
-inline fn write_tanh(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    // https://onnx.ai/onnx/operators/onnx__Tanh.html
-    // INPUTS:
-    //      - A (heterogeneous) - T:
-    // OUTPUTS:
-    //      - B (heterogeneous) - T: The hyperbolic tangent values of the input tensor computed element-wise, same type
-
-    _ = try writer.print(
-        \\
-        \\    tensMath.tanh_lean(T, &tensor_{s}, &tensor_{s})
-    , .{
-        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
-        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor B
     });
 }
 
@@ -313,12 +315,31 @@ inline fn write_sum(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     , .{try utils.getSanitizedName(node.outputs.items[0].name)});
 }
 
+inline fn write_tanh(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Tanh.html
+    // INPUTS:
+    //      - A (heterogeneous) - T:
+    // OUTPUTS:
+    //      - B (heterogeneous) - T: The hyperbolic tangent values of the input tensor computed element-wise, same type
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.tanh_lean(T, &tensor_{s}, &tensor_{s})
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor B
+    });
+}
+
 // ----------------------------------- SHAPE inference -----------------------------------
 
 pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Add")) {
         // https://onnx.ai/onnx/operators/onnx__Add.html
         readyNode.outputs.items[0].shape = readyNode.inputs.items[1].shape;
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Ceil")) {
+        // https://onnx.ai/onnx/operators/onnx__Ceil.html
+        try compute_ceil_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Concat")) {
         // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Constant")) {
@@ -389,11 +410,15 @@ inline fn compute_constant_output_shape(readyNode: *ReadyNode) !void {
     readyNode.outputs.items[0].shape = try utils.getConstantTensorDims(readyNode.nodeProto);
 }
 
-inline fn compute_ReLU_output_shape(readyNode: *ReadyNode) !void {
+inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
     readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
 }
 
 inline fn compute_leakyReLU_output_shape(readyNode: *ReadyNode) !void {
+    readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
+}
+
+inline fn compute_ReLU_output_shape(readyNode: *ReadyNode) !void {
     readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
 }
 

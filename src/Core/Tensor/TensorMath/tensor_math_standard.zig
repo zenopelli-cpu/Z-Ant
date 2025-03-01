@@ -95,6 +95,9 @@ pub const div_lean = elementWise_math_lib.div_lean;
 //--tanh
 pub const tanh = elementWise_math_lib.tanh;
 pub const tanh_lean = elementWise_math_lib.tanh_lean;
+//--ceil
+pub const ceil = elementWise_math_lib.ceil;
+pub const ceil_lean = elementWise_math_lib.ceil_lean;
 
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");
