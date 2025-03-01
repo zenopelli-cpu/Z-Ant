@@ -4,6 +4,9 @@
 const std = @import("std");
 const protobuf = @import("protobuf.zig");
 
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
+
 pub const Version = enum(i64) {
     IR_VERSION_2017_10_10 = 0x0000000000000001,
     IR_VERSION_2017_10_30 = 0x0000000000000002,
@@ -117,26 +120,29 @@ pub const ValueInfoProto = struct {
         return value_info;
     }
 
-    pub fn print(self: *ValueInfoProto) void {
-        std.debug.print("ValueInfo:\n", .{});
+    pub fn print(self: *ValueInfoProto, padding: ?[]const u8) void {
+        const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+            return;
+        };
+        std.debug.print("{s}------------- VALUEINFO \n", .{space});
 
         if (self.name) |n| {
-            std.debug.print("  Name: {s}\n", .{n});
+            std.debug.print("{s}Name: {s}\n", .{ space, n });
         } else {
-            std.debug.print("  Name: (none)\n", .{});
+            std.debug.print("{s}Name: (none)\n", .{space});
         }
 
         if (self.type) |t| {
-            std.debug.print("  Type:\n", .{});
-            t.print();
+            std.debug.print("{s}Type:\n", .{space});
+            t.print(space);
         } else {
-            std.debug.print("  Type: (none)\n", .{});
+            std.debug.print("{s}Type: (none)\n", .{space});
         }
 
         if (self.doc_string) |doc| {
-            std.debug.print("  Doc: {s}\n", .{doc});
+            std.debug.print("{s}Doc: {s}\n", .{ space, doc });
         } else {
-            std.debug.print("  Doc: (none)\n", .{});
+            std.debug.print("{s}Doc: (none)\n", .{space});
         }
     }
 };
@@ -274,30 +280,34 @@ pub const AttributeProto = struct {
         return attr;
     }
 
-    pub fn print(self: *AttributeProto) void {
-        std.debug.print("Attribute:\n", .{});
-        std.debug.print("  Name: {s}\n", .{self.name});
-        std.debug.print("  Type: {}\n", .{self.type});
+    pub fn print(self: *AttributeProto, padding: ?[]const u8) void {
+        const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+            return;
+        };
+        std.debug.print("{s}------------- ATTRIBUTE \n", .{space});
+
+        std.debug.print("{s}Name: {s}\n", .{ space, self.name });
+        std.debug.print("{s}Type: {}\n", .{ space, self.type });
 
         if (self.f != 0) {
-            std.debug.print("  Float: {}\n", .{self.f});
+            std.debug.print("{s}Float: {}\n", .{ space, self.f });
         }
 
         if (self.i != 0) {
-            std.debug.print("  Int: {}\n", .{self.i});
+            std.debug.print("{s}Int: {}\n", .{ space, self.i });
         }
 
         if (self.s.len > 0) {
-            std.debug.print("  String: \"{s}\"\n", .{self.s});
+            std.debug.print("{s}String: \"{s}\"\n", .{ space, self.s });
         }
 
         if (self.t) |tensor| {
-            std.debug.print("  Tensor:\n", .{});
-            tensor.print();
+            std.debug.print("{s}Tensor:\n", .{space});
+            tensor.print(space);
         }
 
         if (self.floats.len > 0) {
-            std.debug.print("  Floats: [", .{});
+            std.debug.print("{s}Floats: [", .{space});
             for (self.floats, 0..) |val, i| {
                 if (i > 0) std.debug.print(", ", .{});
                 std.debug.print("{}", .{val});
@@ -306,7 +316,7 @@ pub const AttributeProto = struct {
         }
 
         if (self.ints.len > 0) {
-            std.debug.print("  Ints: [", .{});
+            std.debug.print("{s}Ints: [", .{space});
             for (self.ints, 0..) |val, i| {
                 if (i > 0) std.debug.print(", ", .{});
                 std.debug.print("{}", .{val});
@@ -315,7 +325,7 @@ pub const AttributeProto = struct {
         }
 
         if (self.strings.len > 0) {
-            std.debug.print("  Strings: [", .{});
+            std.debug.print("{s}Strings: [", .{space});
             for (self.strings, 0..) |val, i| {
                 if (i > 0) std.debug.print(", ", .{});
                 std.debug.print("\"{s}\"", .{val});
@@ -386,10 +396,13 @@ pub const TensorShapeProto = struct {
         return shape;
     }
 
-    pub fn print(self: *TensorShapeProto) void {
-        std.debug.print("Tensor Shape:\n", .{});
+    pub fn print(self: *TensorShapeProto, padding: ?[]const u8) void {
+        const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+            return;
+        };
+        std.debug.print("{s}------------- SHAPE\n", .{space});
 
-        std.debug.print("  Dims: [", .{});
+        std.debug.print("{s}Dims: [", .{space});
         for (self.dims, 0..) |dim, i| {
             if (i > 0) std.debug.print(", ", .{});
             std.debug.print("{}", .{dim});
@@ -397,9 +410,9 @@ pub const TensorShapeProto = struct {
         std.debug.print("]\n", .{});
 
         if (self.denotation) |d| {
-            std.debug.print("  Denotation: {s}\n", .{d});
+            std.debug.print("{s}Denotation: {s}\n", .{ space, d });
         } else {
-            std.debug.print("  Denotation: (none)\n", .{});
+            std.debug.print("{s}Denotation: (none)\n", .{space});
         }
     }
 };
@@ -462,15 +475,19 @@ pub const TypeProto = struct {
             return tensor;
         }
 
-        pub fn print(self: *Tensor) void {
-            std.debug.print("Tensor:\n", .{});
-            std.debug.print("  Element Type: {}\n", .{self.elem_type});
+        pub fn print(self: *Tensor, padding: ?[]const u8) void {
+            const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+                return;
+            };
+            std.debug.print("{s}------------- TENSOR_TYPE\n", .{space});
+
+            std.debug.print("{s}Element Type: {}\n", .{ space, self.elem_type });
 
             if (self.shape) |s| {
-                std.debug.print("  Shape:\n", .{});
-                s.print();
+                std.debug.print("{s}Shape:\n", .{space});
+                s.print(space);
             } else {
-                std.debug.print("  Shape: (none)\n", .{});
+                std.debug.print("{s}Shape: (none)\n", .{space});
             }
         }
     };
@@ -513,14 +530,17 @@ pub const TypeProto = struct {
             return sequence;
         }
 
-        pub fn print(self: *Sequence) void {
-            std.debug.print("Sequence:\n", .{});
+        pub fn print(self: *Sequence, padding: ?[]const u8) void {
+            const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+                return;
+            };
+            std.debug.print("{s}------------- SEQUENCE\n", .{space});
 
             if (self.elem_type) |t| {
-                std.debug.print("  Element Type:\n", .{});
-                t.print();
+                std.debug.print("{s}Element Type:\n", .{space});
+                t.print(space);
             } else {
-                std.debug.print("  Element Type: (none)\n", .{});
+                std.debug.print("{s}Element Type: (none)\n", .{space});
             }
         }
     };
@@ -570,15 +590,19 @@ pub const TypeProto = struct {
             return map;
         }
 
-        pub fn print(self: *Map) void {
-            std.debug.print("Map:\n", .{});
-            std.debug.print("  Key Type: {}\n", .{self.key_type});
+        pub fn print(self: *Map, padding: ?[]const u8) void {
+            const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+                return;
+            };
+            std.debug.print("{s}------------- MAP\n", .{space});
+
+            std.debug.print("{s}Key Type: {}\n", .{ space, self.key_type });
 
             if (self.value_type) |v| {
-                std.debug.print("  Value Type:\n", .{});
-                v.print();
+                std.debug.print("{s}Value Type:\n", .{space});
+                v.print(space);
             } else {
-                std.debug.print("  Value Type: (none)\n", .{});
+                std.debug.print("{s}Value Type: (none)\n", .{space});
             }
         }
     };
@@ -628,15 +652,18 @@ pub const TypeProto = struct {
             return sparse_tensor;
         }
 
-        pub fn print(self: *SparseTensor) void {
-            std.debug.print("SparseTensor:\n", .{});
-            std.debug.print("  Element Type: {}\n", .{self.elem_type});
+        pub fn print(self: *SparseTensor, padding: ?[]const u8) void {
+            const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+                return;
+            };
+            std.debug.print("{s}------------- SparseTensor\n", .{space});
+            std.debug.print("{s}Element Type: {}\n", .{ space, self.elem_type });
 
             if (self.shape) |s| {
-                std.debug.print("  Shape:\n", .{});
-                s.print();
+                std.debug.print("{s}Shape:\n", .{space});
+                s.print(space);
             } else {
-                std.debug.print("  Shape: (none)\n", .{});
+                std.debug.print("{s}Shape: (none)\n", .{space});
             }
         }
     };
@@ -679,14 +706,16 @@ pub const TypeProto = struct {
             return opt;
         }
 
-        pub fn print(self: *Optional) void {
-            std.debug.print("Optional:\n", .{});
-
+        pub fn print(self: *Optional, padding: ?[]const u8) void {
+            const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+                return;
+            };
+            std.debug.print("{s}------------- OPTIONAL\n", .{space});
             if (self.elem_type) |t| {
-                std.debug.print("  Element Type:\n", .{});
-                t.print();
+                std.debug.print("{s}Element Type:\n", .{space});
+                t.print(space);
             } else {
-                std.debug.print("  Element Type: (none)\n", .{});
+                std.debug.print("{s}Element Type: (none)\n", .{space});
             }
         }
     };
@@ -777,48 +806,52 @@ pub const TypeProto = struct {
         return typeProto;
     }
 
-    pub fn print(self: *TypeProto) void {
-        std.debug.print("TypeProto:\n", .{});
+    pub fn print(self: *TypeProto, padding: ?[]const u8) void {
+        const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+            return;
+        };
+
+        std.debug.print("{s}------------- TYPE\n", .{space});
 
         if (self.tensor_type) |t| {
-            std.debug.print("  Tensor Type:\n", .{});
-            t.print();
+            std.debug.print("{s}Tensor Type:\n", .{space});
+            t.print(space);
         } else {
-            std.debug.print("  Tensor Type: (none)\n", .{});
+            std.debug.print("{s}Tensor Type: (none)\n", .{space});
         }
 
         if (self.sequence_type) |s| {
-            std.debug.print("  Sequence Type:\n", .{});
-            s.print();
+            std.debug.print("{s}Sequence Type:\n", .{space});
+            s.print(space);
         } else {
-            std.debug.print("  Sequence Type: (none)\n", .{});
+            std.debug.print("{s}Sequence Type: (none)\n", .{space});
         }
 
         if (self.map_type) |m| {
-            std.debug.print("  Map Type:\n", .{});
-            m.print();
+            std.debug.print("{s}Map Type:\n", .{space});
+            m.print(space);
         } else {
-            std.debug.print("  Map Type: (none)\n", .{});
+            std.debug.print("{s}Map Type: (none)\n", .{space});
         }
 
         if (self.sparse_tensor_type) |st| {
-            std.debug.print("  Sparse Tensor Type:\n", .{});
-            st.print();
+            std.debug.print("{s}Sparse Tensor Type:\n", .{space});
+            st.print(space);
         } else {
-            std.debug.print("  Sparse Tensor Type: (none)\n", .{});
+            std.debug.print("{s}Sparse Tensor Type: (none)\n", .{space});
         }
 
         if (self.optional_type) |o| {
-            std.debug.print("  Optional Type:\n", .{});
-            o.print();
+            std.debug.print("{s}Optional Type:\n", .{space});
+            o.print(space);
         } else {
-            std.debug.print("  Optional Type: (none)\n", .{});
+            std.debug.print("{s}Optional Type: (none)\n", .{space});
         }
 
         if (self.denotation) |d| {
-            std.debug.print("  Denotation: {s}\n", .{d});
+            std.debug.print("{s}Denotation: {s}\n", .{ space, d });
         } else {
-            std.debug.print("  Denotation: (none)\n", .{});
+            std.debug.print("{s}Denotation: (none)\n", .{space});
         }
     }
 };
@@ -972,18 +1005,22 @@ pub const TensorProto = struct {
         return tensor;
     }
 
-    pub fn print(self: *TensorProto) void {
-        std.debug.print("Tensor:\n", .{});
+    pub fn print(self: *TensorProto, padding: ?[]const u8) void {
+        const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+            return;
+        };
+
+        std.debug.print("{s}------------- TENSOR\n", .{space});
 
         if (self.name) |n| {
-            std.debug.print("  Name: {s}\n", .{n});
+            std.debug.print("{s}Name: {s}\n", .{ space, n });
         } else {
-            std.debug.print("  Name: (none)\n", .{});
+            std.debug.print("{s}Name: (none)\n", .{space});
         }
 
-        std.debug.print("  Data Type: {}\n", .{self.data_type});
+        std.debug.print("{s}Data Type: {any}\n", .{ space, self.data_type });
 
-        std.debug.print("  Dims: [", .{});
+        std.debug.print("{s}Dims: [", .{space});
         for (self.dims, 0..) |dim, i| {
             if (i > 0) std.debug.print(", ", .{});
             std.debug.print("{}", .{dim});
@@ -991,51 +1028,56 @@ pub const TensorProto = struct {
         std.debug.print("]\n", .{});
 
         if (self.raw_data) |raw| {
-            std.debug.print("  Raw Data: {} bytes\n", .{raw.len});
+            std.debug.print("{s}Raw Data: {} bytes\n", .{ space, raw.len });
         }
 
         if (self.float_data) |data| {
-            std.debug.print("  Float Data: [", .{});
-            for (data, 0..) |val, i| {
+            std.debug.print("{s}Float Data: [", .{space});
+            for (0..if (data.len < 10) data.len else 10) |i| {
                 if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{val});
+                std.debug.print("{}", .{data[i]});
             }
+            if (data.len >= 10) std.debug.print(", ... ", .{});
             std.debug.print("]\n", .{});
         }
 
         if (self.int32_data) |data| {
-            std.debug.print("  Int32 Data: [", .{});
-            for (data, 0..) |val, i| {
+            std.debug.print("{s}Int32 Data: [", .{space});
+            for (0..if (data.len < 10) data.len else 10) |i| {
                 if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{val});
+                std.debug.print("{}", .{data[i]});
             }
+            if (data.len >= 10) std.debug.print(", ... ", .{});
             std.debug.print("]\n", .{});
         }
 
         if (self.int64_data) |data| {
-            std.debug.print("  Int64 Data: [", .{});
-            for (data, 0..) |val, i| {
+            std.debug.print("{s}Int64 Data: [", .{space});
+            for (0..if (data.len < 10) data.len else 10) |i| {
                 if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{val});
+                std.debug.print("{}", .{data[i]});
             }
+            if (data.len >= 10) std.debug.print(", ... ", .{});
             std.debug.print("]\n", .{});
         }
 
         if (self.double_data) |data| {
-            std.debug.print("  Double Data: [", .{});
-            for (data, 0..) |val, i| {
+            std.debug.print("{s}Double Data: [", .{space});
+            for (0..if (data.len < 10) data.len else 10) |i| {
                 if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{val});
+                std.debug.print("{}", .{data[i]});
             }
+            if (data.len >= 10) std.debug.print(", ... ", .{});
             std.debug.print("]\n", .{});
         }
 
         if (self.uint64_data) |data| {
-            std.debug.print("  UInt64 Data: [", .{});
-            for (data, 0..) |val, i| {
+            std.debug.print("{s}UInt64 Data: [", .{space});
+            for (0..if (data.len < 10) data.len else 10) |i| {
                 if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{val});
+                std.debug.print("{}", .{data[i]});
             }
+            if (data.len >= 10) std.debug.print(", ... ", .{});
             std.debug.print("]\n", .{});
         }
 
@@ -1146,38 +1188,44 @@ pub const NodeProto = struct {
         return node;
     }
 
-    pub fn print(self: *NodeProto) void {
-        std.debug.print("Node:\n", .{});
+    pub fn print(self: *NodeProto, padding: ?[]const u8) void {
+        const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+            return;
+        };
+
+        std.debug.print("{s}------------- NODE\n", .{space});
 
         if (self.name) |n| {
-            std.debug.print("  Name: {s}\n", .{n});
+            std.debug.print("{s}Name: {s}\n", .{ space, n });
         } else {
-            std.debug.print("  Name: (none)\n", .{});
+            std.debug.print("{s}Name: (none)\n", .{space});
         }
 
-        std.debug.print("  Op Type: {s}\n", .{self.op_type});
+        std.debug.print("{s}Op Type: {s}\n", .{ space, self.op_type });
 
         if (self.domain) |d| {
-            std.debug.print("  Domain: {s}\n", .{d});
+            std.debug.print("{s}Domain: {s}\n", .{ space, d });
         } else {
-            std.debug.print("  Domain: (none)\n", .{});
+            std.debug.print("{s}Domain: (none)\n", .{space});
         }
 
-        std.debug.print("  Inputs: ", .{});
-        for (self.input) |inp| {
-            std.debug.print("{s} ", .{inp});
-        }
-        std.debug.print("\n", .{});
-
-        std.debug.print("  Outputs: ", .{});
-        for (self.output) |out| {
-            std.debug.print("{s} ", .{out});
+        std.debug.print("{s}Inputs: ", .{space});
+        for (self.input, 0..) |inp, i| {
+            if (i > 0) std.debug.print(", ", .{});
+            std.debug.print("{s}", .{inp});
         }
         std.debug.print("\n", .{});
 
-        std.debug.print("  Attributes:\n", .{});
+        std.debug.print("{s}Outputs: ", .{space});
+        for (self.output, 0..) |out, i| {
+            if (i > 0) std.debug.print(", ", .{});
+            std.debug.print("{s}{s} ", .{ space, out });
+        }
+        std.debug.print("\n", .{});
+
+        std.debug.print("{s}Attributes:\n", .{space});
         for (self.attribute) |attr| {
-            attr.print();
+            attr.print(space);
         }
     }
 };
@@ -1325,31 +1373,37 @@ pub const GraphProto = struct {
         return graph;
     }
 
-    pub fn print(self: *GraphProto) void {
+    pub fn print(self: *GraphProto, padding: ?[]const u8) void {
+        const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
+            return;
+        };
+
+        std.debug.print("{s}------------- GRAPH\n", .{space});
+
         if (self.name) |n| {
-            std.debug.print("Graph Name: {s}\n", .{n});
+            std.debug.print("{s}Graph Name: {s}\n", .{ space, n });
         } else {
-            std.debug.print("Graph Name: (none)\n", .{});
+            std.debug.print("{s}Graph Name: (none)\n", .{space});
         }
 
-        std.debug.print("Nodes:\n", .{});
+        std.debug.print("{s}Nodes:\n", .{space});
         for (self.nodes) |node| {
-            node.print();
+            node.print(space);
         }
 
-        std.debug.print("Initializers:\n", .{});
+        std.debug.print("{s}Initializers:\n", .{space});
         for (self.initializers) |initializer| {
-            initializer.print();
+            initializer.print(space);
         }
 
-        std.debug.print("Inputs:\n", .{});
+        std.debug.print("{s}Inputs:\n", .{space});
         for (self.inputs) |input| {
-            input.print();
+            input.print(space);
         }
 
-        std.debug.print("Outputs:\n", .{});
+        std.debug.print("{s}Outputs:\n", .{space});
         for (self.outputs) |output| {
-            output.print();
+            output.print(space);
         }
     }
 };
@@ -1438,6 +1492,52 @@ pub const ModelProto = struct {
         }
 
         return model;
+    }
+
+    pub fn print(self: *ModelProto) void {
+        std.debug.print("\n\n------------------------- MODEL -------------------------------\n", .{});
+
+        std.debug.print("ModelProto:\n", .{});
+        std.debug.print("  IR Version: {}\n", .{self.ir_version});
+
+        if (self.producer_name) |name| {
+            std.debug.print("  Producer Name: {s}\n", .{name});
+        } else {
+            std.debug.print("  Producer Name: (none)\n", .{});
+        }
+
+        if (self.producer_version) |version| {
+            std.debug.print("  Producer Version: {s}\n", .{version});
+        } else {
+            std.debug.print("  Producer Version: (none)\n", .{});
+        }
+
+        if (self.domain) |d| {
+            std.debug.print("  Domain: {s}\n", .{d});
+        } else {
+            std.debug.print("  Domain: (none)\n", .{});
+        }
+
+        if (self.model_version) |v| {
+            std.debug.print("  Model Version: {}\n", .{v});
+        } else {
+            std.debug.print("  Model Version: (none)\n", .{});
+        }
+
+        if (self.doc_string) |doc| {
+            std.debug.print("  Doc String: {s}\n", .{doc});
+        } else {
+            std.debug.print("  Doc String: (none)\n", .{});
+        }
+
+        if (self.graph) |g| {
+            std.debug.print("  Graph:\n", .{});
+            g.print(null);
+        } else {
+            std.debug.print("  Graph: (none)\n", .{});
+        }
+
+        printingAllocator.deinit();
     }
 };
 

@@ -18,7 +18,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const gpa_allocator = gpa.allocator();
 
-    var model = try onnx.parseFromFile(gpa_allocator, "datasets/models/mnist-8/mnist-8.onnx");
+    var model: onnx.ModelProto = try onnx.parseFromFile(gpa_allocator, "datasets/models/mnist-8/mnist-8.onnx");
     defer model.deinit(gpa_allocator);
 
     //onnx.printStructure(&model);
@@ -31,6 +31,7 @@ pub fn main() !void {
     //create the hashMap
     try globals.populateReadyTensorHashMap(model);
 
+    model.print();
     //DEBUG
     //utils.printTensorHashMap(tensorHashMap);
 
