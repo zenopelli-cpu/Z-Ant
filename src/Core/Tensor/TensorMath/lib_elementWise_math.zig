@@ -15,6 +15,7 @@ const TensorMathError = error_handler.TensorMathError;
 const TensorError = error_handler.TensorError;
 const ArchitectureError = error_handler.ArchitectureError;
 const Converter = zant.utils.type_converter;
+const TypeError = error_handler.TypeError;
 
 /// Function that add the bias for all the features in the tensor
 pub fn add_bias(comptime T: anytype, tensor: *Tensor(T), bias: *Tensor(T)) !void {

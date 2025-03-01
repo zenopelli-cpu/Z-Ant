@@ -5,7 +5,6 @@
 //! to even higher dimensions (3D, 4D, etc.).
 pub const math_lean = @import("TensorMath/tensor_math_standard.zig");
 pub const math_standard = @import("TensorMath/tensor_math_standard.zig");
-pub const math_base = @import("TensorMath/tensor_math_base.zig");
 
 const std = @import("std");
 const zant = @import("../../zant.zig");
