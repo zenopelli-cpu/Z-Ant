@@ -271,7 +271,7 @@ pub fn build(b: *std.Build) void {
     codegen_options.addOption(bool, "log", b.option(bool, "log", "Run with log") orelse false);
     codegen_options.addOption([]const u8, "shape", b.option([]const u8, "shape", "Input shape") orelse "0");
     codegen_options.addOption([]const u8, "type", b.option([]const u8, "type", "Input type") orelse "f32");
-    codegen_options.addOption(bool, "noComm", b.option(bool, "noComm", "Run with log") orelse true);
+    codegen_options.addOption(bool, "comm", b.option(bool, "comm", "Codegen with comments") orelse false);
     codeGen_exe.root_module.addOptions("codegen_options", codegen_options);
 
     // Install the executable.
