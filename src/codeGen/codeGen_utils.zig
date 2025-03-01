@@ -137,16 +137,6 @@ pub inline fn getConstantTensorDims(nodeProto: *NodeProto) ![]const i64 {
     return if (nodeProto.attribute[0].t) |tensorProto| tensorProto.dims else error.ConstantTensorAttributeNotAvailable;
 }
 
-// Returns the corresponding TensorProto for the given name if it exists in the initializers list.
-// Returns an error if the initializer is not found.
-pub fn getInitializer(name: []const u8, initializers: []*TensorProto) !*TensorProto {
-    for (initializers) |init| {
-        if (std.mem.eql(u8, init.name.?, name)) return init;
-    }
-
-    return error.NotExistingInitializer;
-}
-
 // -------------------- SETTERS --------------------
 
 // Marks output tensors as ready for computation in all the graph

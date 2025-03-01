@@ -24,8 +24,16 @@ const utils = @import("codeGen_utils.zig");
 pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     const writer = file.writer();
 
+    const file_path = "src/codeGen/static_parameters.zig";
+    var file_parameters = try std.fs.cwd().createFile(file_path, .{});
+    std.debug.print("\n .......... file created, path:{s}", .{file_path});
+    defer file_parameters.close();
+
+    const writer_parameters = file_parameters.writer();
+
     // Write the necessary library imports to the generated Zig file
     try write_libraries(writer);
+    try write_libraries_parameters(writer_parameters);
 
     if (codegen_options.log) {
         //log function setting
@@ -38,7 +46,7 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     try write_type_T(writer);
 
     // Generate tensor initialization code
-    try codeGenInitializers.writeTensorsInit(writer, model);
+    try codeGenInitializers.writeTensorsInit(writer_parameters, model);
 
     //try write_debug(writer);
 
@@ -46,7 +54,7 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     try coddeGenPredict.writePredict(writer);
 }
 
-/// Writes the required library imports to the generated Zig file.
+/// Writes the required library imports to the generated Zig file for predict function.
 ///
 /// This function ensures that the necessary standard and package libraries are
 /// imported into the generated Zig source file.
@@ -65,6 +73,28 @@ fn write_libraries(writer: std.fs.File.Writer) !void {
         \\ const pkgAllocator = @import("pkgAllocator");
         \\ const allocator = pkgAllocator.allocator;
         \\ const utils = @import("codeGen_utils.zig");
+        \\ const param_lib = @import("static_parameters.zig");
+        \\
+    , .{});
+}
+
+/// Writes the required library imports to the generated Zig file for input tensor.
+///
+/// This function ensures that the necessary standard and package libraries are
+/// imported into the generated Zig source file.
+///
+/// # Parameters
+/// - `writer`: A file writer used to write the import statements.
+///
+/// # Errors
+/// This function may return an error if writing to the file fails.
+fn write_libraries_parameters(writer: std.fs.File.Writer) !void {
+    _ = try writer.print(
+        \\
+        \\ const std = @import("std");
+        \\ const Tensor = @import("tensor").Tensor;
+        \\ const pkgAllocator = @import("pkgAllocator");
+        \\ const allocator = pkgAllocator.allocator;
         \\
     , .{});
 }
