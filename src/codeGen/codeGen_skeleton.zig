@@ -1,14 +1,16 @@
 const std = @import("std");
-const Tensor = @import("tensor").Tensor;
-const ModelOnnx = @import("onnx").ModelProto;
-const DataType = @import("onnx").DataType;
-const TensorProto = @import("onnx").TensorProto;
-const allocator = @import("pkgAllocator").allocator;
+const zant = @import("zant");
+
+const Tensor = zant.core.tensor.Tensor;
+const tensorMath = zant.core.tensor.math_standard;
+const onnx = zant.onnx;
+const ModelOnnx = onnx.ModelProto;
+const DataType = onnx.DataType;
+const TensorProto = onnx.TensorProto;
+const allocator = zant.utils.allocator.allocator;
 const codeGenInitializers = @import("codeGen_initializers.zig");
 const coddeGenPredict = @import("codeGen_predict.zig");
-const tensorMath = @import("tensor_math");
 const codegen_options = @import("codegen_options");
-const utils = @import("codeGen_utils.zig");
 
 /// Writes a Zig source file containing the generated code for an ONNX model.
 ///
@@ -24,8 +26,16 @@ const utils = @import("codeGen_utils.zig");
 pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     const writer = file.writer();
 
+    const file_path = "src/codeGen/static_parameters.zig";
+    var file_parameters = try std.fs.cwd().createFile(file_path, .{});
+    std.debug.print("\n .......... file created, path:{s}", .{file_path});
+    defer file_parameters.close();
+
+    const writer_parameters = file_parameters.writer();
+
     // Write the necessary library imports to the generated Zig file
     try write_libraries(writer);
+    try write_libraries_parameters(writer_parameters);
 
     if (codegen_options.log) {
         //log function setting
@@ -38,7 +48,7 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     try write_type_T(writer);
 
     // Generate tensor initialization code
-    try codeGenInitializers.writeTensorsInit(writer, model);
+    try codeGenInitializers.writeTensorsInit(writer_parameters, model);
 
     //try write_debug(writer);
 
@@ -46,7 +56,7 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     try coddeGenPredict.writePredict(writer);
 }
 
-/// Writes the required library imports to the generated Zig file.
+/// Writes the required library imports to the generated Zig file for predict function.
 ///
 /// This function ensures that the necessary standard and package libraries are
 /// imported into the generated Zig source file.
@@ -60,11 +70,34 @@ fn write_libraries(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\ const std = @import("std");
-        \\ const Tensor = @import("tensor").Tensor;
-        \\ const tensMath = @import("tensor_math");
-        \\ const pkgAllocator = @import("pkgAllocator");
+        \\ const zant = @import("zant");
+        \\ const Tensor = zant.core.tensor.Tensor;
+        \\ const tensMath = zant.core.tensor.math_standard;
+        \\ const pkgAllocator = zant.utils.allocator;
         \\ const allocator = pkgAllocator.allocator;
         \\ const utils = @import("codeGen_utils.zig");
+        \\ const param_lib = @import("static_parameters.zig");
+        \\
+    , .{});
+}
+
+/// Writes the required library imports to the generated Zig file for input tensor.
+///
+/// This function ensures that the necessary standard and package libraries are
+/// imported into the generated Zig source file.
+///
+/// # Parameters
+/// - `writer`: A file writer used to write the import statements.
+///
+/// # Errors
+/// This function may return an error if writing to the file fails.
+fn write_libraries_parameters(writer: std.fs.File.Writer) !void {
+    _ = try writer.print(
+        \\
+        \\ const std = @import("std");
+        \\ const Tensor = @import("tensor").Tensor;
+        \\ const pkgAllocator = @import("pkgAllocator");
+        \\ const allocator = pkgAllocator.allocator;
         \\
     , .{});
 }

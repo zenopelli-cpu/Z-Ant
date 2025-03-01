@@ -1,9 +1,11 @@
 const std = @import("std");
-const DataType = @import("onnx").DataType;
-const GraphProto = @import("onnx").GraphProto;
-const NodeProto = @import("onnx").NodeProto;
-const TensorProto = @import("onnx").TensorProto;
-const allocator = @import("pkgAllocator").allocator;
+const zant = @import("zant");
+const onnx = zant.onnx;
+const DataType = onnx.DataType;
+const GraphProto = onnx.GraphProto;
+const NodeProto = onnx.NodeProto;
+const TensorProto = onnx.TensorProto;
+const allocator = zant.utils.allocator.allocator;
 const ReadyNode = @import("globals.zig").ReadyNode;
 const ReadyTensor = @import("globals.zig").ReadyTensor;
 
@@ -135,16 +137,6 @@ pub inline fn getConstantTensorDims(nodeProto: *NodeProto) ![]const i64 {
     if (std.mem.indexOf(u8, try getSanitizedName(nodeProto.op_type), "constant")) |_| {} else return error.NodeNotConstant;
 
     return if (nodeProto.attribute[0].t) |tensorProto| tensorProto.dims else error.ConstantTensorAttributeNotAvailable;
-}
-
-// Returns the corresponding TensorProto for the given name if it exists in the initializers list.
-// Returns an error if the initializer is not found.
-pub fn getInitializer(name: []const u8, initializers: []*TensorProto) !*TensorProto {
-    for (initializers) |init| {
-        if (std.mem.eql(u8, init.name.?, name)) return init;
-    }
-
-    return error.NotExistingInitializer;
 }
 
 // -------------------- SETTERS --------------------

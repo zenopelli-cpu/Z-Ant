@@ -1,8 +1,10 @@
 const std = @import("std");
 const utils = @import("codeGen_utils.zig");
-const ModelOnnx = @import("onnx").ModelProto;
-const TensorProto = @import("onnx").TensorProto;
-const DataType = @import("onnx").DataType;
+const zant = @import("zant");
+const onnx = zant.onnx;
+const ModelOnnx = onnx.ModelProto;
+const TensorProto = onnx.TensorProto;
+const DataType = onnx.DataType;
 const globals = @import("globals.zig");
 
 /// Writes the Zig code required to initialize all tensor initializers in the ONNX model.
@@ -39,7 +41,7 @@ pub inline fn writeTensorsInit(writer: std.fs.File.Writer, model: ModelOnnx) !vo
         // Create the tensor instance
         try writer.print(
             \\
-            \\const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
+            \\pub const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
         , .{ name, dataTypeString, name, name });
     }
 }

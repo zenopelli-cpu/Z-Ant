@@ -1,9 +1,9 @@
 const std = @import("std");
-
-const onnx = @import("onnx");
-const Tensor = @import("tensor").Tensor;
-const tensorMath = @import("tensor_math");
-const allocator = @import("pkgAllocator").allocator;
+const zant = @import("zant");
+const onnx = zant.onnx;
+const Tensor = zant.core.tensor.Tensor;
+const tensorMath = zant.core.tensor.math_standard;
+const allocator = zant.utils.allocator.allocator;
 const codeGen = @import("codeGen_skeleton.zig");
 const codeGen_utils = @import("codeGen_utils.zig");
 const codeGen_init = @import("codeGen_initializers.zig");
@@ -21,7 +21,7 @@ pub fn main() !void {
     var model = try onnx.parseFromFile(gpa_allocator, "datasets/models/mnist-8/mnist-8.onnx");
     defer model.deinit(gpa_allocator);
 
-    onnx.printStructure(&model);
+    //onnx.printStructure(&model);
 
     const file_path = "src/codeGen/static_lib.zig";
     var file = try std.fs.cwd().createFile(file_path, .{});
@@ -30,6 +30,8 @@ pub fn main() !void {
 
     //create the hashMap
     try globals.populateReadyTensorHashMap(model);
+
+    model.print();
 
     //DEBUG
     //utils.printTensorHashMap(tensorHashMap);

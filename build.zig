@@ -23,26 +23,10 @@ pub fn build(b: *std.Build) void {
     const target = b.resolveTargetQuery(target_query);
     const optimize = b.standardOptimizeOption(.{});
 
-    //************************************************MODULE CREATION************************************************
+    // Modules creation
 
-    // Create modules from the source files in the `src/Core/Tensor/` directory.
-    const tensor_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/tensor.zig") });
-
-    // Create modules from the source files in the `src/Core/Tensor/TensorMath` directory.
-    const tensor_math_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_standard.zig") });
-    const tensor_math_lean_mod = b.createModule(.{ .root_source_file = b.path("src/Core/Tensor/TensorMath/tensor_math_lean.zig") });
-
-    // Create modules from the source files in the `src/utils/` directory.
-    const typeConv_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/typeConverter.zig") });
-    const errorHandler_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/errorHandler.zig") });
-    const modelImportExport_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/model_import_export.zig") });
-    const allocator_mod = b.createModule(.{ .root_source_file = b.path("src/Utils/allocator.zig") });
-    allocator_mod.addOptions("build_options", build_options);
-
-    // Create modules from the source files in the `src/DataHandler/` directory.
-    const dataloader_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataLoader.zig") });
-    const dataProcessor_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/dataProcessor.zig") });
-    const trainer_mod = b.createModule(.{ .root_source_file = b.path("src/DataHandler/trainer.zig") });
+    const zant_mod = b.createModule(.{ .root_source_file = b.path("src/zant.zig") });
+    zant_mod.addOptions("build_options", build_options);
 
     // static_lib module for MNIST
     const static_lib_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
@@ -223,9 +207,11 @@ pub fn build(b: *std.Build) void {
     modelImportExport_mod.addImport("model", model_mod);
     modelImportExport_mod.addImport("errorHandler", errorHandler_mod);
 
+    static_lib_mod.addImport("zant", zant_mod);
+    static_lib_mnist_hard_mod.addImport("zant", zant_mod);
+
     // ************************************************MAIN EXECUTABLE************************************************
 
-    // Define the main executable with target architecture and optimization settings.
     const exe = b.addExecutable(.{
         .name = "Main",
         .root_source_file = b.path("src/main.zig"),
@@ -247,6 +233,7 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("model_import_export", modelImportExport_mod);
     exe.root_module.addImport("static_lib_wake", static_lib_wake_mod);
     exe.root_module.addImport("static_lib", static_lib_mod);
+    exe.root_module.addImport("zant", zant_mod);
 
     // Install the executable.
     b.installArtifact(exe);
@@ -273,18 +260,15 @@ pub fn build(b: *std.Build) void {
 
     codeGen_exe.linkLibC();
 
-    // Add necessary imports for the codegen executable
-    codeGen_exe.root_module.addImport("pkgAllocator", allocator_mod);
-    codeGen_exe.root_module.addImport("tensor", tensor_mod);
-    codeGen_exe.root_module.addImport("tensor_math", tensor_math_mod);
-    codeGen_exe.root_module.addImport("onnx", onnx_mod);
+    // Add necessary imports for the executable.
+    codeGen_exe.root_module.addImport("zant", zant_mod);
 
     // Define codegen options
     const codegen_options = b.addOptions();
     codegen_options.addOption(bool, "log", b.option(bool, "log", "Run with log") orelse false);
     codegen_options.addOption([]const u8, "shape", b.option([]const u8, "shape", "Input shape") orelse "0");
     codegen_options.addOption([]const u8, "type", b.option([]const u8, "type", "Input type") orelse "f32");
-    codegen_options.addOption(bool, "noComm", b.option(bool, "noComm", "Run with log") orelse true);
+    codegen_options.addOption(bool, "comm", b.option(bool, "comm", "Codegen with comments") orelse false);
     codeGen_exe.root_module.addOptions("codegen_options", codegen_options);
 
     // Install the executable.
@@ -297,7 +281,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // Create a build step to run the application.
-    const codegen_step = b.step("codegen", " code generation");
+    const codegen_step = b.step("codegen", "code generation");
     codegen_step.dependOn(&codegen_cmd.step);
 
     // ************************************************ STATIC LIBRARY CREATION ************************************************
@@ -309,9 +293,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     static_lib.linkLibC();
-    static_lib.root_module.addImport("tensor", tensor_mod);
-    static_lib.root_module.addImport("tensor_math", tensor_math_mod);
-    static_lib.root_module.addImport("pkgAllocator", allocator_mod);
+    static_lib.root_module.addImport("zant", zant_mod);
 
     const install_lib_step = b.addInstallArtifact(static_lib, .{});
     const lib_step = b.step("lib", "Compile tensor_math static library");
@@ -332,26 +314,9 @@ pub fn build(b: *std.Build) void {
     test_options.addOption(bool, "heavy", b.option(bool, "heavy", "Run heavy tests") orelse false);
     unit_tests.root_module.addOptions("test_options", test_options);
 
-    //************************************************UNIT TEST DEPENDENCIES************************************************
-
-    // Add necessary imports for the unit test module.
-    unit_tests.root_module.addImport("tensor", tensor_mod);
-    unit_tests.root_module.addImport("model", model_mod);
-    unit_tests.root_module.addImport("layer", layer_mod);
-    unit_tests.root_module.addImport("optim", optim_mod);
-    unit_tests.root_module.addImport("loss", loss_mod);
-    unit_tests.root_module.addImport("tensor_m", tensor_math_mod);
-    unit_tests.root_module.addImport("dataloader", dataloader_mod);
-    unit_tests.root_module.addImport("dataprocessor", dataProcessor_mod);
-    unit_tests.root_module.addImport("trainer", trainer_mod);
-    unit_tests.root_module.addImport("typeConverter", typeConv_mod);
-    unit_tests.root_module.addImport("errorHandler", errorHandler_mod);
-    unit_tests.root_module.addImport("model_import_export", modelImportExport_mod);
-    unit_tests.root_module.addImport("pkgAllocator", allocator_mod);
-    unit_tests.root_module.addImport("tensor_math_lean", tensor_math_lean_mod);
-    unit_tests.root_module.addImport("static_lib_mnist_hard", static_lib_mnist_hard_mod);
-    unit_tests.root_module.addImport("static_lib_wake", static_lib_wake_mod);
+    unit_tests.root_module.addImport("zant", zant_mod);
     unit_tests.root_module.addImport("static_lib", static_lib_mod);
+    unit_tests.root_module.addImport("static_lib_mnist_hard", static_lib_mnist_hard_mod);
 
     unit_tests.linkLibC();
 
