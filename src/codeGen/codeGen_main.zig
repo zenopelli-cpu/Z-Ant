@@ -32,6 +32,7 @@ pub fn main() !void {
     try globals.populateReadyTensorHashMap(model);
 
     model.print();
+
     //DEBUG
     //utils.printTensorHashMap(tensorHashMap);
 

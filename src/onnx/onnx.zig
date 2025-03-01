@@ -1092,6 +1092,17 @@ pub const TensorProto = struct {
     }
 };
 
+//onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L212
+//TAGS:
+//  - 1 : input, repeated string
+//  - 2 : output, repeated string
+//  - 3 : name, optional string
+//  - 4 : op_type, optional string
+//  - 5 : attribute, repeated AttributeProto
+//  - 6 : doc_string, optional string
+//  - 7 : domain, optional string
+//  - 8 : overload, optional string
+//  - 9 : metadata_props, repeated StringStringEntryProto
 pub const NodeProto = struct {
     name: ?[]const u8,
     op_type: []const u8,
@@ -1354,7 +1365,7 @@ pub const GraphProto = struct {
                     try value_infos.append(value_info_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} ", .{tag});
+                    std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
 
                     var unknown_reader = try reader.readLengthDelimited();
                     while (unknown_reader.hasMore()) {
@@ -1408,6 +1419,19 @@ pub const GraphProto = struct {
     }
 };
 
+// onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L361
+// TAGS:
+//  - 1 : ir_version, optional int64
+//  - 2 : optional string producer_name, optional string
+//  - 3 : producer_version, optional string
+//  - 4 : optional string domain
+//  - 5 : model_version, optional int64
+//  - 6 : doc_string, optional string
+//  - 7 : graph, optional GraphProto
+//  - 8 : TODO opset_import, repeated OperatorSetIdProto
+//  - 14: TODO metadata_props, repeated StringStringEntryProto
+//  - 20: TODO NOT IMPORTANT NOT URGENT training_info, repeated TrainingInfoProto
+//  - 25: TODO NOT URGENT functions, repeated FunctionProto
 pub const ModelProto = struct {
     ir_version: Version,
     producer_name: ?[]const u8,
@@ -1487,7 +1511,10 @@ pub const ModelProto = struct {
                     graph_ptr.* = try GraphProto.parse(&graph_reader);
                     model.graph = graph_ptr;
                 },
-                else => try reader.skipField(tag.wire_type),
+                else => {
+                    std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
+                    try reader.skipField(tag.wire_type);
+                },
             }
         }
 
