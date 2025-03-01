@@ -17,6 +17,7 @@ const ReadyNode = @import("globals.zig").ReadyNode;
 const ReadyTensor = @import("globals.zig").ReadyTensor;
 const utils = @import("codeGen_utils.zig");
 const codegen_options = @import("codegen_options");
+const globals = @import("globals.zig");
 
 // ----------------------------------- MATH -----------------------------------
 
@@ -141,7 +142,7 @@ inline fn write_add(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    tensMath.sum_tensors_lean(T, T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
+        \\    tensMath.sum_tensors_lean(T, T, &tensor_{s}, @constCast(&param_lib.tensor_{s}), &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
@@ -225,7 +226,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    tensMath.conv_lean(
         \\        T, //type
         \\        &tensor_{s}, //input
-        \\        @constCast(&tensor_{s}), //kernel
+        \\        @constCast(&param_lib.tensor_{s}), //kernel
         \\        &tensor_{s}, //output
         \\        {s}, //bias
         \\        {s}, //stride
@@ -581,11 +582,11 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             if (attr.type == AttributeType.INT) allowzer0 = attr.i != 0;
         }
     }
-    // const newShape_tensor_parameter193_reshape1_shapee: []usize = utils.i64SliceToUsizeSlice(tensor_pooling160_output_0_reshape0_shape.data) catch return;
+    // pub const newShape_tensor_parameter193_reshape1_shapee: []usize = utils.i64SliceToUsizeSlice(param_lib.tensor_pooling160_output_0_reshape0_shape.data) catch return;
     // defer allocator.free(newShape_tensor_parameter193_reshape1_shapee);
     _ = try writer.print(
         \\
-        \\    const newShape_tensor_{s}: []usize = utils.i64SliceToUsizeSlice(tensor_{s}.data) catch return;
+        \\    const newShape_tensor_{s}: []usize = utils.i64SliceToUsizeSlice(param_lib.tensor_{s}.data) catch return;
         \\    defer allocator.free(newShape_tensor_{s});
     , .{
         try utils.getSanitizedName(node.inputs.items[1].name),
@@ -593,17 +594,24 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try utils.getSanitizedName(node.inputs.items[1].name),
     });
 
+    var my_string: []u8 = undefined;
+    const tensor_name = try utils.getSanitizedName(node.inputs.items[0].name);
+    if (globals.tensorHashMap.getPtr(node.inputs.items[0].name).?.tag == globals.TensorTag.INITIALIZER) {
+        my_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&param_lib.tensor_", tensor_name });
+    } else {
+        my_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", tensor_name });
+    }
     _ = try writer.print(
         \\
         \\    tensMath.reshape_lean(
         \\        T, //type
-        \\        @constCast(&tensor_{s}), //Input tensor
+        \\        @constCast({s}), //Input tensor
         \\        newShape_tensor_{s}, //New shape
         \\        {s}, //allowzero
         \\        &tensor_{s}, //Output tensor
         \\    )
     , .{
-        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor
+        my_string, // Input tensor
         try utils.getSanitizedName(node.inputs.items[1].name), // Input shape tensor
         if (allowzer0) "true" else "false", //allowzer0
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
