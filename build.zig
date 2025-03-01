@@ -31,181 +31,6 @@ pub fn build(b: *std.Build) void {
     // static_lib module for MNIST
     const static_lib_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
     const static_lib_mnist_hard_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib_mnist_hard.zig") });
-    const static_lib_wake_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
-    const static_lib_wake_small_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib_wake_small.zig") });
-    // static_lib module for sentiment
-    //const static_lib_sentiment_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib_sentiment.zig") });
-
-    // Add dependencies for static_lib_mnist_hard_mod
-    static_lib_mnist_hard_mod.addImport("pkgAllocator", allocator_mod);
-    static_lib_mnist_hard_mod.addImport("tensor", tensor_mod);
-    static_lib_mnist_hard_mod.addImport("tensor_math", tensor_math_mod);
-
-    // Add dependencies for static_lib_wake_mod
-    static_lib_wake_mod.addImport("pkgAllocator", allocator_mod);
-    static_lib_wake_mod.addImport("tensor", tensor_mod);
-    static_lib_wake_mod.addImport("tensor_math", tensor_math_mod);
-
-    // Add dependencies for static_lib_wake_small_mod
-    static_lib_wake_small_mod.addImport("pkgAllocator", allocator_mod);
-    static_lib_wake_small_mod.addImport("tensor", tensor_mod);
-    static_lib_wake_small_mod.addImport("tensor_math", tensor_math_mod);
-
-    // Create modules from the source files in the `src/Model/` directory.
-    const loss_mod = b.createModule(.{ .root_source_file = b.path("src/Model/lossFunction.zig") });
-    const model_mod = b.createModule(.{ .root_source_file = b.path("src/Model/model.zig") });
-    const layer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/layer.zig") });
-    const optim_mod = b.createModule(.{ .root_source_file = b.path("src/Model/optim.zig") });
-
-    // Create modules from the source files in the `src/Model/Layers` directory.
-    const denseLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/denseLayer.zig") });
-    const activationLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/activationLayer.zig") });
-    const convLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/convLayer.zig") });
-    const flattenLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/flattenLayer.zig") });
-    const poolingLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/poolingLayer.zig") });
-    const batchNormLayer_mod = b.createModule(.{ .root_source_file = b.path("src/Model/Layers/batchNormLayer.zig") });
-
-    // onnx module
-    const onnx_mod = b.createModule(.{ .root_source_file = b.path("src/onnx/onnx.zig") });
-
-    // Add dependencies for static_lib_mod
-    static_lib_mod.addImport("pkgAllocator", allocator_mod);
-    static_lib_mod.addImport("tensor", tensor_mod);
-    static_lib_mod.addImport("tensor_math", tensor_math_mod);
-
-    //************************************************MODEL DEPENDENCIES************************************************
-
-    // Add necessary imports for the model module.
-    model_mod.addImport("tensor", tensor_mod);
-    model_mod.addImport("layer", layer_mod);
-    model_mod.addImport("optim", optim_mod); // Do not remove duplicate
-    model_mod.addImport("loss", loss_mod);
-    model_mod.addImport("typeC", typeConv_mod);
-    model_mod.addImport("dataloader", dataloader_mod);
-    model_mod.addImport("tensor_m", tensor_math_mod);
-    model_mod.addImport("dataprocessor", dataProcessor_mod);
-
-    // ************************************************LAYER DEPENDENCIES************************************************
-
-    // Add necessary imports for the layers module.
-    layer_mod.addImport("tensor", tensor_mod);
-    layer_mod.addImport("tensor_m", tensor_math_mod);
-    layer_mod.addImport("errorHandler", errorHandler_mod);
-    layer_mod.addImport("pkgAllocator", allocator_mod);
-
-    // All layers are imported so that the layer module can be used as a layer library by other modules.
-    // New layers should be added here.
-    layer_mod.addImport("activationLayer", activationLayer_mod);
-    layer_mod.addImport("batchNormLayer", batchNormLayer_mod);
-    layer_mod.addImport("convLayer", convLayer_mod);
-    layer_mod.addImport("denseLayer", denseLayer_mod);
-    layer_mod.addImport("flattenLayer", flattenLayer_mod);
-    layer_mod.addImport("poolingLayer", poolingLayer_mod);
-
-    // ************************************************DENSELAYER DEPENDENCIES************************************************
-
-    // Add necessary imports for the denselayers module.
-    denseLayer_mod.addImport("tensor", tensor_mod);
-    denseLayer_mod.addImport("tensor_m", tensor_math_mod);
-    denseLayer_mod.addImport("Layer", layer_mod);
-    denseLayer_mod.addImport("errorHandler", errorHandler_mod);
-
-    // ************************************************CONVLAYER DEPENDENCIES************************************************
-    convLayer_mod.addImport("Tensor", tensor_mod);
-    convLayer_mod.addImport("tensor_m", tensor_math_mod);
-    convLayer_mod.addImport("Layer", layer_mod);
-    convLayer_mod.addImport("errorHandler", errorHandler_mod);
-
-    // ************************************************FLATTENLAYER DEPENDENCIES************************************************
-
-    flattenLayer_mod.addImport("Tensor", tensor_mod);
-    flattenLayer_mod.addImport("tensor_m", tensor_math_mod);
-    flattenLayer_mod.addImport("Layer", layer_mod);
-    flattenLayer_mod.addImport("errorHandler", errorHandler_mod);
-
-    // ************************************************POOLINGLAYER DEPENDENCIES************************************************
-    poolingLayer_mod.addImport("Tensor", tensor_mod);
-    poolingLayer_mod.addImport("tensor_m", tensor_math_mod);
-    poolingLayer_mod.addImport("Layer", layer_mod);
-    poolingLayer_mod.addImport("errorHandler", errorHandler_mod);
-
-    // ************************************************ACTIVATIONLAYER DEPENDENCIES************************************************
-
-    // Add necessary imports for the activationlayers module.
-    activationLayer_mod.addImport("tensor", tensor_mod);
-    activationLayer_mod.addImport("tensor_m", tensor_math_mod);
-    activationLayer_mod.addImport("Layer", layer_mod);
-    activationLayer_mod.addImport("errorHandler", errorHandler_mod);
-
-    // ************************************************BATCHNORMLAYER DEPENDENCIES************************************************
-    batchNormLayer_mod.addImport("Tensor", tensor_mod);
-    batchNormLayer_mod.addImport("tensor_m", tensor_math_mod);
-    batchNormLayer_mod.addImport("Layer", layer_mod);
-    batchNormLayer_mod.addImport("errorHandler", errorHandler_mod);
-
-    // ************************************************DATA LOADER DEPENDENCIES************************************************
-
-    // Add necessary imports for the data loader module.
-    dataloader_mod.addImport("tensor", tensor_mod);
-
-    // ************************************************DATA PROCESSOR DEPENDENCIES************************************************
-
-    // Add necessary imports for the data processor module.
-    dataProcessor_mod.addImport("tensor", tensor_mod);
-
-    // ************************************************TRAINER DEPENDENCIES************************************************
-
-    // Add necessary imports for the trainer module.
-    trainer_mod.addImport("tensor", tensor_mod);
-    trainer_mod.addImport("tensor_m", tensor_math_mod);
-    trainer_mod.addImport("model", model_mod);
-    trainer_mod.addImport("loss", loss_mod);
-    trainer_mod.addImport("optim", optim_mod);
-    trainer_mod.addImport("dataloader", dataloader_mod);
-    trainer_mod.addImport("dataprocessor", dataProcessor_mod);
-    trainer_mod.addImport("layer", layer_mod);
-
-    // ************************************************TENSOR DEPENDENCIES************************************************
-
-    // Add necessary imports for the tensor module.
-    tensor_mod.addImport("tensor_m", tensor_math_mod);
-    tensor_mod.addImport("errorHandler", errorHandler_mod);
-    tensor_mod.addImport("pkgAllocator", allocator_mod);
-
-    // ************************************************TENSOR MATH DEPENDENCIES************************************************
-    // Add necessary imports for the tensor math module.
-    // OSS: Do not import file from the same folder ./TensorMath!! Directly use @import()"filename.zig")
-    // Import in tensor_math_mod all the modules needed for /TensorMath files
-    tensor_math_mod.addImport("tensor", tensor_mod);
-    tensor_math_mod.addImport("typeC", typeConv_mod);
-    tensor_math_mod.addImport("errorHandler", errorHandler_mod);
-    tensor_math_mod.addImport("layer", layer_mod);
-    tensor_math_mod.addImport("pkgAllocator", allocator_mod);
-
-    // ************************************************LOSS DEPENDENCIES************************************************
-
-    // Add necessary imports for the loss function module.
-    loss_mod.addImport("tensor", tensor_mod);
-    loss_mod.addImport("tensor_m", tensor_math_mod);
-    loss_mod.addImport("typeC", typeConv_mod);
-    loss_mod.addImport("errorHandler", errorHandler_mod);
-    loss_mod.addImport("pkgAllocator", allocator_mod);
-
-    // ************************************************OPTIMIZER DEPENDENCIES************************************************
-
-    // Add necessary imports for the optimizer module.
-    optim_mod.addImport("tensor", tensor_mod);
-    optim_mod.addImport("model", model_mod);
-    optim_mod.addImport("layer", layer_mod);
-    optim_mod.addImport("errorHandler", errorHandler_mod);
-
-    // ************************************************IMPORT/EXPORT DEPENDENCIES************************************************
-
-    // Add necessary imports for the import/export module.
-    modelImportExport_mod.addImport("tensor", tensor_mod);
-    modelImportExport_mod.addImport("layer", layer_mod);
-    modelImportExport_mod.addImport("model", model_mod);
-    modelImportExport_mod.addImport("errorHandler", errorHandler_mod);
 
     static_lib_mod.addImport("zant", zant_mod);
     static_lib_mnist_hard_mod.addImport("zant", zant_mod);
@@ -221,18 +46,6 @@ pub fn build(b: *std.Build) void {
 
     exe.linkLibC();
 
-    // Add necessary imports for the main executable.
-    exe.root_module.addImport("tensor", tensor_mod);
-    exe.root_module.addImport("model", model_mod);
-    exe.root_module.addImport("layer", layer_mod);
-    exe.root_module.addImport("dataloader", dataloader_mod);
-    exe.root_module.addImport("dataprocessor", dataProcessor_mod);
-    exe.root_module.addImport("loss", loss_mod);
-    exe.root_module.addImport("trainer", trainer_mod);
-    exe.root_module.addImport("pkgAllocator", allocator_mod);
-    exe.root_module.addImport("model_import_export", modelImportExport_mod);
-    exe.root_module.addImport("static_lib_wake", static_lib_wake_mod);
-    exe.root_module.addImport("static_lib", static_lib_mod);
     exe.root_module.addImport("zant", zant_mod);
 
     // Install the executable.
@@ -288,7 +101,7 @@ pub fn build(b: *std.Build) void {
 
     const static_lib = b.addStaticLibrary(.{
         .name = "static_lib",
-        .root_source_file = b.path("src/codeGen/static_lib.zig"),
+        .root_source_file = b.path("src/codeGen/working_wakeWord.zig"),
         .target = target,
         .optimize = optimize,
     });

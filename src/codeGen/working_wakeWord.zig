@@ -1,10 +1,10 @@
-const std = @import("std");
-const Tensor = @import("tensor").Tensor;
-const tensMath = @import("tensor_math");
-const pkgAllocator = @import("pkgAllocator");
-const allocator = pkgAllocator.allocator;
-const utils = @import("codeGen_utils.zig");
-
+ const std = @import("std");
+ const zant = @import("zant");
+ const Tensor = zant.core.tensor.Tensor;
+ const tensMath = zant.core.tensor.math_standard;
+ const pkgAllocator = zant.utils.allocator;
+ const allocator = pkgAllocator.allocator;
+ const utils = @import("codeGen_utils.zig");
 var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
 
 pub export fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {
