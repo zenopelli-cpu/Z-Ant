@@ -600,11 +600,13 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     var my_string: []u8 = undefined;
     const tensor_name = try utils.getSanitizedName(node.inputs.items[0].name);
-    if (globals.tensorHashMap.getPtr(node.inputs.items[0].name).?.tag == globals.TensorTag.INITIALIZER) {
-        my_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&param_lib.tensor_", tensor_name });
-    } else {
-        my_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", tensor_name });
-    }
+
+    my_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+        "&",
+        if (globals.tensorHashMap.getPtr(node.inputs.items[0].name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
+        "tensor_",
+        tensor_name,
+    });
     _ = try writer.print(
         \\
         \\    tensMath.reshape_lean(
