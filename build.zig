@@ -47,7 +47,8 @@ pub fn build(b: *std.Build) void {
     // static_lib module for MNIST
     const static_lib_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
     const static_lib_mnist_hard_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib_mnist_hard.zig") });
-
+    const static_lib_wake_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
+    const static_lib_wake_small_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib_wake_small.zig") });
     // static_lib module for sentiment
     //const static_lib_sentiment_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib_sentiment.zig") });
 
@@ -55,6 +56,16 @@ pub fn build(b: *std.Build) void {
     static_lib_mnist_hard_mod.addImport("pkgAllocator", allocator_mod);
     static_lib_mnist_hard_mod.addImport("tensor", tensor_mod);
     static_lib_mnist_hard_mod.addImport("tensor_math", tensor_math_mod);
+
+    // Add dependencies for static_lib_wake_mod
+    static_lib_wake_mod.addImport("pkgAllocator", allocator_mod);
+    static_lib_wake_mod.addImport("tensor", tensor_mod);
+    static_lib_wake_mod.addImport("tensor_math", tensor_math_mod);
+
+    // Add dependencies for static_lib_wake_small_mod
+    static_lib_wake_small_mod.addImport("pkgAllocator", allocator_mod);
+    static_lib_wake_small_mod.addImport("tensor", tensor_mod);
+    static_lib_wake_small_mod.addImport("tensor_math", tensor_math_mod);
 
     // Create modules from the source files in the `src/Model/` directory.
     const loss_mod = b.createModule(.{ .root_source_file = b.path("src/Model/lossFunction.zig") });
@@ -234,6 +245,8 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("trainer", trainer_mod);
     exe.root_module.addImport("pkgAllocator", allocator_mod);
     exe.root_module.addImport("model_import_export", modelImportExport_mod);
+    exe.root_module.addImport("static_lib_wake", static_lib_wake_mod);
+    exe.root_module.addImport("static_lib", static_lib_mod);
 
     // Install the executable.
     b.installArtifact(exe);
@@ -337,6 +350,7 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("pkgAllocator", allocator_mod);
     unit_tests.root_module.addImport("tensor_math_lean", tensor_math_lean_mod);
     unit_tests.root_module.addImport("static_lib_mnist_hard", static_lib_mnist_hard_mod);
+    unit_tests.root_module.addImport("static_lib_wake", static_lib_wake_mod);
     unit_tests.root_module.addImport("static_lib", static_lib_mod);
 
     unit_tests.linkLibC();

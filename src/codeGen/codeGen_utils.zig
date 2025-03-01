@@ -321,43 +321,69 @@ pub inline fn toUsize(comptime T: type, value: T) !usize {
     }
 
     // Check for negative values if T is signed
-    if (@typeInfo(T).Int.signed and value < 0) {
+    if (@typeInfo(T).Int.signedness == .signed and value < 0) {
         return error.NegativeValue;
     }
 
     // Check if value exceeds maximum usize
     const maxUsize = std.math.maxInt(usize);
-    if (@as(u128, @intCast(if (@typeInfo(T).Int.signed) @as(u128, @intCast(@max(0, value))) else @as(u128, @intCast(value)))) > maxUsize) {
+    if (@as(u128, @intCast(if (@typeInfo(T).Int.signedness == .signed) @as(u128, @intCast(@max(0, value))) else @as(u128, @intCast(value)))) > maxUsize) {
         return error.ValueTooLarge;
     }
 
     return @intCast(value);
 }
 
-pub inline fn sliceToUsizeSlice(comptime T: type, input: []const T) []usize {
-    // Ensure T is an integer type.
-    comptime {
-        if (@typeInfo(T) != .Int) {
-            @compileError("sliceToUsizeSlice only supports integer types");
-        }
-    }
-
+pub inline fn sliceToUsizeSlice(input: anytype) []usize {
+    const T = @TypeOf(input[0]);
     var output = allocator.alloc(usize, input.len) catch @panic("Out of memory in sliceToUsizeSlice");
     const maxUsize = std.math.maxInt(usize);
 
-    for (input, 0..) |value, index| {
-        // If T is signed, check for negative values.
-        if (@typeInfo(T).Int.signed and value < 0) {
-            @panic("Negative value in sliceToUsizeSlice");
-        }
-        // Promote value to u128 for a safe comparison.
-        const uvalue: u128 = @intCast(value);
-        const maxCast: u128 = @intCast(maxUsize);
-        if (uvalue > maxCast) {
-            @panic("Value too large in sliceToUsizeSlice");
-        }
-        output[index] = @intCast(value);
+    switch (@typeInfo(T)) {
+        .Int => {
+            for (input, 0..) |value, index| {
+                // Special case for reshape operations: allow -1 as a special value
+                if (@typeInfo(T).Int.signedness == .signed and value < 0) {
+                    if (value == -1) {
+                        // Use maxInt as a sentinel value to represent -1
+                        // This will be interpreted specially by reshape operations
+                        output[index] = std.math.maxInt(usize);
+                    } else {
+                        @panic("Invalid negative value in sliceToUsizeSlice (only -1 is allowed)");
+                    }
+                } else {
+                    const uvalue: u128 = @intCast(value);
+                    if (uvalue > maxUsize) {
+                        @panic("Value too large in sliceToUsizeSlice");
+                    }
+                    output[index] = @intCast(value);
+                }
+            }
+        },
+        .Float => {
+            for (input, 0..) |value, index| {
+                // Special case for reshape operations: allow -1.0 as a special value
+                if (value < 0) {
+                    if (value == -1.0) {
+                        // Use maxInt as a sentinel value to represent -1
+                        output[index] = std.math.maxInt(usize);
+                    } else {
+                        @panic("Invalid negative float value in sliceToUsizeSlice (only -1.0 is allowed)");
+                    }
+                } else if (value != @floor(value)) {
+                    @panic("Invalid non-integer float value in sliceToUsizeSlice");
+                } else if (value > @as(T, @floatFromInt(maxUsize))) {
+                    @panic("Value too large in sliceToUsizeSlice");
+                } else {
+                    output[index] = @intFromFloat(value);
+                }
+            }
+        },
+        else => {
+            @panic("Unsupported type in sliceToUsizeSlice");
+        },
     }
+
     return output;
 }
 

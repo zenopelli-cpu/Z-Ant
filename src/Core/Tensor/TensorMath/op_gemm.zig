@@ -87,7 +87,7 @@ pub fn gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(T), a
 
 /// Lean version of gemm, output Tensor must be preconstructed and 0 filled
 /// NOTE: (IMPORTANT FOR CODE GEN) Since multibatch/multichannel is not supported by mat_mul neither gemm does. Remove this note and edit "discrepancies from the standard onnx" if this is changed in the future.
-pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(T), alpha: f32, beta: f32, transA: bool, transB: bool, result: *Tensor(T)) !void {
+pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(T), alpha: T, beta: T, transA: bool, transB: bool, result: *Tensor(T)) !void {
     //std.debug.print("\n[DEBUG] lean_gemm:", .{});
     //std.debug.print("\n  A shape: ", .{});
     //for (A.shape) |s| std.debug.print("{d} ", .{s});
