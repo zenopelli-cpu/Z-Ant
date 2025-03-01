@@ -28,6 +28,7 @@ pub fn Tensor(comptime T: type) type {
         size: usize, //dimension of the tensor, equal to data.len
         shape: []usize, //defines the multidimensional structure of the tensor
         allocator: *const std.mem.Allocator, //allocator used in the memory initialization of the tensor
+        owns_memory: bool, //whether this tensor owns its memory and should free it
 
         ///Method used to initialize an undefined Tensor. It just set the allocator.
         /// More usefull methods are:
@@ -40,18 +41,21 @@ pub fn Tensor(comptime T: type) type {
                 .size = 0,
                 .shape = &[_]usize{},
                 .allocator = allocator,
+                .owns_memory = true,
             };
         }
 
         ///Free all the possible allocation, use it every time you create a new Tensor ( defer yourTensor.deinit() )
         pub fn deinit(self: *@This()) void {
-            if (self.data.len > 0) {
-                self.allocator.free(self.data);
-                self.data = &[_]T{};
-            }
-            if (self.shape.len > 0) {
-                self.allocator.free(self.shape);
-                self.shape = &[_]usize{};
+            if (self.owns_memory) {
+                if (self.data.len > 0) {
+                    self.allocator.free(self.data);
+                    self.data = &[_]T{};
+                }
+                if (self.shape.len > 0) {
+                    self.allocator.free(self.shape);
+                    self.shape = &[_]usize{};
+                }
             }
         }
 
@@ -83,6 +87,7 @@ pub fn Tensor(comptime T: type) type {
                 .size = total_size,
                 .shape = tensorShape,
                 .allocator = allocator,
+                .owns_memory = true,
             };
         }
 
@@ -127,6 +132,7 @@ pub fn Tensor(comptime T: type) type {
                 .size = total_size,
                 .shape = tensorShape,
                 .allocator = allocator,
+                .owns_memory = true,
             };
         }
 
@@ -139,30 +145,55 @@ pub fn Tensor(comptime T: type) type {
                 .size = data.len,
                 .shape = @constCast(shape),
                 .allocator = allocator,
+                .owns_memory = false,
             };
         }
 
         /// Given any array and its shape it reshape the tensor and update .data
         pub fn fill(self: *@This(), inputArray: anytype, shape: []usize) !void {
             //const adjusted_shape = try ensure_4D_shape(shape);
-            //TODO LOOK AT THIS DEINIT
-            //deinitialize data e shape
-            //self.deinit(); //if the Tensor has been just init() this function does nothing
-
-            //than, filling with the new values
+            
+            // Allocate new memory first
             var total_size: usize = 1;
             for (shape) |dim| {
                 total_size *= dim;
             }
             const tensorShape = try self.allocator.alloc(usize, shape.len);
+            errdefer self.allocator.free(tensorShape);
             @memcpy(tensorShape, shape);
 
+            // Create a copy of the input data to avoid issues if inputArray is part of self.data
             const tensorData = try self.allocator.alloc(T, total_size);
-            _ = flattenArray(T, inputArray, tensorData, 0);
+            errdefer self.allocator.free(tensorData);
+            
+            // Handle different input array types
+            const InputType = @TypeOf(inputArray);
+            if (@typeInfo(InputType) == .Pointer and @typeInfo(@typeInfo(InputType).Pointer.child) == .Array) {
+                // Handle multi-dimensional arrays
+                _ = flattenArray(T, inputArray, tensorData, 0);
+            } else {
+                // Handle slices (like data from another tensor)
+                if (inputArray.len != total_size) {
+                    return error.InvalidInputArraySize;
+                }
+                @memcpy(tensorData, inputArray);
+            }
 
+            // Free old memory only if we own it
+            if (self.owns_memory) {
+                if (self.data.len > 0) {
+                    self.allocator.free(self.data);
+                }
+                if (self.shape.len > 0) {
+                    self.allocator.free(self.shape);
+                }
+            }
+
+            // Update tensor with new data
             self.data = tensorData;
             self.size = total_size;
             self.shape = tensorShape;
+            self.owns_memory = true;
         }
 
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -341,6 +372,7 @@ pub fn Tensor(comptime T: type) type {
                 .shape = try self.allocator.dupe(usize, slice_shape),
                 .size = new_size,
                 .allocator = self.allocator,
+                .owns_memory = true,
             };
 
             _ = &new_tensor;
