@@ -11,7 +11,7 @@ const shape_math_lib = @import("lib_shape_math.zig");
 //---reshape
 pub const reshape = shape_math_lib.reshape;
 pub const reshape_lean = shape_math_lib.reshape_lean;
-
+pub const reshape_lean_f32 = shape_math_lib.reshape_lean_f32;
 //---gather
 pub const gather = shape_math_lib.gather;
 pub const gather_lean = shape_math_lib.lean_gather;
@@ -63,6 +63,7 @@ pub const convolution_backward_input = convolution_math_lib.convolution_backward
 pub const get_convolution_output_shape = convolution_math_lib.get_convolution_output_shape;
 pub const Conv = convolution_math_lib.OnnxConv;
 pub const conv_lean = convolution_math_lib.OnnxConvLean;
+pub const setLogFunctionC = convolution_math_lib.setLogFunctionC;
 
 // ---------- importing standard Pooling methods ----------
 const pooling_math_lib = @import("op_pooling.zig");

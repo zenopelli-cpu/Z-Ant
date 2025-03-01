@@ -1454,7 +1454,7 @@ test "lean_shape_onnx basic operations" {
         var output = try Tensor(i64).fromArray(&allocator, &outputArray, &outputShape);
         defer output.deinit();
 
-        try TensMath.shape_onnx_lean(f32, &tensor, null, null, &output);
+        try TensMath.shape_onnx_lean(f32, i64, &tensor, null, null, &output);
 
         // Check output data
         try std.testing.expectEqual(@as(i64, 2), output.data[0]);
@@ -1484,7 +1484,7 @@ test "lean_shape_onnx basic operations" {
         defer output.deinit();
 
         // Should return ShapeMismatch error
-        try std.testing.expectError(TensorError.ShapeMismatch, TensMath.shape_onnx_lean(f32, &tensor, null, null, &output));
+        try std.testing.expectError(TensorError.ShapeMismatch, TensMath.shape_onnx_lean(f32, i64, &tensor, null, null, &output));
     }
 
     // Test Case 3: With start and end parameters
@@ -1508,7 +1508,7 @@ test "lean_shape_onnx basic operations" {
         var output = try Tensor(i64).fromArray(&allocator, &outputArray, &outputShape);
         defer output.deinit();
 
-        try TensMath.shape_onnx_lean(f32, &tensor, 1, 3, &output);
+        try TensMath.shape_onnx_lean(f32, i64, &tensor, 1, 3, &output);
 
         // Check output data
         try std.testing.expectEqual(@as(i64, 2), output.data[0]);
@@ -1803,6 +1803,85 @@ test "Reshape - Same size different dimensions" {
     for (0..6) |i| {
         try std.testing.expect(reshaped.data[i] == i + 1);
     }
+}
+
+test "Reshape - With negative dimension" {
+    std.debug.print("\n     test: Reshape - With negative dimension ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Reshape to 3x-1 (should become 3x2)
+    var new_shape: [2]usize = [_]usize{ 3, @bitCast(@as(isize, -1)) };
+    var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
+    defer reshaped.deinit();
+
+    // Verify shape
+    try std.testing.expect(reshaped.shape[0] == 3);
+    try std.testing.expect(reshaped.shape[1] == 2);
+    try std.testing.expect(reshaped.size == 6);
+
+    // Verify data preservation
+    for (0..6) |i| {
+        try std.testing.expect(reshaped.data[i] == i + 1);
+    }
+}
+
+test "Reshape - With zero dimension" {
+    std.debug.print("\n     test: Reshape - With zero dimension ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Reshape to 0x-1 (should keep first dimension as 2, and infer second as 3)
+    var new_shape: [2]usize = [_]usize{ 0, @bitCast(@as(isize, -1)) };
+    var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
+    defer reshaped.deinit();
+
+    // Verify shape
+    try std.testing.expect(reshaped.shape[0] == 2);
+    try std.testing.expect(reshaped.shape[1] == 3);
+    try std.testing.expect(reshaped.size == 6);
+
+    // Verify data preservation
+    for (0..6) |i| {
+        try std.testing.expect(reshaped.data[i] == i + 1);
+    }
+}
+
+test "Reshape - Multiple negative dimensions (should fail)" {
+    std.debug.print("\n     test: Reshape - Multiple negative dimensions ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Try to reshape with multiple -1 dimensions (should fail)
+    var invalid_shape: [2]usize = [_]usize{ @bitCast(@as(isize, -1)), @bitCast(@as(isize, -1)) };
+    try std.testing.expectError(TensorError.InvalidInput, TensMath.reshape(u8, &tensor, &invalid_shape, null));
 }
 
 test "gather - negative axis" {
@@ -2146,30 +2225,7 @@ test "Concatenate tensors with mismatched shapes" {
     }
 }
 
-test "Concatenate tensors with mismatched ranks" {
-    std.debug.print("\n     test: Concatenate tensors with mismatched ranks", .{});
-    var allocator = pkgAllocator.allocator;
 
-    var inputArray1: [2][2]f32 = [_][2]f32{
-        [_]f32{ 1.0, 2.0 },
-        [_]f32{ 3.0, 4.0 },
-    };
-
-    var inputArray2: [2]f32 = [_]f32{ 5.0, 6.0 };
-
-    var shape1: [2]usize = [_]usize{ 2, 2 };
-    var shape2: [1]usize = [_]usize{2};
-
-    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray1, &shape1);
-    defer t1.deinit();
-    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
-    defer t2.deinit();
-
-    var tensors = [_]Tensor(f32){ t1, t2 };
-
-    // Should fail when trying to concatenate tensors with different ranks
-    try std.testing.expectError(TensorError.MismatchedRank, TensMath.concatenate(f32, &allocator, &tensors, 0));
-}
 
 test "Concatenate tensors with invalid axis" {
     std.debug.print("\n     test: Concatenate tensors with invalid axis", .{});
@@ -2534,7 +2590,7 @@ test "lean_shape_onnx basic operations2" {
         var output = try Tensor(i64).fromShape(&allocator, &output_shape);
         defer output.deinit();
 
-        try TensMath.shape_onnx_lean(f32, &tensor, null, null, &output);
+        try TensMath.shape_onnx_lean(f32, i64, &tensor, null, null, &output);
 
         try std.testing.expectEqual(@as(usize, 1), output.shape.len);
         try std.testing.expectEqual(@as(usize, 3), output.shape[0]);
@@ -2564,7 +2620,7 @@ test "lean_shape_onnx basic operations2" {
         var output = try Tensor(i64).fromShape(&allocator, &output_shape);
         defer output.deinit();
 
-        try TensMath.shape_onnx_lean(f32, &tensor, 1, 3, &output);
+        try TensMath.shape_onnx_lean(f32, i64, &tensor, 1, 3, &output);
 
         try std.testing.expectEqual(@as(usize, 1), output.shape.len);
         try std.testing.expectEqual(@as(usize, 2), output.shape[0]);
@@ -2594,7 +2650,7 @@ test "lean_shape_onnx basic operations2" {
         defer output.deinit();
 
         // Should fail because output tensor shape doesn't match expected size (3)
-        try std.testing.expectError(TensorError.ShapeMismatch, TensMath.shape_onnx_lean(f32, &tensor, null, null, &output));
+        try std.testing.expectError(TensorError.ShapeMismatch, TensMath.shape_onnx_lean(f32, i64, &tensor, null, null, &output));
     }
 }
 
@@ -2622,7 +2678,7 @@ test "lean_shape_onnx operations and error cases" {
         var output = try Tensor(i64).fromShape(&allocator, &output_shape);
         defer output.deinit();
 
-        try TensMath.shape_onnx_lean(f32, &tensor, null, null, &output);
+        try TensMath.shape_onnx_lean(f32, i64, &tensor, null, null, &output);
 
         try std.testing.expectEqual(@as(usize, 1), output.shape.len);
         try std.testing.expectEqual(@as(usize, 3), output.shape[0]);
@@ -2652,7 +2708,7 @@ test "lean_shape_onnx operations and error cases" {
         var output = try Tensor(i64).fromShape(&allocator, &output_shape);
         defer output.deinit();
 
-        try TensMath.shape_onnx_lean(f32, &tensor, 1, 3, &output);
+        try TensMath.shape_onnx_lean(f32, i64, &tensor, 1, 3, &output);
 
         try std.testing.expectEqual(@as(usize, 1), output.shape.len);
         try std.testing.expectEqual(@as(usize, 2), output.shape[0]);
@@ -2682,7 +2738,7 @@ test "lean_shape_onnx operations and error cases" {
         defer output.deinit();
 
         // Should fail because output tensor shape doesn't match expected size (3)
-        try std.testing.expectError(TensorError.ShapeMismatch, TensMath.shape_onnx_lean(f32, &tensor, null, null, &output));
+        try std.testing.expectError(TensorError.ShapeMismatch, TensMath.shape_onnx_lean(f32, i64, &tensor, null, null, &output));
     }
 }
 

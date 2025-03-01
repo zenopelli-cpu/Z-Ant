@@ -145,9 +145,9 @@ pub fn Tensor(comptime T: type) type {
         /// Given any array and its shape it reshape the tensor and update .data
         pub fn fill(self: *@This(), inputArray: anytype, shape: []usize) !void {
             //const adjusted_shape = try ensure_4D_shape(shape);
-
+            //TODO LOOK AT THIS DEINIT
             //deinitialize data e shape
-            self.deinit(); //if the Tensor has been just init() this function does nothing
+            //self.deinit(); //if the Tensor has been just init() this function does nothing
 
             //than, filling with the new values
             var total_size: usize = 1;

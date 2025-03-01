@@ -293,16 +293,16 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    
         \\    //creating the indices Tensor(usize)
         \\    
-        \\    const usize_slice_{s} = utils.sliceToUsizeSlice(tensor_{s}.data);
-        \\    var usize_tensor_{s} = Tensor(usize).fromConstBuffer(&allocator, usize_slice_{s}, &tensor_{s}.shape);
+        \\    const usize_slice_{s} =  utils.sliceToUsizeSlice(tensor_{s}.data);
+        \\    var usize_tensor_{s} = Tensor(usize).fromConstBuffer(&allocator, usize_slice_{s}, tensor_{s}.shape);
         \\    defer usize_tensor_{s}.deinit();
         \\    
     , .{
         indices_name, //usize_slice_
-        indices_name, //i64SliceToUsizeSlice
+        indices_name, //tensor_
         indices_name, //usize_tensor_
         indices_name, //usize_slice_
-        indices_name, //tensor_.sahpe
+        indices_name, //tensor_.shape
         indices_name, //usize_tensor_.deinit
     });
 
@@ -590,7 +590,7 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // defer allocator.free(newShape_tensor_parameter193_reshape1_shapee);
     _ = try writer.print(
         \\
-        \\    const newShape_tensor_{s}: []usize = utils.i64SliceToUsizeSlice(param_lib.tensor_{s}.data) catch return;
+        \\    const newShape_tensor_{s}: []usize = utils.sliceToUsizeSlice(tensor_{s}.data);
         \\    defer allocator.free(newShape_tensor_{s});
     , .{
         try utils.getSanitizedName(node.inputs.items[1].name),
@@ -609,7 +609,7 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
     _ = try writer.print(
         \\
-        \\    tensMath.reshape_lean(
+        \\    tensMath.reshape_lean_f32(
         \\        T, //type
         \\        @constCast({s}), //Input tensor
         \\        newShape_tensor_{s}, //New shape
@@ -1036,7 +1036,7 @@ inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
     var stride: ?[]i64 = null;
     var dilation: ?[]i64 = null;
     var auto_pad: []const u8 = "NOTSET";
-
+    var pads: ?[]i64 = null;
     for (readyNode.nodeProto.attribute) |attr| {
         if (std.mem.eql(u8, attr.name, "strides")) {
             if (attr.type == AttributeType.INTS) stride = attr.ints;
@@ -1045,22 +1045,27 @@ inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
         } else if (std.mem.eql(u8, attr.name, "auto_pad")) {
             if (attr.type == AttributeType.STRING) auto_pad = attr.s;
         }
+        if (std.mem.eql(u8, attr.name, "pads")) {
+            if (attr.type == AttributeType.INTS) pads = attr.ints;
+        }
     }
 
     if (stride == null) return error.StridesNotFound;
     if (dilation == null) return error.DilationsNotFound;
 
+    
+
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
     std.debug.print("\n kernel_shape: []i64 = {any}", .{kernel_shape});
     std.debug.print("\n stride: []i64 = {any}", .{stride.?});
-
+    //std.debug.print("\n pads: []i64 = {any}", .{pads.?});
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(
         @constCast(
             &try tensorMath.get_convolution_output_shape(
                 try utils.i64SliceToUsizeSlice(input_shape),
                 try utils.i64SliceToUsizeSlice(kernel_shape),
                 try utils.i64SliceToUsizeSlice(stride.?),
-                null,
+                if (pads != null) try utils.i64SliceToUsizeSlice(pads.?) else null,
                 try utils.i64SliceToUsizeSlice(dilation.?),
                 auto_pad,
             ),
@@ -1315,11 +1320,12 @@ inline fn write_shape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     _ = try writer.print(
         \\
         \\    tensMath.shape_onnx_lean(
+        \\        T,
         \\        T, //type
         \\        @constCast(&tensor_{s}), //input tensor
         \\        {s}, //start
         \\        {s}, //end
-        \\        &tensor_{s}, //output tensor
+        \\        &tensor_{s}, //output tensor,
         \\    )
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name),
@@ -1827,7 +1833,7 @@ inline fn write_concat(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\}};
         \\
         \\    // Perform concatenation
-        \\    tensor_{s} = try tensMath.concatenate(T, &allocator, &concat_tensor_list, {})
+        \\    tensor_{s} =  tensMath.concatenate(T, &allocator, &concat_tensor_list, {})
     , .{
         try utils.getSanitizedName(node.outputs.items[0].name),
         axis,

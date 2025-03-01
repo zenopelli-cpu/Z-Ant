@@ -240,7 +240,7 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
     // Write tensor initialization using fromArray
     try writer.print(
         \\
-        \\const tensor_{s} = Tensor({s}).fromConstBuffer( &array_{s}, &shape_tensor_{s});
+        \\const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
     , .{ sanitized_name, dataTypeString, sanitized_name, sanitized_name });
 }
 
