@@ -147,6 +147,27 @@ pub const ValueInfoProto = struct {
     }
 };
 
+// https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L126
+//TAG:
+//  - 1 : name, optional string
+//  - 2 : f, optional float
+//  - 3 : i, optional int64
+//  - 4 : s, optional bytes (UTF-8 string)
+//  - 5 : t, optional TensorProto (tensor value)
+//  - 6 : TODO g, optional GraphProto (graph)
+//  - 7 : floats, repeated float
+//  - 8 : ints, repeated int64
+//  - 9 : strings, repeated bytes
+//  - 10: TODO tensors, repeated TensorProto
+//  - 11: TODO graphs, repeated GraphProto
+//  - 13: TODO doc_string, optional string
+//  - 14: TODO tp, optional TypeProto
+//  - 15: TODO type_protos, repeated TypeProto
+//  - 20: TODO type, optional AttributeType
+//  - 21: TODO ref_attr_name, optional string
+//  - 23: TODO NOT URGENT sparse_tensor, optional SparseTensorProto
+//reserved 12, 16 to 19;
+//reserved "v";
 pub const AttributeProto = struct {
     name: []const u8,
     type: AttributeType,
@@ -856,6 +877,23 @@ pub const TypeProto = struct {
     }
 };
 
+// onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L503
+//TAGS:
+//  - 1 : dims, repeated int64
+//  - 2 : data_type, optional int32
+//  - 3 : TODO NOT URGENT segment, optional Segment
+//  - 4 : float_data, repeated float
+//  - 5 : int32_data, repeated int32
+//  - 6 : string_data, repeated bytes
+//  - 7 : int64_data, repeated int64
+//  - 8 : name, optional string
+//  - 9 : raw_data, optional bytes
+//  - 10: double_data, repeated double
+//  - 11: uint64_data, repeated uint64
+//  - 12: TODO doc_string, optional string
+//  - 13: TODO external_data, repeated StringStringEntryProto
+//  - 14: TODO data_location, optional DataLocation
+//  - 16: TODO metadata_props, repeated StringStringEntryProto
 pub const TensorProto = struct {
     dims: []i64,
     data_type: DataType,
