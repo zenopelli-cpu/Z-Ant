@@ -13,6 +13,8 @@ const pkg_allocator = zant.utils.allocator.allocator;
 const error_handler = zant.utils.error_handler;
 const TensorMathError = error_handler.TensorMathError;
 const TensorError = error_handler.TensorError;
+const TypeError = error_handler.TypeError;
+
 const ArchitectureError = error_handler.ArchitectureError;
 const Converter = zant.utils.type_converter;
 

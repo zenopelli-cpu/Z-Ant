@@ -1,6 +1,6 @@
 pub const optim = @import("optim.zig");
 pub const loss_function = @import("lossFunction.zig");
-pub const layer = @import("layers/layer.zig");
+pub const layer = @import("Layers/layer.zig");
 
 const std = @import("std");
 const zant = @import("../zant.zig");
