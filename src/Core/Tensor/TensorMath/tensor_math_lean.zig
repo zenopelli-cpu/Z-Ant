@@ -45,7 +45,7 @@ pub const ReLU = activation_math_lib.lean_ReLU;
 //Leaky ReLU
 pub const leakyReLU = activation_math_lib.lean_leakyReLU;
 //Sigmoid
-pub const sigmoid = activation_math_lib.lean_sigmoid;
+pub const sigmoid = activation_math_lib.sigmoid_lean;
 //Softmax
 pub const softmax = activation_math_lib.lean_softmax;
 

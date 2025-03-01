@@ -72,7 +72,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gemm")) {
         try write_gemm(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "LeakyRelu")) {
-        try writer.writeAll("// Handle LeakyRelu\n");
+        try write_leakyReLu(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "LogSoftmax")) {
         try writer.writeAll("// Handle LogSoftmax\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "MatMul")) {
@@ -150,7 +150,7 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //      - Input tensor A. The shape of A should be (M, K) if transA is 0, or (K, M) if transA is non-zero.
     //      - Input tensor B. The shape of B should be (K, N) if transB is 0, or (N, K) if transB is non-zero.
     //      - Optional input tensor C. If not specified, the computation is done as if C is a scalar 0. The shape of C should be unidirectional broadcastable to (M, N).
-    //OUTPUTS:
+    // OUTPUTS:
     //      - Output tensor of shape (M, N).
     // ATTRIBUTES:
     //      - alpha. FLOAT (default is '1.0'): Scalar multiplier for the product of input tensors A * B.
@@ -196,6 +196,33 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         transA,
         transB,
         try utils.getSanitizedName(node.outputs.items[0].name), // Output
+    });
+}
+
+inline fn write_leakyReLu(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__LeakyRelu.html
+    // INPUTS:
+    //      - A (heterogeneous) - T:
+    // OUTPUTS:
+    //      - B (heterogeneous) - T: Tensor containing results of leakyReLu applied element-wise to tensor A
+
+    var slope: f32 = 0.01;
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.indexOf(u8, attr.name, "slope")) |_| {
+            if (true
+            // attr.type == type_of_tensor_A
+            ) slope = attr.f else return error.slopeTypeNotMatching;
+        }
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.leakyReLU_lean(T, &tensor_{s}, {}, &tensor_{s})
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
+        slope,
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor B
     });
 }
 
@@ -290,31 +317,32 @@ inline fn write_sum(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
 pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Add")) {
-        //https://onnx.ai/onnx/operators/onnx__Add.html
+        // https://onnx.ai/onnx/operators/onnx__Add.html
         readyNode.outputs.items[0].shape = readyNode.inputs.items[1].shape;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Concat")) {
         // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Constant")) {
-        //https://onnx.ai/onnx/operators/onnx__Constant.html
+        // https://onnx.ai/onnx/operators/onnx__Constant.html
         try compute_constant_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Conv")) {
-        //https://onnx.ai/onnx/operators/onnx__Conv.html
+        // https://onnx.ai/onnx/operators/onnx__Conv.html
         try compute_conv_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Div")) {
-        //https://onnx.ai/onnx/operators/onnx__Div.html
+        // https://onnx.ai/onnx/operators/onnx__Div.html
         readyNode.outputs.items[0].shape = readyNode.inputs.items[1].shape;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Tanh")) {
-        //https://onnx.ai/onnx/operators/onnx__Tanh.html
+        // https://onnx.ai/onnx/operators/onnx__Tanh.html
         readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Flatten")) {
         // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
         // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gemm")) {
-        //https://onnx.ai/onnx/operators/onnx__Gemm.html
+        // https://onnx.ai/onnx/operators/onnx__Gemm.html
         try compute_gemm_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LeakyRelu")) {
-        // TODO
+        // https://onnx.ai/onnx/operators/onnx__LeakyRelu.html
+        try compute_leakyReLU_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LogSoftmax")) {
         // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MatMul")) {
@@ -323,12 +351,12 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         // TODO
         //try compute_maxPool_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mul")) {
-        //https://onnx.ai/onnx/operators/onnx__Mul.html
+        // https://onnx.ai/onnx/operators/onnx__Mul.html
         try compute_mul_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "OneHot")) {
         // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Relu")) {
-        //https://onnx.ai/onnx/operators/onnx__Relu.html
+        // https://onnx.ai/onnx/operators/onnx__Relu.html
         try compute_ReLU_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Reshape")) {
         // TODO
@@ -339,7 +367,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sigmoid")) {
         // TODO
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Softmax")) {
-        //https://onnx.ai/onnx/operators/onnx__Softmax.html
+        // https://onnx.ai/onnx/operators/onnx__Softmax.html
         try compute_softmax_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Slice")) {
         // TODO
@@ -362,6 +390,10 @@ inline fn compute_constant_output_shape(readyNode: *ReadyNode) !void {
 }
 
 inline fn compute_ReLU_output_shape(readyNode: *ReadyNode) !void {
+    readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
+}
+
+inline fn compute_leakyReLU_output_shape(readyNode: *ReadyNode) !void {
     readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
 }
 
