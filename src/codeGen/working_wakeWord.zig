@@ -68,9 +68,9 @@ var shape_tensor__conv1_conv_output_0: [4]usize = [_]usize{ 1, 4, 1, 8001 };
 var array__conv1_conv_output_0: [32004]T = [_]T{0} ** 32004;
 var tensor__conv1_conv_output_0 = Tensor(T).fromConstBuffer(&allocator, &array__conv1_conv_output_0, &shape_tensor__conv1_conv_output_0);
 
-// var shape_tensor__relu1_relu_output_0: [4]usize = [_]usize{ 1, 4, 1, 8001 };
-// var array__relu1_relu_output_0: [32004]T = [_]T{0} ** 32004;
-// var tensor__relu1_relu_output_0 = Tensor(T).fromConstBuffer(&allocator, &array__relu1_relu_output_0, &shape_tensor__relu1_relu_output_0);
+var shape_tensor__relu1_relu_output_0: [4]usize = [_]usize{ 1, 4, 1, 8001 };
+var array__relu1_relu_output_0: [32004]T = [_]T{0} ** 32004;
+var tensor__relu1_relu_output_0 = Tensor(T).fromConstBuffer(&allocator, &array__relu1_relu_output_0, &shape_tensor__relu1_relu_output_0);
 
 var shape_tensor__pool1_maxpool_output_0: [4]usize = [_]usize{ 1, 4, 1, 2667 };
 var array__pool1_maxpool_output_0: [10668]T = [_]T{0} ** 10668;
@@ -80,9 +80,9 @@ var shape_tensor__conv2_conv_output_0: [4]usize = [_]usize{ 1, 4, 1, 2668 };
 var array__conv2_conv_output_0: [10672]T = [_]T{0} ** 10672;
 var tensor__conv2_conv_output_0 = Tensor(T).fromConstBuffer(&allocator, &array__conv2_conv_output_0, &shape_tensor__conv2_conv_output_0);
 
-// var shape_tensor__relu2_relu_output_0: [4]usize = [_]usize{ 1, 4, 1, 2668 };
-// var array__relu2_relu_output_0: [10672]T = [_]T{0} ** 10672;
-// var tensor__relu2_relu_output_0 = Tensor(T).fromConstBuffer(&allocator, &array__relu2_relu_output_0, &shape_tensor__relu2_relu_output_0);
+var shape_tensor__relu2_relu_output_0: [4]usize = [_]usize{ 1, 4, 1, 2668 };
+var array__relu2_relu_output_0: [10672]T = [_]T{0} ** 10672;
+var tensor__relu2_relu_output_0 = Tensor(T).fromConstBuffer(&allocator, &array__relu2_relu_output_0, &shape_tensor__relu2_relu_output_0);
 
 var shape_tensor__pool2_maxpool_output_0: [4]usize = [_]usize{ 1, 4, 1, 889 };
 var array__pool2_maxpool_output_0: [3556]T = [_]T{0} ** 3556;
@@ -204,14 +204,14 @@ pub export fn predict(
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Relu operation...\n")));
     }
-    tensMath.ReLU_lean(T, &tensor__conv1_conv_output_0, &tensor__conv1_conv_output_0) catch return;
+    tensMath.ReLU_lean(T, &tensor__conv1_conv_output_0, &tensor__relu1_relu_output_0) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running MaxPool operation...\n")));
     }
     tensMath.onnx_maxpool_lean(
         T,
-        &tensor__conv1_conv_output_0, //Input
+        &tensor__relu1_relu_output_0, //Input
         &tensor__pool1_maxpool_output_0, //Output
         &[_]usize{ 1, 3 }, //kernel_shape
         &[_]usize{ 1, 3 }, //strides
@@ -239,14 +239,14 @@ pub export fn predict(
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running Relu operation...\n")));
     }
-    tensMath.ReLU_lean(T, &tensor__conv2_conv_output_0, &tensor__conv2_conv_output_0) catch return;
+    tensMath.ReLU_lean(T, &tensor__conv2_conv_output_0, &tensor__relu2_relu_output_0) catch return;
 
     if (log_function) |log| {
         log(@constCast(@ptrCast("Running MaxPool operation...\n")));
     }
     tensMath.onnx_maxpool_lean(
         T,
-        &tensor__conv2_conv_output_0, //Input
+        &tensor__relu2_relu_output_0, //Input
         &tensor__pool2_maxpool_output_0, //Output
         &[_]usize{ 1, 3 }, //kernel_shape
         &[_]usize{ 1, 3 }, //strides
