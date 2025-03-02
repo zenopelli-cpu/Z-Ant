@@ -12,7 +12,11 @@ const globals = @import("globals.zig");
 ///
 /// - `writer`: The file writer to output generated code.
 /// - `model`: The ONNX model containing tensor initializers.
-pub inline fn writeTensorsInit(writer: std.fs.File.Writer, model: ModelOnnx) !void {
+pub inline fn write_staticParameters(writer: std.fs.File.Writer, model: ModelOnnx) !void {
+
+    //importing the libraries
+    try write_libraries_parameters(writer);
+
     try writer.print(
         \\
         \\
@@ -44,6 +48,27 @@ pub inline fn writeTensorsInit(writer: std.fs.File.Writer, model: ModelOnnx) !vo
             \\pub const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
         , .{ name, dataTypeString, name, name });
     }
+}
+
+/// Writes the required library imports to the generated Zig file for input tensor.
+///
+/// This function ensures that the necessary standard and package libraries are
+/// imported into the generated Zig source file.
+///
+/// # Parameters
+/// - `writer`: A file writer used to write the import statements.
+///
+/// # Errors
+/// This function may return an error if writing to the file fails.
+fn write_libraries_parameters(writer: std.fs.File.Writer) !void {
+    _ = try writer.print(
+        \\
+        \\ const std = @import("std");
+        \\ const Tensor = zant.core.tensor.Tensor;
+        \\ const pkgAllocator = zant.utils.allocator;
+        \\ const allocator = pkgAllocator.allocator;
+        \\
+    , .{});
 }
 
 /// Writes the shape array for a tensor initializer.

@@ -8,7 +8,7 @@ const ModelOnnx = onnx.ModelProto;
 const DataType = onnx.DataType;
 const TensorProto = onnx.TensorProto;
 const allocator = zant.utils.allocator.allocator;
-const codeGenInitializers = @import("codeGen_initializers.zig");
+const codeGenInitializers = @import("codeGen_parameters.zig");
 const coddeGenPredict = @import("codeGen_predict.zig");
 const codegen_options = @import("codegen_options");
 
@@ -35,7 +35,6 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
 
     // Write the necessary library imports to the generated Zig file
     try write_libraries(writer);
-    try write_libraries_parameters(writer_parameters);
 
     if (codegen_options.log) {
         //log function setting
@@ -47,7 +46,7 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
 
     try write_type_T(writer);
 
-    // Generate tensor initialization code
+    // Generate tensor initialization code in the static_parameters.zig file
     try codeGenInitializers.writeTensorsInit(writer_parameters, model);
 
     //try write_debug(writer);
@@ -77,27 +76,6 @@ fn write_libraries(writer: std.fs.File.Writer) !void {
         \\ const allocator = pkgAllocator.allocator;
         \\ const utils = @import("codeGen_utils.zig");
         \\ const param_lib = @import("static_parameters.zig");
-        \\
-    , .{});
-}
-
-/// Writes the required library imports to the generated Zig file for input tensor.
-///
-/// This function ensures that the necessary standard and package libraries are
-/// imported into the generated Zig source file.
-///
-/// # Parameters
-/// - `writer`: A file writer used to write the import statements.
-///
-/// # Errors
-/// This function may return an error if writing to the file fails.
-fn write_libraries_parameters(writer: std.fs.File.Writer) !void {
-    _ = try writer.print(
-        \\
-        \\ const std = @import("std");
-        \\ const Tensor = @import("tensor").Tensor;
-        \\ const pkgAllocator = @import("pkgAllocator");
-        \\ const allocator = pkgAllocator.allocator;
         \\
     , .{});
 }
