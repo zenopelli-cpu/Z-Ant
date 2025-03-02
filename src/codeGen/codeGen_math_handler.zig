@@ -227,6 +227,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void
     _ = try writer.print(
         \\    
+        \\
         \\    tensMath.conv_lean(
         \\        T, //type
         \\        &tensor_{s}, //input
@@ -252,6 +253,251 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
+inline fn write_concat(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Concat.html
+    // INPUTS:
+    //      - inputs (variadic, heterogeneous) - T: List of tensors for concatenation
+    // OUTPUTS:
+    //      - concat_result (heterogeneous) - T: Concatenated tensor
+    // ATTRIBUTES:
+    //      - axis (int, required): Which axis to concat on
+
+    // Get the axis attribute
+    var axis: i64 = 0;
+    var axis_found = false;
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "axis")) {
+            if (attr.type == AttributeType.INT) {
+                axis = attr.i;
+                axis_found = true;
+            } else {
+                return error.ConcatAxisNotINT;
+            }
+        }
+    }
+
+    if (!axis_found) {
+        return error.ConcatAxisNotFound;
+    }
+
+    // Special case for axis 0 with different ranks
+    if (axis == 0) {
+        // Find if there are tensors with different ranks
+        var has_different_ranks = false;
+        const first_rank = node.inputs.items[0].shape.len;
+
+        for (node.inputs.items[1..]) |input| {
+            if (input.shape.len != first_rank) {
+                has_different_ranks = true;
+                break;
+            }
+        }
+
+        if (has_different_ranks) {
+            _ = try writer.print(
+                \\
+                \\    // Special case for concatenation along axis 0 with different ranks
+                \\    // This requires custom handling as the standard concatenate function expects same rank
+                \\    std.debug.print("\\nWarning: Concatenating tensors with different ranks along axis 0\\n", .{{}});
+                \\
+                \\    // Create a list of tensors to concatenate
+                \\    var concat_tensor_list = [_]Tensor(T){{
+            , .{});
+
+            for (node.inputs.items, 0..) |input, idx| {
+                if (idx > 0) {
+                    _ = try writer.print(", ", .{});
+                }
+                _ = try writer.print("tensor_{s}", .{try utils.getSanitizedName(input.name)});
+            }
+
+            _ = try writer.print(
+                \\}};
+                \\
+                \\    // Perform concatenation with special handling for different ranks
+                \\    tensor_{s} = try tensMath.concatenate(T, &allocator, &concat_tensor_list, {})
+            , .{
+                try utils.getSanitizedName(node.outputs.items[0].name),
+                axis,
+            });
+
+            return;
+        }
+    }
+
+    // Standard case: all tensors have the same rank
+    // Create a tensor list with all input tensors
+    _ = try writer.print(
+        \\
+        \\    // Create a list of tensors to concatenate
+        \\    var concat_tensor_list = [_]Tensor(T){{
+    , .{});
+
+    for (node.inputs.items, 0..) |input, idx| {
+        if (idx > 0) {
+            _ = try writer.print(", ", .{});
+        }
+        _ = try writer.print("tensor_{s}", .{try utils.getSanitizedName(input.name)});
+    }
+
+    _ = try writer.print(
+        \\}};
+        \\
+        \\    // Perform concatenation
+        \\    tensor_{s} =  tensMath.concatenate(T, &allocator, &concat_tensor_list, {})
+    , .{
+        try utils.getSanitizedName(node.outputs.items[0].name),
+        axis,
+    });
+}
+
+inline fn write_constant(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Constant.html
+    // Outputs:
+    // - output (heterogeneous) - T: Output tensor containing the same value of the provided tensor.
+    // Attributes - only one of these should be specified:
+    // - value (TENSOR): The value for the elements of the output tensor.
+    // - sparse_value (SPARSE_TENSOR): The value for the elements of the output tensor in sparse format.
+    // - value_float (FLOAT): The value for the sole element for the scalar, float32, output tensor.
+    // - value_floats (FLOATS): The values for the elements for the 1D, float32, output tensor.
+    // - value_int (INT): The value for the sole element for the scalar, int64, output tensor.
+    // - value_ints (INTS): The values for the elements for the 1D, int64, output tensor.
+    // - value_string (STRING): The value for the sole element for the scalar, UTF-8 string, output tensor.
+    // - value_strings (STRINGS): The values for the elements for the 1D, UTF-8 string, output tensor.
+
+    const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "value")) {
+            // For TENSOR value, the tensor is already initialized during model loading
+            // No additional code needed for initialization
+            try writer.print(
+                \\
+                \\    // Constant tensor was already initialized during model loading
+                \\    // No additional code needed for tensor_{s}
+            , .{output_name});
+            return;
+        } else if (std.mem.eql(u8, attr.name, "value_float")) {
+            if (attr.type != AttributeType.FLOAT) return error.ConstantAttributeTypeMismatch;
+
+            // Create a scalar tensor with a float value
+            try writer.print(
+                \\
+                \\    // Initialize scalar float constant
+                \\    tensor_{s} = Tensor(T).initScalar(&allocator, {d}) catch return;
+            , .{ output_name, attr.f });
+            return;
+        } else if (std.mem.eql(u8, attr.name, "value_floats")) {
+            if (attr.type != AttributeType.FLOATS) return error.ConstantAttributeTypeMismatch;
+
+            // Create 1D tensor with float values
+            try writer.print(
+                \\
+                \\    // Initialize 1D float array constant
+                \\    const data_{s} = [_]T{{
+            , .{output_name});
+
+            // Write array elements
+            for (attr.floats, 0..) |val, i| {
+                if (i > 0) try writer.writeAll(", ");
+                try writer.print("{d}", .{val});
+            }
+
+            try writer.print(
+                \\
+                \\    }};
+                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
+            , .{ output_name, output_name, attr.floats.len });
+            return;
+        } else if (std.mem.eql(u8, attr.name, "value_int")) {
+            if (attr.type != AttributeType.INT) return error.ConstantAttributeTypeMismatch;
+
+            // Create a scalar tensor with an int value
+            try writer.print(
+                \\
+                \\    // Initialize scalar int constant
+                \\    tensor_{s} = Tensor(T).initScalar(&allocator, @as(T, @floatFromInt({d}))) catch return;
+            , .{ output_name, attr.i });
+            return;
+        } else if (std.mem.eql(u8, attr.name, "value_ints")) {
+            if (attr.type != AttributeType.INTS) return error.ConstantAttributeTypeMismatch;
+
+            // Create 1D tensor with int values
+            try writer.print(
+                \\
+                \\    // Initialize 1D int array constant
+                \\    const data_{s} = [_]T{{
+            , .{output_name});
+
+            // Write array elements
+            for (attr.ints, 0..) |val, i| {
+                if (i > 0) try writer.writeAll(", ");
+                try writer.print("@as(T, @floatFromInt({d}))", .{val});
+            }
+
+            try writer.print(
+                \\
+                \\    }};
+                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
+            , .{ output_name, output_name, attr.ints.len });
+            return;
+        } else if (std.mem.eql(u8, attr.name, "value_string")) {
+            if (attr.type != AttributeType.STRING) return error.ConstantAttributeTypeMismatch;
+
+            // String constants are not directly supported in this numeric tensor library
+            try writer.print(
+                \\
+                \\    // String constants are not directly supported in this numeric tensor library
+                \\    // For now, we'll create a placeholder tensor with a single value
+                \\    tensor_{s} = Tensor(T).initScalar(&allocator, 0) catch return;
+                \\    // The actual string value was: "{s}"
+            , .{ output_name, attr.s });
+            return;
+        } else if (std.mem.eql(u8, attr.name, "value_strings")) {
+            if (attr.type != AttributeType.STRINGS) return error.ConstantAttributeTypeMismatch;
+
+            // String array constants are not directly supported in this numeric tensor library
+            try writer.print(
+                \\
+                \\    // String array constants are not directly supported in this numeric tensor library
+                \\    // For now, we'll create a placeholder tensor with zeros
+                \\    const data_{s} = [_]T{{
+            , .{output_name});
+
+            // Create a placeholder array of zeros with the same length
+            for (attr.strings, 0..) |_, i| {
+                if (i > 0) try writer.writeAll(", ");
+                try writer.print("0", .{});
+            }
+
+            try writer.print(
+                \\
+                \\    }};
+                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
+                \\    // Note: This is a placeholder for string values that cannot be directly represented
+            , .{ output_name, output_name, attr.strings.len });
+            return;
+        } else if (std.mem.eql(u8, attr.name, "sparse_value")) {
+            // Sparse tensor constants require special handling
+            try writer.print(
+                \\
+                \\    // Sparse tensor constants are not yet fully supported
+                \\    // Creating a placeholder tensor for sparse_value
+                \\    tensor_{s} = Tensor(T).initScalar(&allocator, 0) catch return;
+                \\    std.debug.print("Warning: sparse_value attribute used but not fully supported\\n", .{{}});
+            , .{output_name});
+            return;
+        }
+    }
+
+    // If we get here, no valid constant value was found
+    try writer.writeAll(
+        \\
+        \\    return error.ConstantValueNotFound;
+    );
+}
+
 inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // https://onnx.ai/onnx/operators/onnx__Div.html
     // INPUTS:
@@ -262,7 +508,7 @@ inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
-        \\    tensMath.div_lean(T, &tensor_{s}, &tensor_{s}, &tensor_{s})
+        \\    tensMath.div_lean(T, &tensor_{s}, &param_lib.tensor_{s}, &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
         try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
@@ -270,6 +516,7 @@ inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
+//TODO : add param_lib. where necessary
 inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // https://onnx.ai/onnx/operators/onnx__Gather.html
     // INPUTS:
@@ -291,6 +538,7 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\    
+        \\
         \\    //creating the indices Tensor(usize)
         \\    
         \\    const usize_slice_{s} =  utils.sliceToUsizeSlice(tensor_{s}.data);
@@ -307,6 +555,7 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 
     _ = try writer.print(
+        \\
         \\
         \\    tensMath.gather_lean(
         \\        T, //type
@@ -354,21 +603,37 @@ inline fn write_gemm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         }
     }
 
-    var c_tensor_string: []u8 = undefined;
+    // --- generating the tensors name depending if they are initializers or not:
+    var b_tensor_string: []u8 = undefined;
+    const sanitized_tensor_B = try utils.getSanitizedName(node.inputs.items[1].name);
+    b_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+        if (globals.tensorHashMap.getPtr(node.inputs.items[1].name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
+        "tensor_",
+        sanitized_tensor_B,
+    });
+
     // Input Tensor C is optional! verify the presence
+    var c_tensor_string: []u8 = undefined;
     if (node.inputs.items.len == 3) {
-        const C_name = try utils.getSanitizedName(node.inputs.items[2].name);
-        c_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", C_name, ")" });
+        const sanitized_tensor_C = try utils.getSanitizedName(node.inputs.items[2].name);
+        c_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&",
+            if (globals.tensorHashMap.getPtr(node.inputs.items[2].name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
+            "tensor_",
+            sanitized_tensor_C,
+            ")",
+        });
     } else {
         c_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{" null"});
     }
 
     _ = try writer.print(
         \\
-        \\    tensMath.gemm_lean(T, &tensor_{s}, @constCast(&tensor_{s}), {s}, {}, {}, {s}, {s}, &tensor_{s} )
+        \\
+        \\    tensMath.gemm_lean(T, &tensor_{s}, @constCast(&{s}), {s}, {}, {}, {s}, {s}, &tensor_{s} )
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
-        try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
+        b_tensor_string, // Input tensor B
         c_tensor_string,
         alpha,
         beta,
@@ -386,12 +651,21 @@ inline fn write_matmul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // OUTPUTS:
     //      - C (heterogeneous) - T: Result, has same element type as two inputs.
 
+    //if B is a static parameter must be imported from parameter_lib.zig
+    var b_tensor_string: []u8 = undefined;
+    const sanitized_tensor_B = try utils.getSanitizedName(node.inputs.items[1].name);
+    b_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+        if (globals.tensorHashMap.getPtr(node.inputs.items[1].name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
+        "tensor_",
+        sanitized_tensor_B,
+    });
+
     _ = try writer.print(
         \\
-        \\    tensMath.mat_mul_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
+        \\    tensMath.mat_mul_lean(T, &tensor_{s}, @constCast(&{s}), &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
-        try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
+        b_tensor_string, // Input tensor B
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
     });
 }
@@ -489,6 +763,7 @@ inline fn write_maxPool(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
+        \\
         \\    tensMath.onnx_maxpool_lean(
         \\        T,
         \\        &tensor_{s}, //Input
@@ -518,12 +793,22 @@ inline fn write_mul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // OUTPUTS:
     //      - C (heterogeneous) - T: Result, has same element type as two inputs.
 
+    //if B is a static parameter must be imported from parameter_lib.zig
+    var b_tensor_string: []u8 = undefined;
+    const sanitized_tensor_B = try utils.getSanitizedName(node.inputs.items[1].name);
+    b_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+        if (globals.tensorHashMap.getPtr(node.inputs.items[1].name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
+        "tensor_",
+        sanitized_tensor_B,
+    });
+
     _ = try writer.print(
+        \\
         \\
         \\    tensMath.mul_lean(T, &tensor_{s}, @constCast(&tensor_{s}), &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name), // Input tensor A
-        try utils.getSanitizedName(node.inputs.items[1].name), // Input tensor B
+        b_tensor_string, // Input tensor B
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
     });
 }
@@ -547,6 +832,7 @@ inline fn write_reduceMean(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
+        \\
         \\    tensMath.reduce_mean_lean(T, &tensor_{s}, &tensor_{s}, {s}, {s}, {s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name),
@@ -562,6 +848,7 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //node.outputs.items[0] -> output
 
     _ = try writer.print(
+        \\
         \\
         \\    tensMath.ReLU_lean(T, &tensor_{s}, &tensor_{s})
     , .{
@@ -586,38 +873,38 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             if (attr.type == AttributeType.INT) allowzer0 = attr.i != 0;
         }
     }
-    // pub const newShape_tensor_parameter193_reshape1_shapee: []usize = utils.i64SliceToUsizeSlice(param_lib.tensor_pooling160_output_0_reshape0_shape.data) catch return;
-    // defer allocator.free(newShape_tensor_parameter193_reshape1_shapee);
+
+    var input_string: []u8 = undefined;
+    const sanitized_tensor_name = try utils.getSanitizedName(node.inputs.items[0].name);
+
+    input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+        if (globals.tensorHashMap.getPtr(node.inputs.items[0].name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
+        "tensor_",
+        sanitized_tensor_name,
+    });
+
     _ = try writer.print(
         \\
-        \\    const newShape_tensor_{s}: []usize = utils.sliceToUsizeSlice(tensor_{s}.data);
+        \\
+        \\    const newShape_tensor_{s}: []usize = utils.sliceToUsizeSlice({s}.data);
         \\    defer allocator.free(newShape_tensor_{s});
     , .{
         try utils.getSanitizedName(node.inputs.items[1].name),
-        try utils.getSanitizedName(node.inputs.items[1].name),
+        input_string,
         try utils.getSanitizedName(node.inputs.items[1].name),
     });
 
-    var my_string: []u8 = undefined;
-    const tensor_name = try utils.getSanitizedName(node.inputs.items[0].name);
-
-    my_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-        "&",
-        if (globals.tensorHashMap.getPtr(node.inputs.items[0].name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
-        "tensor_",
-        tensor_name,
-    });
     _ = try writer.print(
         \\
         \\    tensMath.reshape_lean_f32(
         \\        T, //type
-        \\        @constCast({s}), //Input tensor
+        \\        @constCast(&{s}), //Input tensor
         \\        newShape_tensor_{s}, //New shape
         \\        {s}, //allowzero
         \\        &tensor_{s}, //Output tensor
         \\    )
     , .{
-        my_string, // Input tensor
+        input_string, // Input tensor
         try utils.getSanitizedName(node.inputs.items[1].name), // Input shape tensor
         if (allowzer0) "true" else "false", //allowzer0
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
@@ -629,6 +916,7 @@ inline fn write_sigmoid(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //node.outputs.items[0] -> output
 
     _ = try writer.print(
+        \\
         \\
         \\    tensMath.sigmoid_lean(T, &tensor_{s}, &tensor_{s})
     , .{
@@ -670,6 +958,7 @@ inline fn write_slice(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
+        \\
         \\    tensMath.lean_slice_onnx(
         \\        T, //type
         \\        @constCast(&tensor_{s}), //input tensor
@@ -698,6 +987,7 @@ inline fn write_softmax(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
+        \\
         \\    tensMath.softmax_lean(T, &tensor_{s}, &tensor_{s})
     , .{
         try utils.getSanitizedName(node.inputs.items[0].name),
@@ -715,6 +1005,7 @@ inline fn write_sum(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //Writing the tensor list with all the inputs
     _ = try writer.print(
         \\
+        \\
         \\    const my_tensor_list = [_]*Tensor(T){{
     , .{});
 
@@ -722,9 +1013,19 @@ inline fn write_sum(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         if (idx > 0) {
             _ = try writer.print(", ", .{});
         }
+
+        var new_tensor_string: []u8 = undefined;
+        const sanitized_tensor_name = try utils.getSanitizedName(tens.name);
+
+        new_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            if (globals.tensorHashMap.getPtr(tens.name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
+            "tensor_",
+            sanitized_tensor_name,
+        });
+
         _ = try writer.print(
-            \\tensor_{s}
-        , .{try utils.getSanitizedName(tens.name)});
+            \\{s}
+        , .{try utils.getSanitizedName(new_tensor_string)});
     }
 
     _ = try writer.print("}}", .{});
@@ -733,6 +1034,106 @@ inline fn write_sum(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\
         \\    tensMath.sum_tensor_list_lean(T, T, &my_tensor_list, &tensor_{s})
     , .{try utils.getSanitizedName(node.outputs.items[0].name)});
+}
+
+inline fn write_shape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Shape.html
+    // INPUTS:
+    //      - data (heterogeneous) - T: An input tensor.
+    // OUTPUTS:
+    //      - shape (heterogeneous) - T1: Shape of the input tensor
+    // ATTRIBUTES:
+    //      - start - INT: First dimension to take
+    //      - end - INT: Last dimension to take
+
+    var start: ?i64 = null;
+    var end: ?i64 = null;
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "start")) {
+            if (attr.type == AttributeType.INT) start = attr.i;
+        } else if (std.mem.eql(u8, attr.name, "end")) {
+            if (attr.type == AttributeType.INT) end = attr.i;
+        }
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.shape_onnx_lean(
+        \\        T,
+        \\        T, //type
+        \\        @constCast(&tensor_{s}), //input tensor
+        \\        {s}, //start
+        \\        {s}, //end
+        \\        &tensor_{s}, //output tensor,
+        \\    )
+    , .{
+        try utils.getSanitizedName(node.inputs.items[0].name),
+        if (start) |s| try std.fmt.allocPrint(allocator, "{}", .{s}) else "null",
+        if (end) |e| try std.fmt.allocPrint(allocator, "{}", .{e}) else "null",
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Unsqueeze.html
+    // INPUTS:
+    //      - data (heterogeneous) - T: Original tensor
+    //      - axes (optional) - tensor(int64): List of integers indicating the dimensions to be inserted.
+    //        Negative value means counting dimensions from the back.
+    // OUTPUTS:
+    //      - expanded (heterogeneous) - T: Reshaped tensor with same data as input.
+    // ATTRIBUTES (deprecated in opset 13):
+    //      - axes - INTS: List of integers indicating the dimensions to be inserted.
+
+    const input_name = try utils.getSanitizedName(node.inputs.items[0].name);
+    const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
+
+    // Determine if axes is provided as an input tensor or as an attribute
+    var axes_str: []const u8 = "null";
+    var needs_free = false;
+
+    if (node.inputs.items.len > 1) {
+        // Axes is provided as an input tensor (opset 13+)
+        const axes_tensor_name = try utils.getSanitizedName(node.inputs.items[1].name);
+        axes_str = try std.fmt.allocPrint(allocator, "&tensor_{s}.data", .{axes_tensor_name});
+        needs_free = true;
+    } else {
+        // Axes is provided as an attribute (opset < 13)
+        for (node.nodeProto.attribute) |attr| {
+            if (std.mem.eql(u8, attr.name, "axes")) {
+                if (attr.type == AttributeType.INTS) {
+                    axes_str = try utils.i64SliceToUsizeArrayString(attr.ints);
+                    needs_free = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    defer if (needs_free) allocator.free(axes_str);
+
+    // Generate code to convert the input shape to the output shape
+    try writer.print(
+        \\     
+        \\    var axes_shape_{s} = [_]usize{{1}};
+        \\    var axes_tensor_{s} = Tensor(i64).fromArray(&allocator, {s}, &axes_shape_{s}) catch return;
+        \\
+        \\    tensMath.unsqueeze_lean(
+        \\        T, //type
+        \\        @constCast(&tensor_{s}), //input tensor
+        \\        &axes_tensor_{s}, //axes
+        \\        &tensor_{s}, //output tensor
+        \\    )
+    , .{
+        input_name,
+        input_name,
+        axes_str,
+        input_name,
+        input_name,
+        input_name,
+        output_name,
+    });
 }
 
 inline fn write_transpose(writer: std.fs.File.Writer, node: *ReadyNode) !void {
@@ -757,6 +1158,7 @@ inline fn write_transpose(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     _ = try writer.print(
         \\
+        \\
         \\    tensMath.transpose_onnx_lean(
         \\        T, //type
         \\        @constCast(&tensor_{s}), //input tensor
@@ -768,48 +1170,6 @@ inline fn write_transpose(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         perm_str, // Permutation array
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
     });
-}
-
-inline fn compute_transpose_output_shape(readyNode: *ReadyNode) !void {
-    std.debug.print("\n====== compute_transpose_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
-
-    // Get the perm attribute if it exists
-    var perm: ?[]i64 = null;
-    for (readyNode.nodeProto.attribute) |attr| {
-        if (std.mem.eql(u8, attr.name, "perm")) {
-            if (attr.type == AttributeType.INTS) {
-                perm = attr.ints;
-            }
-        }
-    }
-
-    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
-    std.debug.print("\n perm: []i64 = {any}", .{perm});
-
-    // If no perm is provided, reverse the dimensions
-    var output_shape = try allocator.alloc(i64, input_shape.len);
-    if (perm) |p| {
-        // Validate perm length
-        if (p.len != input_shape.len) {
-            return error.InvalidPermutation;
-        }
-        // Apply permutation
-        for (p, 0..) |axis, i| {
-            if (axis < 0 or axis >= @as(i64, @intCast(input_shape.len))) {
-                return error.InvalidPermutation;
-            }
-            output_shape[i] = input_shape[@intCast(axis)];
-        }
-    } else {
-        // Reverse dimensions
-        for (input_shape, 0..) |_, i| {
-            output_shape[i] = input_shape[input_shape.len - 1 - i];
-        }
-    }
-
-    readyNode.outputs.items[0].shape = output_shape;
-    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
 // ----------------------------------- SHAPE inference -----------------------------------
@@ -1053,8 +1413,6 @@ inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
     if (stride == null) return error.StridesNotFound;
     if (dilation == null) return error.DilationsNotFound;
 
-    
-
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
     std.debug.print("\n kernel_shape: []i64 = {any}", .{kernel_shape});
     std.debug.print("\n stride: []i64 = {any}", .{stride.?});
@@ -1296,43 +1654,46 @@ inline fn compute_sigmoid_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
-inline fn write_shape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    // https://onnx.ai/onnx/operators/onnx__Shape.html
-    // INPUTS:
-    //      - data (heterogeneous) - T: An input tensor.
-    // OUTPUTS:
-    //      - shape (heterogeneous) - T1: Shape of the input tensor
-    // ATTRIBUTES:
-    //      - start - INT: First dimension to take
-    //      - end - INT: Last dimension to take
+inline fn compute_transpose_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_transpose_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
 
-    var start: ?i64 = null;
-    var end: ?i64 = null;
-
-    for (node.nodeProto.attribute) |attr| {
-        if (std.mem.eql(u8, attr.name, "start")) {
-            if (attr.type == AttributeType.INT) start = attr.i;
-        } else if (std.mem.eql(u8, attr.name, "end")) {
-            if (attr.type == AttributeType.INT) end = attr.i;
+    // Get the perm attribute if it exists
+    var perm: ?[]i64 = null;
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "perm")) {
+            if (attr.type == AttributeType.INTS) {
+                perm = attr.ints;
+            }
         }
     }
 
-    _ = try writer.print(
-        \\
-        \\    tensMath.shape_onnx_lean(
-        \\        T,
-        \\        T, //type
-        \\        @constCast(&tensor_{s}), //input tensor
-        \\        {s}, //start
-        \\        {s}, //end
-        \\        &tensor_{s}, //output tensor,
-        \\    )
-    , .{
-        try utils.getSanitizedName(node.inputs.items[0].name),
-        if (start) |s| try std.fmt.allocPrint(allocator, "{}", .{s}) else "null",
-        if (end) |e| try std.fmt.allocPrint(allocator, "{}", .{e}) else "null",
-        try utils.getSanitizedName(node.outputs.items[0].name),
-    });
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+    std.debug.print("\n perm: []i64 = {any}", .{perm});
+
+    // If no perm is provided, reverse the dimensions
+    var output_shape = try allocator.alloc(i64, input_shape.len);
+    if (perm) |p| {
+        // Validate perm length
+        if (p.len != input_shape.len) {
+            return error.InvalidPermutation;
+        }
+        // Apply permutation
+        for (p, 0..) |axis, i| {
+            if (axis < 0 or axis >= @as(i64, @intCast(input_shape.len))) {
+                return error.InvalidPermutation;
+            }
+            output_shape[i] = input_shape[@intCast(axis)];
+        }
+    } else {
+        // Reverse dimensions
+        for (input_shape, 0..) |_, i| {
+            output_shape[i] = input_shape[input_shape.len - 1 - i];
+        }
+    }
+
+    readyNode.outputs.items[0].shape = output_shape;
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
 inline fn compute_unsqueeze_output_shape(readyNode: *ReadyNode) !void {
@@ -1397,213 +1758,6 @@ inline fn compute_unsqueeze_output_shape(readyNode: *ReadyNode) !void {
 
     readyNode.outputs.items[0].shape = output_shape;
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
-}
-
-inline fn write_constant(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    // https://onnx.ai/onnx/operators/onnx__Constant.html
-    // Outputs:
-    // - output (heterogeneous) - T: Output tensor containing the same value of the provided tensor.
-    // Attributes - only one of these should be specified:
-    // - value (TENSOR): The value for the elements of the output tensor.
-    // - sparse_value (SPARSE_TENSOR): The value for the elements of the output tensor in sparse format.
-    // - value_float (FLOAT): The value for the sole element for the scalar, float32, output tensor.
-    // - value_floats (FLOATS): The values for the elements for the 1D, float32, output tensor.
-    // - value_int (INT): The value for the sole element for the scalar, int64, output tensor.
-    // - value_ints (INTS): The values for the elements for the 1D, int64, output tensor.
-    // - value_string (STRING): The value for the sole element for the scalar, UTF-8 string, output tensor.
-    // - value_strings (STRINGS): The values for the elements for the 1D, UTF-8 string, output tensor.
-
-    const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
-
-    for (node.nodeProto.attribute) |attr| {
-        if (std.mem.eql(u8, attr.name, "value")) {
-            // For TENSOR value, the tensor is already initialized during model loading
-            // No additional code needed for initialization
-            try writer.print(
-                \\
-                \\    // Constant tensor was already initialized during model loading
-                \\    // No additional code needed for tensor_{s}
-            , .{output_name});
-            return;
-        } else if (std.mem.eql(u8, attr.name, "value_float")) {
-            if (attr.type != AttributeType.FLOAT) return error.ConstantAttributeTypeMismatch;
-
-            // Create a scalar tensor with a float value
-            try writer.print(
-                \\
-                \\    // Initialize scalar float constant
-                \\    tensor_{s} = Tensor(T).initScalar(&allocator, {d}) catch return;
-            , .{ output_name, attr.f });
-            return;
-        } else if (std.mem.eql(u8, attr.name, "value_floats")) {
-            if (attr.type != AttributeType.FLOATS) return error.ConstantAttributeTypeMismatch;
-
-            // Create 1D tensor with float values
-            try writer.print(
-                \\
-                \\    // Initialize 1D float array constant
-                \\    const data_{s} = [_]T{{
-            , .{output_name});
-
-            // Write array elements
-            for (attr.floats, 0..) |val, i| {
-                if (i > 0) try writer.writeAll(", ");
-                try writer.print("{d}", .{val});
-            }
-
-            try writer.print(
-                \\
-                \\    }};
-                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
-            , .{ output_name, output_name, attr.floats.len });
-            return;
-        } else if (std.mem.eql(u8, attr.name, "value_int")) {
-            if (attr.type != AttributeType.INT) return error.ConstantAttributeTypeMismatch;
-
-            // Create a scalar tensor with an int value
-            try writer.print(
-                \\
-                \\    // Initialize scalar int constant
-                \\    tensor_{s} = Tensor(T).initScalar(&allocator, @as(T, @floatFromInt({d}))) catch return;
-            , .{ output_name, attr.i });
-            return;
-        } else if (std.mem.eql(u8, attr.name, "value_ints")) {
-            if (attr.type != AttributeType.INTS) return error.ConstantAttributeTypeMismatch;
-
-            // Create 1D tensor with int values
-            try writer.print(
-                \\
-                \\    // Initialize 1D int array constant
-                \\    const data_{s} = [_]T{{
-            , .{output_name});
-
-            // Write array elements
-            for (attr.ints, 0..) |val, i| {
-                if (i > 0) try writer.writeAll(", ");
-                try writer.print("@as(T, @floatFromInt({d}))", .{val});
-            }
-
-            try writer.print(
-                \\
-                \\    }};
-                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
-            , .{ output_name, output_name, attr.ints.len });
-            return;
-        } else if (std.mem.eql(u8, attr.name, "value_string")) {
-            if (attr.type != AttributeType.STRING) return error.ConstantAttributeTypeMismatch;
-
-            // String constants are not directly supported in this numeric tensor library
-            try writer.print(
-                \\
-                \\    // String constants are not directly supported in this numeric tensor library
-                \\    // For now, we'll create a placeholder tensor with a single value
-                \\    tensor_{s} = Tensor(T).initScalar(&allocator, 0) catch return;
-                \\    // The actual string value was: "{s}"
-            , .{ output_name, attr.s });
-            return;
-        } else if (std.mem.eql(u8, attr.name, "value_strings")) {
-            if (attr.type != AttributeType.STRINGS) return error.ConstantAttributeTypeMismatch;
-
-            // String array constants are not directly supported in this numeric tensor library
-            try writer.print(
-                \\
-                \\    // String array constants are not directly supported in this numeric tensor library
-                \\    // For now, we'll create a placeholder tensor with zeros
-                \\    const data_{s} = [_]T{{
-            , .{output_name});
-
-            // Create a placeholder array of zeros with the same length
-            for (attr.strings, 0..) |_, i| {
-                if (i > 0) try writer.writeAll(", ");
-                try writer.print("0", .{});
-            }
-
-            try writer.print(
-                \\
-                \\    }};
-                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
-                \\    // Note: This is a placeholder for string values that cannot be directly represented
-            , .{ output_name, output_name, attr.strings.len });
-            return;
-        } else if (std.mem.eql(u8, attr.name, "sparse_value")) {
-            // Sparse tensor constants require special handling
-            try writer.print(
-                \\
-                \\    // Sparse tensor constants are not yet fully supported
-                \\    // Creating a placeholder tensor for sparse_value
-                \\    tensor_{s} = Tensor(T).initScalar(&allocator, 0) catch return;
-                \\    std.debug.print("Warning: sparse_value attribute used but not fully supported\\n", .{{}});
-            , .{output_name});
-            return;
-        }
-    }
-
-    // If we get here, no valid constant value was found
-    try writer.writeAll(
-        \\
-        \\    return error.ConstantValueNotFound;
-    );
-}
-
-inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    // https://onnx.ai/onnx/operators/onnx__Unsqueeze.html
-    // INPUTS:
-    //      - data (heterogeneous) - T: Original tensor
-    //      - axes (optional) - tensor(int64): List of integers indicating the dimensions to be inserted.
-    //        Negative value means counting dimensions from the back.
-    // OUTPUTS:
-    //      - expanded (heterogeneous) - T: Reshaped tensor with same data as input.
-    // ATTRIBUTES (deprecated in opset 13):
-    //      - axes - INTS: List of integers indicating the dimensions to be inserted.
-
-    const input_name = try utils.getSanitizedName(node.inputs.items[0].name);
-    const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
-
-    // Determine if axes is provided as an input tensor or as an attribute
-    var axes_str: []const u8 = "null";
-    var needs_free = false;
-
-    if (node.inputs.items.len > 1) {
-        // Axes is provided as an input tensor (opset 13+)
-        const axes_tensor_name = try utils.getSanitizedName(node.inputs.items[1].name);
-        axes_str = try std.fmt.allocPrint(allocator, "&tensor_{s}.data", .{axes_tensor_name});
-        needs_free = true;
-    } else {
-        // Axes is provided as an attribute (opset < 13)
-        for (node.nodeProto.attribute) |attr| {
-            if (std.mem.eql(u8, attr.name, "axes")) {
-                if (attr.type == AttributeType.INTS) {
-                    axes_str = try utils.i64SliceToUsizeArrayString(attr.ints);
-                    needs_free = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    defer if (needs_free) allocator.free(axes_str);
-
-    // Generate code to convert the input shape to the output shape
-    try writer.print(
-        \\     
-        \\    var axes_shape_{s} = [_]usize{{1}};
-        \\    var axes_tensor_{s} = Tensor(i64).fromArray(&allocator, {s}, &axes_shape_{s}) catch return;
-        \\
-        \\    tensMath.unsqueeze_lean(
-        \\        T, //type
-        \\        @constCast(&tensor_{s}), //input tensor
-        \\        &axes_tensor_{s}, //axes
-        \\        &tensor_{s}, //output tensor
-        \\    )
-    , .{
-        input_name,
-        input_name,
-        axes_str,
-        input_name,
-        input_name,
-        input_name,
-        output_name,
-    });
 }
 
 pub fn compute_concat_output_shape(readyNode: *ReadyNode) !void {
@@ -1739,103 +1893,4 @@ pub fn compute_concat_output_shape(readyNode: *ReadyNode) !void {
 
     // Set the output shape
     readyNode.outputs.items[0].shape = new_shape;
-}
-
-inline fn write_concat(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    // https://onnx.ai/onnx/operators/onnx__Concat.html
-    // INPUTS:
-    //      - inputs (variadic, heterogeneous) - T: List of tensors for concatenation
-    // OUTPUTS:
-    //      - concat_result (heterogeneous) - T: Concatenated tensor
-    // ATTRIBUTES:
-    //      - axis (int, required): Which axis to concat on
-
-    // Get the axis attribute
-    var axis: i64 = 0;
-    var axis_found = false;
-
-    for (node.nodeProto.attribute) |attr| {
-        if (std.mem.eql(u8, attr.name, "axis")) {
-            if (attr.type == AttributeType.INT) {
-                axis = attr.i;
-                axis_found = true;
-            } else {
-                return error.ConcatAxisNotINT;
-            }
-        }
-    }
-
-    if (!axis_found) {
-        return error.ConcatAxisNotFound;
-    }
-
-    // Special case for axis 0 with different ranks
-    if (axis == 0) {
-        // Find if there are tensors with different ranks
-        var has_different_ranks = false;
-        const first_rank = node.inputs.items[0].shape.len;
-
-        for (node.inputs.items[1..]) |input| {
-            if (input.shape.len != first_rank) {
-                has_different_ranks = true;
-                break;
-            }
-        }
-
-        if (has_different_ranks) {
-            _ = try writer.print(
-                \\
-                \\    // Special case for concatenation along axis 0 with different ranks
-                \\    // This requires custom handling as the standard concatenate function expects same rank
-                \\    std.debug.print("\\nWarning: Concatenating tensors with different ranks along axis 0\\n", .{{}});
-                \\
-                \\    // Create a list of tensors to concatenate
-                \\    var concat_tensor_list = [_]Tensor(T){{
-            , .{});
-
-            for (node.inputs.items, 0..) |input, idx| {
-                if (idx > 0) {
-                    _ = try writer.print(", ", .{});
-                }
-                _ = try writer.print("tensor_{s}", .{try utils.getSanitizedName(input.name)});
-            }
-
-            _ = try writer.print(
-                \\}};
-                \\
-                \\    // Perform concatenation with special handling for different ranks
-                \\    tensor_{s} = try tensMath.concatenate(T, &allocator, &concat_tensor_list, {})
-            , .{
-                try utils.getSanitizedName(node.outputs.items[0].name),
-                axis,
-            });
-
-            return;
-        }
-    }
-
-    // Standard case: all tensors have the same rank
-    // Create a tensor list with all input tensors
-    _ = try writer.print(
-        \\
-        \\    // Create a list of tensors to concatenate
-        \\    var concat_tensor_list = [_]Tensor(T){{
-    , .{});
-
-    for (node.inputs.items, 0..) |input, idx| {
-        if (idx > 0) {
-            _ = try writer.print(", ", .{});
-        }
-        _ = try writer.print("tensor_{s}", .{try utils.getSanitizedName(input.name)});
-    }
-
-    _ = try writer.print(
-        \\}};
-        \\
-        \\    // Perform concatenation
-        \\    tensor_{s} =  tensMath.concatenate(T, &allocator, &concat_tensor_list, {})
-    , .{
-        try utils.getSanitizedName(node.outputs.items[0].name),
-        axis,
-    });
 }

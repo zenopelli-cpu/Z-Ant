@@ -400,7 +400,7 @@ pub const TensorShapeProto = struct {
                                 shape.denotation = try reader.readString(dim_reader.allocator);
                             },
                             else => {
-                                std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorShapeProto\n\n", .{tag});
+                                std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorShapeProto\n\n", .{dim_tag});
                                 try reader.skipField(tag.wire_type);
                             },
                         }
@@ -481,10 +481,10 @@ pub const TypeProto = struct {
                     2 => { //shape
                         std.debug.print("\n .............................. Tensor READING shape ", .{});
 
-                        var shape_reader = try reader.readLengthDelimited(); //var shape_reader
-                        const shape_ptr = try reader.allocator.create(TensorShapeProto);
-                        shape_ptr.* = try TensorShapeProto.parse(&shape_reader);
-                        tensor.shape = shape_ptr;
+                        _ = try reader.readLengthDelimited(); //var shape_reader
+                        // const shape_ptr = try reader.allocator.create(TensorShapeProto);
+                        // shape_ptr.* = try TensorShapeProto.parse(&shape_reader);
+                        // tensor.shape = shape_ptr;
                     },
                     else => {
                         std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
