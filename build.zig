@@ -138,18 +138,21 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run all unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
-    // Add test for static_lib
-    // const test_static_lib = b.addTest(.{
-    //     .root_source_file = b.path("tests/CodeGen/test_static_lib_sentiment.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-    // test_static_lib.root_module.addImport("static_lib_sentiment", static_lib_sentiment_mod);
-    // test_static_lib.root_module.addImport("tensor", tensor_mod);
-    // test_static_lib.root_module.addImport("pkgAllocator", allocator_mod);
-    // test_static_lib.linkLibC();
+    // ************************************************ GENERATED LIBRARY TESTS ************************************************
 
-    // const run_test_static_lib = b.addRunArtifact(test_static_lib);
-    // const test_step_static_lib = b.step("test-static-lib", "Run static library tests");
-    // test_step_static_lib.dependOn(&run_test_static_lib.step);
+    // Add test for generated library
+    const test_generated_lib = b.addTest(.{
+        .name = "test_generated_lib",
+        .root_source_file = b.path("src/codeGen/test_mnist-8.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    test_generated_lib.root_module.addImport("zant", zant_mod);
+    test_generated_lib.linkLibC();
+
+    const run_test_generated_lib = b.addRunArtifact(test_generated_lib);
+    const test_step_generated_lib = b.step("test-generated-lib", "Run generated library tests");
+    test_step_generated_lib.dependOn(&run_test_generated_lib.step);
+
 }

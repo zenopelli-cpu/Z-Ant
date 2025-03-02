@@ -9,6 +9,7 @@ const codeGen_utils = @import("codeGen_utils.zig");
 const codeGen_init = @import("codeGen_parameters.zig");
 const codeGen_mathHandl = @import("codeGen_math_handler.zig");
 const codeGen_predict = @import("codeGen_predict.zig");
+const codeGen_tests = @import("codeGen_tests.zig");
 
 const codegen_options = @import("codegen_options");
 const globals = @import("globals.zig");
@@ -18,20 +19,25 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const gpa_allocator = gpa.allocator();
 
-    var model = try onnx.parseFromFile(gpa_allocator, "datasets/models/mnist-8/mnist-8.onnx");
+    const model_name = "mnist-8";
+    // Format model path according to model_name
+    const model_path = "datasets/models/" ++ model_name ++ "/" ++ model_name ++ ".onnx";
+    var model = try onnx.parseFromFile(gpa_allocator, model_path);
     defer model.deinit(gpa_allocator);
 
     //onnx.printStructure(&model);
 
-    const file_path = "src/codeGen/static_lib.zig";
-    var file = try std.fs.cwd().createFile(file_path, .{});
-    std.debug.print("\n .......... file created, path:{s}", .{file_path});
-    defer file.close();
+    // Create the generated model directory if not present
+    //const generated_path = "generated/" ++ model_name ++ "/";
+    const generated_path = "src/codeGen/";
+    try std.fs.cwd().makePath(generated_path);
+
+    // ONNX model parsing
 
     //create the hashMap
     try globals.populateReadyTensorHashMap(model);
 
-    model.print();
+    // model.print();
 
     //DEBUG
     //utils.printTensorHashMap(tensorHashMap);
@@ -45,5 +51,11 @@ pub fn main() !void {
     //DEBUG
     //try utils.printNodeList(readyGraph);
 
-    try codeGen.writeZigFile(file, model);
+    //////////////////////////////////////////
+
+    // Create the code for the model
+    try codeGen.writeZigFile(model_name, generated_path, model);
+
+    // Test the generated code
+    try codeGen_tests.writeTestFile(model_name, generated_path, model);
 }

@@ -34,4 +34,7 @@ massif.*
 # NN models
 /datasets/models/*/*.onnx
 
+# Zant generated code
+/generated/*
+
 
