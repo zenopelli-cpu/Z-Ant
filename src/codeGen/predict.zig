@@ -10,11 +10,12 @@ const GraphProto = onnx.GraphProto;
 const AttributeProto = onnx.AttributeProto;
 const allocator = zant.utils.allocator.allocator;
 
-const utils = @import("codeGen_utils.zig");
-const mathGen = @import("codeGen_math_handler.zig");
+const codegen = @import("codegen.zig");
+const utils = codegen.utils;
+const mathGen = codegen.math_handler;
 const codegen_options = @import("codegen_options");
 
-const globals = @import("globals.zig");
+const globals = codegen.globals;
 const ReadyNode = globals.ReadyNode;
 const ReadyTensor = globals.ReadyTensor;
 

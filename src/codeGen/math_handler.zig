@@ -19,7 +19,8 @@ const AttributeType = onnx.AttributeType;
 // --- codeGen libs
 const ReadyNode = @import("globals.zig").ReadyNode;
 const ReadyTensor = @import("globals.zig").ReadyTensor;
-const utils = @import("codeGen_utils.zig");
+const codegen = @import("codegen.zig");
+const utils = codegen.utils;
 const codegen_options = @import("codegen_options");
 const globals = @import("globals.zig");
 

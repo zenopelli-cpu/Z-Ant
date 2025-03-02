@@ -2,7 +2,7 @@
 
 The purpose of Zant code generation is to create a zig file containing some methods that can be than exported into a static library.  
 
-The Starting file is `codeGen_main.zig`, where the onnx model is parsed and passed to the code generator.
+The Starting file is `main.zig`, where the onnx model is parsed and passed to the code generator.
 
 ## Structures
 ### ReadyNode
@@ -26,7 +26,7 @@ StringHashMap containing all the Tensors used in the NN. Here is contained the o
 Use a pointer to ReadyTensor when working on it. Pay attention `hasMap.get("key")` returns a copy of the value, call `hashMap.getPtr("key")` for the pointer to the value, otherwise any modification is not valid.
 
 ## The Algorithm
-The crucial part of the code generation is inside [codeGen_predict.zig](codeGen_predict.zig).
+The crucial part of the code generation is inside [predict.zig](predict.zig).
 
 First, in main, I populate tensorHashMap by calling `try createReadyTensorHashMap(model)`. In this step, if the shapes are not already present, they are initialized to {1, 1, 1, 1}.
 
