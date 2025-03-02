@@ -71,6 +71,7 @@ pub fn resize(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales
         .shape = output_shape,
         .size = total_size,
         .allocator = t.allocator,
+        .owns_memory = true,
     };
 }
 
@@ -479,6 +480,7 @@ pub fn concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensor
         .size = total_size,
         .shape = new_shape,
         .allocator = allocator,
+        .owns_memory = true,
     };
 }
 
@@ -563,6 +565,7 @@ pub fn transpose2D(comptime T: type, t: *Tensor(T)) !Tensor(T) {
         .size = t.size,
         .shape = tensorShape,
         .allocator = allocator,
+        .owns_memory = true,
     };
 }
 
@@ -699,6 +702,7 @@ pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T
         .size = total,
         .shape = newShape,
         .allocator = &pkg_allocator,
+        .owns_memory = true,
     };
 }
 
@@ -881,11 +885,12 @@ pub fn split(comptime T: anytype, t: *Tensor(T), axis: i64, split_sizes: ?[]cons
         }
 
         // Create the split tensor
-        output_tensors[i] = .{
+        output_tensors[i] = Tensor(T){
             .data = new_data,
             .size = total_size,
             .shape = new_shape,
             .allocator = t.allocator,
+            .owns_memory = true,
         };
 
         offset += split_size * stride;

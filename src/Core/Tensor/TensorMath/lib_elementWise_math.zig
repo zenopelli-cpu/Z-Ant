@@ -385,6 +385,7 @@ pub fn sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
         .shape = out_shape,
         .size = total_size,
         .allocator = &pkg_allocator,
+        .owns_memory = true,
     };
 }
 

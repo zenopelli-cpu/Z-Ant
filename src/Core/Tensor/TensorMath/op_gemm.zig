@@ -263,5 +263,6 @@ pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T
         .size = total,
         .shape = newShape,
         .allocator = &pkg_allocator,
+        .owns_memory = true,
     };
 }

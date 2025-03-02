@@ -451,6 +451,7 @@ pub fn importTensor(
         .size = tensor_size,
         .shape = tensor_shape,
         .allocator = allocator,
+        .owns_memory = true,
     };
 }
 
