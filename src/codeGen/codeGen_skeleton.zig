@@ -23,36 +23,41 @@ const codegen_options = @import("codegen_options");
 ///
 /// # Errors
 /// This function may return an error if writing to the file fails.
-pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
-    const writer = file.writer();
-
-    const file_path = "src/codeGen/static_parameters.zig";
-    var file_parameters = try std.fs.cwd().createFile(file_path, .{});
+pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: ModelOnnx) !void {
+    var file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ model_path, model_name });
+    var src_file = try std.fs.cwd().createFile(file_path, .{});
     std.debug.print("\n .......... file created, path:{s}", .{file_path});
-    defer file_parameters.close();
+    defer src_file.close();
 
-    const writer_parameters = file_parameters.writer();
+    const lib_writer = src_file.writer();
+
+    file_path = try std.fmt.allocPrint(allocator, "{s}static_parameters.zig", .{ model_path });
+    var param_file = try std.fs.cwd().createFile(file_path, .{});
+    std.debug.print("\n .......... file created, path:{s}", .{file_path});
+    defer param_file.close();
+
+    const param_writer = param_file.writer();
 
     // Write the necessary library imports to the generated Zig file
-    try write_libraries(writer);
+    try write_libraries(lib_writer);
 
     if (codegen_options.log) {
         //log function setting
-        try write_logFunction(writer);
+        try write_logFunction(lib_writer);
     }
 
     //Fixed Buffer Allocator
-    try write_FBA(writer);
+    try write_FBA(lib_writer);
 
-    try write_type_T(writer);
+    try write_type_T(lib_writer);
 
     // Generate tensor initialization code in the static_parameters.zig file
-    try codeGenInitializers.write_parameters(writer_parameters, model);
+    try codeGenInitializers.write_parameters(param_writer, model);
 
-    //try write_debug(writer);
+    //try write_debug(lib_writer);
 
     // Generate prediction function code
-    try coddeGenPredict.writePredict(writer);
+    try coddeGenPredict.writePredict(lib_writer);
 }
 
 /// Writes the required library imports to the generated Zig file for predict function.
