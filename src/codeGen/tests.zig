@@ -21,7 +21,7 @@ pub fn writeTestFile(model_name: []const u8, model_path: []const u8, model_onnx:
 
     var writer: std.fs.File.Writer = test_file.writer();
 
-    const template_file = try std.fs.cwd().openFile("tests/codeGen/test_model.template.zig", .{});
+    const template_file = try std.fs.cwd().openFile("tests/CodeGen/test_model.template.zig", .{});
     defer template_file.close();
     const template_content: []const u8 = try template_file.readToEndAlloc(allocator, 50 * 1024);
 

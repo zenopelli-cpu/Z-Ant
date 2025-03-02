@@ -92,7 +92,7 @@ pub fn build(b: *std.Build) void {
 
     // ************************************************CODEGEN MODULE************************************************
 
-    const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/codegen/codegen.zig") });
+    const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/CodeGen/codegen.zig") });
     codeGen_mod.addImport("zant", zant_mod);
 
     // ************************************************CODEGEN EXECUTABLE************************************************
@@ -100,7 +100,7 @@ pub fn build(b: *std.Build) void {
     // Define the main executable with target architecture and optimization settings.
     const codeGen_exe = b.addExecutable(.{
         .name = "Codegen",
-        .root_source_file = b.path("src/codegen/main.zig"),
+        .root_source_file = b.path("src/CodeGen/main.zig"),
         .target = target,
         .optimize = optimize,
     });
