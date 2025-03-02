@@ -874,29 +874,39 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         }
     }
 
+    //input string creation
     var input_string: []u8 = undefined;
-    const sanitized_tensor_name = try utils.getSanitizedName(node.inputs.items[0].name);
-
+    const sanitized_input_name = try utils.getSanitizedName(node.inputs.items[0].name);
     input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
         if (globals.tensorHashMap.getPtr(node.inputs.items[0].name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
         "tensor_",
-        sanitized_tensor_name,
+        sanitized_input_name,
+    });
+
+    //shape string creation
+    var input_shape: []u8 = undefined;
+    const sanitized_shape_name = try utils.getSanitizedName(node.inputs.items[1].name);
+    input_shape = try std.mem.concat(allocator, u8, &[_][]const u8{
+        if (globals.tensorHashMap.getPtr(node.inputs.items[1].name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
+        "tensor_",
+        sanitized_shape_name,
+        ".data",
     });
 
     _ = try writer.print(
         \\
         \\
-        \\    const newShape_tensor_{s}: []usize = utils.sliceToUsizeSlice({s}.data);
+        \\    const newShape_tensor_{s}: []usize = utils.sliceToUsizeSlice({s});
         \\    defer allocator.free(newShape_tensor_{s});
     , .{
         try utils.getSanitizedName(node.inputs.items[1].name),
-        input_string,
+        input_shape,
         try utils.getSanitizedName(node.inputs.items[1].name),
     });
 
     _ = try writer.print(
         \\
-        \\    tensMath.reshape_lean_f32(
+        \\    tensMath.reshape_lean(
         \\        T, //type
         \\        @constCast(&{s}), //Input tensor
         \\        newShape_tensor_{s}, //New shape
