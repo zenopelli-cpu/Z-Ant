@@ -64,6 +64,7 @@ fn write_libraries_parameters(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\ const std = @import("std");
+        \\ const zant = @import("zant");
         \\ const Tensor = zant.core.tensor.Tensor;
         \\ const pkgAllocator = zant.utils.allocator;
         \\ const allocator = pkgAllocator.allocator;

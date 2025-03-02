@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) void {
 
     // static_lib module for MNIST
     const static_lib_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
-    const static_lib_mnist_hard_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib_mnist_hard.zig") });
+    const static_lib_mnist_hard_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/hardcoded/hardcoded_mnist8.zig") });
 
     static_lib_mod.addImport("zant", zant_mod);
     static_lib_mnist_hard_mod.addImport("zant", zant_mod);
