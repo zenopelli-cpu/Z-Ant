@@ -14,6 +14,7 @@ pub const sum_tensors = lean_elementWise_math_lib.lean_sum_tensors;
 pub const mul = lean_elementWise_math_lib.mul_lean;
 pub const div = lean_elementWise_math_lib.div_lean;
 pub const tanh = lean_elementWise_math_lib.tanh_lean;
+pub const ceil = lean_elementWise_math_lib.ceil_lean;
 pub const sum_tensor_list = lean_elementWise_math_lib.lean_sum_tensor_list;
 
 // ---------- importing lean Convolution methods ----------
@@ -45,7 +46,7 @@ pub const ReLU = activation_math_lib.lean_ReLU;
 //Leaky ReLU
 pub const leakyReLU = activation_math_lib.lean_leakyReLU;
 //Sigmoid
-pub const sigmoid = activation_math_lib.lean_sigmoid;
+pub const sigmoid = activation_math_lib.sigmoid_lean;
 //Softmax
 pub const softmax = activation_math_lib.lean_softmax;
 

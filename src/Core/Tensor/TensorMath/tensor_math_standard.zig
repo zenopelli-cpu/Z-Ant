@@ -95,6 +95,9 @@ pub const div_lean = elementWise_math_lib.div_lean;
 //--tanh
 pub const tanh = elementWise_math_lib.tanh;
 pub const tanh_lean = elementWise_math_lib.tanh_lean;
+//--ceil
+pub const ceil = elementWise_math_lib.ceil;
+pub const ceil_lean = elementWise_math_lib.ceil_lean;
 
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");
@@ -114,7 +117,7 @@ pub const leakyReLU_lean = activation_math_lib.lean_leakyReLU;
 pub const leakyReLU_backward = activation_math_lib.leakyReLU_backward;
 //Sigmoid
 pub const sigmoid = activation_math_lib.sigmoid;
-pub const sigmoid_lean = activation_math_lib.lean_sigmoid;
+pub const sigmoid_lean = activation_math_lib.sigmoid_lean;
 pub const sigmoid_backward = activation_math_lib.sigmoid_backward;
 //Softmax
 pub const softmax = activation_math_lib.softmax;
