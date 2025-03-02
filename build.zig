@@ -101,7 +101,7 @@ pub fn build(b: *std.Build) void {
 
     const static_lib = b.addStaticLibrary(.{
         .name = "static_lib",
-        .root_source_file = b.path("src/codeGen/working_wakeWord.zig"),
+        .root_source_file = b.path("src/codeGen/static_lib.zig"),
         .target = target,
         .optimize = optimize,
     });
