@@ -8,8 +8,9 @@ const ModelOnnx = onnx.ModelProto;
 const DataType = onnx.DataType;
 const TensorProto = onnx.TensorProto;
 const allocator = zant.utils.allocator.allocator;
-const codeGenInitializers = @import("codeGen_parameters.zig");
-const coddeGenPredict = @import("codeGen_predict.zig");
+const codegen = @import("codegen.zig");
+const codeGenInitializers = codegen.parameters;
+const coddeGenPredict = codegen.predict;
 const codegen_options = @import("codegen_options");
 
 /// Writes a Zig source file containing the generated code for an ONNX model.
@@ -31,7 +32,7 @@ pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: Model
 
     const lib_writer = src_file.writer();
 
-    file_path = try std.fmt.allocPrint(allocator, "{s}static_parameters.zig", .{ model_path });
+    file_path = try std.fmt.allocPrint(allocator, "{s}static_parameters.zig", .{model_path});
     var param_file = try std.fs.cwd().createFile(file_path, .{});
     std.debug.print("\n .......... file created, path:{s}", .{file_path});
     defer param_file.close();
@@ -79,7 +80,8 @@ fn write_libraries(writer: std.fs.File.Writer) !void {
         \\ const tensMath = zant.core.tensor.math_standard;
         \\ const pkgAllocator = zant.utils.allocator;
         \\ const allocator = pkgAllocator.allocator;
-        \\ const utils = @import("codeGen_utils.zig");
+        \\ const codegen = @import("codegen");
+        \\ const utils = codegen.utils;
         \\ const param_lib = @import("static_parameters.zig");
         \\
     , .{});

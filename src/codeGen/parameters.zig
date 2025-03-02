@@ -1,11 +1,12 @@
 const std = @import("std");
-const utils = @import("codeGen_utils.zig");
 const zant = @import("zant");
+const codegen = @import("codegen.zig");
+const utils = codegen.utils;
 const onnx = zant.onnx;
 const ModelOnnx = onnx.ModelProto;
 const TensorProto = onnx.TensorProto;
 const DataType = onnx.DataType;
-const globals = @import("globals.zig");
+const globals = codegen.globals;
 
 /// Writes the Zig code required to initialize all tensor initializers in the ONNX model.
 /// This function generates declarations and definitions for each tensor.

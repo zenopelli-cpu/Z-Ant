@@ -6,8 +6,10 @@ const GraphProto = onnx.GraphProto;
 const NodeProto = onnx.NodeProto;
 const TensorProto = onnx.TensorProto;
 const allocator = zant.utils.allocator.allocator;
-const ReadyNode = @import("globals.zig").ReadyNode;
-const ReadyTensor = @import("globals.zig").ReadyTensor;
+const codegen = @import("codegen.zig");
+const globals = codegen.globals;
+const ReadyNode = globals.ReadyNode;
+const ReadyTensor = globals.ReadyTensor;
 
 // -------------------- GETTERS --------------------
 
