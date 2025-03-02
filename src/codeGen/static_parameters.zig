@@ -1,7 +1,7 @@
 
  const std = @import("std");
- const Tensor = @import("tensor").Tensor;
- const pkgAllocator = @import("pkgAllocator");
+ const Tensor = zant.core.tensor.Tensor;
+ const pkgAllocator = zant.utils.allocator;
  const allocator = pkgAllocator.allocator;
 
 

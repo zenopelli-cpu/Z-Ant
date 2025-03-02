@@ -47,7 +47,7 @@ pub fn writeZigFile(file: std.fs.File, model: ModelOnnx) !void {
     try write_type_T(writer);
 
     // Generate tensor initialization code in the static_parameters.zig file
-    try codeGenInitializers.writeTensorsInit(writer_parameters, model);
+    try codeGenInitializers.write_parameters(writer_parameters, model);
 
     //try write_debug(writer);
 

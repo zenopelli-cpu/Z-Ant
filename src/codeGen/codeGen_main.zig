@@ -6,7 +6,7 @@ const tensorMath = zant.core.tensor.math_standard;
 const allocator = zant.utils.allocator.allocator;
 const codeGen = @import("codeGen_skeleton.zig");
 const codeGen_utils = @import("codeGen_utils.zig");
-const codeGen_init = @import("codeGen_initializers.zig");
+const codeGen_init = @import("codeGen_parameters.zig");
 const codeGen_mathHandl = @import("codeGen_math_handler.zig");
 const codeGen_predict = @import("codeGen_predict.zig");
 

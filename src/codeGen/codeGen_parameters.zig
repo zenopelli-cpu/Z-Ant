@@ -12,7 +12,7 @@ const globals = @import("globals.zig");
 ///
 /// - `writer`: The file writer to output generated code.
 /// - `model`: The ONNX model containing tensor initializers.
-pub inline fn write_staticParameters(writer: std.fs.File.Writer, model: ModelOnnx) !void {
+pub inline fn write_parameters(writer: std.fs.File.Writer, model: ModelOnnx) !void {
 
     //importing the libraries
     try write_libraries_parameters(writer);

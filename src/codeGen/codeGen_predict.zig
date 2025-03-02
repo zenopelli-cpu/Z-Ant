@@ -56,10 +56,6 @@ pub inline fn writePredict(writer: std.fs.File.Writer) !void {
         \\
         \\}} 
     , .{});
-
-    std.debug.print("\n#############################################################", .{});
-    std.debug.print("\n+                      EXECUTION ENDED                      +", .{});
-    std.debug.print("\n#############################################################", .{});
 }
 
 // Processes and writes the computation graph
