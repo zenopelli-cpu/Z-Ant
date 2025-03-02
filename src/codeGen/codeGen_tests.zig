@@ -45,14 +45,12 @@ pub fn writeTestFile(model_name: []const u8, model_path: []const u8, model_onnx:
         \\pub const lib = @import("lib_{s}.zig");
         \\pub const name = "{s}";
         \\pub const input_shape = [{d}]u32{any};
-        // \\pub const output_shape_size: usize = {d};
         \\
     , .{
         model_name,
         model_name,
         input_shape.len,
         input_shape,
-        //0
     });
 
     ////////////

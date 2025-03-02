@@ -141,9 +141,18 @@ pub fn build(b: *std.Build) void {
     // ************************************************ GENERATED LIBRARY TESTS ************************************************
 
     // Add test for generated library
+    const model_name_option = b.option([]const u8, "model", "Model name") orelse "mnist-8";
+    const model_path = std.fmt.allocPrint(
+        b.allocator, 
+        "src/codeGen/test_{s}.zig", 
+        .{model_name_option}) catch |err| {
+        std.debug.print("Error allocating model path: {}\n", .{err});
+        return;
+    };
+
     const test_generated_lib = b.addTest(.{
         .name = "test_generated_lib",
-        .root_source_file = b.path("src/codeGen/test_mnist-8.zig"),
+        .root_source_file = b.path(model_path),
         .target = target,
         .optimize = optimize,
     });
@@ -154,5 +163,4 @@ pub fn build(b: *std.Build) void {
     const run_test_generated_lib = b.addRunArtifact(test_generated_lib);
     const test_step_generated_lib = b.step("test-generated-lib", "Run generated library tests");
     test_step_generated_lib.dependOn(&run_test_generated_lib.step);
-
 }
