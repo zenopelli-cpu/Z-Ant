@@ -8,9 +8,6 @@ pub fn build(b: *std.Build) void {
     build_options.addOption(bool, "trace_allocator", b.option(bool, "trace_allocator", "Use a tracing allocator") orelse true);
     build_options.addOption([]const u8, "allocator", (b.option([]const u8, "allocator", "Allocator to use") orelse "raw_c_allocator"));
 
-    // Model name option
-    const model_name_option = b.option([]const u8, "model", "Model name") orelse "";
-
     // Get target and CPU options from command line or use defaults
     const target_str = b.option([]const u8, "target", "Target architecture (e.g., thumb-freestanding)") orelse "native";
     const cpu_str = b.option([]const u8, "cpu", "CPU model (e.g., cortex_m33)");
@@ -100,7 +97,7 @@ pub fn build(b: *std.Build) void {
     // Define the main executable with target architecture and optimization settings.
     const codeGen_exe = b.addExecutable(.{
         .name = "Codegen",
-        .root_source_file = b.path("src/CodeGen/main.zig"),
+        .root_source_file = b.path("src/codeGen/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -110,8 +107,11 @@ pub fn build(b: *std.Build) void {
     // Add necessary imports for the executable.
     codeGen_exe.root_module.addImport("zant", zant_mod);
 
+    // name of the model
+    const model_name_option = b.option([]const u8, "model", "Model name") orelse "mnist-8";
+
     // Define codegen options
-    const codegen_options = b.addOptions();
+    const codegen_options = b.addOptions(); // Model name option
     codegen_options.addOption([]const u8, "model", model_name_option);
     codegen_options.addOption(bool, "log", b.option(bool, "log", "Run with log") orelse false);
     codegen_options.addOption([]const u8, "shape", b.option([]const u8, "shape", "Input shape") orelse "0");
@@ -134,7 +134,7 @@ pub fn build(b: *std.Build) void {
 
     // ************************************************ STATIC LIBRARY CREATION ************************************************
 
-    const lib_model_path = std.fmt.allocPrint(b.allocator, "generated/{s}/lib_{s}.zig", .{model_name_option, model_name_option}) catch |err| {
+    const lib_model_path = std.fmt.allocPrint(b.allocator, "generated/{s}/lib_{s}.zig", .{ model_name_option, model_name_option }) catch |err| {
         std.debug.print("Error allocating model path: {}\n", .{err});
         return;
     };

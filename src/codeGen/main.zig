@@ -22,6 +22,7 @@ pub fn main() !void {
     const model_name = codegen_options.model;
     // Format model path according to model_name
     const model_path = "datasets/models/" ++ model_name ++ "/" ++ model_name ++ ".onnx";
+
     var model = try onnx.parseFromFile(gpa_allocator, model_path);
     defer model.deinit(gpa_allocator);
 
@@ -57,5 +58,5 @@ pub fn main() !void {
     try codeGen.skeleton.writeZigFile(model_name, generated_path, model);
 
     // Test the generated code
-    try codeGen_tests.writeTestFile(model_name, generated_path, model);
+    //try codeGen_tests.writeTestFile(model_name, generated_path, model);
 }

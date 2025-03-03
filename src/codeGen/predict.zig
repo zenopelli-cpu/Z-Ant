@@ -21,7 +21,11 @@ const ReadyTensor = globals.ReadyTensor;
 
 // Writes the computation function for predicting outputs
 pub inline fn writePredict(writer: std.fs.File.Writer) !void {
+    //declare all the outputs of each node of the network
     try write_outputsInitialization(writer);
+
+    //method to reset the tensors values
+    try write_outputsResetMethod(writer);
 
     _ = try writer.print(
         \\
@@ -44,6 +48,12 @@ pub inline fn writePredict(writer: std.fs.File.Writer) !void {
             \\    }}
         , .{});
     }
+
+    _ = try writer.print(
+        \\
+        \\    // Reset all output tensors to zero before each prediction
+        \\    resetOutputTensors();
+    , .{});
 
     try write_checks(writer);
 
@@ -240,6 +250,70 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
         \\const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
     , .{ sanitized_name, dataTypeString, sanitized_name, sanitized_name });
 }
+
+fn write_outputsResetMethod(writer: std.fs.File.Writer) !void {
+    try writer.print(
+        \\
+        \\
+        \\//Function to reset all output tensors to zero
+        \\fn resetOutputTensors() void {{
+    , .{});
+
+    if (codegen_options.log) {
+        _ = try writer.print(
+            \\
+            \\    if (log_function) |log| {{
+            \\        log(@constCast(@ptrCast("Resetting output tensors...\n")));
+            \\    }}
+        , .{});
+    }
+
+    for (globals.readyGraph.items) |*node| {
+        for (node.outputs.items) |output| {
+            _ = try writer.print(
+                \\
+                \\    @memset(array_{s}[0..], 0);
+            , .{try utils.getSanitizedName(output.name)});
+        }
+    }
+
+    if (codegen_options.log) {
+        _ = try writer.print(
+            \\
+            \\    if (log_function) |log| {{
+            \\        log(@constCast(@ptrCast("Output tensors reset.\n")));
+            \\    }}
+        , .{});
+    }
+
+    try writer.print(
+        \\
+        \\}}
+    , .{});
+}
+
+// // Function to reset all output tensors to zero
+// fn resetOutputTensors() void {
+//     if (log_function) |log| {
+//         log(@constCast(@ptrCast("Resetting output tensors...\n")));
+//     }
+//     @memset(array_parameter193_reshape1[0..], 0);
+//     @memset(array_convolution28_output_0[0..], 0);
+//     @memset(array_plus30_output_0[0..], 0);
+//     @memset(array_relu32_output_0[0..], 0);
+//     @memset(array_pooling66_output_0[0..], 0);
+//     @memset(array_convolution110_output_0[0..], 0);
+//     @memset(array_plus112_output_0[0..], 0);
+//     @memset(array_relu114_output_0[0..], 0);
+//     @memset(array_pooling160_output_0[0..], 0);
+//     @memset(array_pooling160_output_0_reshape0[0..], 0);
+//     @memset(array_times212_output_0[0..], 0);
+//     @memset(array_plus214_output_0[0..], 0);
+
+//     if (log_function) |log| {
+//         log(@constCast(@ptrCast("Output tensors reset.\n")));
+//     }
+// }
 
 fn write_OutputTensor(writer: std.fs.File.Writer, name: []const u8, size: i64) !void {
     const sanitized_name = try utils.getSanitizedName(name);
