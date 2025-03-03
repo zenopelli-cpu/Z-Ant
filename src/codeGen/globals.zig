@@ -140,15 +140,15 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
     //setting the input
     for (model.graph.?.inputs) |input| {
         if (std.mem.indexOf(u8, try utils.getSanitizedName(input.name.?), "input")) |_| {
-            std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ input.name.?, input.type.?.tensor_type.?.shape.?.dims });
+            std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ input.name.?, input.type.?.tensor_type.?.shape.?.shape });
             networkInput.name = input.name.?;
-            networkInput.shape = input.type.?.tensor_type.?.shape.?.dims;
+            networkInput.shape = input.type.?.tensor_type.?.shape.?.shape;
         }
     }
 
     //setting the output
     networkOutput.name = model.graph.?.outputs[0].name.?;
-    networkOutput.shape = model.graph.?.outputs[0].type.?.tensor_type.?.shape.?.dims;
+    networkOutput.shape = model.graph.?.outputs[0].type.?.tensor_type.?.shape.?.shape;
 
     //check for input shape existence
     if (parsedInputshape.len == 0 and networkInput.shape.len == 0) {
