@@ -20,8 +20,20 @@ const codegen_options = @import("codegen_options");
 pub var readyGraph: std.ArrayList(ReadyNode) = std.ArrayList(ReadyNode).init(allocator);
 pub var tensorHashMap: std.StringHashMap(ReadyTensor) = std.StringHashMap(ReadyTensor).init(allocator); //key: TensorProto.name
 
-pub var networkInput: []const u8 = undefined;
-pub var networkOutput: []const u8 = undefined;
+pub const io_struct = struct {
+    name: []const u8,
+    shape: []const i64,
+};
+
+pub var networkInput = io_struct{
+    .name = "",
+    .shape = &[_]i64{},
+};
+
+pub var networkOutput = io_struct{
+    .name = "",
+    .shape = &[_]i64{},
+};
 
 pub var inputType: type = f32;
 
@@ -52,11 +64,10 @@ pub const ReadyTensor = struct {
     }
 
     pub fn createInput(name: []const u8) !ReadyTensor {
-        networkInput = name;
         return ReadyTensor{
             .name = name,
             .ready = true,
-            .shape = try utils.parseNumbers(codegen_options.shape),
+            .shape = networkInput.shape,
             .tensorProto = null,
             .tag = TensorTag.INPUT,
         };
@@ -121,9 +132,57 @@ pub const ReadyNode = struct {
     }
 };
 
+pub fn setGlobalAttributes(model: ModelOnnx) !void {
+
+    //First convert the optional String of numbers divided by a comma into an array
+    const parsedInputshape: []const i64 = try utils.parseNumbers(codegen_options.shape);
+
+    //setting the input
+    for (model.graph.?.inputs) |input| {
+        if (std.mem.indexOf(u8, try utils.getSanitizedName(input.name.?), "input")) |_| {
+            std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ input.name.?, input.type.?.tensor_type.?.shape.?.dims });
+            networkInput.name = input.name.?;
+            networkInput.shape = input.type.?.tensor_type.?.shape.?.dims;
+        }
+    }
+
+    //setting the output
+    networkOutput.name = model.graph.?.outputs[0].name.?;
+    networkOutput.shape = model.graph.?.outputs[0].type.?.tensor_type.?.shape.?.dims;
+
+    //check for input shape existence
+    if (parsedInputshape.len == 0 and networkInput.shape.len == 0) {
+        std.debug.print("\n\n ERROR: \n     Input shape is necessary to proceed! \n     Ensure that the onnx model has one or compile with -Dshape=''<your_shape>''", .{});
+        return error.NoInputShape;
+    }
+
+    //ensure that the onnx input shape and the -Dshape, if given, are the same
+    if (parsedInputshape.len != 0) {
+        std.debug.print("\n yes -Dshape ", .{});
+
+        if (parsedInputshape.len != networkInput.shape.len) {
+            std.debug.print("\n\n ERROR: \n     the passed input -Dshape has size {} ({any}) while the onnx model input shape has size {} ({any}) \n", .{ parsedInputshape.len, parsedInputshape, networkInput.shape.len, networkInput.shape });
+            return error.DifferentInputShapesLen;
+        }
+
+        for (parsedInputshape, 0..) |s, i| {
+            if (s != networkInput.shape[i]) {
+                std.debug.print("\n\n ERROR: \n     the passed input -Dshape is {any} while the onnx model input shape is {any} \n", .{ parsedInputshape, networkInput.shape });
+                return error.DifferentInputShapes;
+            }
+        }
+    }
+
+    //create the hashMap
+    try populateReadyTensorHashMap(model);
+
+    //create the ReadyGraph
+    try populateReadyGraph(model);
+}
+
 // ----------------------- HASH MAP -----------------------
 // Populates tensorHashMap with the tensors used in the onnx graph, where the key is the name of the tensor
-pub fn populateReadyTensorHashMap(model: ModelOnnx) !void {
+fn populateReadyTensorHashMap(model: ModelOnnx) !void {
     const protoGraph = try if (model.graph) |graph| graph else error.GraphNotAvailable;
 
     //adding initializers to the hash map
@@ -176,7 +235,7 @@ pub fn addToTensorHashMap(name: []const u8) !void {
 
 // ----------------------- READY GRAPH -----------------------
 // Creates a graph representation with all nodes in a ready-to-compute state
-pub fn populateReadyGraph(model: ModelOnnx) !void {
+fn populateReadyGraph(model: ModelOnnx) !void {
     const graph = try if (model.graph) |graph| graph else error.GraphNotAvailable;
 
     for (graph.nodes) |node_ptr| { //for each NodeProto in the GraphProto

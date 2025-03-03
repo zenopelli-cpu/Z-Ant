@@ -91,9 +91,20 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
         iteration += 1;
     }
 
-    //setting te network output
-    globals.networkOutput = lastNode.outputs.items[0].name;
+    //check if it is different from the one already parsed, if not present, set to lastNode
+    if (std.mem.eql(u8, globals.networkOutput.name, "")) {
+        //setting te network output
+        globals.networkOutput.name = lastNode.outputs.items[0].name;
+        globals.networkOutput.shape = lastNode.outputs.items[0].shape;
+    } else {
+        //check the output tensor name is the same
+        if (!std.mem.eql(u8, globals.networkOutput.name, lastNode.outputs.items[0].name)) {
+            return error.DifferentOutputNames;
+        }
+    }
 }
+
+// -------------------------------- WRITE OUTPUTS --------------------------------
 
 // Initializes output tensors in the computation graph
 fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
@@ -251,6 +262,15 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
     , .{ sanitized_name, dataTypeString, sanitized_name, sanitized_name });
 }
 
+fn write_OutputTensor(writer: std.fs.File.Writer, name: []const u8, size: i64) !void {
+    const sanitized_name = try utils.getSanitizedName(name);
+    try writer.print(
+        \\
+        \\var array_{s}: [{}]T = [_]T{{0}} ** {};
+        \\var tensor_{s} = Tensor(T).fromConstBuffer( &allocator, &array_{s}, &shape_tensor_{s});
+    , .{ sanitized_name, size, size, sanitized_name, sanitized_name, sanitized_name });
+}
+
 fn write_outputsResetMethod(writer: std.fs.File.Writer) !void {
     try writer.print(
         \\
@@ -292,57 +312,29 @@ fn write_outputsResetMethod(writer: std.fs.File.Writer) !void {
     , .{});
 }
 
-// // Function to reset all output tensors to zero
-// fn resetOutputTensors() void {
-//     if (log_function) |log| {
-//         log(@constCast(@ptrCast("Resetting output tensors...\n")));
-//     }
-//     @memset(array_parameter193_reshape1[0..], 0);
-//     @memset(array_convolution28_output_0[0..], 0);
-//     @memset(array_plus30_output_0[0..], 0);
-//     @memset(array_relu32_output_0[0..], 0);
-//     @memset(array_pooling66_output_0[0..], 0);
-//     @memset(array_convolution110_output_0[0..], 0);
-//     @memset(array_plus112_output_0[0..], 0);
-//     @memset(array_relu114_output_0[0..], 0);
-//     @memset(array_pooling160_output_0[0..], 0);
-//     @memset(array_pooling160_output_0_reshape0[0..], 0);
-//     @memset(array_times212_output_0[0..], 0);
-//     @memset(array_plus214_output_0[0..], 0);
-
-//     if (log_function) |log| {
-//         log(@constCast(@ptrCast("Output tensors reset.\n")));
-//     }
-// }
-
-fn write_OutputTensor(writer: std.fs.File.Writer, name: []const u8, size: i64) !void {
-    const sanitized_name = try utils.getSanitizedName(name);
-    try writer.print(
-        \\
-        \\var array_{s}: [{}]T = [_]T{{0}} ** {};
-        \\var tensor_{s} = Tensor(T).fromConstBuffer( &allocator, &array_{s}, &shape_tensor_{s});
-    , .{ sanitized_name, size, size, sanitized_name, sanitized_name, sanitized_name });
-}
+// -------------------------------- WRITE CHECKS --------------------------------
 
 fn write_checks(writer: std.fs.File.Writer) !void {
     // Autogen a check for the input shape as arg VS input shape as codegen option
-    //First convert the optional String of numbers divided by a comma into an array
-    const parsedInputshape = try utils.parseNumbers(codegen_options.shape);
+
     //check on the number of dims
     _ = try writer.print(
         \\
         \\    //checks on the input parameters
         \\    if (shape_len == 0) return ;
         \\    if(shape_len != {}) return ;
-    , .{parsedInputshape.len});
+    , .{globals.networkInput.shape.len});
+
     //check on dims correspondance
-    for (parsedInputshape, 0..) |parsed_dim, i| {
+    for (globals.networkInput.shape, 0..) |dim, i| {
         _ = try writer.print(
             \\
             \\    if( input_shape[{}] != {}) return ;
-        , .{ i, parsed_dim });
+        , .{ i, dim });
     }
 }
+
+// -------------------------------- WRITE PREDICT() --------------------------------
 
 fn write_predictInitialization(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
@@ -367,9 +359,9 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         \\    defer tensor_{s}.deinit();
         \\    @memcpy(tensor_{s}.data, data);
     , .{
-        try utils.getSanitizedName(globals.networkInput),
-        try utils.getSanitizedName(globals.networkInput),
-        try utils.getSanitizedName(globals.networkInput),
+        try utils.getSanitizedName(globals.networkInput.name),
+        try utils.getSanitizedName(globals.networkInput.name),
+        try utils.getSanitizedName(globals.networkInput.name),
     });
 }
 
@@ -382,7 +374,7 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
         \\
         \\    result.* = tensor_{s}.data.ptr;
         \\
-    , .{try utils.getSanitizedName(globals.networkOutput)});
+    , .{try utils.getSanitizedName(globals.networkOutput.name)});
 
     if (codegen_options.log) {
         _ = try writer.print(
