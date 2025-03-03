@@ -98,6 +98,7 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
         \\
     , .{});
 }
+
 fn write_FBA(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\

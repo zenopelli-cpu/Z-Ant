@@ -34,20 +34,15 @@ pub fn main() !void {
     try std.fs.cwd().makePath(generated_path);
 
     // ONNX model parsing
+    try globals.setGlobalAttributes(model);
 
-    //create the hashMap
-    try globals.populateReadyTensorHashMap(model);
-
-    // model.print();
+    model.print();
 
     //DEBUG
     //utils.printTensorHashMap(tensorHashMap);
 
     //DEBUG
     //try utils.printOperations(model.graph.?);
-
-    //create the ReadyGraph
-    try globals.populateReadyGraph(model);
 
     //DEBUG
     //try utils.printNodeList(readyGraph);
@@ -58,5 +53,5 @@ pub fn main() !void {
     try codeGen.skeleton.writeZigFile(model_name, generated_path, model);
 
     // Test the generated code
-    //try codeGen_tests.writeTestFile(model_name, generated_path, model);
+    // try codeGen_tests.writeTestFile(model_name, generated_path, model);
 }

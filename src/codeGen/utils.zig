@@ -403,6 +403,8 @@ pub fn parseNumbers(input: []const u8) ![]i64 {
     var list = std.ArrayList(i64).init(allocator);
     errdefer list.deinit();
 
+    if (input.len == 0) return list.toOwnedSlice();
+
     var it = std.mem.splitScalar(u8, input, ',');
     while (it.next()) |num_str| {
         const num = try std.fmt.parseInt(i64, num_str, 10);
