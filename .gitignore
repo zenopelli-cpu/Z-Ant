@@ -31,8 +31,10 @@ static_lib.zig
 callgring.*
 massif.*
 
-
 # Zant generated code
 /generated/*
+
+# Onnx models
+/datasets/models/*/*.onnx
 
 
