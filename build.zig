@@ -28,13 +28,6 @@ pub fn build(b: *std.Build) void {
     const zant_mod = b.createModule(.{ .root_source_file = b.path("src/zant.zig") });
     zant_mod.addOptions("build_options", build_options);
 
-    // static_lib module for MNIST
-    const static_lib_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/static_lib.zig") });
-    const static_lib_mnist_hard_mod = b.createModule(.{ .root_source_file = b.path("src/codeGen/hardcoded/hardcoded_mnist8.zig") });
-
-    static_lib_mod.addImport("zant", zant_mod);
-    static_lib_mnist_hard_mod.addImport("zant", zant_mod);
-
     // ************************************************MAIN EXECUTABLE************************************************
 
     const exe = b.addExecutable(.{
@@ -77,8 +70,6 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addOptions("test_options", test_options);
 
     unit_tests.root_module.addImport("zant", zant_mod);
-    unit_tests.root_module.addImport("static_lib", static_lib_mod);
-    unit_tests.root_module.addImport("static_lib_mnist_hard", static_lib_mnist_hard_mod);
 
     unit_tests.linkLibC();
 
