@@ -80,6 +80,7 @@ pub const ProtoReader = struct {
         return result;
     }
 
+    // Reads 32 bit one after the other, use @bitCast() to change type, pay attention sizeOf(DEST)=sizeOf(SOURCE)
     pub fn readFixed32(self: *ProtoReader) !u32 {
         if (self.pos + 4 > self.buffer.len) {
             return Error.EndOfBuffer;
@@ -89,10 +90,7 @@ pub const ProtoReader = struct {
         return std.mem.bytesToValue(u32, bytes);
     }
 
-    pub fn available(self: *ProtoReader) usize {
-        return self.buffer.len - self.pos;
-    }
-
+    // Reads 64 bit one after the other, use @bitCast() to change type, pay attention sizeOf(DEST)=sizeOf(SOURCE)
     pub fn readFixed64(self: *ProtoReader) !u64 {
         if (self.pos + 8 > self.buffer.len) {
             return Error.EndOfBuffer;
@@ -100,6 +98,10 @@ pub const ProtoReader = struct {
         const bytes = self.buffer[self.pos..][0..8];
         self.pos += 8;
         return std.mem.bytesToValue(u64, bytes[0..8]);
+    }
+
+    pub fn available(self: *ProtoReader) usize {
+        return self.buffer.len - self.pos;
     }
 
     pub fn readLengthDelimited(self: *ProtoReader) !ProtoReader {
@@ -178,7 +180,11 @@ pub const ProtoReader = struct {
                 try self.skip(len);
             },
             .Fixed32 => try self.skip(4),
-            else => return error.UnsupportedWireType,
+            else => {
+                std.debug.print("\n ERROR! wire type {any} not supported", .{wire_type});
+                unreachable;
+                //return error.UnsupportedWireType;
+            },
         }
     }
 

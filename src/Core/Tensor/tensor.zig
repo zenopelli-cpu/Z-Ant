@@ -3,10 +3,16 @@
 //! the concept of scalars, vectors, and matrices to higher dimensions. A scalar is a 0-dimensional
 //! tensor, a vector is a 1-dimensional tensor, and a matrix is a 2-dimensional tensor. Tensors can extend
 //! to even higher dimensions (3D, 4D, etc.).
+pub const math_lean = @import("TensorMath/tensor_math_standard.zig");
+pub const math_standard = @import("TensorMath/tensor_math_standard.zig");
+
 const std = @import("std");
-const tMath = @import("tensor_m");
-const TensorError = @import("errorHandler").TensorError;
-const ArgumentError = @import("errorHandler").ArgumentError;
+const zant = @import("../../zant.zig");
+
+const tMath = math_standard;
+const error_handler = zant.utils.error_handler;
+const TensorError = error_handler.TensorError;
+const ArgumentError = error_handler.ArgumentError;
 
 pub var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
 
@@ -22,6 +28,7 @@ pub fn Tensor(comptime T: type) type {
         size: usize, //dimension of the tensor, equal to data.len
         shape: []usize, //defines the multidimensional structure of the tensor
         allocator: *const std.mem.Allocator, //allocator used in the memory initialization of the tensor
+        owns_memory: bool, //whether this tensor owns its memory and should free it
 
         ///Method used to initialize an undefined Tensor. It just set the allocator.
         /// More usefull methods are:
@@ -34,18 +41,21 @@ pub fn Tensor(comptime T: type) type {
                 .size = 0,
                 .shape = &[_]usize{},
                 .allocator = allocator,
+                .owns_memory = true,
             };
         }
 
         ///Free all the possible allocation, use it every time you create a new Tensor ( defer yourTensor.deinit() )
         pub fn deinit(self: *@This()) void {
-            if (self.data.len > 0) {
-                self.allocator.free(self.data);
-                self.data = &[_]T{};
-            }
-            if (self.shape.len > 0) {
-                self.allocator.free(self.shape);
-                self.shape = &[_]usize{};
+            if (self.owns_memory) {
+                if (self.data.len > 0) {
+                    self.allocator.free(self.data);
+                    self.data = &[_]T{};
+                }
+                if (self.shape.len > 0) {
+                    self.allocator.free(self.shape);
+                    self.shape = &[_]usize{};
+                }
             }
         }
 
@@ -77,6 +87,7 @@ pub fn Tensor(comptime T: type) type {
                 .size = total_size,
                 .shape = tensorShape,
                 .allocator = allocator,
+                .owns_memory = true,
             };
         }
 
@@ -88,6 +99,10 @@ pub fn Tensor(comptime T: type) type {
                 return self.data;
             }
             return constructMultidimensionalArray(self.allocator, T, self.data, self.shape, 0, dimension);
+        }
+
+        fn setAllocator(tensor: *Tensor(T), alloc: *const std.mem.Allocator) void {
+            tensor.allocator = alloc;
         }
 
         /// Returns a Tensor witch is the copy of this Tensor (self).
@@ -117,30 +132,68 @@ pub fn Tensor(comptime T: type) type {
                 .size = total_size,
                 .shape = tensorShape,
                 .allocator = allocator,
+                .owns_memory = true,
+            };
+        }
+
+        /// Initialize a tensor from a const buffer without allocation
+        /// Useful for freestanding targets where dynamic allocation is not available
+        /// The data and shape buffers must outlive the tensor
+        pub fn fromConstBuffer(allocator: *const std.mem.Allocator, data: []const T, shape: []const usize) @This() {
+            return @This(){
+                .data = @constCast(data),
+                .size = data.len,
+                .shape = @constCast(shape),
+                .allocator = allocator,
+                .owns_memory = false,
             };
         }
 
         /// Given any array and its shape it reshape the tensor and update .data
         pub fn fill(self: *@This(), inputArray: anytype, shape: []usize) !void {
             //const adjusted_shape = try ensure_4D_shape(shape);
-
-            //deinitialize data e shape
-            self.deinit(); //if the Tensor has been just init() this function does nothing
-
-            //than, filling with the new values
+            
+            // Allocate new memory first
             var total_size: usize = 1;
             for (shape) |dim| {
                 total_size *= dim;
             }
             const tensorShape = try self.allocator.alloc(usize, shape.len);
+            errdefer self.allocator.free(tensorShape);
             @memcpy(tensorShape, shape);
 
+            // Create a copy of the input data to avoid issues if inputArray is part of self.data
             const tensorData = try self.allocator.alloc(T, total_size);
-            _ = flattenArray(T, inputArray, tensorData, 0);
+            errdefer self.allocator.free(tensorData);
+            
+            // Handle different input array types
+            const InputType = @TypeOf(inputArray);
+            if (@typeInfo(InputType) == .Pointer and @typeInfo(@typeInfo(InputType).Pointer.child) == .Array) {
+                // Handle multi-dimensional arrays
+                _ = flattenArray(T, inputArray, tensorData, 0);
+            } else {
+                // Handle slices (like data from another tensor)
+                if (inputArray.len != total_size) {
+                    return error.InvalidInputArraySize;
+                }
+                @memcpy(tensorData, inputArray);
+            }
 
+            // Free old memory only if we own it
+            if (self.owns_memory) {
+                if (self.data.len > 0) {
+                    self.allocator.free(self.data);
+                }
+                if (self.shape.len > 0) {
+                    self.allocator.free(self.shape);
+                }
+            }
+
+            // Update tensor with new data
             self.data = tensorData;
             self.size = total_size;
             self.shape = tensorShape;
+            self.owns_memory = true;
         }
 
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -319,6 +372,7 @@ pub fn Tensor(comptime T: type) type {
                 .shape = try self.allocator.dupe(usize, slice_shape),
                 .size = new_size,
                 .allocator = self.allocator,
+                .owns_memory = true,
             };
 
             _ = &new_tensor;
@@ -469,135 +523,9 @@ pub fn Tensor(comptime T: type) type {
         /// axes: Which axes to slice (if null, assumes [0,1,2,...])
         /// steps: Step sizes for each axis (if null, assumes all 1s)
         pub fn slice_onnx(self: *Tensor(T), starts: []const i64, ends: []const i64, axes: ?[]const i64, steps: ?[]const i64) !Tensor(T) {
-            // Validate input lengths
-            if (starts.len != ends.len) return TensorError.InvalidSliceIndices;
-            if (axes) |a| {
-                if (a.len != starts.len) return TensorError.InvalidSliceIndices;
-            }
-            if (steps) |s| {
-                if (s.len != starts.len) return TensorError.InvalidSliceIndices;
-            }
-
-            // Create arrays to store the actual indices and steps for each dimension
-            var actual_starts = try self.allocator.alloc(i64, self.shape.len);
-            defer self.allocator.free(actual_starts);
-            var actual_ends = try self.allocator.alloc(i64, self.shape.len);
-            defer self.allocator.free(actual_ends);
-            var actual_steps = try self.allocator.alloc(i64, self.shape.len);
-            defer self.allocator.free(actual_steps);
-
-            // Initialize with defaults (full range, step 1)
-            for (0..self.shape.len) |i| {
-                actual_starts[i] = 0;
-                actual_ends[i] = @intCast(self.shape[i]);
-                actual_steps[i] = 1;
-            }
-
-            // Update with provided values
-            for (starts, 0..) |start, i| {
-                const axis = if (axes) |a| a[i] else @as(i64, @intCast(i));
-                const axis_usize = if (axis < 0) @as(usize, @intCast(axis + @as(i64, @intCast(self.shape.len)))) else @as(usize, @intCast(axis));
-                if (axis_usize >= self.shape.len) return TensorError.InvalidSliceIndices;
-
-                const dim_size = @as(i64, @intCast(self.shape[axis_usize]));
-
-                // Handle negative indices and clamp to valid range
-                var actual_start = if (start < 0) start + dim_size else start;
-                actual_start = @max(0, @min(actual_start, dim_size));
-                actual_starts[axis_usize] = actual_start;
-
-                var actual_end = if (ends[i] < 0) ends[i] + dim_size else ends[i];
-                if (steps) |s| {
-                    if (s[i] < 0) {
-                        // For negative steps, if end is negative, we want to include 0
-                        actual_end = if (ends[i] < 0) -1 else actual_end;
-                    } else {
-                        actual_end = @max(0, @min(actual_end, dim_size));
-                    }
-                } else {
-                    actual_end = @max(0, @min(actual_end, dim_size));
-                }
-                actual_ends[axis_usize] = actual_end;
-
-                if (steps) |s| {
-                    if (s[i] == 0) return TensorError.InvalidSliceStep;
-                    actual_steps[axis_usize] = s[i];
-                }
-            }
-
-            // Calculate output shape
-            var output_shape = try self.allocator.alloc(usize, self.shape.len);
-            errdefer self.allocator.free(output_shape);
-
-            var total_elements: usize = 1;
-            for (0..self.shape.len) |i| {
-                const start = actual_starts[i];
-                const end = actual_ends[i];
-                const step = actual_steps[i];
-
-                var dim_size: usize = 0;
-                if (step > 0) {
-                    if (end > start) {
-                        dim_size = @intCast(@divTrunc((@as(i64, @intCast(end - start)) + step - 1), step));
-                        std.debug.print("\nPositive step: start={}, end={}, step={}, dim_size={}", .{ start, end, step, dim_size });
-                    }
-                } else {
-                    if (start > end) {
-                        // For negative steps, we need to handle the range differently
-                        // Add 1 to end because end is exclusive
-                        const range = start - (end + 1);
-                        const abs_step = -step;
-                        dim_size = @intCast(@divTrunc(range + abs_step - 1, abs_step));
-                        std.debug.print("\nNegative step: start={}, end={}, step={}, range={}, abs_step={}, dim_size={}", .{ start, end, step, range, abs_step, dim_size });
-                    }
-                }
-                std.debug.print("\nDimension {}: dim_size={}", .{ i, dim_size });
-                output_shape[i] = dim_size;
-                total_elements *= dim_size;
-            }
-
-            // Allocate output data
-            var output_data = try self.allocator.alloc(T, total_elements);
-            errdefer self.allocator.free(output_data);
-
-            // Helper function to convert flat index to coordinates
-            var input_coords = try self.allocator.alloc(usize, self.shape.len);
-            defer self.allocator.free(input_coords);
-            var output_coords = try self.allocator.alloc(usize, self.shape.len);
-            defer self.allocator.free(output_coords);
-
-            // Copy data
-            var output_idx: usize = 0;
-            std.debug.print("\nTotal elements: {}", .{total_elements});
-            while (output_idx < total_elements) : (output_idx += 1) {
-                // Convert output_idx to coordinates
-                var temp = output_idx;
-                for (0..self.shape.len) |i| {
-                    const dim_i = self.shape.len - 1 - i;
-                    output_coords[dim_i] = temp % output_shape[dim_i];
-                    temp /= output_shape[dim_i];
-                }
-
-                // Calculate input coordinates
-                for (0..self.shape.len) |i| {
-                    const coord = @as(i64, @intCast(output_coords[i]));
-                    input_coords[i] = @intCast(actual_starts[i] + coord * actual_steps[i]);
-                    std.debug.print("\noutput_coord[{}]={}, input_coord[{}]={}", .{ i, output_coords[i], i, input_coords[i] });
-                }
-
-                // Get input value
-                const input_idx = try self.flatten_index(input_coords);
-                output_data[output_idx] = self.data[input_idx];
-                std.debug.print("\noutput_idx={}, input_idx={}, value={}", .{ output_idx, input_idx, output_data[output_idx] });
-            }
-
-            return Tensor(T){
-                .data = output_data,
-                .shape = output_shape,
-                .size = total_elements,
-                .allocator = self.allocator,
-            };
+            return tMath.slice_onnx(T, self, starts, ends, axes, steps);
         }
+
         // Ensures the input shape is 4D by padding with 1s if necessary. Returns an error if the shape
         // has more than 4 dimensions.
         //

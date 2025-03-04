@@ -46,6 +46,8 @@ pub const TensorMathError = error{
     IncompatibleBroadcastShapes,
     EmptyTensorList,
     DivisionError,
+    InvalidPadding,
+    InvalidAxes,
 };
 
 /// Tensor errors
@@ -77,6 +79,8 @@ pub const TensorError = error{
     UnsupportedDimension,
     InvalidSplitSize,
     InvalidRank,
+    InvalidPermutation,
+    ShapeMismatch,
 };
 
 /// A union type to represent any of the errors
@@ -131,6 +135,8 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         TensorMathError.WrongStride => "TensorMath: wrong stride",
         TensorMathError.EmptyTensorList => "TensorMath: empty tensor list provided",
         TensorMathError.DivisionError => "TensorMath: division error encountered",
+        TensorMathError.InvalidPadding => "TensorMath: invalid padding mode or values",
+        TensorMathError.InvalidAxes => "TensorMath: invalid axes",
 
         //TENSOR
         TensorError.TensorNotInitialized => "Tensor: tensor not initialized",

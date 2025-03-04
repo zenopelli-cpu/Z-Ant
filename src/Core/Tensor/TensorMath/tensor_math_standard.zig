@@ -7,10 +7,11 @@
 
 // ---------- importing standard structural methods ----------
 const shape_math_lib = @import("lib_shape_math.zig");
+
 //---reshape
 pub const reshape = shape_math_lib.reshape;
 pub const reshape_lean = shape_math_lib.reshape_lean;
-
+pub const reshape_lean_f32 = shape_math_lib.reshape_lean_f32;
 //---gather
 pub const gather = shape_math_lib.gather;
 pub const gather_lean = shape_math_lib.lean_gather;
@@ -18,11 +19,13 @@ pub const gather_lean = shape_math_lib.lean_gather;
 //--unsqueeze
 pub const unsqueeze = shape_math_lib.unsqueeze;
 pub const unsqueeze_lean = shape_math_lib.unsqueeze_lean;
-
+pub const get_unsqueeze_output_shape = shape_math_lib.get_unsqueeze_output_shape;
 //---concatenate
 pub const concatenate = shape_math_lib.concatenate;
 // TODO: pub const concatenate_lean = shape_math_lib.concatenate_lean;
 pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_shape;
+
+// ---------- importing pooling methods ----------
 
 pub const calculateStrides = shape_math_lib.calculateStrides;
 pub const transpose2D = shape_math_lib.transpose2D;
@@ -59,7 +62,8 @@ pub const convolution_backward_weights = convolution_math_lib.convolution_backwa
 pub const convolution_backward_input = convolution_math_lib.convolution_backward_input;
 pub const get_convolution_output_shape = convolution_math_lib.get_convolution_output_shape;
 pub const Conv = convolution_math_lib.OnnxConv;
-pub const Conv_lean = convolution_math_lib.OnnxConvLean;
+pub const conv_lean = convolution_math_lib.OnnxConvLean;
+pub const setLogFunctionC = convolution_math_lib.setLogFunctionC;
 
 // ---------- importing standard Pooling methods ----------
 const pooling_math_lib = @import("op_pooling.zig");
@@ -67,6 +71,11 @@ pub const pool_tensor = pooling_math_lib.pool_tensor;
 pub const multidim_pooling = pooling_math_lib.multidim_pooling;
 pub const pool_forward = pooling_math_lib.pool_forward;
 pub const pool_backward = pooling_math_lib.pool_backward;
+pub const onnx_maxpool = pooling_math_lib.onnx_maxpool;
+pub const onnx_maxpool_lean = pooling_math_lib.lean_onnx_maxpool;
+pub const AutoPadType = pooling_math_lib.AutoPadType;
+pub const get_onnx_maxpool_output_shape = pooling_math_lib.get_onnx_maxpool_output_shape;
+pub const get_pooling_output_shape = pooling_math_lib.get_pooling_output_shape;
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -85,8 +94,19 @@ pub const sum_tensor_list = elementWise_math_lib.sum_tensor_list;
 pub const sum_tensor_list_lean = elementWise_math_lib.lean_sum_tensor_list;
 //--sub
 pub const sub_tensors = elementWise_math_lib.sub_tensors;
+
+//--shape
+pub const shape_onnx = shape_math_lib.shape_onnx;
+pub const shape_onnx_lean = shape_math_lib.lean_shape_onnx;
+pub const get_shape_output_shape = shape_math_lib.get_shape_output_shape;
+//--slice
+pub const slice_onnx = shape_math_lib.slice_onnx;
+pub const slice_onnx_lean = shape_math_lib.lean_slice_onnx;
+pub const get_slice_output_shape = shape_math_lib.get_slice_output_shape;
+
 //TODO: pub const sub_tensors_lean = elementWise_math_lib.sub_tensors_lean;
 //--mul
+pub const lean_matmul = op_mat_mul.lean_mat_mul;
 pub const mul = elementWise_math_lib.mul;
 pub const mul_lean = elementWise_math_lib.mul_lean;
 //--div
@@ -107,6 +127,10 @@ pub const equal = logical_math_lib.equal;
 
 // ---------- importing standard activation function methods ----------
 const activation_math_lib = @import("lib_activation_function_math.zig");
+
+//Reduce_mean
+pub const reduce_mean = reduction_math_lib.reduce_mean;
+pub const reduce_mean_lean = reduction_math_lib.lean_reduce_mean;
 //ReLU
 pub const ReLU = activation_math_lib.ReLU_standard;
 pub const ReLU_lean = activation_math_lib.lean_ReLU;
@@ -123,3 +147,8 @@ pub const sigmoid_backward = activation_math_lib.sigmoid_backward;
 pub const softmax = activation_math_lib.softmax;
 pub const softmax_lean = activation_math_lib.lean_softmax;
 pub const softmax_backward = activation_math_lib.softmax_backward;
+
+//Transpose
+pub const transpose_onnx = shape_math_lib.transpose_onnx;
+pub const transpose_onnx_lean = shape_math_lib.transpose_onnx_lean;
+pub const get_transpose_output_shape = shape_math_lib.get_transpose_output_shape;

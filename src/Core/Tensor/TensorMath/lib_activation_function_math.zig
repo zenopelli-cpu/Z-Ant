@@ -1,10 +1,13 @@
 const std = @import("std");
-const Tensor = @import("tensor").Tensor; // Import Tensor type
-const pkg_allocator = @import("pkgAllocator").allocator;
-const TensorMathError = @import("errorHandler").TensorMathError;
-const TensorError = @import("errorHandler").TensorError;
-const Converter = @import("typeC");
-const ArchitectureError = @import("errorHandler").ArchitectureError;
+const zant = @import("../../../zant.zig");
+
+const Tensor = zant.core.tensor.Tensor; // Import Tensor type
+const pkg_allocator = zant.utils.allocator.allocator;
+const error_handler = zant.utils.error_handler;
+const TensorMathError = error_handler.TensorMathError;
+const TensorError = error_handler.TensorError;
+const ArchitectureError = error_handler.ArchitectureError;
+const Converter = zant.utils.type_converter;
 
 /// ReLU (Rectified Linear Unit).
 /// It outputs the input directly if it's positive, but returns zero for any negative input.
@@ -102,10 +105,20 @@ pub inline fn sigmoid(comptime T: anytype, tensor: *Tensor(T)) !Tensor(T) {
 }
 
 pub inline fn sigmoid_lean(comptime T: anytype, input_tensor: *Tensor(T), output_tensor: *Tensor(T)) !void {
+    //std.debug.print("\n[DEBUG] sigmoid_lean:", .{});
+    //std.debug.print("\n  Input shape: ", .{});
+    //for (input_tensor.shape) |s| std.debug.print("{d} ", .{s});
+
+    //std.debug.print("\n  Output shape: ", .{});
+    //for (output_tensor.shape) |s| std.debug.print("{d} ", .{s});
+
     //apply Sigmoid
     for (0..input_tensor.size) |i| {
-        output_tensor.data[i] = 1.0 / (1.0 + @exp(-input_tensor.data[i]));
+        const input_val = input_tensor.data[i];
+        output_tensor.data[i] = 1.0 / (1.0 + @exp(-input_val));
+        //std.debug.print("\n  sigmoid({d:.6}) = {d:.6}", .{ input_val, output_tensor.data[i] });
     }
+    //std.debug.print("\n[DEBUG] sigmoid_lean completed\n", .{});
 }
 
 pub fn sigmoid_backward(comptime T: anytype, gradient: *Tensor(T), act_forward_out: *Tensor(T)) !void {

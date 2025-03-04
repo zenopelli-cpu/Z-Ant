@@ -1,8 +1,10 @@
 const std = @import("std");
-const pkgAllocator = @import("pkgAllocator");
-const TensMath = @import("tensor_m");
-const Tensor = @import("tensor").Tensor;
-const PoolingType = @import("layer").poolingLayer.PoolingType;
+const zant = @import("zant");
+const pkgAllocator = zant.utils.allocator;
+const TensMath = zant.core.tensor.math_standard;
+const Tensor = zant.core.tensor.Tensor;
+const PoolingType = zant.model.layer.poolingLayer.PoolingType;
+const AutoPadType = zant.core.tensor.math_standard.AutoPadType;
 
 test "Pooling 2D" {
     std.debug.print("\n     test: Pooling 2D\n", .{});
@@ -149,4 +151,266 @@ test "Pooling multidim" {
     try std.testing.expectEqual(output.shape[2], 2);
 
     // We do not check used_input details here, just shapes as in original.
+}
+
+test "ONNX MaxPool - NOTSET padding" {
+    std.debug.print("\n     test: ONNX MaxPool - NOTSET padding\n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Input: 1x1x4x4
+    var input_shape = [_]usize{ 1, 1, 4, 4 };
+    var input_data = [_]f32{
+        1,  2,  3,  4,
+        5,  6,  7,  8,
+        9,  10, 11, 12,
+        13, 14, 15, 16,
+    };
+
+    var input = try Tensor(f32).fromArray(&allocator, &input_data, &input_shape);
+    defer input.deinit();
+
+    var kernel_shape = [_]usize{ 2, 2 };
+    var strides = [_]usize{ 2, 2 };
+    var dilations = [_]usize{ 1, 1 };
+    var pads = [_]usize{ 0, 0, 0, 0 }; // top, left, bottom, right
+
+    var result = try TensMath.onnx_maxpool(
+        f32,
+        &input,
+        &kernel_shape,
+        &strides,
+        &dilations,
+        &pads,
+        .NOTSET,
+        false,
+    );
+    defer {
+        result.output.deinit();
+        result.used_input.deinit();
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), result.output.shape[0]);
+    try std.testing.expectEqual(@as(usize, 1), result.output.shape[1]);
+    try std.testing.expectEqual(@as(usize, 2), result.output.shape[2]);
+    try std.testing.expectEqual(@as(usize, 2), result.output.shape[3]);
+
+    try std.testing.expectEqual(@as(f32, 6), result.output.data[0]);
+    try std.testing.expectEqual(@as(f32, 8), result.output.data[1]);
+    try std.testing.expectEqual(@as(f32, 14), result.output.data[2]);
+    try std.testing.expectEqual(@as(f32, 16), result.output.data[3]);
+}
+
+test "ONNX MaxPool - SAME_UPPER padding" {
+    std.debug.print("\n     test: ONNX MaxPool - SAME_UPPER padding\n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Input: 1x1x3x3
+    var input_shape = [_]usize{ 1, 1, 3, 3 };
+    var input_data = [_]f32{
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9,
+    };
+
+    var input = try Tensor(f32).fromArray(&allocator, &input_data, &input_shape);
+    defer input.deinit();
+
+    var kernel_shape = [_]usize{ 2, 2 };
+    var strides = [_]usize{ 1, 1 };
+    var dilations = [_]usize{ 1, 1 };
+    var pads = [_]usize{ 0, 0, 0, 0 }; // not used in SAME_UPPER
+
+    var result = try TensMath.onnx_maxpool(
+        f32,
+        &input,
+        &kernel_shape,
+        &strides,
+        &dilations,
+        &pads,
+        .SAME_UPPER,
+        false,
+    );
+    defer {
+        result.output.deinit();
+        result.used_input.deinit();
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), result.output.shape[0]);
+    try std.testing.expectEqual(@as(usize, 1), result.output.shape[1]);
+    try std.testing.expectEqual(@as(usize, 3), result.output.shape[2]);
+    try std.testing.expectEqual(@as(usize, 3), result.output.shape[3]);
+
+    try std.testing.expectEqual(@as(f32, 5), result.output.data[0]);
+    try std.testing.expectEqual(@as(f32, 6), result.output.data[1]);
+    try std.testing.expectEqual(@as(f32, 6), result.output.data[2]);
+    try std.testing.expectEqual(@as(f32, 8), result.output.data[3]);
+    try std.testing.expectEqual(@as(f32, 9), result.output.data[4]);
+    try std.testing.expectEqual(@as(f32, 9), result.output.data[5]);
+    try std.testing.expectEqual(@as(f32, 8), result.output.data[6]);
+    try std.testing.expectEqual(@as(f32, 9), result.output.data[7]);
+    try std.testing.expectEqual(@as(f32, 9), result.output.data[8]);
+}
+
+test "ONNX MaxPool - with dilation" {
+    std.debug.print("\n     test: ONNX MaxPool - with dilation\n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Input: 1x1x4x4
+    var input_shape = [_]usize{ 1, 1, 4, 4 };
+    var input_data = [_]f32{
+        1,  2,  3,  4,
+        5,  6,  7,  8,
+        9,  10, 11, 12,
+        13, 14, 15, 16,
+    };
+
+    var input = try Tensor(f32).fromArray(&allocator, &input_data, &input_shape);
+    defer input.deinit();
+
+    var kernel_shape = [_]usize{ 2, 2 };
+    var strides = [_]usize{ 1, 1 };
+    var dilations = [_]usize{ 2, 2 }; // Dilated kernel
+    var pads = [_]usize{ 0, 0, 0, 0 };
+
+    var result = try TensMath.onnx_maxpool(
+        f32,
+        &input,
+        &kernel_shape,
+        &strides,
+        &dilations,
+        &pads,
+        .NOTSET,
+        false,
+    );
+    defer {
+        result.output.deinit();
+        result.used_input.deinit();
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), result.output.shape[0]);
+    try std.testing.expectEqual(@as(usize, 1), result.output.shape[1]);
+    try std.testing.expectEqual(@as(usize, 2), result.output.shape[2]);
+    try std.testing.expectEqual(@as(usize, 2), result.output.shape[3]);
+
+    // With dilation=2, each kernel element skips one position
+    // So kernel covers positions: [[1,3],[9,11]] for first window
+    try std.testing.expectEqual(@as(f32, 11), result.output.data[0]);
+    try std.testing.expectEqual(@as(f32, 12), result.output.data[1]);
+    try std.testing.expectEqual(@as(f32, 15), result.output.data[2]);
+    try std.testing.expectEqual(@as(f32, 16), result.output.data[3]);
+}
+
+test "ONNX MaxPool - ceil mode" {
+    std.debug.print("\n     test: ONNX MaxPool - ceil mode\n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Input: 1x1x3x3
+    var input_shape = [_]usize{ 1, 1, 3, 3 };
+    var input_data = [_]f32{
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9,
+    };
+
+    var input = try Tensor(f32).fromArray(&allocator, &input_data, &input_shape);
+    defer input.deinit();
+
+    var kernel_shape = [_]usize{ 2, 2 };
+    var strides = [_]usize{ 2, 2 };
+    var dilations = [_]usize{ 1, 1 };
+    var pads = [_]usize{ 0, 0, 0, 0 };
+
+    var result = try TensMath.onnx_maxpool(
+        f32,
+        &input,
+        &kernel_shape,
+        &strides,
+        &dilations,
+        &pads,
+        .NOTSET,
+        true, // ceil_mode = true
+    );
+    defer {
+        result.output.deinit();
+        result.used_input.deinit();
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), result.output.shape[0]);
+    try std.testing.expectEqual(@as(usize, 1), result.output.shape[1]);
+    try std.testing.expectEqual(@as(usize, 2), result.output.shape[2]); // Ceil mode makes this 2 instead of 1
+    try std.testing.expectEqual(@as(usize, 2), result.output.shape[3]);
+
+    try std.testing.expectEqual(@as(f32, 5), result.output.data[0]);
+    try std.testing.expectEqual(@as(f32, 6), result.output.data[1]);
+    try std.testing.expectEqual(@as(f32, 8), result.output.data[2]);
+    try std.testing.expectEqual(@as(f32, 9), result.output.data[3]);
+}
+
+test "ONNX MaxPool - explicit padding" {
+    std.debug.print("\n     test: ONNX MaxPool - explicit padding\n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Input: 1x1x3x3
+    var input_shape = [_]usize{ 1, 1, 3, 3 };
+    var input_data = [_]f32{
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9,
+    };
+
+    var input = try Tensor(f32).fromArray(&allocator, &input_data, &input_shape);
+    defer input.deinit();
+
+    var kernel_shape = [_]usize{ 2, 2 };
+    var strides = [_]usize{ 1, 1 };
+    var dilations = [_]usize{ 1, 1 };
+    var pads = [_]usize{ 1, 1, 1, 1 }; // pad 1 on all sides
+
+    var result = try TensMath.onnx_maxpool(
+        f32,
+        &input,
+        &kernel_shape,
+        &strides,
+        &dilations,
+        &pads,
+        .NOTSET,
+        false,
+    );
+    defer {
+        result.output.deinit();
+        result.used_input.deinit();
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), result.output.shape[0]);
+    try std.testing.expectEqual(@as(usize, 1), result.output.shape[1]);
+    try std.testing.expectEqual(@as(usize, 4), result.output.shape[2]);
+    try std.testing.expectEqual(@as(usize, 4), result.output.shape[3]);
+
+    // First row includes padding (0s)
+    try std.testing.expectEqual(@as(f32, 1), result.output.data[0]);
+    try std.testing.expectEqual(@as(f32, 2), result.output.data[1]);
+    try std.testing.expectEqual(@as(f32, 3), result.output.data[2]);
+    try std.testing.expectEqual(@as(f32, 3), result.output.data[3]);
+
+    // Middle rows
+    try std.testing.expectEqual(@as(f32, 4), result.output.data[4]);
+    try std.testing.expectEqual(@as(f32, 5), result.output.data[5]);
+    try std.testing.expectEqual(@as(f32, 6), result.output.data[6]);
+    try std.testing.expectEqual(@as(f32, 6), result.output.data[7]);
+
+    try std.testing.expectEqual(@as(f32, 7), result.output.data[8]);
+    try std.testing.expectEqual(@as(f32, 8), result.output.data[9]);
+    try std.testing.expectEqual(@as(f32, 9), result.output.data[10]);
+    try std.testing.expectEqual(@as(f32, 9), result.output.data[11]);
+
+    // Last row includes padding (0s)
+    try std.testing.expectEqual(@as(f32, 7), result.output.data[12]);
+    try std.testing.expectEqual(@as(f32, 8), result.output.data[13]);
+    try std.testing.expectEqual(@as(f32, 9), result.output.data[14]);
+    try std.testing.expectEqual(@as(f32, 9), result.output.data[15]);
 }

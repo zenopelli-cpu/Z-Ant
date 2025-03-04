@@ -1,8 +1,38 @@
 const std = @import("std");
-const Tensor = @import("tensor").Tensor; // Import Tensor type
-const pkg_allocator = @import("pkgAllocator").allocator;
-const TensorMathError = @import("errorHandler").TensorMathError;
-const PoolingType = @import("layer").poolingLayer.PoolingType;
+const zant = @import("../../../zant.zig");
+
+const Tensor = zant.core.tensor.Tensor; // Import Tensor type
+const pkg_allocator = zant.utils.allocator.allocator;
+const TensorMathError = zant.utils.error_handler.TensorMathError;
+const PoolingType = zant.model.layer.poolingLayer.PoolingType;
+
+pub const AutoPadType = enum {
+    NOTSET,
+    SAME_UPPER,
+    SAME_LOWER,
+    VALID,
+};
+
+pub fn get_pooling_output_shape(input_shape: []const usize, kernel: [2]usize, stride: [2]usize) ![4]usize {
+    if (input_shape.len != 4) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    if (kernel[0] == 0 or kernel[1] == 0 or stride[0] == 0 or stride[1] == 0) {
+        return TensorMathError.WrongStride;
+    }
+
+    if (kernel[0] > input_shape[2] or kernel[1] > input_shape[3]) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    const batch_size = input_shape[0];
+    const channels = input_shape[1];
+    const out_height = (input_shape[2] - kernel[0]) / stride[0] + 1;
+    const out_width = (input_shape[3] - kernel[1]) / stride[1] + 1;
+
+    return [4]usize{ batch_size, channels, out_height, out_width };
+}
 
 // POOLING -----------------------------------------------------------------------------------------------------------------------
 pub fn pool_tensor(
@@ -442,4 +472,232 @@ pub fn pool_backward(comptime T: type, dValues: *Tensor(T), input_shape: []const
     }
 
     return dInput;
+}
+
+pub fn get_onnx_maxpool_output_shape(
+    input_shape: []const usize,
+    kernel_shape: []const usize,
+    strides: []const usize,
+    dilations: []const usize,
+    pads: []const usize,
+    auto_pad: AutoPadType,
+    ceil_mode: bool,
+) ![]usize {
+    if (input_shape.len != 4) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    const batch_size = input_shape[0];
+    const channels = input_shape[1];
+    const input_height = input_shape[2];
+    const input_width = input_shape[3];
+
+    var output_shape = try pkg_allocator.alloc(usize, 4);
+    errdefer pkg_allocator.free(output_shape);
+
+    output_shape[0] = batch_size;
+    output_shape[1] = channels;
+
+    var pad_h: usize = 0;
+    var pad_w: usize = 0;
+    var pad_top: usize = 0;
+    var pad_left: usize = 0;
+    var pad_bottom: usize = 0;
+    var pad_right: usize = 0;
+
+    // Calculate effective kernel size with dilations
+    const effective_kernel_h = (kernel_shape[0] - 1) * dilations[0] + 1;
+    const effective_kernel_w = (kernel_shape[1] - 1) * dilations[1] + 1;
+
+    switch (auto_pad) {
+        .NOTSET => {
+            pad_top = pads[0];
+            pad_left = pads[1];
+            pad_bottom = pads[2];
+            pad_right = pads[3];
+            pad_h = pad_top + pad_bottom;
+            pad_w = pad_left + pad_right;
+        },
+        .VALID => {
+            pad_h = 0;
+            pad_w = 0;
+            pad_top = 0;
+            pad_left = 0;
+            pad_bottom = 0;
+            pad_right = 0;
+        },
+        .SAME_UPPER, .SAME_LOWER => {
+            // Calculate total padding needed
+            const out_height = @divTrunc(input_height + strides[0] - 1, strides[0]);
+            const out_width = @divTrunc(input_width + strides[1] - 1, strides[1]);
+
+            pad_h = (out_height - 1) * strides[0] + effective_kernel_h - input_height;
+            pad_w = (out_width - 1) * strides[1] + effective_kernel_w - input_width;
+
+            if (auto_pad == .SAME_UPPER) {
+                pad_top = pad_h / 2;
+                pad_bottom = pad_h - pad_top;
+                pad_left = pad_w / 2;
+                pad_right = pad_w - pad_left;
+            } else {
+                pad_bottom = pad_h / 2;
+                pad_top = pad_h - pad_bottom;
+                pad_right = pad_w / 2;
+                pad_left = pad_w - pad_right;
+            }
+        },
+    }
+
+    // Calculate output dimensions
+    var out_height: usize = undefined;
+    var out_width: usize = undefined;
+
+    if (ceil_mode) {
+        out_height = @divTrunc(input_height + pad_h - effective_kernel_h + strides[0] - 1, strides[0]) + 1;
+        out_width = @divTrunc(input_width + pad_w - effective_kernel_w + strides[1] - 1, strides[1]) + 1;
+    } else {
+        out_height = @divTrunc(input_height + pad_h - effective_kernel_h, strides[0]) + 1;
+        out_width = @divTrunc(input_width + pad_w - effective_kernel_w, strides[1]) + 1;
+    }
+
+    output_shape[2] = out_height;
+    output_shape[3] = out_width;
+
+    return output_shape;
+}
+
+/// Lean version of onnx_maxpool that takes a pre-allocated output tensor
+pub fn lean_onnx_maxpool(
+    comptime T: type,
+    input: *Tensor(T),
+    output: *Tensor(T),
+    kernel_shape: []const usize,
+    strides: []const usize,
+    dilations: []const usize,
+    pads: []const usize,
+    auto_pad: AutoPadType,
+) !void {
+    const batch_size = input.shape[0];
+    const channels = input.shape[1];
+    const input_height = input.shape[2];
+    const input_width = input.shape[3];
+    const out_height = output.shape[2];
+    const out_width = output.shape[3];
+
+    // Calculate padding based on auto_pad mode
+    var pad_top: usize = 0;
+    var pad_left: usize = 0;
+    var pad_bottom: usize = 0;
+    var pad_right: usize = 0;
+
+    switch (auto_pad) {
+        .NOTSET => {
+            if (pads.len >= 4) {
+                pad_top = pads[0];
+                pad_left = pads[1];
+                pad_bottom = pads[2];
+                pad_right = pads[3];
+            }
+        },
+        .VALID => {},
+        .SAME_UPPER, .SAME_LOWER => {
+            const total_pad_height = (out_height - 1) * strides[0] + kernel_shape[0] - input_height;
+            const total_pad_width = (out_width - 1) * strides[1] + kernel_shape[1] - input_width;
+            if (auto_pad == .SAME_UPPER) {
+                pad_top = total_pad_height / 2;
+                pad_left = total_pad_width / 2;
+                pad_bottom = total_pad_height - pad_top;
+                pad_right = total_pad_width - pad_left;
+            } else {
+                pad_bottom = total_pad_height / 2;
+                pad_right = total_pad_width / 2;
+                pad_top = total_pad_height - pad_bottom;
+                pad_left = total_pad_width - pad_right;
+            }
+        },
+    }
+
+    // Process each batch and channel
+    var b: usize = 0;
+    while (b < batch_size) : (b += 1) {
+        var c: usize = 0;
+        while (c < channels) : (c += 1) {
+            const input_offset = b * channels * input_height * input_width + c * input_height * input_width;
+            const output_offset = b * channels * out_height * out_width + c * out_height * out_width;
+
+            // Process each output pixel
+            var oh: usize = 0;
+            while (oh < out_height) : (oh += 1) {
+                var ow: usize = 0;
+                while (ow < out_width) : (ow += 1) {
+                    // Calculate starting input position
+                    const ih_start = @as(isize, @intCast(oh * strides[0])) - @as(isize, @intCast(pad_top));
+                    const iw_start = @as(isize, @intCast(ow * strides[1])) - @as(isize, @intCast(pad_left));
+
+                    // Find maximum value in the window
+                    var max_val = -std.math.inf(T);
+                    var kh: usize = 0;
+                    while (kh < kernel_shape[0]) : (kh += 1) {
+                        var kw: usize = 0;
+                        while (kw < kernel_shape[1]) : (kw += 1) {
+                            const ih = ih_start + @as(isize, @intCast(kh * dilations[0]));
+                            const iw = iw_start + @as(isize, @intCast(kw * dilations[1]));
+                            if (ih >= 0 and ih < @as(isize, @intCast(input_height)) and
+                                iw >= 0 and iw < @as(isize, @intCast(input_width)))
+                            {
+                                const val = input.data[input_offset + @as(usize, @intCast(ih)) * input_width + @as(usize, @intCast(iw))];
+                                max_val = @max(max_val, val);
+                            }
+                        }
+                    }
+                    // Store result
+                    output.data[output_offset + oh * out_width + ow] = max_val;
+                }
+            }
+        }
+    }
+}
+// Modify the original onnx_maxpool to use the lean version
+//TODO: implement "ceil_mode" and "storage_order" https://onnx.ai/onnx/operators/onnx__MaxPool.html
+
+pub fn onnx_maxpool(
+    comptime T: type,
+    input: *Tensor(T),
+    kernel_shape: []const usize,
+    strides: []const usize,
+    dilations: []const usize,
+    pads: []const usize,
+    auto_pad: AutoPadType,
+    ceil_mode: bool,
+) !struct { output: Tensor(T), used_input: Tensor(u8) } {
+    // Calculate output shape
+    const output_shape = try get_onnx_maxpool_output_shape(
+        input.shape,
+        kernel_shape,
+        strides,
+        dilations,
+        pads,
+        auto_pad,
+        ceil_mode,
+    );
+    defer pkg_allocator.free(output_shape);
+
+    var output = try Tensor(T).fromShape(&pkg_allocator, output_shape);
+    errdefer output.deinit();
+
+    var used_input = try Tensor(u8).fromShape(&pkg_allocator, input.shape);
+    errdefer used_input.deinit();
+
+    try lean_onnx_maxpool(
+        T,
+        input,
+        &output,
+        kernel_shape,
+        strides,
+        dilations,
+        pads,
+        auto_pad,
+    );
+
+    return .{ .output = output, .used_input = used_input };
 }

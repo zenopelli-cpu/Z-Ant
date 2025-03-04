@@ -9,10 +9,13 @@
 //!    Flip: used to flip the kernel in some convolution operations.
 
 const std = @import("std");
-const Tensor = @import("tensor").Tensor; // Import Tensor type
-const pkg_allocator = @import("pkgAllocator").allocator;
-const TensorMathError = @import("errorHandler").TensorMathError;
-const TensorError = @import("errorHandler").TensorError;
+const zant = @import("../../../zant.zig");
+
+const Tensor = zant.core.tensor.Tensor;
+const TensorError = zant.utils.error_handler.TensorError;
+const TensorMathError = zant.utils.error_handler.TensorMathError;
+
+const pkg_allocator = zant.utils.allocator.allocator;
 
 /// Resize the input tensor using interpolation.
 /// Supports 'nearest', 'linear', and 'cubic' interpolation modes.
@@ -68,6 +71,7 @@ pub fn resize(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales
         .shape = output_shape,
         .size = total_size,
         .allocator = t.allocator,
+        .owns_memory = true,
     };
 }
 
@@ -284,6 +288,162 @@ fn cubic_weight(x: f32) f32 {
     return 0;
 }
 
+/// Performs the core concatenation operation without validation checks.
+/// This is a lean version of the concatenate function that assumes all inputs have been validated.
+///
+/// Parameters:
+///     allocator - The memory allocator to use for the new tensor.
+///     tensors - An array of tensors to concatenate.
+///     axis - The axis along which to concatenate.
+///     output - The pre-allocated output tensor to store the result.
+///
+/// Returns:
+///     void
+///
+/// Errors:
+///     - TensorError.IndexOutOfBounds
+///     - TensorError.MismatchedRank
+///     - TensorError.MismatchedShape
+pub fn lean_concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensors: []const Tensor(T), axis: isize, output: *Tensor(T)) !void {
+    if (tensors.len == 0) return TensorMathError.EmptyTensorList;
+
+    // Determine the rank (number of dimensions) from the first tensor
+    const rank = tensors[0].shape.len;
+
+    // Find the maximum rank among all tensors
+    var max_rank: usize = rank;
+    var need_reshape = false;
+
+    for (tensors) |tensor| {
+        if (tensor.shape.len != rank) {
+            need_reshape = true;
+            max_rank = @max(max_rank, tensor.shape.len);
+        }
+    }
+
+    // Create a working copy of the tensors that we might modify
+    var modified_tensors = try allocator.alloc(Tensor(T), tensors.len);
+    defer {
+        // Clean up any reshaped tensors we created
+        if (need_reshape) {
+            for (modified_tensors) |*tensor| {
+                if (tensor.owns_memory) {
+                    tensor.deinit();
+                }
+            }
+        }
+        allocator.free(modified_tensors);
+    }
+
+    // Initially, just copy the references
+    for (tensors, 0..) |tensor, i| {
+        modified_tensors[i] = tensor;
+    }
+
+    // Handle reshaping if needed
+    if (need_reshape) {
+        // Reshape tensors with lower rank to match the maximum rank
+        for (tensors, 0..) |tensor, i| {
+            if (tensor.shape.len < max_rank) {
+                // Create a new shape with added dimensions
+                var new_shape = try allocator.alloc(usize, max_rank);
+                defer allocator.free(new_shape);
+
+                // Fill with 1s first
+                @memset(new_shape, 1);
+
+                // Copy original dimensions
+                const offset = max_rank - tensor.shape.len;
+                for (tensor.shape, 0..) |dim, j| {
+                    new_shape[offset + j] = dim;
+                }
+
+                // Create a new tensor with the reshaped dimensions
+                var reshaped_tensor = try Tensor(T).init(allocator);
+                errdefer reshaped_tensor.deinit();
+                try reshaped_tensor.fill(tensor.data, new_shape);
+                reshaped_tensor.owns_memory = true;
+
+                // Replace the original tensor in our working copy
+                modified_tensors[i] = reshaped_tensor;
+            }
+        }
+    }
+
+    // Update working rank to the potentially new maximum rank
+    const working_rank = max_rank;
+
+    var concat_axis = axis;
+    if (concat_axis < 0) {
+        concat_axis += @as(isize, @intCast(working_rank));
+    }
+
+    if (concat_axis < 0 or concat_axis >= @as(isize, @intCast(working_rank))) {
+        return TensorError.AxisOutOfBounds;
+    }
+
+    const concat_axis_usize = @as(usize, @intCast(concat_axis));
+
+    // Validate that all tensors have matching shapes except along the concatenation axis
+    for (modified_tensors) |tensor| {
+        for (0..working_rank) |d| {
+            if (d != concat_axis_usize and tensor.shape[d] != modified_tensors[0].shape[d]) {
+                return TensorError.MismatchedShape;
+            }
+        }
+    }
+
+    // Calculate the number of slices based on the concatenation axis
+    var num_slices: usize = 1;
+    for (0..concat_axis_usize) |d| {
+        num_slices *= output.shape[d];
+    }
+
+    // Calculate the slice size (number of elements to copy per concatenation dimension)
+    var slice_size: usize = 1;
+    if (concat_axis_usize + 1 < working_rank) {
+        for ((concat_axis_usize + 1)..working_rank) |d| {
+            slice_size *= output.shape[d];
+        }
+    } else {
+        slice_size = 1;
+    }
+
+    // Initialize the offset for copying data into output
+    var offset: usize = 0;
+
+    // Iterate over each slice
+    for (0..num_slices) |slice_idx| {
+        for (modified_tensors) |tensor| {
+            const concat_dim = tensor.shape[concat_axis_usize];
+            const copy_size = concat_dim * slice_size;
+
+            // Calculate the start and end indices in the source tensor
+            const src_start = slice_idx * concat_dim * slice_size;
+            const src_end = src_start + copy_size;
+
+            // Check bounds for the source tensor's data
+            if (src_end > tensor.data.len) {
+                return TensorError.IndexOutOfBounds;
+            }
+
+            // Calculate the destination indices in output data
+            const dest_start = offset;
+            const dest_end = offset + copy_size;
+
+            // Check bounds for the output buffer
+            if (dest_end > output.data.len) {
+                return TensorError.IndexOutOfBounds;
+            }
+
+            @memcpy(output.data[dest_start..dest_end], tensor.data[src_start .. src_start + copy_size]);
+
+            // Update the offset for the next copy
+            offset += copy_size;
+        }
+    }
+}
+
 /// Concatenates a list of tensors into a single tensor along the specified axis.
 /// All input tensors must have the same shape, except for the size of the concatenation axis.
 ///
@@ -300,49 +460,87 @@ fn cubic_weight(x: f32) f32 {
 ///     - TensorError.AxisOutOfBounds
 ///     - TensorError.MismatchedRank
 ///     - TensorError.MismatchedShape
-pub fn concatenate(comptime T: type, allocator: *std.mem.Allocator, tensors: []Tensor(T), axis: isize) !Tensor(T) {
+pub fn concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensors: []const Tensor(T), axis: isize) !Tensor(T) {
     // Ensure there is at least one tensor to concatenate
     if (tensors.len == 0) return TensorMathError.EmptyTensorList;
 
     // Determine the rank (number of dimensions) from the first tensor
     const rank = tensors[0].shape.len;
 
-    var concat_axis = axis;
-    if (concat_axis < 0) {
-        concat_axis += @as(isize, @intCast(rank));
+    // Find the maximum rank among all tensors
+    var max_rank: usize = rank;
+    var need_reshape = false;
+
+    for (tensors) |tensor| {
+        if (tensor.shape.len != rank) {
+            need_reshape = true;
+            max_rank = @max(max_rank, tensor.shape.len);
+        }
     }
 
-    if (concat_axis < 0 or concat_axis >= @as(isize, @intCast(rank))) {
+    // Update working rank to the potentially new maximum rank
+    const working_rank = max_rank;
+
+    var concat_axis = axis;
+    if (concat_axis < 0) {
+        concat_axis += @as(isize, @intCast(working_rank));
+    }
+
+    if (concat_axis < 0 or concat_axis >= @as(isize, @intCast(working_rank))) {
         return TensorError.AxisOutOfBounds;
     }
 
     const concat_axis_usize = @as(usize, @intCast(concat_axis));
 
-    // Validate that all tensors have the same rank and matching shapes except along the concatenation axis
-    for (tensors) |tensor| {
-        if (tensor.shape.len != rank) {
-            return TensorError.MismatchedRank;
-        }
-        for (0..rank) |d| {
-            if (d != concat_axis_usize and tensor.shape[d] != tensors[0].shape[d]) {
-                return TensorError.MismatchedShape;
-            }
+    // Calculate the new shape after concatenation
+    var new_shape: []usize = undefined;
+    var output_data: []T = undefined;
+    var shape_allocated = false;
+    var data_allocated = false;
+
+    // Allocate the shape
+    new_shape = allocator.alloc(usize, working_rank) catch |err| {
+        return err;
+    };
+    shape_allocated = true;
+    errdefer {
+        if (shape_allocated) {
+            allocator.free(new_shape);
         }
     }
 
-    // Calculate the new shape after concatenation
-    var new_shape = try allocator.alloc(usize, rank);
-    for (0..rank) |d| {
-        if (d == concat_axis_usize) {
-            var sum: usize = 0;
-            for (tensors) |tensor| {
-                sum += tensor.shape[d];
-            }
-            new_shape[d] = sum;
-        } else {
+    // Initialize with the shape of the first tensor (potentially reshaped)
+    if (tensors[0].shape.len < working_rank) {
+        // Fill with 1s first
+        @memset(new_shape, 1);
+
+        // Copy original dimensions
+        const offset = working_rank - tensors[0].shape.len;
+        for (tensors[0].shape, 0..) |dim, j| {
+            new_shape[offset + j] = dim;
+        }
+    } else {
+        for (0..working_rank) |d| {
             new_shape[d] = tensors[0].shape[d];
         }
     }
+
+    // Calculate the sum along the concatenation axis
+    var sum: usize = 0;
+    for (tensors) |tensor| {
+        if (tensor.shape.len < working_rank) {
+            // For tensors with lower rank, we need to calculate the effective dimension
+            const offset = working_rank - tensor.shape.len;
+            if (concat_axis_usize >= offset) {
+                sum += tensor.shape[concat_axis_usize - offset];
+            } else {
+                sum += 1; // Implicit dimension size is 1
+            }
+        } else {
+            sum += tensor.shape[concat_axis_usize];
+        }
+    }
+    new_shape[concat_axis_usize] = sum;
 
     // Calculate the total number of elements in the new tensor
     var total_size: usize = 1;
@@ -350,70 +548,35 @@ pub fn concatenate(comptime T: type, allocator: *std.mem.Allocator, tensors: []T
         total_size *= dim;
     }
 
-    // Allocate memory for the new tensor's data
-    var new_data = try allocator.alloc(T, total_size);
-
-    // Calculate the number of slices based on the concatenation axis
-    var num_slices: usize = 1;
-    for (0..concat_axis_usize) |d| {
-        num_slices *= new_shape[d];
-    }
-
-    // Calculate the slice size (number of elements to copy per concatenation dimension)
-    var slice_size: usize = 1;
-    if (concat_axis_usize + 1 < rank) {
-        for ((concat_axis_usize + 1)..rank) |d| {
-            slice_size *= new_shape[d];
-        }
-    } else {
-        slice_size = 1;
-    }
-
-    // Initialize the offset for copying data into new_data
-    var offset: usize = 0;
-
-    // Iterate over each slice
-    for (0..num_slices) |slice_idx| {
-        for (tensors, 0..) |tensor, tensor_idx| {
-            const concat_dim = tensor.shape[concat_axis_usize];
-            const copy_size = concat_dim * slice_size;
-
-            std.debug.print("\n  Copying Tensor {}: slice_idx={} concat_dim={} slice_size={} copy_size={} to new_data[{}..{}]", .{ tensor_idx, slice_idx, concat_dim, slice_size, copy_size, offset, offset + copy_size });
-
-            // Calculate the start and end indices in the source tensor
-            const src_start = slice_idx * concat_dim * slice_size;
-            const src_end = src_start + copy_size;
-
-            // Check bounds for the source tensor's data
-            if (src_end > tensor.data.len) {
-                std.debug.print("\n  Out of bounds error for tensor idx:{} src_end:{} tensor.data.len:{}", .{ tensor_idx, src_end, tensor.data.len });
-                return TensorError.IndexOutOfBounds;
-            }
-
-            // Calculate the destination indices in new_data
-            const dest_start = offset;
-            const dest_end = offset + copy_size;
-
-            // Check bounds for the new_data buffer
-            if (dest_end > new_data.len) {
-                std.debug.print("\n  Out of bounds error for new_data dest_end:{} new_data.len:{}", .{ dest_end, new_data.len });
-                return TensorError.IndexOutOfBounds;
-            }
-
-            @memcpy(new_data[dest_start..dest_end], tensor.data[src_start..src_end]);
-
-            // Update the offset for the next copy
-            offset += copy_size;
+    // Allocate memory for the output tensor's data
+    output_data = allocator.alloc(T, total_size) catch |err| {
+        allocator.free(new_shape);
+        return err;
+    };
+    data_allocated = true;
+    errdefer {
+        if (data_allocated) {
+            allocator.free(output_data);
         }
     }
 
-    // Return the concatenated tensor
-    return Tensor(T){
-        .data = new_data,
+    // Create the output tensor
+    var output_tensor = Tensor(T){
+        .data = output_data,
         .size = total_size,
         .shape = new_shape,
         .allocator = allocator,
+        .owns_memory = true,
     };
+
+    // Use the lean version to perform the actual concatenation
+    lean_concatenate(T, allocator, tensors, axis, &output_tensor) catch |err| {
+        // Since output_tensor owns the memory, we don't need to manually free it
+        // The caller will handle the error and the memory will be properly freed
+        return err;
+    };
+
+    return output_tensor;
 }
 
 pub fn get_concatenate_output_shape(tensors: []const []const usize, axis: isize) ![]usize {
@@ -497,6 +660,7 @@ pub fn transpose2D(comptime T: type, t: *Tensor(T)) !Tensor(T) {
         .size = t.size,
         .shape = tensorShape,
         .allocator = allocator,
+        .owns_memory = true,
     };
 }
 
@@ -555,49 +719,85 @@ fn transpose(comptime T: type, t: *Tensor(T), perms: []usize) !Tensor(T) {
 
 /// Given a 4D tensor it returns the tensor with the last 2 dimensions transposed. Operates on both data and shape, does not modify self, used by gemm.
 pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T) {
+    //std.debug.print("\n[DEBUG] transposeLastTwo:", .{});
+    //std.debug.print("\n  Input tensor shape: ", .{});
+    //for (tensor.shape) |s| std.debug.print("{d} ", .{s});
 
-    // Veryfing correct shape
-    if (tensor.shape.len != 4) {
+    // Verifying correct shape
+    if (tensor.shape.len != 2 and tensor.shape.len != 4) {
+        //std.debug.print("\n  Error: Expected 2D or 4D tensor, got {d}D", .{tensor.shape.len});
         return TensorMathError.InputTensorsWrongShape;
     }
 
-    const batch = tensor.shape[0];
-    const channel = tensor.shape[1];
-    const rows = tensor.shape[2];
-    const cols = tensor.shape[3];
-    const total = batch * channel * rows * cols;
+    var rows: usize = undefined;
+    var cols: usize = undefined;
+    var total: usize = undefined;
+    var newShape: []usize = undefined;
 
-    // New shape
-    const newShape = try pkg_allocator.alloc(usize, 4);
-    errdefer pkg_allocator.free(newShape);
-    newShape[0] = batch;
-    newShape[1] = channel;
-    newShape[2] = cols;
-    newShape[3] = rows;
+    if (tensor.shape.len == 2) {
+        rows = tensor.shape[0];
+        cols = tensor.shape[1];
+        total = rows * cols;
+        newShape = try pkg_allocator.alloc(usize, 2);
+        errdefer pkg_allocator.free(newShape);
+        newShape[0] = cols;
+        newShape[1] = rows;
+    } else { // 4D case
+        const batch = tensor.shape[0];
+        const channel = tensor.shape[1];
+        rows = tensor.shape[2];
+        cols = tensor.shape[3];
+        total = batch * channel * rows * cols;
+        newShape = try pkg_allocator.alloc(usize, 4);
+        errdefer pkg_allocator.free(newShape);
+        newShape[0] = batch;
+        newShape[1] = channel;
+        newShape[2] = cols;
+        newShape[3] = rows;
+    }
 
-    // New data
-    const outData = try tensor.allocator.alloc(T, total);
-    errdefer tensor.allocator.free(outData);
+    //std.debug.print("\n  Rows: {d}, Cols: {d}, Total: {d}", .{ rows, cols, total });
+    //std.debug.print("\n  New shape: ", .{});
+    //for (newShape) |s| std.debug.print("{d} ", .{s});
 
-    // Traspose the elements within the matrix
-    for (0..batch) |b| {
-        for (0..channel) |c| {
-            for (0..rows) |i| {
-                for (0..cols) |j| {
-                    const index_in = (((b * channel) + c) * rows + i) * cols + j;
-                    const index_out = (((b * channel) + c) * cols + j) * rows + i;
-                    outData[index_out] = tensor.data[index_in];
+    // Create a non-const copy of the input data using pkg_allocator
+    const outData = try pkg_allocator.alloc(T, total);
+    errdefer pkg_allocator.free(outData);
+
+    //std.debug.print("\n  Transposing data...", .{});
+
+    if (tensor.shape.len == 2) {
+        // Simple 2D transpose - Fixed indexing
+        for (0..rows) |i| {
+            for (0..cols) |j| {
+                outData[j * rows + i] = tensor.data[i * cols + j];
+            }
+        }
+    } else {
+        // 4D transpose of last two dimensions
+        const batch = tensor.shape[0];
+        const channel = tensor.shape[1];
+        for (0..batch) |b| {
+            for (0..channel) |c| {
+                for (0..rows) |i| {
+                    for (0..cols) |j| {
+                        const index_in = (((b * channel) + c) * rows + i) * cols + j;
+                        const index_out = (((b * channel) + c) * cols + j) * rows + i;
+                        outData[index_out] = tensor.data[index_in];
+                    }
                 }
             }
         }
     }
 
-    // Build tensor and return
+    //std.debug.print("\n  Transpose complete", .{});
+
     return Tensor(T){
         .data = outData,
         .size = total,
         .shape = newShape,
-        .allocator = tensor.allocator,
+        .allocator = &pkg_allocator,
+        .owns_memory = true,
     };
 }
 
@@ -780,11 +980,12 @@ pub fn split(comptime T: anytype, t: *Tensor(T), axis: i64, split_sizes: ?[]cons
         }
 
         // Create the split tensor
-        output_tensors[i] = .{
+        output_tensors[i] = Tensor(T){
             .data = new_data,
             .size = total_size,
             .shape = new_shape,
             .allocator = t.allocator,
+            .owns_memory = true,
         };
 
         offset += split_size * stride;
@@ -850,32 +1051,161 @@ pub fn get_split_output_shapes(input_shape: []const usize, axis: i64, split_size
 /// Given and input tensor and the new shape, returns a new tensor with the same data of the input, in the same order, but a different shape.
 /// The lean version of this method follows the onnx standard.
 /// https://onnx.ai/onnx/operators/onnx__Reshape.html
-pub fn reshape(comptime T: anytype, input: *Tensor(T), newShape: []usize, allowZero: ?bool) !Tensor(T) {
-    //TODO: threat allowZero properly
-    var total_size: usize = 1;
-    for (newShape) |dim| {
-        total_size *= dim;
-    }
-    if (total_size != input.size) {
-        return TensorError.InputArrayWrongSize;
+/// At most one dimension of the new shape can be -1. In this case, the value is inferred from the size of the tensor and the remaining dimensions.
+/// A dimension could also be 0, in which case the actual dimension value is unchanged (i.e. taken from the input tensor).
+pub fn reshape_f32(comptime T: anytype, input: *Tensor(T), newShape: []f32, allowZero: ?bool) !Tensor(T) {
+    // Create output tensor with the same size as input but with new shape length
+    //std.debug.print("\n[RESHAPE] Input shape: {any}", .{input.shape});
+    var temp_shape = try pkg_allocator.alloc(usize, newShape.len);
+    defer pkg_allocator.free(temp_shape);
+
+    // Initialize first dimension with total size, rest with 1
+    temp_shape[0] = input.size;
+    for (1..newShape.len) |i| {
+        temp_shape[i] = 1;
     }
 
-    var output = try Tensor(T).fromShape(&pkg_allocator, newShape);
+    var output = try Tensor(T).fromShape(&pkg_allocator, temp_shape);
+    errdefer output.deinit();
 
+    // Let reshape_lean handle the actual reshaping logic
+    try reshape_lean_f32(T, input, newShape, allowZero, &output);
+
+    return output;
+}
+
+/// Given and input tensor and the new shape, returns a new tensor with the same data of the input, in the same order, but a different shape.
+/// This version accepts a slice of usize for the new shape.
+/// At most one dimension of the new shape can be -1. In this case, the value is inferred from the size of the tensor and the remaining dimensions.
+/// A dimension could also be 0, in which case the actual dimension value is unchanged (i.e. taken from the input tensor).
+pub fn reshape(comptime T: anytype, input: *Tensor(T), newShape: []const usize, allowZero: ?bool) !Tensor(T) {
+    // Create output tensor with the same size as input but with new shape length
+    var temp_shape = try pkg_allocator.alloc(usize, newShape.len);
+    defer pkg_allocator.free(temp_shape);
+
+    // Initialize first dimension with total size, rest with 1
+    temp_shape[0] = input.size;
+    for (1..newShape.len) |i| {
+        temp_shape[i] = 1;
+    }
+
+    var output = try Tensor(T).fromShape(&pkg_allocator, temp_shape);
+    errdefer output.deinit();
+
+    // Let reshape_lean handle the actual reshaping logic
     try reshape_lean(T, input, newShape, allowZero, &output);
 
     return output;
 }
 
-/// lean version of the above reshape
-pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []usize, allowZero: ?bool, output: *Tensor(T)) !void {
-    _ = allowZero; //TODO: threat allowZero properly
+/// lean version of the reshape function for f32 shape arrays
+pub fn reshape_lean_f32(comptime T: anytype, input: *Tensor(T), newShape: []f32, allowZero: ?bool, output: *Tensor(T)) !void {
+    _ = allowZero;
 
-    @memcpy(output.data, input.data);
+    // Create a copy of newShape that we can modify
+    var modified_shape = try pkg_allocator.alloc(usize, newShape.len);
+    defer pkg_allocator.free(modified_shape);
 
+    // Track if we have a -1 dimension and its position
+    var neg_one_index: ?usize = null;
+
+    // Calculate product of all non-negative and non-zero dimensions
+    var known_dims_product: usize = 1;
+
+    // First pass: identify -1 and 0 dimensions
     for (newShape, 0..) |dim, i| {
+        if (dim == 0) {
+            if (i >= input.shape.len) {
+                return TensorError.InvalidInput;
+            }
+            modified_shape[i] = input.shape[i];
+            known_dims_product *= input.shape[i];
+        } else if (dim < 0) {
+            if (neg_one_index != null) {
+                return TensorError.InvalidInput;
+            }
+            neg_one_index = i;
+            modified_shape[i] = 1; // Temporary value, will be updated later
+        } else {
+            modified_shape[i] = @as(usize, @intFromFloat(dim));
+            known_dims_product *= modified_shape[i];
+        }
+    }
+
+    try reshape_lean_common(T, input, modified_shape, neg_one_index, known_dims_product, output);
+}
+
+/// lean version of the reshape function for usize shape arrays
+pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []const usize, allowZero: ?bool, output: *Tensor(T)) !void {
+    _ = allowZero;
+
+    // Create a copy of newShape that we can modify
+    var modified_shape = try pkg_allocator.alloc(usize, newShape.len);
+    defer pkg_allocator.free(modified_shape);
+
+    // Track if we have a -1 dimension and its position
+    var neg_one_index: ?usize = null;
+
+    // Calculate product of all non-negative and non-zero dimensions
+    var known_dims_product: usize = 1;
+
+    // First pass: identify -1 and 0 dimensions
+    for (newShape, 0..) |dim, i| {
+        if (dim == 0) {
+            if (i >= input.shape.len) {
+                return TensorError.InvalidInput;
+            }
+            modified_shape[i] = input.shape[i];
+            known_dims_product *= input.shape[i];
+        } else if (dim == std.math.maxInt(usize)) { // Use maxInt as a sentinel for -1
+            if (neg_one_index != null) {
+                return TensorError.InvalidInput;
+            }
+            neg_one_index = i;
+            modified_shape[i] = 1; // Temporary value, will be updated later
+        } else {
+            modified_shape[i] = dim;
+            known_dims_product *= modified_shape[i];
+        }
+    }
+
+    try reshape_lean_common(T, input, modified_shape, neg_one_index, known_dims_product, output);
+}
+
+/// Common implementation for reshape_lean functions
+fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: []usize, neg_one_index: ?usize, known_dims_product: usize, output: *Tensor(T)) !void {
+    // If we have a -1 dimension, calculate its size
+    if (neg_one_index) |idx| {
+        if (known_dims_product == 0) {
+            return TensorError.InvalidInput;
+        }
+
+        if (input.size % known_dims_product != 0) {
+            return TensorError.InputArrayWrongSize;
+        }
+
+        modified_shape[idx] = input.size / known_dims_product;
+    }
+
+    // Calculate total size of modified shape
+    var total_size: usize = 1;
+    for (modified_shape) |dim| {
+        total_size *= dim;
+    }
+
+    // Verify sizes match
+    if (total_size != input.size) {
+        return TensorError.InputArrayWrongSize;
+    }
+
+    // Update output shape
+    for (modified_shape, 0..) |dim, i| {
         output.shape[i] = dim;
     }
+    output.size = total_size;
+
+    // Copy data from input to output
+    @memcpy(output.data, input.data);
 }
 
 /// Implements https://onnx.ai/onnx/operators/onnx__Gather.html
@@ -885,7 +1215,6 @@ pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []usize, a
 /// The shape of the output tensor is the same as the shape of the data tensor, with the axis dimension replaced with the shape of the indices tensor.
 /// The output tensor is created by copying elements from the input tensor using the indices tensor.
 pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), selected_axis: isize) !Tensor(T) {
-
     // Scalar data tensor is not allowed
     if (data.shape.len == 0) {
         return TensorError.InvalidRank;
@@ -900,8 +1229,7 @@ pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), se
     // If axis is negative, convert it to a positive index
     const axis: usize = @intCast(if (selected_axis < 0) number_dimensions + selected_axis else selected_axis);
 
-    // All index values must be within bounds [0, s-1] where s is the lenght of the chosen axis.
-    // See note above for details on indices bound values
+    // All index values must be within bounds [0, s-1] where s is the length of the chosen axis
     for (0..indices.size) |i| {
         if (indices.data[i] >= data.shape[axis] or indices.data[i] < 0) {
             return TensorError.IndexOutOfBounds;
@@ -910,27 +1238,35 @@ pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), se
 
     // Calculate the shape of the output tensor:
     // [data.shape[0..axis], indices.shape..., data.shape[axis+1..]]
-    const output_shape_len = data.shape.len - 1 + indices.shape.len;
-    const output_shape = try data.allocator.alloc(usize, output_shape_len);
-    defer data.allocator.free(output_shape);
+    const output_shape_len = data.shape.len + indices.shape.len - 1;
+    const output_shape = try pkg_allocator.alloc(usize, output_shape_len);
+    defer pkg_allocator.free(output_shape);
+    errdefer pkg_allocator.free(output_shape);
 
     // Copy the dimensions before the axis
     for (0..axis) |i| {
         output_shape[i] = data.shape[i];
     }
 
-    // Copy the indices tensor's shape
-    for (0..indices.shape.len) |i| {
-        output_shape[axis + i] = indices.shape[i];
+    // Copy indices shape
+    var indices_idx: usize = 0;
+    while (indices_idx < indices.shape.len) : (indices_idx += 1) {
+        output_shape[axis + indices_idx] = indices.shape[indices_idx];
     }
 
     // Copy the dimensions after the axis
-    for (0..(data.shape.len - axis - 1)) |i| {
-        output_shape[axis + indices.shape.len + i] = data.shape[axis + 1 + i];
+    for (axis + 1..data.shape.len) |i| {
+        output_shape[axis + indices.shape.len + (i - axis - 1)] = data.shape[i];
+    }
+
+    // Calculate total size
+    var total_size: usize = 1;
+    for (output_shape) |dim| {
+        total_size *= dim;
     }
 
     // Create output tensor
-    var output = try Tensor(T).fromShape(data.allocator, output_shape);
+    var output = try Tensor(T).fromShape(&pkg_allocator, output_shape);
     errdefer output.deinit();
 
     try lean_gather(T, data, indices, selected_axis, &output);
@@ -941,6 +1277,11 @@ pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), se
 /// Lean version of gather
 /// NOTE: (IMPORTANT FOR CODE GEN) according to onnx standard, values in indices tensor can be negative and if so they are converted to positive values by adding the size of the axis pointed dimension of the data tensor. For performance and code clarity reasons (check + double casting) we support only positive indices instead, remove this note and edit "discrepancies from the standard onnx" if this is changed in the future.
 pub fn lean_gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), selected_axis: isize, output: *Tensor(T)) !void {
+    //std.debug.print("\n[GATHER] Input shape: {any}", .{data.shape});
+    //std.debug.print("\n[GATHER] Input data: {any}", .{data.data});
+    //std.debug.print("\n[GATHER] Indices shape: {any}", .{indices.shape});
+    //std.debug.print("\n[GATHER] Indices data: {any}", .{indices.data});
+    //std.debug.print("\n[GATHER] Selected axis: {d}", .{selected_axis});
 
     //If axis is negative, convert it to a positive index
     const number_dimensions: isize = @intCast(data.shape.len);
@@ -954,9 +1295,10 @@ pub fn lean_gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize
 
     var inner_size: usize = 1;
     for ((axis + 1)..data.shape.len) |i| {
-        std.debug.print("\ninner_size = {d}\ndata.shape[{d}] = {d}", .{ inner_size, i, data.shape[i] });
         inner_size *= data.shape[i];
     }
+
+    //std.debug.print("[GATHER DEBUG] Outer size: {d}, Inner size: {d}, Indices size: {d}\n", .{ outer_size, inner_size, indices_size });
 
     // Iterate over each "outer" segment
     for (0..outer_size) |outer_idx| {
@@ -971,18 +1313,36 @@ pub fn lean_gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize
             // Calculate the starting offset in the output tensor
             const output_offset = (outer_idx * indices_size + idx) * inner_size;
 
-            // Debug Prints (optional, can be commented out after debugging)
-            // std.debug.print("Outer Index: {}, Gather Index: {}, Data Offset: {}, Output Offset: {}\n", .{ outer_idx, gather_idx, data_offset, output_offset });
-            // std.debug.print("Copying from input data[{}] = {}\n", .{ data_offset, data.data[data_offset] });
+            //std.debug.print("[GATHER DEBUG] Outer idx: {d}, Gather idx: {d}, Data offset: {d}, Output offset: {d}\n", .{ outer_idx, gather_idx, data_offset, output_offset });
 
             // Perform the data copy using std.mem.copy
             @memcpy(output.data[output_offset .. output_offset + inner_size], data.data[data_offset .. data_offset + inner_size]);
 
-            // std.debug.print("Copied to output data[{}] = {}\n", .{ output_offset, output_data[output_offset] });
+            //std.debug.print("[GATHER DEBUG] Copied data: ", .{});
+            //for (data.data[data_offset .. data_offset + inner_size]) |val| {
+            //std.debug.print("{d} ", .{val});
+            // }
+            //std.debug.print("\n", .{});
         }
     }
+    //std.debug.print("\n[GATHER] Output shape: {any}", .{output.shape});
+    //std.debug.print("\n[GATHER] Output data: {any}\n", .{output.data});
 }
 
+/// Implements the ONNX slice operator (https://onnx.ai/onnx/operators/onnx__Slice.html)
+/// Takes a tensor and extracts a slice along multiple axes.
+/// starts: Starting indices for each axis
+/// ends: Ending indices for each axis (exclusive)
+/// axes: Which axes to slice (if null, assumes [0,1,2,...])
+/// steps: Step sizes for each axis (if null, assumes all 1s)
+pub fn slice_onnx(comptime T: type, input: *Tensor(T), starts: []const i64, ends: []const i64, axes: ?[]const i64, steps: ?[]const i64) !Tensor(T) {
+    // Create output tensor
+    var output = try Tensor(T).fromShape(&pkg_allocator, input.shape);
+    errdefer output.deinit();
+
+    try lean_slice_onnx(T, input, starts, ends, axes, steps, &output);
+    return output;
+}
 /// Implements https://onnx.ai/onnx/operators/onnx__Unsqueeze.html
 /// Insert single-dimensional entries into the shape of the data tensor.
 pub fn unsqueeze(comptime T: type, data: *Tensor(T), axes: *Tensor(i64)) !Tensor(T) {
@@ -1014,8 +1374,565 @@ pub fn unsqueeze(comptime T: type, data: *Tensor(T), axes: *Tensor(i64)) !Tensor
     return output;
 }
 
+/// Lean version of slice_onnx that operates on an existing output tensor
+pub fn lean_slice_onnx(comptime T: type, input: *Tensor(T), starts: []const i64, ends: []const i64, axes: ?[]const i64, steps: ?[]const i64, output: *Tensor(T)) !void {
+    // Validate input lengths
+    if (starts.len != ends.len) return TensorError.InvalidSliceIndices;
+    if (axes) |a| {
+        if (a.len != starts.len) return TensorError.InvalidSliceIndices;
+    }
+    if (steps) |s| {
+        if (s.len != starts.len) return TensorError.InvalidSliceIndices;
+    }
+
+    // Create arrays to store the actual indices and steps for each dimension
+    var actual_starts = try pkg_allocator.alloc(i64, input.shape.len);
+    defer pkg_allocator.free(actual_starts);
+    var actual_ends = try pkg_allocator.alloc(i64, input.shape.len);
+    defer pkg_allocator.free(actual_ends);
+    var actual_steps = try pkg_allocator.alloc(i64, input.shape.len);
+    defer pkg_allocator.free(actual_steps);
+
+    // Initialize with defaults (full range, step 1)
+    for (0..input.shape.len) |i| {
+        actual_starts[i] = 0;
+        actual_ends[i] = @intCast(input.shape[i]);
+        actual_steps[i] = 1;
+    }
+
+    // Update with provided values
+    for (starts, 0..) |start, i| {
+        const axis = if (axes) |a| a[i] else @as(i64, @intCast(i));
+        const axis_usize = if (axis < 0) @as(usize, @intCast(axis + @as(i64, @intCast(input.shape.len)))) else @as(usize, @intCast(axis));
+        if (axis_usize >= input.shape.len) return TensorError.InvalidSliceIndices;
+
+        const dim_size = @as(i64, @intCast(input.shape[axis_usize]));
+
+        // Handle negative indices and clamp to valid range
+        var actual_start = if (start < 0) start + dim_size else start;
+        actual_start = @max(0, @min(actual_start, dim_size));
+        actual_starts[axis_usize] = actual_start;
+
+        var actual_end = if (ends[i] < 0) ends[i] + dim_size else ends[i];
+        if (steps) |s| {
+            if (s[i] < 0) {
+                // For negative steps, if end is negative, we want to include 0
+                actual_end = if (ends[i] < 0) -1 else actual_end;
+            } else {
+                actual_end = @max(0, @min(actual_end, dim_size));
+            }
+        } else {
+            actual_end = @max(0, @min(actual_end, dim_size));
+        }
+        actual_ends[axis_usize] = actual_end;
+
+        if (steps) |s| {
+            if (s[i] == 0) return TensorError.InvalidSliceStep;
+            actual_steps[axis_usize] = s[i];
+        }
+    }
+
+    // Calculate output shape
+    var total_elements: usize = 1;
+    for (0..input.shape.len) |i| {
+        const start = actual_starts[i];
+        const end = actual_ends[i];
+        const step = actual_steps[i];
+
+        var dim_size: usize = 0;
+        if (step > 0) {
+            if (end > start) {
+                dim_size = @intCast(@divTrunc((@as(i64, @intCast(end - start)) + step - 1), step));
+            }
+        } else {
+            if (start > end) {
+                // For negative steps, we need to handle the range differently
+                // Add 1 to end because end is exclusive
+                const range = start - (end + 1);
+                const abs_step = -step;
+                dim_size = @intCast(@divTrunc(range + abs_step - 1, abs_step));
+            }
+        }
+        output.shape[i] = dim_size;
+        total_elements *= dim_size;
+    }
+
+    // Resize output data if needed
+    if (output.data.len != total_elements) {
+        if (output.data.len > 0) pkg_allocator.free(output.data);
+        output.data = try pkg_allocator.alloc(T, total_elements);
+    }
+    output.size = total_elements;
+
+    // Helper function to convert flat index to coordinates
+    var input_coords = try pkg_allocator.alloc(usize, input.shape.len);
+    defer pkg_allocator.free(input_coords);
+    var output_coords = try pkg_allocator.alloc(usize, input.shape.len);
+    defer pkg_allocator.free(output_coords);
+
+    // Copy data
+    var output_idx: usize = 0;
+    while (output_idx < total_elements) : (output_idx += 1) {
+        // Convert output_idx to coordinates
+        var temp = output_idx;
+        for (0..input.shape.len) |i| {
+            const dim_i = input.shape.len - 1 - i;
+            output_coords[dim_i] = temp % output.shape[dim_i];
+            temp /= output.shape[dim_i];
+        }
+
+        // Calculate input coordinates
+        for (0..input.shape.len) |i| {
+            const coord = @as(i64, @intCast(output_coords[i]));
+            input_coords[i] = @intCast(actual_starts[i] + coord * actual_steps[i]);
+        }
+
+        // Get input value
+        const input_idx = try input.flatten_index(input_coords);
+        output.data[output_idx] = input.data[input_idx];
+    }
+}
+
+/// Calculate the output shape of a slice operation without performing the slice
+pub fn get_slice_output_shape(input_shape: []const usize, starts: []const i64, ends: []const i64, axes: ?[]const i64, steps: ?[]const i64) ![]usize {
+    std.debug.print("\n[DEBUG] get_slice_output_shape input:", .{});
+    std.debug.print("\n  input_shape: {any}", .{input_shape});
+    std.debug.print("\n  starts: {any}", .{starts});
+    std.debug.print("\n  ends: {any}", .{ends});
+    std.debug.print("\n  axes: {any}", .{axes});
+    std.debug.print("\n  steps: {any}", .{steps});
+
+    // Validate input lengths
+    if (starts.len != ends.len) return TensorError.InvalidSliceIndices;
+    if (axes) |a| {
+        if (a.len != starts.len) return TensorError.InvalidSliceIndices;
+    }
+    if (steps) |s| {
+        if (s.len != starts.len) return TensorError.InvalidSliceIndices;
+    }
+
+    // Create arrays to store the actual indices and steps for each dimension
+    var actual_starts = try pkg_allocator.alloc(i64, input_shape.len);
+    defer pkg_allocator.free(actual_starts);
+    var actual_ends = try pkg_allocator.alloc(i64, input_shape.len);
+    defer pkg_allocator.free(actual_ends);
+    var actual_steps = try pkg_allocator.alloc(i64, input_shape.len);
+    defer pkg_allocator.free(actual_steps);
+
+    // Initialize with defaults (full range, step 1)
+    for (0..input_shape.len) |i| {
+        actual_starts[i] = 0;
+        actual_ends[i] = @intCast(input_shape[i]);
+        actual_steps[i] = 1;
+    }
+
+    std.debug.print("\n[DEBUG] Initial values:", .{});
+    std.debug.print("\n  actual_starts: {any}", .{actual_starts});
+    std.debug.print("\n  actual_ends: {any}", .{actual_ends});
+    std.debug.print("\n  actual_steps: {any}", .{actual_steps});
+
+    // Update with provided values
+    for (starts, 0..) |start, i| {
+        const axis = if (axes) |a| a[i] else @as(i64, @intCast(i));
+        const axis_usize = if (axis < 0) @as(usize, @intCast(axis + @as(i64, @intCast(input_shape.len)))) else @as(usize, @intCast(axis));
+        if (axis_usize >= input_shape.len) return TensorError.InvalidSliceIndices;
+
+        const dim_size = @as(i64, @intCast(input_shape[axis_usize]));
+
+        // Handle negative indices and clamp to valid range
+        var actual_start = if (start < 0) start + dim_size else start;
+        actual_start = @max(0, @min(actual_start, dim_size));
+        actual_starts[axis_usize] = actual_start;
+
+        var actual_end = if (ends[i] < 0) ends[i] + dim_size else ends[i];
+        if (steps) |s| {
+            if (s[i] < 0) {
+                // For negative steps, if end is negative, we want to include 0
+                actual_end = if (ends[i] < 0) -1 else actual_end;
+            } else {
+                actual_end = @max(0, @min(actual_end, dim_size));
+            }
+        } else {
+            actual_end = @max(0, @min(actual_end, dim_size));
+        }
+        actual_ends[axis_usize] = actual_end;
+
+        if (steps) |s| {
+            if (s[i] == 0) return TensorError.InvalidSliceStep;
+            actual_steps[axis_usize] = s[i];
+        }
+
+        std.debug.print("\n[DEBUG] After processing axis {d}:", .{axis});
+        std.debug.print("\n  dim_size: {d}", .{dim_size});
+        std.debug.print("\n  actual_start: {d}", .{actual_start});
+        std.debug.print("\n  actual_end: {d}", .{actual_end});
+        std.debug.print("\n  actual_step: {d}", .{actual_steps[axis_usize]});
+    }
+
+    std.debug.print("\n[DEBUG] Final values before shape calculation:", .{});
+    std.debug.print("\n  actual_starts: {any}", .{actual_starts});
+    std.debug.print("\n  actual_ends: {any}", .{actual_ends});
+    std.debug.print("\n  actual_steps: {any}", .{actual_steps});
+
+    // Calculate output shape
+    // Calculate output shape
+    var output_shape = try pkg_allocator.alloc(usize, input_shape.len);
+    errdefer pkg_allocator.free(output_shape);
+
+    for (0..input_shape.len) |i| {
+        const start = actual_starts[i];
+        const end = actual_ends[i];
+        const step = actual_steps[i];
+
+        var dim_size: usize = 0;
+        if (step > 0) {
+            if (end > start) {
+                dim_size = @intCast(@divTrunc((@as(i64, @intCast(end - start)) + step - 1), step));
+                std.debug.print("\n[DEBUG] Positive step calculation for dim {d}:", .{i});
+                std.debug.print("\n  end ({d}) - start ({d}) = {d}", .{ end, start, end - start });
+                std.debug.print("\n  (end-start) + step({d}) - 1 = {d}", .{ step, (end - start) + step - 1 });
+                std.debug.print("\n  final dim_size = {d}", .{dim_size});
+            }
+        } else {
+            if (start > end) {
+                // For negative steps, treat end as inclusive.
+                const range = start - end;
+                dim_size = @intCast((@divTrunc(range, -step)) + 1);
+                std.debug.print("\n[DEBUG] Negative step calculation for dim {d}:", .{i});
+                std.debug.print("\n  start ({d}) - end ({d}) = range ({d})", .{ start, end, range });
+                std.debug.print("\n  (range) / abs(step) + 1 = {d}", .{dim_size});
+            }
+        }
+        output_shape[i] = dim_size;
+    }
+
+    std.debug.print("\n[DEBUG] Final output_shape: {any}\n", .{output_shape});
+    return output_shape;
+}
+
+/// Implements the ONNX transpose operator (version 21)
+/// Transposes the input tensor similar to numpy.transpose.
+/// If perm is not provided, reverses the dimensions.
+/// If perm is provided, permutes the axes according to the values given.
+pub fn transpose_onnx(comptime T: type, input: *Tensor(T), perm: ?[]const usize) !Tensor(T) {
+    var output = try Tensor(T).fromShape(&pkg_allocator, input.shape);
+    errdefer output.deinit();
+
+    try transpose_onnx_lean(T, input, perm, &output);
+
+    return output;
+}
+
+/// Lean version of transpose_onnx that operates on an existing output tensor
+//TODO SHAPETRACKER we'll gonna love you
+pub fn transpose_onnx_lean(
+    comptime T: type,
+    input: *Tensor(T),
+    perm: ?[]const usize,
+    output: *Tensor(T),
+) !void {
+    // Validate rank
+    const rank = input.shape.len;
+    if (output.shape.len != rank) {
+        return error.InvalidRank; // or however you handle shape mismatch
+    }
+
+    // -----------------------------
+    // 1) Build the actual perm array
+    // -----------------------------
+    var real_perm = try pkg_allocator.alloc(usize, rank);
+    defer pkg_allocator.free(real_perm);
+
+    if (perm) |p| {
+        // Validate length
+        if (p.len != rank) return error.InvalidPermutation;
+
+        // Validate that p is a valid permutation of [0..rank)
+        var used = try pkg_allocator.alloc(bool, rank);
+        defer pkg_allocator.free(used);
+        @memset(used, false);
+
+        for (p) |idx| {
+            if (idx >= rank) return error.InvalidPermutation;
+            if (used[idx]) return error.InvalidPermutation;
+            used[idx] = true;
+        }
+        // Copy into real_perm
+        for (0..rank) |i| {
+            real_perm[i] = p[i];
+        }
+    } else {
+        // If no perm given, ONNX says reverse the dimension order
+        for (0..rank) |i| {
+            real_perm[i] = rank - 1 - i;
+        }
+    }
+
+    // -----------------------------
+    // 2) Compute input strides
+    // -----------------------------
+    var input_strides = try pkg_allocator.alloc(usize, rank);
+    defer pkg_allocator.free(input_strides);
+
+    var stride: usize = 1;
+    var i: usize = rank;
+    while (i > 0) {
+        i -= 1;
+        input_strides[i] = stride;
+        stride *= input.shape[i];
+    }
+
+    // -----------------------------
+    // 3) Compute the output shape
+    //    and output strides (row-major)
+    // -----------------------------
+    var output_shape = try pkg_allocator.alloc(usize, rank);
+    defer pkg_allocator.free(output_shape);
+
+    // shape comes from perm
+    for (0..rank) |j| {
+        output_shape[j] = input.shape[real_perm[j]];
+    }
+
+    var output_strides = try pkg_allocator.alloc(usize, rank);
+    defer pkg_allocator.free(output_strides);
+
+    stride = 1;
+    i = rank;
+    while (i > 0) {
+        i -= 1;
+        output_strides[i] = stride;
+        stride *= output_shape[i];
+    }
+
+    // -----------------------------
+    // 4) Allocate output data if needed
+    // -----------------------------
+    const total_size = stride; // product of all dims
+    if (output.data.len != total_size) {
+        // free old data if needed
+        if (output.data.len > 0) pkg_allocator.free(output.data);
+        output.data = try pkg_allocator.alloc(T, total_size);
+    }
+    output.size = total_size;
+
+    // Copy shape into output
+    @memcpy(output.shape, output_shape);
+
+    // -----------------------------
+    // 5) Fill output by iterating over all output coords
+    // -----------------------------
+    // We'll do a simple nested‐index iteration by flattening the output coordinate.
+    // Then we un‐flatten to get [o0, o1, ..., o_{rank-1}].
+    const out_data = output.data;
+    const in_data = input.data;
+
+    for (0..total_size) |flat_out_idx| {
+        // Convert flat_out_idx -> array of indices in [o0, o1, ...]
+        var tmp = flat_out_idx;
+        var out_coord = try pkg_allocator.alloc(usize, rank);
+        defer pkg_allocator.free(out_coord);
+
+        // Unflatten in row-major order
+        for (0..rank) |d| {
+            out_coord[d] = tmp / output_strides[d];
+            tmp %= output_strides[d];
+        }
+
+        // Now map output coords back to input coords via perm
+        var in_idx: usize = 0;
+        for (0..rank) |d| {
+            const input_dim_index = real_perm[d]; // which input dimension
+            in_idx += out_coord[d] * input_strides[input_dim_index];
+        }
+
+        // Do the copy
+        out_data[flat_out_idx] = in_data[in_idx];
+    }
+}
+
+/// Calculate the output shape for an ONNX transpose operation without performing the transpose
+pub fn get_transpose_output_shape(input_shape: []const usize, perm: ?[]const usize) ![]usize {
+    const rank = input_shape.len;
+
+    // Validate perm if provided
+    if (perm) |p| {
+        if (p.len != rank) return error.InvalidPermutation;
+
+        // Validate that p is a valid permutation of [0..rank)
+        var used = try pkg_allocator.alloc(bool, rank);
+        defer pkg_allocator.free(used);
+        @memset(used, false);
+
+        for (p) |idx| {
+            if (idx >= rank) return error.InvalidPermutation;
+            if (used[idx]) return error.InvalidPermutation;
+            used[idx] = true;
+        }
+    }
+
+    // Allocate output shape array
+    var output_shape = try pkg_allocator.alloc(usize, rank);
+    errdefer pkg_allocator.free(output_shape);
+
+    // Fill output shape based on permutation
+    if (perm) |p| {
+        for (0..rank) |i| {
+            output_shape[i] = input_shape[p[i]];
+        }
+    } else {
+        // If no perm given, reverse the dimension order
+        for (0..rank) |i| {
+            output_shape[i] = input_shape[rank - 1 - i];
+        }
+    }
+
+    return output_shape;
+}
+
+pub fn get_gather_output_shape(input_shape: []const usize, indices_shape: []const usize, selected_axis: isize) ![]usize {
+    // Scalar data tensor is not allowed
+    if (input_shape.len == 0) {
+        return TensorError.InvalidRank;
+    }
+
+    // Validate that the axis is within the tensor's dimensions
+    const number_dimensions: isize = @intCast(input_shape.len);
+    if (selected_axis >= number_dimensions or selected_axis < -1 * number_dimensions) {
+        return TensorError.InvalidAxis;
+    }
+
+    // If axis is negative, convert it to a positive index
+    const axis: usize = @intCast(if (selected_axis < 0) number_dimensions + selected_axis else selected_axis);
+
+    // Calculate the shape of the output tensor:
+    // [input_shape[0..axis], indices_shape..., input_shape[axis+1..]]
+    const output_shape_len = input_shape.len + indices_shape.len - 1;
+    const output_shape = try pkg_allocator.alloc(usize, output_shape_len);
+    errdefer pkg_allocator.free(output_shape);
+
+    // Copy the dimensions before the axis
+    for (0..axis) |i| {
+        output_shape[i] = input_shape[i];
+    }
+
+    // Copy indices shape
+    var indices_idx: usize = 0;
+    while (indices_idx < indices_shape.len) : (indices_idx += 1) {
+        output_shape[axis + indices_idx] = indices_shape[indices_idx];
+    }
+
+    // Copy the dimensions after the axis
+    for (axis + 1..input_shape.len) |i| {
+        output_shape[axis + indices_shape.len + (i - axis - 1)] = input_shape[i];
+    }
+
+    return output_shape;
+}
+
+/// Implements the ONNX Shape operator (https://onnx.ai/onnx/operators/onnx__Shape.html)
+/// Takes a tensor as input and outputs a 1D int64 tensor containing the shape of the input tensor.
+/// Optional start and end parameters can be used to compute a slice of the input tensor's shape.
+pub fn shape_onnx(comptime T: type, input: *const Tensor(T), start: ?i64, end: ?i64) !Tensor(i64) {
+    const rank = input.shape.len;
+
+    // Handle start parameter
+    var start_axis: i64 = start orelse 0;
+    if (start_axis < 0) start_axis += @as(i64, @intCast(rank));
+    start_axis = @max(0, @min(start_axis, @as(i64, @intCast(rank - 1))));
+
+    // Handle end parameter
+    var end_axis: i64 = end orelse @as(i64, @intCast(rank));
+    if (end_axis < 0) end_axis += @as(i64, @intCast(rank));
+    end_axis = @max(start_axis, @min(end_axis, @as(i64, @intCast(rank))));
+
+    // Calculate output size and create output tensor
+    const output_size = @max(0, end_axis - start_axis);
+    var shape = [_]usize{@intCast(output_size)};
+    const initial_data = try pkg_allocator.alloc(i64, output_size);
+    defer pkg_allocator.free(initial_data);
+    @memset(initial_data, 0);
+    var output = try Tensor(i64).fromArray(&pkg_allocator, initial_data, shape[0..]);
+    errdefer output.deinit();
+
+    // Copy shape values to output tensor
+    var i: usize = 0;
+    while (i < output_size) : (i += 1) {
+        const idx = @as(usize, @intCast(start_axis)) + i;
+        output.data[i] = @intCast(input.shape[idx]);
+    }
+
+    return output;
+}
+
+/// Lean version of shape_onnx that operates on an existing output tensor
+pub fn lean_shape_onnx(comptime InputT: type, comptime OutputT: type, input: *const Tensor(InputT), start: ?i64, end: ?i64, output: *Tensor(OutputT)) !void {
+    const rank = input.shape.len;
+
+    // Handle start parameter
+    var start_axis: i64 = start orelse 0;
+    if (start_axis < 0) start_axis += @as(i64, @intCast(rank));
+    start_axis = @max(0, @min(start_axis, @as(i64, @intCast(rank - 1))));
+
+    // Handle end parameter
+    var end_axis: i64 = end orelse @as(i64, @intCast(rank));
+    if (end_axis < 0) end_axis += @as(i64, @intCast(rank));
+    end_axis = @max(start_axis, @min(end_axis, @as(i64, @intCast(rank))));
+
+    // Calculate output size and validate output tensor shape
+    const output_size = @max(0, end_axis - start_axis);
+    if (output.shape.len != 1 or output.shape[0] != output_size) {
+        return TensorError.ShapeMismatch;
+    }
+
+    // Copy shape values to output tensor
+    var i: usize = 0;
+    while (i < output_size) : (i += 1) {
+        const idx = @as(usize, @intCast(start_axis)) + i;
+        switch (OutputT) {
+            f16 => output.data[1] = @floatFromInt(input.shape[idx]),
+            f32 => output.data[i] = @floatFromInt(input.shape[idx]),
+            f64 => output.data[i] = @floatFromInt(input.shape[idx]),
+            i32, i64, u32, u64 => output.data[i] = @intCast(input.shape[idx]),
+            else => @compileError("Unsupported output type for shape_onnx"),
+        }
+    }
+}
+
+/// Calculate the output shape for an ONNX Shape operation without performing the operation
+pub fn get_shape_output_shape(input_shape: []const usize, start: ?i64, end: ?i64) ![]usize {
+    const rank = input_shape.len;
+
+    // Alloca l'output_shape (sempre un tensore 1D)
+    var output_shape = try pkg_allocator.alloc(usize, 1);
+    errdefer pkg_allocator.free(output_shape);
+
+    // Caso speciale per rank 0 (tensore scalare)
+    if (rank == 0) {
+        output_shape[0] = 0; // Nessuna dimensione da rappresentare
+        return output_shape;
+    }
+
+    // Gestione del parametro start
+    var start_axis: i64 = start orelse 0;
+    if (start_axis < 0) start_axis += @as(i64, @intCast(rank));
+    start_axis = @max(0, @min(start_axis, @as(i64, @intCast(rank))));
+
+    // Gestione del parametro end
+    var end_axis: i64 = end orelse @as(i64, @intCast(rank));
+    if (end_axis < 0) end_axis += @as(i64, @intCast(rank));
+    end_axis = @max(start_axis, @min(end_axis, @as(i64, @intCast(rank))));
+
+    // Calcolo della dimensione dell'output
+    const output_size = @max(0, end_axis - start_axis);
+    output_shape[0] = @intCast(output_size);
+
+    return output_shape;
+}
 /// Lean version of unsqueeze, note that previous information stored in output tensor is lost
 pub fn unsqueeze_lean(comptime T: type, data: *Tensor(T), axes: *Tensor(i64), output: *Tensor(T)) !void {
+    //std.debug.print("\n[UNSQUEEZE] Input shape: {any}", .{data.shape});
+    //std.debug.print("\n[UNSQUEEZE] Axes: {any}", .{axes.data});
 
     // Output rank
     const out_rank = data.shape.len + axes.size;
@@ -1059,4 +1976,60 @@ pub fn unsqueeze_lean(comptime T: type, data: *Tensor(T), axes: *Tensor(i64), ou
 
     // Modify output tensor
     try output.fill(data.data, new_shape);
+    //std.debug.print("\n[UNSQUEEZE] Output shape: {any}\n", .{new_shape});
+}
+
+/// Calculate the output shape for an ONNX Unsqueeze operation without performing the operation
+pub fn get_unsqueeze_output_shape(input_shape: []const usize, axes: []const i64) ![]usize {
+    // Output rank
+    const out_rank = input_shape.len + axes.len;
+
+    // Convert negative axes to positive
+    var actual_axes = try pkg_allocator.alloc(usize, axes.len);
+    defer pkg_allocator.free(actual_axes);
+
+    for (axes, 0..) |axis, i| {
+        var conv: i64 = axis;
+        if (conv < 0) {
+            conv += @intCast(out_rank);
+        }
+        if (conv < 0 or conv >= out_rank) {
+            return TensorError.AxisOutOfBounds;
+        }
+        const new_axis: usize = @intCast(conv);
+
+        // Check for duplicates
+        for (0..i) |j| {
+            if (actual_axes[j] == new_axis) {
+                return TensorError.DuplicateAxis;
+            }
+        }
+        actual_axes[i] = new_axis;
+    }
+
+    // Create output shape array
+    var output_shape = try pkg_allocator.alloc(usize, out_rank);
+    errdefer pkg_allocator.free(output_shape);
+
+    // Create and initialize support array to track unsqueezed dimensions
+    var is_unsqueezed = try pkg_allocator.alloc(bool, out_rank);
+    defer pkg_allocator.free(is_unsqueezed);
+    @memset(is_unsqueezed, false);
+
+    // Mark unsqueezed dimensions and set them to 1
+    for (actual_axes) |axis| {
+        output_shape[axis] = 1;
+        is_unsqueezed[axis] = true;
+    }
+
+    // Fill remaining dimensions with input shape values
+    var input_idx: usize = 0;
+    for (0..out_rank) |i| {
+        if (!is_unsqueezed[i]) {
+            output_shape[i] = input_shape[input_idx];
+            input_idx += 1;
+        }
+    }
+
+    return output_shape;
 }
