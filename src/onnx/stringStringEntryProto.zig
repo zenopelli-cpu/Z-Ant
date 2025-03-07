@@ -14,7 +14,7 @@ pub const StringStringEntryProto = struct {
     key: ?[]const u8,
     value: ?[]const u8,
 
-    pub fn deint(self: *StringStringEntryProto, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *StringStringEntryProto, allocator: std.mem.Allocator) void {
         if (self.key) |key| allocator.free(key);
         if (self.value) |value| allocator.free(value);
     }
@@ -27,7 +27,7 @@ pub const StringStringEntryProto = struct {
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
-            switch (tag) {
+            switch (tag.field_number) {
                 1 => {
                     ssep.key = try reader.readString(reader.allocator);
                 },
@@ -49,7 +49,7 @@ pub const StringStringEntryProto = struct {
             return;
         };
 
-        std.debug.print("{s}------------- StringStringEntryProto: key:{s}, value:{s} \n", .{
+        std.debug.print("{s}StringStringEntryProto: key:{s}, value:{s} \n", .{
             space,
             if (self.key) |k| k else "(none)",
             if (self.value) |v| v else "(none)",
