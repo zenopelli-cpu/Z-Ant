@@ -16,13 +16,13 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 6 : TODO g, optional GraphProto (graph)
 //  - 7 : floats, repeated float
 //  - 8 : ints, repeated int64
-//  - 9 : strings, repeated bytes
+//  - 9 : TODO strings, repeated bytes
 //  - 10: TODO tensors, repeated TensorProto
 //  - 11: TODO graphs, repeated GraphProto
 //  - 13: TODO doc_string, optional string
 //  - 14: TODO tp, optional TypeProto
 //  - 15: TODO type_protos, repeated TypeProto
-//  - 20: TODO type, optional AttributeType
+//  - 20: type, optional AttributeType
 //  - 21: TODO ref_attr_name, optional string
 //  - 23: TODO NOT URGENT sparse_tensor, optional SparseTensorProto
 //reserved 12, 16 to 19;
@@ -95,13 +95,6 @@ pub const AttributeProto = struct {
                         attr.type = .INTS;
                     }
                 },
-                20 => { // type
-                    const value = try attr_reader.readVarint();
-                    // Only set type if it's not already set to INTS
-                    if (attr.type != .INTS) {
-                        attr.type = @enumFromInt(@as(u8, @intCast(value)));
-                    }
-                },
                 2 => { // single float (f)
                     const value = try attr_reader.readFixed32();
                     attr.f = @bitCast(value);
@@ -123,7 +116,7 @@ pub const AttributeProto = struct {
                     attr.t = tensor_ptr;
                     if (attr.type != .INTS) attr.type = .TENSOR;
                 },
-                6 => { // repeated float (floats)
+                7 => { // repeated float (floats)
                     if (attr_tag.wire_type == .LengthDelimited) {
                         var floats_reader = try attr_reader.readLengthDelimited();
                         while (floats_reader.hasMore()) {
@@ -137,14 +130,23 @@ pub const AttributeProto = struct {
                     }
                     if (attr.type != .INTS) attr.type = .FLOATS;
                 },
-                7, 8 => { // repeated int64 (ints) or potential repeated int
+                8 => { // repeated int64 (ints) or potential repeated int
                     const v = try attr_reader.readVarint();
                     try ints_list.append(@intCast(v));
                     //DEBUG
                     //std.debug.print("Added int value {d} to {s}\n", .{ v, attr.name });
                     if (attr.type != .INTS) attr.type = .INTS;
                 },
+                20 => { // type
+                    const value = try attr_reader.readVarint();
+                    // Only set type if it's not already set to INTS
+                    if (attr.type != .INTS) {
+                        attr.type = @enumFromInt(@as(u8, @intCast(value)));
+                    }
+                },
                 else => {
+                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for AttributeProto\n\n ", .{attr_tag});
+
                     try attr_reader.skipField(attr_tag.wire_type);
                 },
             }
