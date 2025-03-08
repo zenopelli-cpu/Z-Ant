@@ -4,6 +4,7 @@ const NodeProto = @import("onnx.zig").NodeProto;
 const TensorProto = @import("onnx.zig").TensorProto;
 const ValueInfoProto = @import("onnx.zig").ValueInfoProto;
 const DataType = @import("onnx.zig").DataType;
+const StringStringEntryProto = @import("stringStringEntryProto.zig").StringStringEntryProto;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
@@ -18,8 +19,8 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 12: output, type: ValueInfoProto repeated
 //  - 13: value_info, type: ValueInfoProto repeated
 //  - 14: TODO: quantization_annotation, type: TensorAnnotation repeated
-//  - 15: TODO: sparse_initializer, type: TensorProto repeated
-//  - 16: TODO: metadata_props, type: StringStringEntryProto repeated
+//  - 15: sparse_initializer, type: TensorProto repeated
+//  - 16: metadata_props, type: StringStringEntryProto repeated
 //  - 3, 4, 6, 7, 8, 9 are reserved
 pub const GraphProto = struct {
     name: ?[]const u8,
@@ -28,6 +29,8 @@ pub const GraphProto = struct {
     inputs: []*ValueInfoProto,
     outputs: []*ValueInfoProto,
     value_info: []*ValueInfoProto,
+    sparse_initializer: []*TensorProto,
+    metadata_props: []*StringStringEntryProto,
 
     pub fn deinit(self: *GraphProto, allocator: std.mem.Allocator) void {
         if (self.name) |n| allocator.free(n);
@@ -60,6 +63,9 @@ pub const GraphProto = struct {
             allocator.destroy(vi);
         }
         allocator.free(self.value_info);
+
+        allocator.free(self.sparse_initializer);
+        allocator.free(self.metadata_props);
     }
 
     pub fn parse(reader: *protobuf.ProtoReader) !GraphProto {
@@ -70,6 +76,8 @@ pub const GraphProto = struct {
             .inputs = &[_]*ValueInfoProto{},
             .outputs = &[_]*ValueInfoProto{},
             .value_info = &[_]*ValueInfoProto{},
+            .sparse_initializer = &[_]*TensorProto{},
+            .metadata_props = undefined,
         };
 
         var nodes = std.ArrayList(*NodeProto).init(reader.allocator);
@@ -82,6 +90,10 @@ pub const GraphProto = struct {
         defer outputs.deinit();
         var value_infos = std.ArrayList(*ValueInfoProto).init(reader.allocator);
         defer value_infos.deinit();
+        var sparse_inizializers = std.ArrayList(*TensorProto).init(reader.allocator);
+        defer sparse_inizializers.deinit();
+        var metadataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
+        defer metadataList.deinit();
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
@@ -131,6 +143,22 @@ pub const GraphProto = struct {
                     value_info_ptr.* = try ValueInfoProto.parse(&value_info_reader);
                     try value_infos.append(value_info_ptr);
                 },
+                14 => {
+                    //TODO
+                },
+                15 => {
+                    var tensor_reader = try reader.readLengthDelimited();
+                    const tensor_ptr = try reader.allocator.create(TensorProto);
+                    tensor_ptr.* = try TensorProto.parse(&tensor_reader);
+                    try sparse_inizializers.append(tensor_ptr);
+                },
+                16 => {
+                    std.debug.print("\n ................ GraphProto READING metadata_props ", .{});
+                    var md_reader = try reader.readLengthDelimited(); //var md_reader
+                    const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
+                    ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
+                    try metadataList.append(ssep_ptr);
+                },
                 else => {
                     std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
 
@@ -147,6 +175,8 @@ pub const GraphProto = struct {
         graph.inputs = try inputs.toOwnedSlice();
         graph.outputs = try outputs.toOwnedSlice();
         graph.value_info = try value_infos.toOwnedSlice();
+        graph.sparse_initializer = try sparse_inizializers.toOwnedSlice();
+        graph.metadata_props = try metadataList.toOwnedSlice();
 
         return graph;
     }
@@ -182,6 +212,16 @@ pub const GraphProto = struct {
         std.debug.print("{s}Outputs:\n", .{space});
         for (self.outputs) |output| {
             output.print(space);
+        }
+
+        std.debug.print("{s}Sparse Initializers:\n", .{space});
+        for (self.sparse_initializer) |sp| {
+            sp.print(space);
+        }
+
+        std.debug.print("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
+        for (self.metadata_props) |mp| {
+            mp.print(space);
         }
     }
 };

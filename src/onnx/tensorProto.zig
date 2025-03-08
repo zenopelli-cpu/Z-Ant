@@ -2,6 +2,7 @@ const std = @import("std");
 const protobuf = @import("protobuf.zig");
 const AttributeType = @import("onnx.zig").AttributeType;
 const DataType = @import("onnx.zig").DataType;
+const StringStringEntryProto = @import("stringStringEntryProto.zig").StringStringEntryProto;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
@@ -19,10 +20,10 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 9 : raw_data, optional bytes
 //  - 10: double_data, repeated double
 //  - 11: uint64_data, repeated uint64
-//  - 12: TODO doc_string, optional string
-//  - 13: TODO external_data, repeated StringStringEntryProto
+//  - 12: doc_string, optional string
+//  - 13: external_data, repeated StringStringEntryProto
 //  - 14: TODO data_location, optional DataLocation
-//  - 16: TODO metadata_props, repeated StringStringEntryProto
+//  - 16: metadata_props, repeated StringStringEntryProto
 pub const TensorProto = struct {
     dims: []i64,
     data_type: DataType,
@@ -34,6 +35,9 @@ pub const TensorProto = struct {
     int64_data: ?[]i64,
     double_data: ?[]f64,
     uint64_data: ?[]u64,
+    doc_string: ?[]const u8,
+    external_data: []*StringStringEntryProto,
+    metadata_props: []*StringStringEntryProto,
 
     pub fn deinit(self: *TensorProto, allocator: std.mem.Allocator) void {
         allocator.free(self.dims);
@@ -48,6 +52,9 @@ pub const TensorProto = struct {
             allocator.free(data);
         }
         if (self.name) |n| allocator.free(n);
+        if (self.doc_string) |doc_string| allocator.free(doc_string);
+        allocator.free(self.external_data);
+        allocator.free(self.metadata_props);
     }
 
     pub fn parse(reader: *protobuf.ProtoReader) !TensorProto {
@@ -62,10 +69,17 @@ pub const TensorProto = struct {
             .int64_data = null,
             .double_data = null,
             .uint64_data = null,
+            .doc_string = null,
+            .external_data = undefined,
+            .metadata_props = undefined,
         };
 
         var dims = std.ArrayList(i64).init(reader.allocator);
         defer dims.deinit();
+        var externalDataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
+        defer externalDataList.deinit();
+        var metaDataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
+        defer metaDataList.deinit();
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
@@ -161,6 +175,23 @@ pub const TensorProto = struct {
                     }
                     tensor.uint64_data = try data.toOwnedSlice();
                 },
+                12 => {
+                    tensor.doc_string = try reader.readString(reader.allocator);
+                },
+                13 => {
+                    std.debug.print("\n ................ TensorProto READING metadata_props ", .{});
+                    var md_reader = try reader.readLengthDelimited(); //var md_reader
+                    const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
+                    ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
+                    try externalDataList.append(ssep_ptr);
+                },
+                16 => {
+                    std.debug.print("\n ................ TensorProto READING metadata_props ", .{});
+                    var md_reader = try reader.readLengthDelimited(); //var md_reader
+                    const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
+                    ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
+                    try metaDataList.append(ssep_ptr);
+                },
                 else => {
                     std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
                     try reader.skipField(tag.wire_type);
@@ -169,6 +200,8 @@ pub const TensorProto = struct {
         }
 
         tensor.dims = try dims.toOwnedSlice();
+        tensor.external_data = try externalDataList.toOwnedSlice();
+        tensor.metadata_props = try metaDataList.toOwnedSlice();
         return tensor;
     }
 
@@ -255,6 +288,16 @@ pub const TensorProto = struct {
                 std.debug.print("\"{s}\"", .{val});
             }
             std.debug.print("]\n", .{});
+        }
+
+        std.debug.print("{s} External Data (key, value) [{}]: \n", .{ space, self.external_data.len });
+        for (self.external_data) |ex| {
+            ex.print(space);
+        }
+
+        std.debug.print("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
+        for (self.metadata_props) |mp| {
+            mp.print(space);
         }
     }
 };
