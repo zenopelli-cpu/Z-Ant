@@ -2,6 +2,7 @@ const std = @import("std");
 const protobuf = @import("protobuf.zig");
 const AttributeType = @import("onnx.zig").AttributeType;
 const TensorProto = @import("onnx.zig").TensorProto;
+const GraphProto = @import("graphProto.zig").GraphProto;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
@@ -34,6 +35,7 @@ pub const AttributeProto = struct {
     i: i64 = 0,
     s: []const u8 = "",
     t: ?*TensorProto = null,
+    g: ?*GraphProto = null,
     floats: []f32 = &[_]f32{},
     ints: []i64 = &[_]i64{},
     strings: [][]const u8 = &[_][]const u8{},
@@ -48,6 +50,10 @@ pub const AttributeProto = struct {
             .TENSOR => if (self.t) |t| {
                 t.deinit(allocator);
                 allocator.destroy(t);
+            },
+            .GRAPH => if (self.g) |g| {
+                g.deinit(allocator);
+                allocator.destroy(g);
             },
             .FLOATS => allocator.free(self.floats),
             .INTS => allocator.free(self.ints),
@@ -116,6 +122,7 @@ pub const AttributeProto = struct {
                     attr.t = tensor_ptr;
                     if (attr.type != .INTS) attr.type = .TENSOR;
                 },
+                6 => {},
                 7 => { // repeated float (floats)
                     if (attr_tag.wire_type == .LengthDelimited) {
                         var floats_reader = try attr_reader.readLengthDelimited();
@@ -184,6 +191,11 @@ pub const AttributeProto = struct {
         }
 
         if (self.t) |tensor| {
+            std.debug.print("{s}Tensor:\n", .{space});
+            tensor.print(space);
+        }
+
+        if (self.g) |tensor| {
             std.debug.print("{s}Tensor:\n", .{space});
             tensor.print(space);
         }

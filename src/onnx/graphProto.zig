@@ -5,6 +5,7 @@ const TensorProto = @import("onnx.zig").TensorProto;
 const ValueInfoProto = @import("onnx.zig").ValueInfoProto;
 const DataType = @import("onnx.zig").DataType;
 const StringStringEntryProto = @import("stringStringEntryProto.zig").StringStringEntryProto;
+const TensorAnnotation = @import("tensorAnnotation.zig").TensorAnnotation;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
@@ -29,6 +30,7 @@ pub const GraphProto = struct {
     inputs: []*ValueInfoProto,
     outputs: []*ValueInfoProto,
     value_info: []*ValueInfoProto,
+    quantization_annotation: []*TensorAnnotation,
     sparse_initializer: []*TensorProto,
     metadata_props: []*StringStringEntryProto,
 
@@ -64,7 +66,10 @@ pub const GraphProto = struct {
         }
         allocator.free(self.value_info);
 
+        allocator.free(self.quantization_annotation);
+
         allocator.free(self.sparse_initializer);
+
         allocator.free(self.metadata_props);
     }
 
@@ -76,6 +81,7 @@ pub const GraphProto = struct {
             .inputs = &[_]*ValueInfoProto{},
             .outputs = &[_]*ValueInfoProto{},
             .value_info = &[_]*ValueInfoProto{},
+            .quantization_annotation = undefined,
             .sparse_initializer = &[_]*TensorProto{},
             .metadata_props = undefined,
         };
@@ -90,6 +96,8 @@ pub const GraphProto = struct {
         defer outputs.deinit();
         var value_infos = std.ArrayList(*ValueInfoProto).init(reader.allocator);
         defer value_infos.deinit();
+        var quantizationList = std.ArrayList(*TensorAnnotation).init(reader.allocator);
+        defer quantizationList.deinit();
         var sparse_inizializers = std.ArrayList(*TensorProto).init(reader.allocator);
         defer sparse_inizializers.deinit();
         var metadataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
@@ -144,7 +152,11 @@ pub const GraphProto = struct {
                     try value_infos.append(value_info_ptr);
                 },
                 14 => {
-                    //TODO
+                    std.debug.print("\n\n ........GRAPH PROTO READING  quantization_annotation", .{});
+                    var quantization_reader = try reader.readLengthDelimited();
+                    const quantization_ptr = try reader.allocator.create(TensorAnnotation);
+                    quantization_ptr.* = try TensorAnnotation.parse(&quantization_reader);
+                    try quantizationList.append(quantization_ptr);
                 },
                 15 => {
                     var tensor_reader = try reader.readLengthDelimited();
@@ -175,6 +187,7 @@ pub const GraphProto = struct {
         graph.inputs = try inputs.toOwnedSlice();
         graph.outputs = try outputs.toOwnedSlice();
         graph.value_info = try value_infos.toOwnedSlice();
+        graph.quantization_annotation = try quantizationList.toOwnedSlice();
         graph.sparse_initializer = try sparse_inizializers.toOwnedSlice();
         graph.metadata_props = try metadataList.toOwnedSlice();
 
@@ -212,6 +225,11 @@ pub const GraphProto = struct {
         std.debug.print("{s}Outputs:\n", .{space});
         for (self.outputs) |output| {
             output.print(space);
+        }
+
+        std.debug.print("{s}Quantization Annotations:\n", .{space});
+        for (self.quantization_annotation) |qa| {
+            qa.print(space);
         }
 
         std.debug.print("{s}Sparse Initializers:\n", .{space});
