@@ -28,7 +28,7 @@ zig-out/
 static_lib.zig
 
 #ignore callgrind and valgrind file
-callgring.*
+callgrind.*
 massif.*
 
 # Zant generated code
