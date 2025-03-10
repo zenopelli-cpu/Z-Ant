@@ -53,5 +53,5 @@ pub fn main() !void {
     try codeGen.skeleton.writeZigFile(model_name, generated_path, model);
 
     // Test the generated code
-    // try codeGen_tests.writeTestFile(model_name, generated_path, model);
+    try codeGen_tests.writeTestFile(model_name, generated_path, model);
 }

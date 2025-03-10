@@ -199,7 +199,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // Bias Tensor B is optional! verify the presence
     if (node.inputs.items.len == 3) {
         const B_name = try utils.getSanitizedName(node.inputs.items[2].name);
-        bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", B_name, ")" });
+        bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", B_name, ")" });
     } else {
         bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{"null"});
     }
@@ -317,10 +317,10 @@ inline fn write_concat(writer: std.fs.File.Writer, node: *ReadyNode) !void {
                 \\}};
                 \\
                 \\    // Perform concatenation with special handling for different ranks
-                \\    tensor_{s} = try tensMath.concatenate(T, &allocator, &concat_tensor_list, {})
+                \\     try tensMath.concatenate_lean(T, &allocator, &concat_tensor_list, {},tensor_{s})
             , .{
-                try utils.getSanitizedName(node.outputs.items[0].name),
                 axis,
+                try utils.getSanitizedName(node.outputs.items[0].name),
             });
 
             return;
@@ -346,10 +346,10 @@ inline fn write_concat(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\}};
         \\
         \\    // Perform concatenation
-        \\    tensor_{s} =  tensMath.concatenate(T, &allocator, &concat_tensor_list, {})
+        \\    tensMath.concatenate_lean(T, &allocator, &concat_tensor_list, {}, &tensor_{s} )
     , .{
-        try utils.getSanitizedName(node.outputs.items[0].name),
         axis,
+        try utils.getSanitizedName(node.outputs.items[0].name),
     });
 }
 
@@ -545,6 +545,7 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    const usize_slice_{s} =  utils.sliceToUsizeSlice(tensor_{s}.data);
         \\    var usize_tensor_{s} = Tensor(usize).fromConstBuffer(&allocator, usize_slice_{s}, tensor_{s}.shape);
         \\    defer usize_tensor_{s}.deinit();
+        \\    defer allocator.free(usize_slice_{s});
         \\    
     , .{
         indices_name, //usize_slice_
@@ -553,6 +554,7 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         indices_name, //usize_slice_
         indices_name, //tensor_.shape
         indices_name, //usize_tensor_.deinit
+        indices_name, //usize_slice_ for free
     });
 
     _ = try writer.print(
@@ -1114,7 +1116,7 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         for (node.nodeProto.attribute) |attr| {
             if (std.mem.eql(u8, attr.name, "axes")) {
                 if (attr.type == AttributeType.INTS) {
-                    axes_str = try utils.i64SliceToUsizeArrayString(attr.ints);
+                    axes_str = try utils.i64ToI64ArrayString(attr.ints);
                     needs_free = true;
                     break;
                 }
@@ -1129,7 +1131,8 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\     
         \\    var axes_shape_{s} = [_]usize{{1}};
         \\    var axes_tensor_{s} = Tensor(i64).fromArray(&allocator, {s}, &axes_shape_{s}) catch return;
-        \\
+        \\    defer allocator.free(axes_tensor_{s}.data);
+        \\    defer allocator.free(axes_tensor_{s}.shape);
         \\    tensMath.unsqueeze_lean(
         \\        T, //type
         \\        @constCast(&tensor_{s}), //input tensor
@@ -1140,6 +1143,8 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         input_name,
         input_name,
         axes_str,
+        input_name,
+        input_name,
         input_name,
         input_name,
         input_name,

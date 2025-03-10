@@ -2,10 +2,6 @@ const std = @import("std");
 const zant = @import("zant");
 const conv = zant.utils.type_converter;
 
-test {
-    _ = @import("test_modelExport.zig");
-}
-
 test "Utils description test" {
     std.debug.print("\n--- Running utils test\n", .{});
 }

@@ -134,7 +134,6 @@ pub const ReadyNode = struct {
 };
 
 pub fn setGlobalAttributes(model: ModelOnnx) !void {
-
     //First convert the optional String of numbers divided by a comma into an array
     const parsedInputshape: []const i64 = try utils.parseNumbers(codegen_options.shape);
 
@@ -151,27 +150,12 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
     networkOutput.name = model.graph.?.outputs[0].name.?;
     networkOutput.shape = model.graph.?.outputs[0].type.?.tensor_type.?.shape.?.shape;
 
-    //check for input shape existence
-    if (parsedInputshape.len == 0 and networkInput.shape.len == 0) {
+    // Use -Dshape if provided, otherwise keep the ONNX model's shape
+    if (parsedInputshape.len > 0) {
+        networkInput.shape = parsedInputshape;
+    } else if (networkInput.shape.len == 0) {
         std.debug.print("\n\n ERROR: \n     Input shape is necessary to proceed! \n     Ensure that the onnx model has one or compile with -Dshape=''<your_shape>''", .{});
         return error.NoInputShape;
-    }
-
-    //ensure that the onnx input shape and the -Dshape, if given, are the same
-    if (parsedInputshape.len != 0) {
-        std.debug.print("\n yes -Dshape ", .{});
-
-        if (parsedInputshape.len != networkInput.shape.len) {
-            std.debug.print("\n\n ERROR: \n     the passed input -Dshape has size {} ({any}) while the onnx model input shape has size {} ({any}) \n", .{ parsedInputshape.len, parsedInputshape, networkInput.shape.len, networkInput.shape });
-            return error.DifferentInputShapesLen;
-        }
-
-        for (parsedInputshape, 0..) |s, i| {
-            if (s != networkInput.shape[i]) {
-                std.debug.print("\n\n ERROR: \n     the passed input -Dshape is {any} while the onnx model input shape is {any} \n", .{ parsedInputshape, networkInput.shape });
-                return error.DifferentInputShapes;
-            }
-        }
     }
 
     //create the hashMap
