@@ -333,67 +333,44 @@ pub inline fn sliceToUsizeSlice(slice: anytype) []usize {
     const info = @typeInfo(T);
 
     switch (info) {
-        .int => {
-            var output = allocator.alloc(usize, slice.len) catch @panic("Out of memory in sliceToUsizeSlice");
-            const maxUsize = std.math.maxInt(usize);
-
-            for (slice, 0..) |value, index| {
-                if (value < 0) {
-                    if (value == -1) {
-                        output[index] = std.math.maxInt(usize);
-                    } else {
-                        @panic("Invalid negative value in sliceToUsizeSlice (only -1 is allowed)");
-                    }
-                } else {
-                    const uvalue: u128 = @intCast(value);
-                    if (uvalue > maxUsize) {
-                        @panic("Value too large in sliceToUsizeSlice");
-                    }
-                    output[index] = @intCast(value);
-                }
-            }
-
-            return output;
-        },
-        .array => {
-            var output = allocator.alloc(usize, slice.len) catch @panic("Out of memory in sliceToUsizeSlice");
-            const maxUsize = std.math.maxInt(usize);
-
-            for (slice, 0..) |value, index| {
-                if (value < 0) {
-                    if (value == -1) {
-                        output[index] = std.math.maxInt(usize);
-                    } else {
-                        @panic("Invalid negative value in sliceToUsizeSlice (only -1 is allowed)");
-                    }
-                } else {
-                    const uvalue: u128 = @intCast(value);
-                    if (uvalue > maxUsize) {
-                        @panic("Value too large in sliceToUsizeSlice");
-                    }
-                    output[index] = @intCast(value);
-                }
-            }
-
-            return output;
-        },
         .pointer => {
+            const child = info.pointer.child;
+            const child_info = @typeInfo(child);
+
             var output = allocator.alloc(usize, slice.len) catch @panic("Out of memory in sliceToUsizeSlice");
             const maxUsize = std.math.maxInt(usize);
 
             for (slice, 0..) |value, index| {
-                if (value < 0) {
-                    if (value == -1) {
-                        output[index] = std.math.maxInt(usize);
+                if (child_info == .int) {
+                    // Handle integer types
+                    if (value < 0) {
+                        if (value == -1) {
+                            output[index] = std.math.maxInt(usize);
+                        } else {
+                            @panic("Invalid negative value in sliceToUsizeSlice (only -1 is allowed)");
+                        }
                     } else {
-                        @panic("Invalid negative value in sliceToUsizeSlice (only -1 is allowed)");
+                        if (@as(u128, @intCast(value)) > maxUsize) {
+                            @panic("Value too large in sliceToUsizeSlice");
+                        }
+                        output[index] = @intCast(value);
+                    }
+                } else if (child_info == .float) {
+                    // Handle float types
+                    if (value < 0) {
+                        if (value == -1.0) {
+                            output[index] = std.math.maxInt(usize);
+                        } else {
+                            @panic("Invalid negative value in sliceToUsizeSlice (only -1 is allowed)");
+                        }
+                    } else {
+                        if (value > @as(f64, @floatFromInt(maxUsize))) {
+                            @panic("Value too large in sliceToUsizeSlice");
+                        }
+                        output[index] = @intFromFloat(value);
                     }
                 } else {
-                    const uvalue: u128 = @intCast(value);
-                    if (uvalue > maxUsize) {
-                        @panic("Value too large in sliceToUsizeSlice");
-                    }
-                    output[index] = @intCast(value);
+                    @compileError("Unsupported element type for sliceToUsizeSlice: " ++ @typeName(child));
                 }
             }
 
@@ -403,6 +380,19 @@ pub inline fn sliceToUsizeSlice(slice: anytype) []usize {
             @compileError("Unsupported type for sliceToUsizeSlice: " ++ @typeName(T));
         },
     }
+}
+
+pub fn i64ToI64ArrayString(values: []const i64) ![]const u8 {
+    var buffer: [20]u8 = undefined;
+    var res_string = try std.mem.concat(allocator, u8, &[_][]const u8{"&[_]i64{"});
+    for (values, 0..) |val, i| {
+        if (i > 0) res_string = try std.mem.concat(allocator, u8, &[_][]const u8{ res_string, "," });
+        const val_string = std.fmt.bufPrint(&buffer, "{}", .{val}) catch unreachable;
+        res_string = try std.mem.concat(allocator, u8, &[_][]const u8{ res_string, val_string });
+    }
+    res_string = try std.mem.concat(allocator, u8, &[_][]const u8{ res_string, "}" });
+
+    return res_string;
 }
 
 pub fn u32ToUsize(input: [*]u32, size: u32) ![]usize {

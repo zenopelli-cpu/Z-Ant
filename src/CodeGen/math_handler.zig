@@ -199,7 +199,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // Bias Tensor B is optional! verify the presence
     if (node.inputs.items.len == 3) {
         const B_name = try utils.getSanitizedName(node.inputs.items[2].name);
-        bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", B_name, ")" });
+        bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", B_name, ")" });
     } else {
         bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{"null"});
     }
@@ -317,10 +317,10 @@ inline fn write_concat(writer: std.fs.File.Writer, node: *ReadyNode) !void {
                 \\}};
                 \\
                 \\    // Perform concatenation with special handling for different ranks
-                \\    tensor_{s} = try tensMath.concatenate(T, &allocator, &concat_tensor_list, {})
+                \\     try tensMath.concatenate_lean(T, &allocator, &concat_tensor_list, {},tensor_{s})
             , .{
-                try utils.getSanitizedName(node.outputs.items[0].name),
                 axis,
+                try utils.getSanitizedName(node.outputs.items[0].name),
             });
 
             return;
@@ -346,10 +346,10 @@ inline fn write_concat(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\}};
         \\
         \\    // Perform concatenation
-        \\    tensor_{s} =  tensMath.concatenate(T, &allocator, &concat_tensor_list, {})
+        \\    tensMath.concatenate_lean(T, &allocator, &concat_tensor_list, {}, &tensor_{s} )
     , .{
-        try utils.getSanitizedName(node.outputs.items[0].name),
         axis,
+        try utils.getSanitizedName(node.outputs.items[0].name),
     });
 }
 
@@ -545,6 +545,7 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    const usize_slice_{s} =  utils.sliceToUsizeSlice(tensor_{s}.data);
         \\    var usize_tensor_{s} = Tensor(usize).fromConstBuffer(&allocator, usize_slice_{s}, tensor_{s}.shape);
         \\    defer usize_tensor_{s}.deinit();
+        \\    defer allocator.free(usize_slice_{s});
         \\    
     , .{
         indices_name, //usize_slice_
@@ -553,6 +554,7 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         indices_name, //usize_slice_
         indices_name, //tensor_.shape
         indices_name, //usize_tensor_.deinit
+        indices_name, //usize_slice_ for free
     });
 
     _ = try writer.print(
@@ -1114,7 +1116,7 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         for (node.nodeProto.attribute) |attr| {
             if (std.mem.eql(u8, attr.name, "axes")) {
                 if (attr.type == AttributeType.INTS) {
-                    axes_str = try utils.i64SliceToUsizeArrayString(attr.ints);
+                    axes_str = try utils.i64ToI64ArrayString(attr.ints);
                     needs_free = true;
                     break;
                 }
@@ -1129,7 +1131,8 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\     
         \\    var axes_shape_{s} = [_]usize{{1}};
         \\    var axes_tensor_{s} = Tensor(i64).fromArray(&allocator, {s}, &axes_shape_{s}) catch return;
-        \\
+        \\    defer allocator.free(axes_tensor_{s}.data);
+        \\    defer allocator.free(axes_tensor_{s}.shape);
         \\    tensMath.unsqueeze_lean(
         \\        T, //type
         \\        @constCast(&tensor_{s}), //input tensor
@@ -1140,6 +1143,8 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         input_name,
         input_name,
         axes_str,
+        input_name,
+        input_name,
         input_name,
         input_name,
         input_name,
@@ -1329,18 +1334,38 @@ inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n====== compute_reshape_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
 
+    // Convert input shape to usize
+    const input_shape = try utils.i64SliceToUsizeSlice(readyNode.inputs.items[0].shape);
+    defer allocator.free(input_shape);
+
+    var output_shape: []usize = undefined;
+    defer allocator.free(output_shape);
+
     // Check if the second input has a tensorProto with int64_data
     if (readyNode.inputs.items[1].tensorProto != null and
         readyNode.inputs.items[1].tensorProto.?.int64_data != null)
     {
-        std.debug.print("\n new shape from tensorProto: []i64 = {any}", .{readyNode.inputs.items[1].tensorProto.?.int64_data.?});
-        readyNode.outputs.items[0].shape = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
+        // Convert int64_data to usize array
+        const new_shape = try utils.i64SliceToUsizeSlice(readyNode.inputs.items[1].tensorProto.?.int64_data.?);
+        defer allocator.free(new_shape);
+
+        std.debug.print("\n new shape from tensorProto: []usize = {any}", .{new_shape});
+        output_shape = try tensorMath.get_reshape_output_shape_usize(input_shape, new_shape, null);
     } else {
-        // If not, use the shape of the second input directly
-        std.debug.print("\n new shape from input shape: []i64 = {any}", .{readyNode.inputs.items[1].shape});
-        readyNode.outputs.items[0].shape = try allocator.dupe(i64, readyNode.inputs.items[1].shape);
+        // Convert shape to f32 array
+        var new_shape = try allocator.alloc(f32, readyNode.inputs.items[1].shape.len);
+        defer allocator.free(new_shape);
+
+        for (readyNode.inputs.items[1].shape, 0..) |dim, i| {
+            new_shape[i] = @floatFromInt(dim);
+        }
+
+        std.debug.print("\n new shape from input shape: []f32 = {any}", .{new_shape});
+        output_shape = try tensorMath.get_reshape_output_shape(input_shape, new_shape, null);
     }
 
+    // Convert output_shape back to i64 for the readyNode
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 

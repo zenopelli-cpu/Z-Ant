@@ -214,11 +214,11 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
         total_size *= dim;
     }
 
-    const dataTypeString = try utils.getTypeString(tensor.data_type);
+    //const dataTypeString = try utils.getTypeString(tensor.data_type);
     try writer.print(
         \\
-        \\const array_{s} : [{d}]{s} = [_]{s}{{
-    , .{ sanitized_name, total_size, dataTypeString, dataTypeString });
+        \\const array_{s} : [{d}]T = [_]T{{
+    , .{ sanitized_name, total_size });
 
     // Write the actual data values
     if (tensor.float_data) |data| {
@@ -258,8 +258,8 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
     // Write tensor initialization using fromArray
     try writer.print(
         \\
-        \\const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
-    , .{ sanitized_name, dataTypeString, sanitized_name, sanitized_name });
+        \\const tensor_{s} = Tensor(T).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
+    , .{ sanitized_name, sanitized_name, sanitized_name });
 }
 
 fn write_OutputTensor(writer: std.fs.File.Writer, name: []const u8, size: i64) !void {
@@ -289,6 +289,11 @@ fn write_outputsResetMethod(writer: std.fs.File.Writer) !void {
     }
 
     for (globals.readyGraph.items) |*node| {
+        // Skip constant nodes
+        if (std.mem.eql(u8, node.nodeProto.op_type, "Constant") and node.inputs.items.len == 0) {
+            continue;
+        }
+
         for (node.outputs.items) |output| {
             _ = try writer.print(
                 \\

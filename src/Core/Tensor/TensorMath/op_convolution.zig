@@ -40,6 +40,11 @@ pub export fn setLogFunctionC(func: ?*const fn ([*c]u8) callconv(.C) void) void 
     log_functionC = func;
 }
 pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void {
+    // std.debug.print("\n[DEBUG] OnnxConvLean - Input shape: {any}", .{input.shape});
+    // std.debug.print("\n[DEBUG] OnnxConvLean - Kernel shape: {any}", .{kernel.shape});
+    // std.debug.print("\n[DEBUG] OnnxConvLean - Output shape: {any}", .{output.shape});
+    // std.debug.print("\n[DEBUG] OnnxConvLean - Stride: {any}", .{stride});
+
     // Input validation: Ensure 4D tensors for input (N,C,H,W) and kernel (M,C/g,H,W)
     if (input.shape.len != 4 or kernel.shape.len != 4) {
         return TensorMathError.InvalidDimensions;
@@ -69,6 +74,9 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     const stride_w = if (stride.len > 1) stride[1] else stride[0];
     const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
     const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else d[0] else 1;
+
+    // std.debug.print("\n[DEBUG] Computed strides: h={}, w={}", .{ stride_h, stride_w });
+    // std.debug.print("\n[DEBUG] Computed dilations: h={}, w={}", .{ dilation_h, dilation_w });
 
     // Calculate dilated kernel dimensions
     const dilated_kernel_h = (kernel_height - 1) * dilation_h + 1;
@@ -233,7 +241,9 @@ pub fn convolve_tensor_with_bias(
     stride: []const usize,
     dilations: ?[]const usize,
 ) !Tensor(T) {
-    // ... (existing validation code remains unchanged)
+    // std.debug.print("\n[DEBUG] convolve_tensor_with_bias - Starting convolution", .{});
+    // std.debug.print("\n[DEBUG] Input shape: {any}", .{input.shape});
+    // std.debug.print("\n[DEBUG] Kernel shape: {any}", .{kernel.shape});
 
     const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
     const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else 1 else 1;
@@ -246,6 +256,8 @@ pub fn convolve_tensor_with_bias(
     // Corrected output dimension calculation
     const out_height = @divFloor(in_height - dilated_kernel_h, stride[0]) + 1;
     const out_width = @divFloor(in_width - dilated_kernel_w, stride[1]) + 1;
+
+    // std.debug.print("\n[DEBUG] Calculated output dimensions - height: {}, width: {}", .{ out_height, out_width });
 
     if (out_height <= 0 or out_width <= 0) {
         return TensorMathError.InvalidDimensions;
@@ -375,6 +387,11 @@ pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []
 // --------------------------------------------------
 // --------- standard im2col
 pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize, dilations: ?[]const usize) !Tensor(T) {
+    // std.debug.print("\n[DEBUG] im2col - Starting transformation", .{});
+    // std.debug.print("\n[DEBUG] Input shape: {any}", .{input.shape});
+    // std.debug.print("\n[DEBUG] Kernel size: {any}", .{kernel});
+    // std.debug.print("\n[DEBUG] Stride: {any}", .{stride});
+
     if (input.shape.len != 4) {
         return TensorMathError.InputTensorsWrongShape;
     }
@@ -407,6 +424,8 @@ pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]
     const rows = try std.math.mul(usize, batch_size, try std.math.mul(usize, out_height, out_width));
     const cols = try std.math.mul(usize, channels, try std.math.mul(usize, kernel_h, kernel_w));
 
+    //std.debug.print("\n[DEBUG] im2col output shape - rows: {}, cols: {}", .{ rows, cols });
+
     var col_shape = [_]usize{ rows, cols };
     var col_matrix = Tensor(T).fromShape(&pkg_allocator, &col_shape) catch {
         if (log_functionC) |log_func| {
@@ -422,6 +441,9 @@ pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]
 }
 
 pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize, dilations: ?[]const usize, output: *Tensor(T)) !void {
+    // std.debug.print("\n[DEBUG] lean_im2col - Starting transformation", .{});
+    // std.debug.print("\n[DEBUG] Input shape: {any}, Output shape: {any}", .{ input.shape, output.shape });
+
     const batch_size = input.shape[0];
     const channels = input.shape[1];
     const height = input.shape[2];
@@ -517,6 +539,10 @@ pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize,
 /// Input shape: [batch_size * out_height * out_width, channels * kernel_height * kernel_width]
 /// Output shape: [batch_size, channels, height, width]
 pub fn col2im(comptime T: type, col_matrix: *Tensor(T), output_shape: []const usize, kernel: [2]usize, stride: [2]usize) !Tensor(T) {
+    std.debug.print("\n[DEBUG] col2im - Starting transformation", .{});
+    std.debug.print("\n[DEBUG] Col matrix shape: {any}", .{col_matrix.shape});
+    std.debug.print("\n[DEBUG] Target output shape: {any}", .{output_shape});
+
     if (output_shape.len != 4) {
         return TensorMathError.InvalidDimensions;
     }

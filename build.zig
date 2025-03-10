@@ -88,7 +88,7 @@ pub fn build(b: *std.Build) void {
     // Define the main executable with target architecture and optimization settings.
     const codeGen_exe = b.addExecutable(.{
         .name = "Codegen",
-        .root_source_file = b.path("src/codeGen/main.zig"),
+        .root_source_file = b.path("src/CodeGen/main.zig"),
         .target = target,
         .optimize = optimize,
     });
