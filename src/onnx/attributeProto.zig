@@ -3,6 +3,7 @@ const protobuf = @import("protobuf.zig");
 const AttributeType = @import("onnx.zig").AttributeType;
 const TensorProto = @import("onnx.zig").TensorProto;
 const GraphProto = @import("graphProto.zig").GraphProto;
+const SparseTensorProto = @import("sparseTensorProto.zig").SparseTensorProto;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
@@ -25,7 +26,7 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 15: TODO type_protos, repeated TypeProto
 //  - 20: type, optional AttributeType
 //  - 21: TODO ref_attr_name, optional string
-//  - 23: TODO NOT URGENT sparse_tensor, optional SparseTensorProto
+//  - 23: sparse_tensor, optional SparseTensorProto
 //reserved 12, 16 to 19;
 //reserved "v";
 pub const AttributeProto = struct {
@@ -39,6 +40,7 @@ pub const AttributeProto = struct {
     floats: []f32 = &[_]f32{},
     ints: []i64 = &[_]i64{},
     strings: [][]const u8 = &[_][]const u8{},
+    sparse_tensor: ?*SparseTensorProto = null,
 
     pub fn deinit(self: *AttributeProto, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
@@ -60,6 +62,12 @@ pub const AttributeProto = struct {
             .STRINGS => {
                 for (self.strings) |s| allocator.free(s);
                 allocator.free(self.strings);
+            },
+            .SPARSE_TENSOR => {
+                if (self.sparse_tensor) |sp| {
+                    sp.deinit(allocator);
+                    allocator.destroy(sp);
+                }
             },
             else => {},
         }
@@ -151,6 +159,13 @@ pub const AttributeProto = struct {
                         attr.type = @enumFromInt(@as(u8, @intCast(value)));
                     }
                 },
+                23 => {
+                    var tensor_reader = try attr_reader.readLengthDelimited();
+                    const tensor_ptr = try allocator.create(SparseTensorProto);
+                    tensor_ptr.* = try SparseTensorProto.parse(&tensor_reader, allocator);
+                    attr.sparse_tensor = tensor_ptr;
+                    if (attr.type != .INTS) attr.type = .SPARSE_TENSOR;
+                },
                 else => {
                     std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for AttributeProto\n\n ", .{attr_tag});
 
@@ -225,6 +240,11 @@ pub const AttributeProto = struct {
                 std.debug.print("\"{s}\"", .{val});
             }
             std.debug.print("]\n", .{});
+        }
+
+        if (self.sparse_tensor) |tensor| {
+            std.debug.print("{s}Sparse Tensor:\n", .{space});
+            tensor.print(space);
         }
     }
 };

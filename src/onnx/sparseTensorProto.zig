@@ -18,8 +18,14 @@ pub const SparseTensorProto = struct {
     dims: []i64,
 
     pub fn deinit(self: *SparseTensorProto, allocator: std.mem.Allocator) void {
-        if (self.values) |v| allocator.free(v);
-        if (self.indices) |i| allocator.free(i);
+        if (self.values) |v| {
+            v.deinit(allocator);
+            allocator.destroy(v);
+        }
+        if (self.indices) |i| {
+            i.deinit(allocator);
+            allocator.destroy(i);
+        }
 
         allocator.free(self.dims);
     }
@@ -28,7 +34,7 @@ pub const SparseTensorProto = struct {
         var sp_tensor = SparseTensorProto{
             .values = null,
             .indices = null,
-            .dims = null,
+            .dims = &[_]i64{},
         };
 
         var dim_list = std.ArrayList(i64).init(allocator);
@@ -84,7 +90,7 @@ pub const SparseTensorProto = struct {
 
         if (self.dims.len > 0) {
             std.debug.print("{s}Dims: [", .{space});
-            for (self.ints, 0..) |val, i| {
+            for (self.dims, 0..) |val, i| {
                 if (i > 0) std.debug.print(", ", .{});
                 std.debug.print("{}", .{val});
             }
