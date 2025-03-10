@@ -3,6 +3,7 @@ const protobuf = @import("protobuf.zig");
 const AttributeType = @import("onnx.zig").AttributeType;
 const DataType = @import("onnx.zig").DataType;
 const StringStringEntryProto = @import("stringStringEntryProto.zig").StringStringEntryProto;
+const Segment = @import("segment.zig").Segment;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
@@ -11,7 +12,7 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //TAGS:
 //  - 1 : dims, repeated int64
 //  - 2 : data_type, optional int32
-//  - 3 : TODO NOT URGENT segment, optional Segment
+//  - 3 : segment, optional Segment
 //  - 4 : float_data, repeated float
 //  - 5 : int32_data, repeated int32
 //  - 6 : string_data, repeated bytes
@@ -27,6 +28,7 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 pub const TensorProto = struct {
     dims: []i64,
     data_type: DataType,
+    segment: ?*Segment,
     name: ?[]const u8,
     raw_data: ?[]const u8,
     float_data: ?[]f32,
@@ -61,6 +63,7 @@ pub const TensorProto = struct {
         var tensor = TensorProto{
             .dims = &[_]i64{},
             .data_type = .UNDEFINED,
+            .segment = null,
             .name = null,
             .raw_data = null,
             .float_data = null,
@@ -91,6 +94,13 @@ pub const TensorProto = struct {
                 2 => { // data_type
                     const value = try reader.readVarint();
                     tensor.data_type = @enumFromInt((value));
+                },
+                3 => {
+                    std.debug.print("\n ................................. tensorProto READING segment ", .{});
+                    var segment_read = try reader.readLengthDelimited(); //var dim_reader
+                    const seg_ptr = try reader.allocator.create(Segment);
+                    seg_ptr.* = try Segment.parse(&segment_read);
+                    tensor.segment = seg_ptr;
                 },
                 8 => { // name
                     tensor.name = try reader.readString(reader.allocator);
@@ -216,6 +226,11 @@ pub const TensorProto = struct {
             std.debug.print("{s}Name: {s}\n", .{ space, n });
         } else {
             std.debug.print("{s}Name: (none)\n", .{space});
+        }
+
+        if (self.segment) |segment| {
+            std.debug.print("{s}Segment:\n", .{space});
+            segment.print(space);
         }
 
         std.debug.print("{s}Data Type: {any}\n", .{ space, self.data_type });

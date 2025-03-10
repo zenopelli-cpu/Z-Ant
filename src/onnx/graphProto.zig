@@ -19,7 +19,7 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 11: input, type: ValueInfoProto repeated
 //  - 12: output, type: ValueInfoProto repeated
 //  - 13: value_info, type: ValueInfoProto repeated
-//  - 14: TODO: quantization_annotation, type: TensorAnnotation repeated
+//  - 14: quantization_annotation, type: TensorAnnotation repeated
 //  - 15: sparse_initializer, type: TensorProto repeated
 //  - 16: metadata_props, type: StringStringEntryProto repeated
 //  - 3, 4, 6, 7, 8, 9 are reserved
