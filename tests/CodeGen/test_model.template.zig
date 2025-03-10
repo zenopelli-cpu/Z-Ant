@@ -16,25 +16,19 @@ test "Static Library - Random data Prediction Test" {
         input_data_size *= dim;
     }
 
-    // Create a zeroed array based on dynamic input_data_size
-    var input_data = std.ArrayList(f32).init(allocator);
-    defer input_data.deinit();
+    // Create input data array directly instead of ArrayList
+    var input_data = try allocator.alloc(f32, input_data_size);
+    defer allocator.free(input_data);
 
-    try input_data.resize(input_data_size);
-
-    // Generate random data from std.rand.defaultPrng
-    var prng = std.rand.DefaultPrng.init(blk: {
-        var seed: u64 = undefined;
-        try std.posix.getrandom(std.mem.asBytes(&seed));
-        break :blk seed;
-    });
+    // Generate random data
+    var seed: u64 = undefined;
+    try std.posix.getrandom(std.mem.asBytes(&seed));
+    var prng = std.Random.DefaultPrng.init(seed);
     const rand = prng.random();
 
-    // Iterate input_data_size times and add random values
-    var i: u32 = 0;
-    while (i < input_data_size) : (i += 1) {
-        const value = rand.float(f32) * 100.0;
-        try input_data.append(value);
+    // Fill with random values
+    for (0..input_data_size) |i| {
+        input_data[i] = rand.float(f32) * 100.0;
     }
 
     // TODO: Figure out how to get output data length from the model
@@ -54,13 +48,13 @@ test "Static Library - Random data Prediction Test" {
 
     // Run prediction
     model.lib.predict(
-        @ptrCast(&input_data.items),
+        input_data.ptr,
         @ptrCast(&input_shape),
-        input_shape.len, // 4D tensor shape
+        input_shape.len,
         &result,
     );
 
-    std.debug.print("\nPrediction done without erorrs:\n", .{});
+    std.debug.print("\nPrediction done without errors:\n", .{});
 }
 
 test "Static Library - Wrong Input Shape" {
@@ -138,7 +132,7 @@ test "Static Library - Wrong Number of Dimensions" {
     }
 
     // Test with wrong number of dimensions
-    
+
     var input_shape = [_]u32{input_data_size}; // Should be 4D but only 1D
 
     var input_data = try allocator.alloc(f32, input_data_size);

@@ -12,7 +12,7 @@ pub fn build(b: *std.Build) void {
     const target_str = b.option([]const u8, "target", "Target architecture (e.g., thumb-freestanding)") orelse "native";
     const cpu_str = b.option([]const u8, "cpu", "CPU model (e.g., cortex_m33)");
 
-    const target_query = std.zig.CrossTarget.parse(.{
+    const target_query = std.Target.Query.parse(.{
         .arch_os_abi = target_str,
         .cpu_features = cpu_str,
     }) catch |err| {
@@ -62,7 +62,7 @@ pub fn build(b: *std.Build) void {
     // Define the main executable with target architecture and optimization settings.
     const codeGen_exe = b.addExecutable(.{
         .name = "Codegen",
-        .root_source_file = b.path("src/codeGen/main.zig"),
+        .root_source_file = b.path("src/CodeGen/main.zig"),
         .target = target,
         .optimize = optimize,
     });
