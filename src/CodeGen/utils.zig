@@ -328,19 +328,18 @@ pub inline fn toUsize(comptime T: type, value: T) !usize {
     return @intCast(value);
 }
 
-pub inline fn sliceToUsizeSlice(input: anytype) []usize {
-    const T = @TypeOf(input[0]);
-    var output = allocator.alloc(usize, input.len) catch @panic("Out of memory in sliceToUsizeSlice");
-    const maxUsize = std.math.maxInt(usize);
+pub inline fn sliceToUsizeSlice(slice: anytype) []usize {
+    const T = @TypeOf(slice);
+    const info = @typeInfo(T);
 
-    switch (@typeInfo(T)) {
-        .Int => {
-            for (input, 0..) |value, index| {
-                // Special case for reshape operations: allow -1 as a special value
-                if (@typeInfo(T).Int.signedness == .signed and value < 0) {
+    switch (info) {
+        .int => {
+            var output = allocator.alloc(usize, slice.len) catch @panic("Out of memory in sliceToUsizeSlice");
+            const maxUsize = std.math.maxInt(usize);
+
+            for (slice, 0..) |value, index| {
+                if (value < 0) {
                     if (value == -1) {
-                        // Use maxInt as a sentinel value to represent -1
-                        // This will be interpreted specially by reshape operations
                         output[index] = std.math.maxInt(usize);
                     } else {
                         @panic("Invalid negative value in sliceToUsizeSlice (only -1 is allowed)");
@@ -353,32 +352,57 @@ pub inline fn sliceToUsizeSlice(input: anytype) []usize {
                     output[index] = @intCast(value);
                 }
             }
+
+            return output;
         },
-        .Float => {
-            for (input, 0..) |value, index| {
-                // Special case for reshape operations: allow -1.0 as a special value
+        .array => {
+            var output = allocator.alloc(usize, slice.len) catch @panic("Out of memory in sliceToUsizeSlice");
+            const maxUsize = std.math.maxInt(usize);
+
+            for (slice, 0..) |value, index| {
                 if (value < 0) {
-                    if (value == -1.0) {
-                        // Use maxInt as a sentinel value to represent -1
+                    if (value == -1) {
                         output[index] = std.math.maxInt(usize);
                     } else {
-                        @panic("Invalid negative float value in sliceToUsizeSlice (only -1.0 is allowed)");
+                        @panic("Invalid negative value in sliceToUsizeSlice (only -1 is allowed)");
                     }
-                } else if (value != @floor(value)) {
-                    @panic("Invalid non-integer float value in sliceToUsizeSlice");
-                } else if (value > @as(T, @floatFromInt(maxUsize))) {
-                    @panic("Value too large in sliceToUsizeSlice");
                 } else {
-                    output[index] = @intFromFloat(value);
+                    const uvalue: u128 = @intCast(value);
+                    if (uvalue > maxUsize) {
+                        @panic("Value too large in sliceToUsizeSlice");
+                    }
+                    output[index] = @intCast(value);
                 }
             }
+
+            return output;
+        },
+        .pointer => {
+            var output = allocator.alloc(usize, slice.len) catch @panic("Out of memory in sliceToUsizeSlice");
+            const maxUsize = std.math.maxInt(usize);
+
+            for (slice, 0..) |value, index| {
+                if (value < 0) {
+                    if (value == -1) {
+                        output[index] = std.math.maxInt(usize);
+                    } else {
+                        @panic("Invalid negative value in sliceToUsizeSlice (only -1 is allowed)");
+                    }
+                } else {
+                    const uvalue: u128 = @intCast(value);
+                    if (uvalue > maxUsize) {
+                        @panic("Value too large in sliceToUsizeSlice");
+                    }
+                    output[index] = @intCast(value);
+                }
+            }
+
+            return output;
         },
         else => {
-            @panic("Unsupported type in sliceToUsizeSlice");
+            @compileError("Unsupported type for sliceToUsizeSlice: " ++ @typeName(T));
         },
     }
-
-    return output;
 }
 
 pub fn u32ToUsize(input: [*]u32, size: u32) ![]usize {

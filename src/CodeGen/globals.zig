@@ -155,23 +155,24 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
         std.debug.print("\n\n ERROR: \n     Input shape is necessary to proceed! \n     Ensure that the onnx model has one or compile with -Dshape=''<your_shape>''", .{});
         return error.NoInputShape;
     }
+    networkInput.shape = parsedInputshape;
 
     //ensure that the onnx input shape and the -Dshape, if given, are the same
-    if (parsedInputshape.len != 0) {
-        std.debug.print("\n yes -Dshape ", .{});
+    // if (parsedInputshape.len != 0) {
+    //     std.debug.print("\n yes -Dshape ", .{});
 
-        if (parsedInputshape.len != networkInput.shape.len) {
-            std.debug.print("\n\n ERROR: \n     the passed input -Dshape has size {} ({any}) while the onnx model input shape has size {} ({any}) \n", .{ parsedInputshape.len, parsedInputshape, networkInput.shape.len, networkInput.shape });
-            return error.DifferentInputShapesLen;
-        }
+    //     // if (parsedInputshape.len != networkInput.shape.len) {
+    //     //     std.debug.print("\n\n ERROR: \n     the passed input -Dshape has size {} ({any}) while the onnx model input shape has size {} ({any}) \n", .{ parsedInputshape.len, parsedInputshape, networkInput.shape.len, networkInput.shape });
+    //     //     return error.DifferentInputShapesLen;
+    //     // }
 
-        for (parsedInputshape, 0..) |s, i| {
-            if (s != networkInput.shape[i]) {
-                std.debug.print("\n\n ERROR: \n     the passed input -Dshape is {any} while the onnx model input shape is {any} \n", .{ parsedInputshape, networkInput.shape });
-                return error.DifferentInputShapes;
-            }
-        }
-    }
+    //     // for (parsedInputshape, 0..) |s, i| {
+    //     //     if (s != networkInput.shape[i]) {
+    //     //         std.debug.print("\n\n ERROR: \n     the passed input -Dshape is {any} while the onnx model input shape is {any} \n", .{ parsedInputshape, networkInput.shape });
+    //     //         return error.DifferentInputShapes;
+    //     //     }
+    //     }
+    // }
 
     //create the hashMap
     try populateReadyTensorHashMap(model);
