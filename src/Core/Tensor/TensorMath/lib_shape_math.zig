@@ -1112,6 +1112,17 @@ pub fn reshape_lean_f32(comptime T: anytype, input: *Tensor(T), newShape: []f32,
     // Calculate product of all non-negative and non-zero dimensions
     var known_dims_product: usize = 1;
 
+    // Calculate input size
+    var input_size: usize = 1;
+    for (input.shape) |dim| {
+        input_size *= dim;
+    }
+
+    std.debug.print("\n[DEBUG] get_reshape_output_shape - Starting", .{});
+    std.debug.print("\n[DEBUG] Input shape: {any}", .{input.shape});
+    std.debug.print("\n[DEBUG] New shape: {any}", .{newShape});
+    std.debug.print("\n[DEBUG] Input size: {}", .{input_size});
+
     // First pass: identify -1 and 0 dimensions
     for (newShape, 0..) |dim, i| {
         if (dim == 0) {
@@ -1120,7 +1131,7 @@ pub fn reshape_lean_f32(comptime T: anytype, input: *Tensor(T), newShape: []f32,
             }
             modified_shape[i] = input.shape[i];
             known_dims_product *= input.shape[i];
-        } else if (dim < 0) {
+        } else if (dim < 0 or (dim > 0 and dim < 1)) { // Check for negative or fractional values that might represent -1
             if (neg_one_index != null) {
                 return TensorError.InvalidInput;
             }
@@ -1132,7 +1143,76 @@ pub fn reshape_lean_f32(comptime T: anytype, input: *Tensor(T), newShape: []f32,
         }
     }
 
-    try reshape_lean_common(T, input, modified_shape, neg_one_index, known_dims_product, output);
+    std.debug.print("\n[DEBUG] Known dims product: {}", .{known_dims_product});
+    std.debug.print("\n[DEBUG] Negative one index: {?}", .{neg_one_index});
+
+    // If we have a -1 dimension, calculate its size
+    if (neg_one_index) |idx| {
+        if (known_dims_product == 0) {
+            return TensorError.InvalidInput;
+        }
+
+        if (input_size % known_dims_product != 0) {
+            return TensorError.InputArrayWrongSize;
+        }
+
+        modified_shape[idx] = input_size / known_dims_product;
+        std.debug.print("\n[DEBUG] Calculated size for -1 dimension: {}", .{modified_shape[idx]});
+    } else {
+        // If no -1 dimension was found, check if we need to infer one
+        if (known_dims_product != input_size) {
+            // Find the smallest dimension and treat it as the inferred dimension
+            var min_dim: usize = std.math.maxInt(usize);
+            var min_idx: usize = 0;
+            for (modified_shape, 0..) |dim, i| {
+                if (dim < min_dim) {
+                    min_dim = dim;
+                    min_idx = i;
+                }
+            }
+            modified_shape[min_idx] = input_size / (known_dims_product / min_dim);
+            std.debug.print("\n[DEBUG] Inferred dimension at index {}: {}", .{ min_idx, modified_shape[min_idx] });
+        }
+    }
+
+    // Calculate total size of modified shape
+    var total_size: usize = 1;
+    for (modified_shape) |dim| {
+        total_size *= dim;
+    }
+
+    std.debug.print("\n[DEBUG] Total size from modified shape: {}", .{total_size});
+
+    // Verify sizes match
+    if (total_size != input_size) {
+        std.debug.print("\n[DEBUG] Error: Size mismatch - modified shape total ({}) != input size ({})", .{ total_size, input_size });
+        return TensorError.InputArrayWrongSize;
+    }
+
+    std.debug.print("\n[DEBUG] Final output shape: {any}", .{modified_shape});
+
+    // Reallocate output data if needed
+    if (output.data.len != total_size) {
+        std.debug.print("\n[DEBUG] Reallocating output data buffer from {} to {} elements", .{ output.data.len, total_size });
+        if (output.data.len > 0) {
+            output.allocator.free(output.data);
+        }
+        output.data = try output.allocator.alloc(T, total_size);
+    }
+
+    // Update output shape
+    for (modified_shape, 0..) |dim, i| {
+        output.shape[i] = dim;
+    }
+    output.size = total_size;
+
+    std.debug.print("\n[DEBUG] Final output shape: {any}", .{output.shape});
+    std.debug.print("\n[DEBUG] Final output size: {}", .{output.size});
+    std.debug.print("\n[DEBUG] Final output data length: {}", .{output.data.len});
+
+    // Copy data from input to output
+    @memcpy(output.data, input.data);
+    std.debug.print("\n[DEBUG] Data copy completed", .{});
 }
 
 /// lean version of the reshape function for usize shape arrays
@@ -1149,6 +1229,17 @@ pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []const us
     // Calculate product of all non-negative and non-zero dimensions
     var known_dims_product: usize = 1;
 
+    // Calculate input size
+    var input_size: usize = 1;
+    for (input.shape) |dim| {
+        input_size *= dim;
+    }
+
+    // std.debug.print("\n[DEBUG] get_reshape_output_shape_usize - Starting", .{});
+    // std.debug.print("\n[DEBUG] Input shape: {any}", .{input.shape});
+    // std.debug.print("\n[DEBUG] New shape: {any}", .{newShape});
+    // std.debug.print("\n[DEBUG] Input size: {}", .{input_size});
+
     // First pass: identify -1 and 0 dimensions
     for (newShape, 0..) |dim, i| {
         if (dim == 0) {
@@ -1157,7 +1248,7 @@ pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []const us
             }
             modified_shape[i] = input.shape[i];
             known_dims_product *= input.shape[i];
-        } else if (dim == std.math.maxInt(usize)) { // Use maxInt as a sentinel for -1
+        } else if (dim == std.math.maxInt(usize)) { // Use maxInt as sentinel for -1
             if (neg_one_index != null) {
                 return TensorError.InvalidInput;
             }
@@ -1169,22 +1260,21 @@ pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []const us
         }
     }
 
-    try reshape_lean_common(T, input, modified_shape, neg_one_index, known_dims_product, output);
-}
+    // std.debug.print("\n[DEBUG] Known dims product: {}", .{known_dims_product});
+    // std.debug.print("\n[DEBUG] Negative one index: {?}", .{neg_one_index});
 
-/// Common implementation for reshape_lean functions
-fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: []usize, neg_one_index: ?usize, known_dims_product: usize, output: *Tensor(T)) !void {
     // If we have a -1 dimension, calculate its size
     if (neg_one_index) |idx| {
         if (known_dims_product == 0) {
             return TensorError.InvalidInput;
         }
 
-        if (input.size % known_dims_product != 0) {
+        if (input_size % known_dims_product != 0) {
             return TensorError.InputArrayWrongSize;
         }
 
-        modified_shape[idx] = input.size / known_dims_product;
+        modified_shape[idx] = input_size / known_dims_product;
+        // std.debug.print("\n[DEBUG] Calculated size for -1 dimension: {}", .{modified_shape[idx]});
     }
 
     // Calculate total size of modified shape
@@ -1193,9 +1283,23 @@ fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: [
         total_size *= dim;
     }
 
+    // std.debug.print("\n[DEBUG] Total size from modified shape: {}", .{total_size});
+
     // Verify sizes match
-    if (total_size != input.size) {
+    if (total_size != input_size) {
+        std.debug.print("\n[DEBUG] Error: Size mismatch - modified shape total ({}) != input size ({})", .{ total_size, input_size });
         return TensorError.InputArrayWrongSize;
+    }
+
+    // std.debug.print("\n[DEBUG] Final output shape: {any}", .{modified_shape});
+
+    // Reallocate output data if needed
+    if (output.data.len != total_size) {
+        std.debug.print("\n[DEBUG] Reallocating output data buffer from {} to {} elements", .{ output.data.len, total_size });
+        if (output.data.len > 0) {
+            output.allocator.free(output.data);
+        }
+        output.data = try output.allocator.alloc(T, total_size);
     }
 
     // Update output shape
@@ -1204,8 +1308,76 @@ fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: [
     }
     output.size = total_size;
 
+    // std.debug.print("\n[DEBUG] Final output shape: {any}", .{output.shape});
+    // std.debug.print("\n[DEBUG] Final output size: {}", .{output.size});
+    // std.debug.print("\n[DEBUG] Final output data length: {}", .{output.data.len});
+
     // Copy data from input to output
     @memcpy(output.data, input.data);
+    // std.debug.print("\n[DEBUG] Data copy completed", .{});
+}
+
+/// Common implementation for reshape_lean functions
+fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: []usize, neg_one_index: ?usize, known_dims_product: usize, output: *Tensor(T)) !void {
+    // std.debug.print("\n[DEBUG] reshape_lean_common - Starting reshape", .{});
+    // std.debug.print("\n[DEBUG] Input shape: {any}", .{input.shape});
+    // std.debug.print("\n[DEBUG] Modified shape: {any}", .{modified_shape});
+    // std.debug.print("\n[DEBUG] Negative one index: {?}", .{neg_one_index});
+    // std.debug.print("\n[DEBUG] Known dims product: {}", .{known_dims_product});
+
+    // If we have a -1 dimension, calculate its size
+    if (neg_one_index) |idx| {
+        if (known_dims_product == 0) {
+            std.debug.print("\n[DEBUG] Error: known_dims_product is 0", .{});
+            return TensorError.InvalidInput;
+        }
+
+        if (input.size % known_dims_product != 0) {
+            std.debug.print("\n[DEBUG] Error: input size ({}) not divisible by known_dims_product ({})", .{ input.size, known_dims_product });
+            return TensorError.InputArrayWrongSize;
+        }
+
+        modified_shape[idx] = input.size / known_dims_product;
+        std.debug.print("\n[DEBUG] Calculated size for -1 dimension: {}", .{modified_shape[idx]});
+    }
+
+    // Calculate total size of modified shape
+    var total_size: usize = 1;
+    for (modified_shape) |dim| {
+        total_size *= dim;
+    }
+    std.debug.print("\n[DEBUG] Total size from modified shape: {}", .{total_size});
+    std.debug.print("\n[DEBUG] Input tensor size: {}", .{input.size});
+    std.debug.print("\n[DEBUG] Current output data length: {}", .{output.data.len});
+
+    // Verify sizes match
+    if (total_size != input.size) {
+        std.debug.print("\n[DEBUG] Error: Size mismatch - modified shape total ({}) != input size ({})", .{ total_size, input.size });
+        return TensorError.InputArrayWrongSize;
+    }
+
+    // Reallocate output data if needed
+    if (output.data.len != total_size) {
+        std.debug.print("\n[DEBUG] Reallocating output data buffer from {} to {} elements", .{ output.data.len, total_size });
+        if (output.data.len > 0) {
+            output.allocator.free(output.data);
+        }
+        output.data = try output.allocator.alloc(T, total_size);
+    }
+
+    // Update output shape
+    for (modified_shape, 0..) |dim, i| {
+        output.shape[i] = dim;
+    }
+    output.size = total_size;
+
+    std.debug.print("\n[DEBUG] Final output shape: {any}", .{output.shape});
+    std.debug.print("\n[DEBUG] Final output size: {}", .{output.size});
+    std.debug.print("\n[DEBUG] Final output data length: {}", .{output.data.len});
+
+    // Copy data from input to output
+    @memcpy(output.data, input.data);
+    // std.debug.print("\n[DEBUG] Data copy completed", .{});
 }
 
 /// Implements https://onnx.ai/onnx/operators/onnx__Gather.html
@@ -1929,11 +2101,8 @@ pub fn get_shape_output_shape(input_shape: []const usize, start: ?i64, end: ?i64
 
     return output_shape;
 }
-/// Lean version of unsqueeze, note that previous information stored in output tensor is lost
+/// Lean version of unsqueeze, directly copies data without using fill
 pub fn unsqueeze_lean(comptime T: type, data: *Tensor(T), axes: *Tensor(i64), output: *Tensor(T)) !void {
-    //std.debug.print("\n[UNSQUEEZE] Input shape: {any}", .{data.shape});
-    //std.debug.print("\n[UNSQUEEZE] Axes: {any}", .{axes.data});
-
     // Output rank
     const out_rank = data.shape.len + axes.size;
 
@@ -1953,13 +2122,13 @@ pub fn unsqueeze_lean(comptime T: type, data: *Tensor(T), axes: *Tensor(i64), ou
     // Preparing the output shape
     var new_shape = try data.allocator.alloc(usize, out_rank);
     var is_unsqueezed = try data.allocator.alloc(bool, out_rank);
-    defer data.allocator.free(new_shape);
+    // Remove the defer for new_shape since we'll handle it manually
     defer data.allocator.free(is_unsqueezed);
 
     // Initialize support array
     @memset(is_unsqueezed, false);
 
-    // Adding new mono dimentions and setting support array.
+    // Adding new mono dimensions and setting support array
     for (0..actual_axes.len) |i| {
         new_shape[actual_axes[i]] = 1;
         is_unsqueezed[actual_axes[i]] = true;
@@ -1974,9 +2143,31 @@ pub fn unsqueeze_lean(comptime T: type, data: *Tensor(T), axes: *Tensor(i64), ou
         }
     }
 
-    // Modify output tensor
-    try output.fill(data.data, new_shape);
-    //std.debug.print("\n[UNSQUEEZE] Output shape: {any}\n", .{new_shape});
+    // Update output shape and reallocate if needed
+    if (output.shape.len != out_rank) {
+        if (output.shape.len > 0) output.allocator.free(output.shape);
+        output.shape = new_shape;
+        // Don't free new_shape since we transferred ownership
+    } else {
+        @memcpy(output.shape, new_shape);
+        output.allocator.free(new_shape);
+    }
+
+    // Calculate total size and reallocate data if needed
+    var total_size: usize = 1;
+    for (output.shape) |dim| {
+        total_size *= dim;
+    }
+
+    if (output.data.len != total_size) {
+        if (output.data.len > 0) output.allocator.free(output.data);
+        output.data = try output.allocator.alloc(T, total_size);
+    }
+    output.size = total_size;
+
+    // Copy data directly - since unsqueeze only adds dimensions of size 1,
+    // we can copy the data as-is
+    @memcpy(output.data, data.data);
 }
 
 /// Calculate the output shape for an ONNX Unsqueeze operation without performing the operation
@@ -2032,4 +2223,178 @@ pub fn get_unsqueeze_output_shape(input_shape: []const usize, axes: []const i64)
     }
 
     return output_shape;
+}
+
+pub fn get_reshape_output_shape(input_shape: []const usize, newShape: []const f32, allowZero: ?bool) ![]usize {
+    _ = allowZero;
+
+    // Create a copy of newShape that we can modify
+    var modified_shape = try pkg_allocator.alloc(usize, newShape.len);
+    errdefer pkg_allocator.free(modified_shape);
+
+    // Track if we have a -1 dimension and its position
+    var neg_one_index: ?usize = null;
+
+    // Calculate product of all non-negative and non-zero dimensions
+    var known_dims_product: usize = 1;
+
+    // Calculate input size
+    var input_size: usize = 1;
+    for (input_shape) |dim| {
+        input_size *= dim;
+    }
+
+    std.debug.print("\n[DEBUG] get_reshape_output_shape - Starting", .{});
+    std.debug.print("\n[DEBUG] Input shape: {any}", .{input_shape});
+    std.debug.print("\n[DEBUG] New shape: {any}", .{newShape});
+    std.debug.print("\n[DEBUG] Input size: {}", .{input_size});
+
+    // First pass: identify -1 and 0 dimensions
+    for (newShape, 0..) |dim, i| {
+        if (dim == 0) {
+            if (i >= input_shape.len) {
+                return TensorError.InvalidInput;
+            }
+            modified_shape[i] = input_shape[i];
+            known_dims_product *= input_shape[i];
+        } else if (dim < 0 or (dim > 0 and dim < 1)) { // Check for negative or fractional values that might represent -1
+            if (neg_one_index != null) {
+                return TensorError.InvalidInput;
+            }
+            neg_one_index = i;
+            modified_shape[i] = 1; // Temporary value, will be updated later
+        } else {
+            modified_shape[i] = @as(usize, @intFromFloat(dim));
+            known_dims_product *= modified_shape[i];
+        }
+    }
+
+    std.debug.print("\n[DEBUG] Known dims product: {}", .{known_dims_product});
+    std.debug.print("\n[DEBUG] Negative one index: {?}", .{neg_one_index});
+
+    // If we have a -1 dimension, calculate its size
+    if (neg_one_index) |idx| {
+        if (known_dims_product == 0) {
+            return TensorError.InvalidInput;
+        }
+
+        if (input_size % known_dims_product != 0) {
+            return TensorError.InputArrayWrongSize;
+        }
+
+        modified_shape[idx] = input_size / known_dims_product;
+        std.debug.print("\n[DEBUG] Calculated size for -1 dimension: {}", .{modified_shape[idx]});
+    } else {
+        // If no -1 dimension was found, check if we need to infer one
+        if (known_dims_product != input_size) {
+            // Find the smallest dimension and treat it as the inferred dimension
+            var min_dim: usize = std.math.maxInt(usize);
+            var min_idx: usize = 0;
+            for (modified_shape, 0..) |dim, i| {
+                if (dim < min_dim) {
+                    min_dim = dim;
+                    min_idx = i;
+                }
+            }
+            modified_shape[min_idx] = input_size / (known_dims_product / min_dim);
+            std.debug.print("\n[DEBUG] Inferred dimension at index {}: {}", .{ min_idx, modified_shape[min_idx] });
+        }
+    }
+
+    // Calculate total size of modified shape
+    var total_size: usize = 1;
+    for (modified_shape) |dim| {
+        total_size *= dim;
+    }
+
+    std.debug.print("\n[DEBUG] Total size from modified shape: {}", .{total_size});
+
+    // Verify sizes match
+    if (total_size != input_size) {
+        std.debug.print("\n[DEBUG] Error: Size mismatch - modified shape total ({}) != input size ({})", .{ total_size, input_size });
+        return TensorError.InputArrayWrongSize;
+    }
+
+    std.debug.print("\n[DEBUG] Final output shape: {any}", .{modified_shape});
+    return modified_shape;
+}
+
+// Add a version for usize input shape
+pub fn get_reshape_output_shape_usize(input_shape: []const usize, newShape: []const usize, allowZero: ?bool) ![]usize {
+    _ = allowZero;
+
+    // Create a copy of newShape that we can modify
+    var modified_shape = try pkg_allocator.alloc(usize, newShape.len);
+    errdefer pkg_allocator.free(modified_shape);
+
+    // Track if we have a -1 dimension and its position
+    var neg_one_index: ?usize = null;
+
+    // Calculate product of all non-negative and non-zero dimensions
+    var known_dims_product: usize = 1;
+
+    // Calculate input size
+    var input_size: usize = 1;
+    for (input_shape) |dim| {
+        input_size *= dim;
+    }
+
+    std.debug.print("\n[DEBUG] get_reshape_output_shape_usize - Starting", .{});
+    std.debug.print("\n[DEBUG] Input shape: {any}", .{input_shape});
+    std.debug.print("\n[DEBUG] New shape: {any}", .{newShape});
+    std.debug.print("\n[DEBUG] Input size: {}", .{input_size});
+
+    // First pass: identify -1 and 0 dimensions
+    for (newShape, 0..) |dim, i| {
+        if (dim == 0) {
+            if (i >= input_shape.len) {
+                return TensorError.InvalidInput;
+            }
+            modified_shape[i] = input_shape[i];
+            known_dims_product *= input_shape[i];
+        } else if (dim == std.math.maxInt(usize)) { // Use maxInt as sentinel for -1
+            if (neg_one_index != null) {
+                return TensorError.InvalidInput;
+            }
+            neg_one_index = i;
+            modified_shape[i] = 1; // Temporary value, will be updated later
+        } else {
+            modified_shape[i] = dim;
+            known_dims_product *= modified_shape[i];
+        }
+    }
+
+    std.debug.print("\n[DEBUG] Known dims product: {}", .{known_dims_product});
+    std.debug.print("\n[DEBUG] Negative one index: {?}", .{neg_one_index});
+
+    // If we have a -1 dimension, calculate its size
+    if (neg_one_index) |idx| {
+        if (known_dims_product == 0) {
+            return TensorError.InvalidInput;
+        }
+
+        if (input_size % known_dims_product != 0) {
+            return TensorError.InputArrayWrongSize;
+        }
+
+        modified_shape[idx] = input_size / known_dims_product;
+        std.debug.print("\n[DEBUG] Calculated size for -1 dimension: {}", .{modified_shape[idx]});
+    }
+
+    // Calculate total size of modified shape
+    var total_size: usize = 1;
+    for (modified_shape) |dim| {
+        total_size *= dim;
+    }
+
+    std.debug.print("\n[DEBUG] Total size from modified shape: {}", .{total_size});
+
+    // Verify sizes match
+    if (total_size != input_size) {
+        std.debug.print("\n[DEBUG] Error: Size mismatch - modified shape total ({}) != input size ({})", .{ total_size, input_size });
+        return TensorError.InputArrayWrongSize;
+    }
+
+    std.debug.print("\n[DEBUG] Final output shape: {any}", .{modified_shape});
+    return modified_shape;
 }

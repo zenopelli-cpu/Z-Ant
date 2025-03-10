@@ -22,7 +22,7 @@ pub const unsqueeze_lean = shape_math_lib.unsqueeze_lean;
 pub const get_unsqueeze_output_shape = shape_math_lib.get_unsqueeze_output_shape;
 //---concatenate
 pub const concatenate = shape_math_lib.concatenate;
-// TODO: pub const concatenate_lean = shape_math_lib.concatenate_lean;
+pub const concatenate_lean = shape_math_lib.lean_concatenate;
 pub const get_concatenate_output_shape = shape_math_lib.get_concatenate_output_shape;
 
 // ---------- importing pooling methods ----------
@@ -76,6 +76,7 @@ pub const onnx_maxpool_lean = pooling_math_lib.lean_onnx_maxpool;
 pub const AutoPadType = pooling_math_lib.AutoPadType;
 pub const get_onnx_maxpool_output_shape = pooling_math_lib.get_onnx_maxpool_output_shape;
 pub const get_pooling_output_shape = pooling_math_lib.get_pooling_output_shape;
+pub const PoolingType = pooling_math_lib.PoolingType;
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -152,3 +153,7 @@ pub const softmax_backward = activation_math_lib.softmax_backward;
 pub const transpose_onnx = shape_math_lib.transpose_onnx;
 pub const transpose_onnx_lean = shape_math_lib.transpose_onnx_lean;
 pub const get_transpose_output_shape = shape_math_lib.get_transpose_output_shape;
+
+// Add these exports
+pub const get_reshape_output_shape = shape_math_lib.get_reshape_output_shape;
+pub const get_reshape_output_shape_usize = shape_math_lib.get_reshape_output_shape_usize;
