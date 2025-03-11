@@ -105,7 +105,7 @@ pub fn build(b: *std.Build) void {
     };
 
     const static_lib = b.addStaticLibrary(.{
-        .name = "static_lib",
+        .name = "zant",
         .root_source_file = b.path(lib_model_path),
         .target = target,
         .optimize = optimize,
@@ -114,7 +114,7 @@ pub fn build(b: *std.Build) void {
     static_lib.root_module.addImport("zant", zant_mod);
     static_lib.root_module.addImport("codegen", codeGen_mod);
 
-    const install_lib_step = b.addInstallArtifact(static_lib, .{});
+    const install_lib_step = b.addInstallArtifact(static_lib, .{ .dest_dir = .{ .override = .{ .custom = model_name_option } } });
     const lib_step = b.step("lib", "Compile tensor_math static library");
     lib_step.dependOn(&install_lib_step.step);
 
