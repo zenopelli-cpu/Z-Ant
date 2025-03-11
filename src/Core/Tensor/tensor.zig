@@ -297,29 +297,71 @@ pub fn Tensor(comptime T: type) type {
             return product;
         }
 
-        /// Given the coordinates (indices) of a multidimensional Tensor returns the correspondant potition in the monodimensional space of self.data
+        /// Given the coordinates (indices) of a multidimensional Tensor returns the correspondant position
+        /// in the monodimensional space of self.data
         pub fn flatten_index(self: *const @This(), indices: []const usize) !usize {
-            var idx: usize = 0;
-            var stride: usize = 1;
-
             if (indices.len != self.shape.len) {
                 return error.InvalidIndexLength;
             }
 
-            for (0..self.shape.len) |i| {
-                const rev_idx = self.shape.len - 1 - i;
-                const index = indices[rev_idx];
+            // Fast paths for common dimensions
+            switch (self.shape.len) {
+                1 => {
+                    if (indices[0] >= self.shape[0]) return error.IndexOutOfBounds;
+                    return indices[0];
+                },
+                2 => {
+                    const i = indices[0];
+                    const j = indices[1];
+                    if (i >= self.shape[0] or j >= self.shape[1]) return error.IndexOutOfBounds;
+                    return i * self.shape[1] + j;
+                },
+                3 => {
+                    const i = indices[0];
+                    const j = indices[1];
+                    const k = indices[2];
+                    if (i >= self.shape[0] or j >= self.shape[1] or k >= self.shape[2])
+                        return error.IndexOutOfBounds;
 
-                // Controllo per indice fuori dai limiti
-                if (index >= self.shape[rev_idx]) {
-                    return error.IndexOutOfBounds;
-                }
+                    const stride1 = self.shape[1] * self.shape[2];
+                    const stride2 = self.shape[2];
+                    return i * stride1 + j * stride2 + k;
+                },
+                4 => {
+                    const i = indices[0];
+                    const j = indices[1];
+                    const k = indices[2];
+                    const l = indices[3];
+                    if (i >= self.shape[0] or j >= self.shape[1] or
+                        k >= self.shape[2] or l >= self.shape[3])
+                        return error.IndexOutOfBounds;
 
-                idx += index * stride;
-                stride *= self.shape[rev_idx];
+                    const stride1 = self.shape[1] * self.shape[2] * self.shape[3];
+                    const stride2 = self.shape[2] * self.shape[3];
+                    const stride3 = self.shape[3];
+                    return i * stride1 + j * stride2 + k * stride3 + l;
+                },
+                else => {
+                    // General case for higher dimensions
+                    var idx: usize = 0;
+                    var stride: usize = 1;
+
+                    var i = self.shape.len;
+                    while (i > 0) : (i -= 1) {
+                        const rev_idx = i - 1;
+                        const index = indices[rev_idx];
+
+                        if (index >= self.shape[rev_idx]) {
+                            return error.IndexOutOfBounds;
+                        }
+
+                        idx += index * stride;
+                        stride *= self.shape[rev_idx];
+                    }
+
+                    return idx;
+                },
             }
-
-            return idx;
         }
 
         pub fn slice(self: *Tensor(T), start_indices: []usize, slice_shape: []usize) !Tensor(T) {
