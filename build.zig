@@ -104,6 +104,7 @@ pub fn build(b: *std.Build) void {
     // Define codegen options
     const codegen_options = b.addOptions(); // Model name option
     codegen_options.addOption([]const u8, "model", model_name_option);
+    codegen_options.addOption([]const u8, "user_tests", b.option([]const u8, "user_tests", "User tests path") orelse "");
     codegen_options.addOption(bool, "log", b.option(bool, "log", "Run with log") orelse false);
     codegen_options.addOption([]const u8, "shape", b.option([]const u8, "shape", "Input shape") orelse "");
     codegen_options.addOption([]const u8, "type", b.option([]const u8, "type", "Input type") orelse "f32");
