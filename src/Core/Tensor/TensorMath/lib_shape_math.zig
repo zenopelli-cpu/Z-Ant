@@ -1287,7 +1287,7 @@ pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []const us
 
     // Verify sizes match
     if (total_size != input_size) {
-        std.debug.print("\n[DEBUG] Error: Size mismatch - modified shape total ({}) != input size ({})", .{ total_size, input_size });
+        //std.debug.print("\n[DEBUG] Error: Size mismatch - modified shape total ({}) != input size ({})", .{ total_size, input_size });
         return TensorError.InputArrayWrongSize;
     }
 
@@ -1295,7 +1295,7 @@ pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []const us
 
     // Reallocate output data if needed
     if (output.data.len != total_size) {
-        std.debug.print("\n[DEBUG] Reallocating output data buffer from {} to {} elements", .{ output.data.len, total_size });
+        //std.debug.print("\n[DEBUG] Reallocating output data buffer from {} to {} elements", .{ output.data.len, total_size });
         if (output.data.len > 0) {
             output.allocator.free(output.data);
         }
