@@ -79,11 +79,34 @@ pub fn oneOpModel(
                 "node_",
                 details.name,
             });
-            node_ptr.*.op_type = try std.mem.concat(allocator, u8, &[_][]const u8{
-                "Add",
-            });
-            try node_inputs.append("input_Add");
-            try node_outputs.append("output_Add");
+            node_ptr.*.op_type = try allocator.dupe(u8, "Add");
+            try node_inputs.append(try allocator.dupe(u8, "input_Add"));
+            try node_inputs.append(try allocator.dupe(u8, "weight_Add"));
+
+            try node_outputs.append(try allocator.dupe(u8, "output_Add"));
+
+            //attributes: TODO !! moove dims, data ecc.. into AddStruct
+            //weight matix
+            const weight_ptr = try allocator.create(onnx.TensorProto);
+            const dims: [4]i64 = [_]i64{ 1, 1, 2, 2 };
+            const data: [4]i32 = [_]i32{ 10, 20, 30, 40 };
+            weight_ptr.* = onnx.TensorProto{
+                .dims = try allocator.dupe(i64, &dims),
+                .data_type = onnx.DataType.INT32,
+                .name = try allocator.dupe(u8, "weight_Add"),
+                .raw_data = null,
+                .float_data = null,
+                .int32_data = try allocator.dupe(i32, &data),
+                .string_data = null,
+                .int64_data = null,
+                .double_data = null,
+                .uint64_data = null,
+            };
+            try graph_initializers.append(weight_ptr);
+
+            //ValueInfoProto grraph inputs initialization
+            var input_info_ptr = try allocator.create(onnx.ValueInfoProto);
+            try graph_inputs.append()
         },
         .Concat => |details| {
             node_ptr.*.name = details.name;
@@ -108,8 +131,8 @@ pub fn oneOpModel(
 
     //graph creation
     const graph_ptr = try allocator.create(onnx.GraphProto);
-    graph_ptr.* = onnx.GraphProto{ //?*GraphProto,
-        .name = null, //?[]const u8,
+    graph_ptr.* = onnx.GraphProto{
+        .name = try allocator.dupe(u8, "graph_Add"), //?[]const u8,
         .nodes = try graph_nodes.toOwnedSlice(), // []*NodeProto,
         .initializers = try graph_initializers.toOwnedSlice(), // []*TensorProto,
         .inputs = try graph_inputs.toOwnedSlice(), // []*ValueInfoProto,

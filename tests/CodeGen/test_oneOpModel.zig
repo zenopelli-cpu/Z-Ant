@@ -1,5 +1,6 @@
 const std = @import("std");
 const zant = @import("zant");
+const codegen = @import("codegen");
 const Tensor = zant.core.tensor.Tensor;
 const pkgAllocator = zant.utils.allocator;
 const allocator = pkgAllocator.allocator;
@@ -20,4 +21,11 @@ test "OneOptest Add" {
     defer myModel.deinit(allocator);
 
     myModel.print();
+
+    try codegen.globals.setGlobalAttributes(myModel);
+
+    const model_name = "oneOp_add";
+    // Format model path according to model_name
+    const generated_path = "generated/testsOneOp/" ++ model_name ++ "/";
+    try codegen.skeleton.writeZigFile(model_name, generated_path, myModel);
 }
