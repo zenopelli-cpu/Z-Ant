@@ -319,6 +319,14 @@ def generate_model(op_name, filename):
     onnx.save(model, filename)
     print(f"Fuzzed model for {op_name} saved to: {filename}")
 
+def load_supported_ops(filename="available_operations.txt"):
+    try:
+        with open(filename, "r") as file:
+            return [line.strip() for line in file if line.strip()]
+    except FileNotFoundError:
+        print(f"Warning: {filename} not found. Using default operations.")
+        return []
+
 def main():
     parser = argparse.ArgumentParser(description="Generate fuzzed ONNX models for CI/CD.")
     parser.add_argument("--iterations", type=int, default=1,
@@ -330,12 +338,14 @@ def main():
     if args.seed is not None:
         random.seed(args.seed)
         np.random.seed(args.seed)
-    
-    supported_ops = [
-        "LeakyRelu", "Relu", "Sigmoid", "Softmax", "Add", "Ceil", "Div", "Mul", "Sub", "Tanh",
-        "Concat", "Gather", "Identity", "Neg", "Reshape", "Resize", "Shape", "Slice", 
-        "Split", "Transpose", "Unsqueeze", "Mean", "Conv", "MatMul", "Gemm", "MaxPool"
-    ]
+        
+    supported_ops = load_supported_ops() #TODO : Softmax has errors in parsing, it has been removed from available_operations.txt
+    if not supported_ops:
+        supported_ops = [  # Fallback default operations
+            "LeakyRelu", "Relu", "Sigmoid", "Softmax", "Add", "Ceil", "Div", "Mul", "Sub", "Tanh",
+            "Concat", "Gather", "Identity", "Neg", "Reshape", "Resize", "Shape", "Slice", 
+            "Split", "Transpose", "Unsqueeze", "Mean", "Conv", "MatMul", "Gemm", "MaxPool"
+        ]
     
     for op in supported_ops:
         for i in range(args.iterations):
@@ -344,3 +354,30 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# LeakyRelu
+# Relu
+# Sigmoid
+# Add
+# Ceil
+# Div
+# Mul
+# Sub
+# Tanh
+# Concat
+# Gather
+# Identity
+# Neg
+# Reshape
+# Resize
+# Shape
+# Slice
+# Split
+# Transpose
+# Unsqueeze
+# Mean
+# Conv
+# MatMul
+# Gemm
+# MaxPool

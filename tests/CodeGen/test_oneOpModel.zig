@@ -7,25 +7,8 @@ const allocator = pkgAllocator.allocator;
 
 const oneOp = @import("oneOpModelGenerator.zig");
 
-test "OneOptest Add" {
-    std.debug.print("\n     test: OneOptest Add", .{});
+test "OneOptests" {
+    std.debug.print("\n     test: OneOptests", .{});
 
-    var shape = [_]i64{ 1, 2, 3, 4 };
-    var myStruct = oneOp.AddStruct{
-        .name = "Add",
-        .inputShape = shape[0..],
-    };
-    _ = &myStruct;
-
-    var myModel = try oneOp.oneOpModel(oneOp.OpStruct{ .Add = myStruct });
-    defer myModel.deinit(allocator);
-
-    myModel.print();
-
-    try codegen.globals.setGlobalAttributes(myModel);
-
-    const model_name = "oneOp_add";
-    // Format model path according to model_name
-    const generated_path = "generated/testsOneOp/" ++ model_name ++ "/";
-    try codegen.skeleton.writeZigFile(model_name, generated_path, myModel);
+    try oneOp.oneOpModelsCodegen();
 }

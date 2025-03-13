@@ -107,7 +107,7 @@ pub const GraphProto = struct {
                 },
 
                 11 => { // input
-                    std.debug.print("\n\n ........GRAPH PROTO READING input ", .{});
+                    // std.debug.print("\n\n ........GRAPH PROTO READING input ", .{});
                     var input_reader = try reader.readLengthDelimited();
                     const input_ptr = try reader.allocator.create(ValueInfoProto);
                     input_ptr.* = try ValueInfoProto.parse(&input_reader);
@@ -116,7 +116,7 @@ pub const GraphProto = struct {
                 12 => { // output
                     // This field contains a list of ValueInfoProto messages, each representing an output of the graph.
                     // It provides information about the outputs' names, types, and shapes.
-                    std.debug.print("\n\n ........GRAPH PROTO READING output ", .{});
+                    // std.debug.print("\n\n ........GRAPH PROTO READING output ", .{});
                     var output_reader = try reader.readLengthDelimited();
                     const output_ptr = try reader.allocator.create(ValueInfoProto);
                     output_ptr.* = try ValueInfoProto.parse(&output_reader);
@@ -125,14 +125,14 @@ pub const GraphProto = struct {
                 13 => { // value_info
                     //This optional field holds a list of ValueInfoProto messages that describe intermediate values within the graph.
                     //While it's not mandatory for a value to appear in this list, when present, it offers detailed information about the values computed at various stages of the graph.
-                    std.debug.print("\n\n ........GRAPH PROTO READING value_info ", .{});
+                    // std.debug.print("\n\n ........GRAPH PROTO READING value_info ", .{});
                     var value_info_reader = try reader.readLengthDelimited(); //var value_info_reader
                     const value_info_ptr = try reader.allocator.create(ValueInfoProto);
                     value_info_ptr.* = try ValueInfoProto.parse(&value_info_reader);
                     try value_infos.append(value_info_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
+                    //std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
 
                     var unknown_reader = try reader.readLengthDelimited();
                     while (unknown_reader.hasMore()) {
