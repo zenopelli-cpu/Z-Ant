@@ -22,8 +22,8 @@ def generate_fuzz_model(op_name):
     initializers = []
     
     # Pre-generazione di nomi per input e output
-    input_names = [f"{op_name}_input{i}" for i in range(5)]
-    output_names = [f"{op_name}_output{i}" for i in range(5)]
+    input_names = [f"{op_name}_param_in_{i}" for i in range(5)]
+    output_names = [f"{op_name}_param_out_{i}" for i in range(5)]
     metadata = {}
 
     if op_name in ["Relu", "Sigmoid", "Ceil", "Tanh", "Identity", "Neg", "Shape"]:
@@ -459,6 +459,7 @@ def load_supported_ops(filename="available_operations.txt"):
         return []
 
 def main():
+    print(f"\n __main__")
     parser = argparse.ArgumentParser(description="Generate fuzzed ONNX models and save execution data in JSON.")
     parser.add_argument("--iterations", type=int, default=1,
                         help="Number of models to generate for each operation.")
@@ -486,6 +487,8 @@ def main():
             "Concat", "Gather", "Identity", "Neg", "Reshape", "Resize", "Shape", "Slice", 
             "Split", "Transpose", "Unsqueeze", "Mean", "Conv", "MatMul", "Gemm", "MaxPool"
         ]
+
+    print(f"\n supported_ops : {supported_ops}")
     
     all_models = []
     
@@ -511,5 +514,5 @@ def main():
         json.dump(all_models, f, indent=2)
     print(f"Execution data saved to {args.metadata_file}")
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
