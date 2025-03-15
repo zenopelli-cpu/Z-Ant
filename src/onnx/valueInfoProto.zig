@@ -47,11 +47,11 @@ pub const ValueInfoProto = struct {
             const tag = try reader.readTag();
             switch (tag.field_number) {
                 1 => { // name
-                    std.debug.print("\n ................ ValueInfoProto READING name ", .{});
+                    // std.debug.print("\n ................ ValueInfoProto READING name ", .{});
                     value_info.name = try reader.readString(reader.allocator);
                 },
                 2 => { // type
-                    std.debug.print("\n ................ ValueInfoProto READING type ", .{});
+                    // std.debug.print("\n ................ ValueInfoProto READING type ", .{});
 
                     var type_reader = try reader.readLengthDelimited(); //var type_reader
                     const type_ptr = try reader.allocator.create(TypeProto);
@@ -59,7 +59,7 @@ pub const ValueInfoProto = struct {
                     value_info.type = type_ptr;
                 },
                 3 => { // doc_string
-                    std.debug.print("\n ................ ValueInfoProto READING doc_string ", .{});
+                    // std.debug.print("\n ................ ValueInfoProto READING doc_string ", .{});
                     value_info.doc_string = try reader.readString(reader.allocator);
                 },
                 4 => { // metadata_props

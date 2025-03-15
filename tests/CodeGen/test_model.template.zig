@@ -1,5 +1,7 @@
 const std = @import("std");
 const zant = @import("zant");
+const codegen = @import("codegen");
+const utils = codegen.utils;
 const Tensor = zant.core.tensor.Tensor;
 const pkgAllocator = zant.utils.allocator;
 const allocator = pkgAllocator.allocator;
@@ -17,7 +19,7 @@ test "Static Library - Random data Prediction Test" {
     }
 
     // Create input data array directly instead of ArrayList
-    var input_data = try allocator.alloc(f32, input_data_size);
+    var input_data = try allocator.alloc(model.data_type, input_data_size);
     defer allocator.free(input_data);
 
     // Generate random data
@@ -28,12 +30,10 @@ test "Static Library - Random data Prediction Test" {
 
     // Fill with random values
     for (0..input_data_size) |i| {
-        input_data[i] = rand.float(f32) * 100.0;
+        input_data[i] = rand.float(model.data_type) * 100;
     }
 
-    // TODO: Figure out how to get output data length from the model
-    var result_buffer: [10]f32 = undefined; // Allocate buffer for 10 MNIST classes
-    var result: [*]f32 = @ptrCast(&result_buffer);
+    var result: [*]model.data_type = undefined;
 
     // Create a logging function
     const LogFn = fn ([*c]u8) callconv(.C) void;
@@ -87,12 +87,12 @@ test "Static Library - Wrong Input Shape" {
     }
 
     // Init array with only ones with dynamic input_data_size
-    var input_data = try allocator.alloc(f32, input_data_size);
+    var input_data = try allocator.alloc(model.data_type, input_data_size);
     defer allocator.free(input_data);
 
     i = 0;
     while (i < input_data_size) : (i += 1) {
-        input_data[i] = 1.0;
+        input_data[i] = 1;
     }
 
     var result: [*]f32 = undefined;
@@ -109,9 +109,9 @@ test "Static Library - Empty Input" {
     std.debug.print("\n     test: Static Library - {s} Empty Input\n", .{model.name});
 
     // Test with empty input
-    var input_data = [_]f32{};
+    var input_data = [_]model.data_type{};
     var input_shape = [_]u32{};
-    var result: [*]f32 = undefined;
+    var result: [*]model.data_type = undefined;
 
     model.lib.predict(
         @ptrCast(&input_data),
@@ -143,7 +143,7 @@ test "Static Library - Wrong Number of Dimensions" {
         input_data[i] = 1.0;
     }
 
-    var result: [*]f32 = undefined;
+    var result: [*]model.data_type = undefined;
 
     model.lib.predict(
         @ptrCast(&input_data),
@@ -153,62 +153,59 @@ test "Static Library - Wrong Number of Dimensions" {
     );
 }
 
-// TODO: Implement the following tests
+test "Static Library - User data Prediction Test" {
+    std.debug.print("\n     test: Static Library - {s} User data Prediction Test\n", .{model.name});
 
-// test "Static Library - User Prediction Test" {
-//     std.debug.print("\n     test: Static Library - {s} User Prediction Test\n", .{model.name});
+    if (!model.enable_user_tests) {
+        std.debug.print("\nUser tests are disabled for this model\n", .{});
+        return;
+    }
 
-//     var input_shape = model.input_shape;
+    // Create a logging function
+    const LogFn = fn ([*c]u8) callconv(.C) void;
+    const logFn: LogFn = struct {
+        fn log(msg: [*c]u8) callconv(.C) void {
+            std.debug.print("{s}", .{msg});
+        }
+    }.log;
 
-//     var input_data_size: u32 = 1;
-//     for (input_shape) |dim| {
-//         input_data_size *= dim;
-//     }
+    // Set the logging function
+    model.lib.setLogFunction(logFn);
 
-//     // Create a zeroed array based on dynamic input_data_size
-//     var input_data = std.ArrayList(f32).init(allocator);
-//     defer input_data.deinit();
+    var input_shape = model.input_shape;
 
-//     try input_data.resize(input_data_size);
+    var input_data_len: u32 = 1;
+    for (input_shape) |dim| {
+        input_data_len *= dim;
+    }
 
-//     // Generate random data from std.rand.defaultPrng
-//     var prng = std.rand.DefaultPrng.init(blk: {
-//         var seed: u64 = undefined;
-//         try std.posix.getrandom(std.mem.asBytes(&seed));
-//         break :blk seed;
-//     });
-//     const rand = prng.random();
+    const parsed_user_tests = try utils.loadUserTests(model.data_type, model.user_tests_path);
+    defer parsed_user_tests.deinit();
 
-//     // Iterate input_data_size times and add random values
-//     var i: u32 = 0;
-//     while (i < input_data_size) : (i += 1) {
-//         const value = rand.float(f32) * 100.0;
-//         try input_data.append(value);
-//     }
+    const user_tests = parsed_user_tests.value;
 
-//     // TODO: Figure out how to get output data length from the model
-//     var result_buffer: [10]f32 = undefined; // Allocate buffer for 10 MNIST classes
-//     var result: [*]f32 = @ptrCast(&result_buffer);
+    std.debug.print("\nUser tests loaded.\n", .{});
 
-//     // Create a logging function
-//     const LogFn = fn ([*c]u8) callconv(.C) void;
-//     const logFn: LogFn = struct {
-//         fn log(msg: [*c]u8) callconv(.C) void {
-//             std.debug.print("{s}", .{msg});
-//         }
-//     }.log;
+    for (user_tests) |user_test| {
 
-//     // Set the logging function
-//     model.lib.setLogFunction(logFn);
+        std.debug.print("\n\tRunning user test: {s}\n\n", .{user_test.name});
 
-//     // Run prediction
-//     model.lib.predict(
-//         @ptrCast(&input_data.items),
-//         @ptrCast(&input_shape),
-//         input_shape.len, // 4D tensor shape
-//         &result,
-//     );
+        try std.testing.expectEqual(user_test.input.len, input_data_len);
 
-//     std.debug.print("\nPrediction results:\n", .{});
-//     std.debug.print("{} ", .{result[0]});
-// }
+        var result: [*]model.data_type = undefined;
+
+        // Run prediction
+        model.lib.predict(
+            user_test.input.ptr,
+            @ptrCast(&input_shape),
+            input_shape.len,
+            &result,
+        );
+
+        for (0.., user_test.output) |i, expected_output| {
+            const result_value = result[i];
+            const expected_output_value = expected_output;
+            try std.testing.expectEqual(result_value, expected_output_value);
+        }
+    }
+}

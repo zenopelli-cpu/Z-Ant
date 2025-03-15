@@ -6,3 +6,4 @@ pub const skeleton = @import("skeleton.zig");
 pub const globals = @import("globals.zig");
 pub const tests = @import("tests.zig");
 pub const utils = @import("utils.zig");
+pub const zant_codegen = @import("main.zig").zant_codegen;
