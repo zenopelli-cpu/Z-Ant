@@ -29,6 +29,8 @@ pub fn build(b: *std.Build) void {
     zant_mod.addOptions("build_options", build_options);
 
     //************************************************UNIT TESTS************************************************
+    const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/CodeGen/codegen.zig") });
+    codeGen_mod.addImport("zant", zant_mod);
 
     // Define unified tests for the project.
     const unit_tests = b.addTest(.{
