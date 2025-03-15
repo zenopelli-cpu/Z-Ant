@@ -137,13 +137,10 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
     const parsedInputshape: []const i64 = try utils.parseNumbers(codegen_options.shape);
 
     //setting the input
-    for (model.graph.?.inputs) |input| {
-        if (std.mem.indexOf(u8, try utils.getSanitizedName(input.name.?), "input")) |_| {
-            std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ input.name.?, input.type.?.tensor_type.?.shape.?.shape });
-            networkInput.name = input.name.?;
-            networkInput.shape = input.type.?.tensor_type.?.shape.?.shape;
-        }
-    }
+    const inputs = model.graph.?.inputs;
+    std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ inputs[0].name.?, inputs[0].type.?.tensor_type.?.shape.?.shape });
+    networkInput.name = inputs[0].name.?;
+    networkInput.shape = inputs[0].type.?.tensor_type.?.shape.?.shape;
 
     //setting the output
     networkOutput.name = model.graph.?.outputs[0].name.?;

@@ -19,7 +19,6 @@ pub fn oneOpModelsCodegen() !void {
 
     const file_size = try op_file.getEndPos();
     const buffer = try allocator.alloc(u8, @intCast(file_size));
-    //defer allocator.free(buffer);
 
     const bytes_read = try op_file.readAll(buffer);
     if (bytes_read != file_size) {
@@ -70,7 +69,9 @@ pub fn oneOpModelsCodegen() !void {
         std.debug.print("\n CODEGENERATING {s} ...", .{model_path});
 
         // Create the generated model directory if not present
-        const generated_path = "generated/oneOpModels/";
+        const generated_path = try std.fmt.allocPrint(allocator, "generated/oneOpModels/{s}/", .{trimmed_line});
+        defer allocator.free(generated_path);
+
         //const generated_path = "src/codeGen/";
         try std.fs.cwd().makePath(generated_path);
 

@@ -26,6 +26,8 @@ const codegen_options = @import("codegen_options");
 /// This function may return an error if writing to the file fails.
 pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: ModelOnnx) !void {
     var file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ model_path, model_name });
+    defer allocator.free(file_path);
+
     var src_file = try std.fs.cwd().createFile(file_path, .{});
     std.debug.print("\n .......... file created, path:{s}", .{file_path});
     defer src_file.close();
