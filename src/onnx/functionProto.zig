@@ -27,41 +27,59 @@ const StringStringEntryProto = @import("onnx.zig").StringStringEntryProto;
 
 pub const FunctionProto = struct {
     name: []const u8,
-    inputs: []TensorProto,
-    outputs: []TensorProto,
-    attributes: []AttributeProto,
-    attribute_proto: []AttributeProto,
-    nodes: []NodeProto,
+    inputs: []*TensorProto,
+    outputs: []*TensorProto,
+    attributes: []*AttributeProto,
+    attribute_proto: []*AttributeProto,
+    nodes: []*NodeProto,
     doc_string: ?[]const u8,
-    opset_import: []OperatorSetIdProto,
+    opset_import: []*OperatorSetIdProto,
     domain: ?[]const u8,
     overload: ?[]const u8,
-    value_info: []ValueInfoProto,
-    metadata_props: []StringStringEntryProto,
+    value_info: []*ValueInfoProto,
+    metadata_props: []*StringStringEntryProto,
 
     pub fn deinit(self: *FunctionProto, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
 
-        for (self.inputs) |inputs| inputs.deinit(allocator);
+        for (self.inputs) |input| {
+            input.deinit(allocator);
+            allocator.destroy(input);
+        }
         allocator.free(self.inputs);
 
-        for (self.outputs) |outputs| outputs.deinit(allocator);
+        for (self.outputs) |output| {
+            output.deinit(allocator);
+            allocator.destroy(output);
+        }
         allocator.free(self.outputs);
 
-        for (self.attributes) |attributes| attributes.deinit(allocator);
+        for (self.attributes) |attr| {
+            attr.deinit(allocator);
+            allocator.destroy(attr);
+        }
         allocator.free(self.attributes);
 
-        for (self.attribute_proto) |attr_proto| attr_proto.deinit(allocator);
+        for (self.attribute_proto) |attr_proto| {
+            attr_proto.deinit(allocator);
+            allocator.destroy(attr_proto);
+        }
         allocator.free(self.attribute_proto);
 
-        for (self.nodes) |node| node.deinit(allocator);
+        for (self.nodes) |node| {
+            node.deinit(allocator);
+            allocator.destroy(node);
+        }
         allocator.free(self.nodes);
 
         if (self.doc_string) |doc_str| {
             allocator.free(doc_str);
         }
 
-        for (self.opset_import) |opset| opset.deinit(allocator);
+        for (self.opset_import) |opset| {
+            opset.deinit(allocator);
+            allocator.destroy(opset);
+        }
         allocator.free(self.opset_import);
 
         if (self.domain) |domain_str| {
@@ -72,10 +90,16 @@ pub const FunctionProto = struct {
             allocator.free(overload_str);
         }
 
-        for (self.value_info) |value_info| value_info.deinit(allocator);
+        for (self.value_info) |value_info| {
+            value_info.deinit(allocator);
+            allocator.destroy(value_info);
+        }
         allocator.free(self.value_info);
 
-        for (self.metadata_props) |metadata_prop| metadata_prop.deinit(allocator);
+        for (self.metadata_props) |metadata_prop| {
+            metadata_prop.deinit(allocator);
+            allocator.destroy(metadata_prop);
+        }
         allocator.free(self.metadata_props);
     }
 
@@ -117,36 +141,42 @@ pub const FunctionProto = struct {
                 },
                 4 => { //inputs(reapeted TensorProto)
                     var input_reader = try reader.readLengthDelimited();
-                    const input_tensor = try TensorProto.parse(&input_reader);
-                    try function.inputs.append(input_tensor);
+                    const input_tensor_ptr = try allocator.create(TensorProto);
+                    input_tensor_ptr.* = try TensorProto.parse(&input_reader);
+                    try function.inputs.append(input_tensor_ptr);
                 },
                 5 => { // outputs(repeted TensorProto)
                     var output_reader = try reader.readLengthDelimited();
-                    const output_tensor = try TensorProto.parse(&output_reader);
-                    try function.outputs.append(output_tensor);
+                    const output_tensor_ptr = try allocator.create(TensorProto);
+                    output_tensor_ptr.* = try TensorProto.parse(&output_reader);
+                    try function.outputs.append(output_tensor_ptr);
                 },
                 6 => { //attributes( repeted AttributeProto)
                     var attribute_reader = try reader.readLengthDelimited();
-                    const attribute_tensor = try TensorProto.parse(&attribute_reader);
-                    try function.attributes.append(attribute_tensor);
+                    const attribute_ptr = try allocator.create(AttributeProto);
+                    attribute_ptr.* = try AttributeProto.parse(&attribute_reader, allocator);
+                    try function.attributes.append(attribute_ptr);
                 },
                 11 => { // attribute_proto (repeated AttributeProto)
                     var attribute_proto_reader = try reader.readLengthDelimited();
-                    const attribute_proto_tensor = try AttributeProto.parse(&attribute_proto_reader, allocator);
-                    try function.attribute_proto.append(attribute_proto_tensor);
+                    const attribute_proto_ptr = try allocator.create(AttributeProto);
+                    attribute_proto_ptr.* = try AttributeProto.parse(&attribute_proto_reader, allocator);
+                    try function.attribute_proto.append(attribute_proto_ptr);
                 },
                 7 => { // nodes (repeated NodeProto)
                     var node_reader = try reader.readLengthDelimited();
-                    const node = try NodeProto.parse(&node_reader, allocator);
-                    try function.nodes.append(node);
+                    const node_ptr = try allocator.create(NodeProto);
+                    node_ptr.* = try NodeProto.parse(&node_reader, allocator);
+                    try function.nodes.append(node_ptr);
                 },
                 8 => { // doc_string (optional string)
                     function.doc_string = try reader.readString(allocator);
                 },
                 9 => { // opset_import (repeated OperatorSetIdProto)
                     var opset_reader = try reader.readLengthDelimited();
-                    const opset = try OperatorSetIdProto.parse(&opset_reader, allocator);
-                    try function.opset_import.append(opset);
+                    const opset_ptr = try allocator.create(OperatorSetIdProto);
+                    opset_ptr.* = try OperatorSetIdProto.parse(&opset_reader, allocator);
+                    try function.opset_import.append(opset_ptr);
                 },
                 10 => { // domain (optional string)
                     function.domain = try reader.readString(allocator);
@@ -156,13 +186,15 @@ pub const FunctionProto = struct {
                 },
                 12 => { // value_info (repeated ValueInfoProto)
                     var value_info_reader = try reader.readLengthDelimited();
-                    const parsed_value_info = try ValueInfoProto.parse(&value_info_reader, allocator);
-                    try function.value_info.append(parsed_value_info);
+                    const value_info_ptr = try allocator.create(ValueInfoProto);
+                    value_info_ptr.* = try ValueInfoProto.parse(&value_info_reader, allocator);
+                    try function.value_info.append(value_info_ptr);
                 },
                 14 => { // metadata_props (repeated StringStringEntryProto)
                     var metadata_reader = try reader.readLengthDelimited();
-                    const metadata_entry = try StringStringEntryProto.parse(&metadata_reader, allocator);
-                    try function.metadata_props.append(metadata_entry);
+                    const metadata_entry_ptr = try allocator.create(StringStringEntryProto);
+                    metadata_entry_ptr.* = try StringStringEntryProto.parse(&metadata_reader, allocator);
+                    try function.metadata_props.append(metadata_entry_ptr);
                 },
                 else => {
                     std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for FunztionProto \n\n", .{tag});

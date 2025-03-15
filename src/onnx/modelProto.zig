@@ -31,9 +31,9 @@ pub const ModelProto = struct {
     model_version: ?i64,
     doc_string: ?[]const u8,
     graph: ?*GraphProto,
-    opset_import: []OperatorSetIdProto,
-    metadata_props: []StringStringEntryProto,
-    functions: []FunctionProto,
+    opset_import: []*OperatorSetIdProto,
+    metadata_props: []*StringStringEntryProto,
+    functions: []*FunctionProto,
 
     pub fn deinit(self: *ModelProto, allocator: std.mem.Allocator) void {
         if (self.producer_name) |n| allocator.free(n);
@@ -44,18 +44,21 @@ pub const ModelProto = struct {
             g.deinit(allocator);
             allocator.destroy(g);
         }
-        for (self.opset_import) |*opset| {
+        for (self.opset_import) |opset| {
             opset.deinit(allocator);
+            allocator.destroy(opset);
         }
         allocator.free(self.opset_import);
 
-        for (self.metadata_props) |*meta| {
+        for (self.metadata_props) |meta| {
             meta.deinit(allocator);
+            allocator.destroy(meta);
         }
         allocator.free(self.metadata_props);
 
-        for (self.functions) |*func| {
+        for (self.functions) |func| {
             func.deinit(allocator);
+            allocator.destroy(func);
         }
         allocator.free(self.functions);
     }
@@ -69,9 +72,9 @@ pub const ModelProto = struct {
             .model_version = null,
             .doc_string = null,
             .graph = null,
-            .opset_import = &[_]OperatorSetIdProto{},
-            .metadata_props = &[_]StringStringEntryProto{},
-            .functions = &[_]FunctionProto{},
+            .opset_import = &[_]*OperatorSetIdProto{},
+            .metadata_props = &[_]*StringStringEntryProto{},
+            .functions = &[_]*FunctionProto{},
         };
         errdefer {
             if (model.producer_name) |n| reader.allocator.free(n);
@@ -85,13 +88,13 @@ pub const ModelProto = struct {
             allocator.free(model.functions);
         }
 
-        var opset_import_list = std.ArrayList(OperatorSetIdProto).init(allocator);
+        var opset_import_list = std.ArrayList(*OperatorSetIdProto).init(allocator);
         defer opset_import_list.deinit();
 
-        var metadata_list = std.ArrayList(StringStringEntryProto).init(allocator);
+        var metadata_list = std.ArrayList(*StringStringEntryProto).init(allocator);
         defer metadata_list.deinit();
 
-        var functions_list = std.ArrayList(FunctionProto).init(allocator);
+        var functions_list = std.ArrayList(*FunctionProto).init(allocator);
         defer functions_list.deinit();
 
         while (reader.hasMore()) {
@@ -137,18 +140,21 @@ pub const ModelProto = struct {
                 },
                 8 => { //opset_import
                     var opset_reader = try reader.readLengthDelimited();
-                    const opset = try OperatorSetIdProto.parse(&opset_reader, allocator);
-                    try opset_import_list.append(opset);
+                    const opset_ptr = try allocator.create(OperatorSetIdProto);
+                    opset_ptr.* = try OperatorSetIdProto.parse(&opset_reader, allocator);
+                    try opset_import_list.append(opset_ptr);
                 },
                 14 => { // metadata_props
                     var meta_reader = try reader.readLengthDelimited();
-                    const meta = try StringStringEntryProto.parse(&meta_reader, allocator);
-                    try metadata_list.append(meta);
+                    const meta_ptr = try allocator.create(StringStringEntryProto);
+                    meta_ptr.* = try StringStringEntryProto.parse(&meta_reader, allocator);
+                    try metadata_list.append(meta_ptr);
                 },
                 25 => { // functions
                     var function_reader = try reader.readLengthDelimited();
-                    const function = try FunctionProto.parse(&function_reader, allocator);
-                    try functions_list.append(function);
+                    const function_ptr = try allocator.create(FunctionProto);
+                    function_ptr.* = try FunctionProto.parse(&function_reader, allocator);
+                    try functions_list.append(function_ptr);
                 },
                 else => {
                     std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
