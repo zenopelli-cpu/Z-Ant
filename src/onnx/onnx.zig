@@ -57,6 +57,11 @@ pub const DataType = enum(i32) {
     FLOAT4E2M1 = 23,
 };
 
+pub const DataLocation = enum(i32) {
+    DEFAULT = 0,
+    EXTERNAL = 1,
+};
+
 pub const AttributeType = enum {
     UNDEFINED,
     FLOAT,
