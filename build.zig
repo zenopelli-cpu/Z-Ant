@@ -139,23 +139,51 @@ pub fn build(b: *std.Build) void {
     const run_test_generated_lib = b.addRunArtifact(test_generated_lib);
     const test_step_generated_lib = b.step("test-generated-lib", "Run generated library tests");
     test_step_generated_lib.dependOn(&run_test_generated_lib.step);
+    
+    // ************************************************ ONEOP CODEGEN ************************************************
 
-    // ************************************************ GENERATED LIBRARY TESTS ************************************************
+    // Setup oneOp codegen
+    
+    const oneop_codegen_exe = b.addExecutable(.{
+        .name = "oneop_codegen",
+        .root_source_file = b.path("tests/CodeGen/oneOpModelGenerator.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    oneop_codegen_exe.root_module.addImport("zant", zant_mod);
+    codeGen_mod.addOptions("codegen_options", codegen_options);
+    oneop_codegen_exe.root_module.addImport("codegen", codeGen_mod);
+    oneop_codegen_exe.linkLibC();
+    
+    const run_oneop_codegen_exe = b.addRunArtifact(oneop_codegen_exe);
 
-    // Add test for generated library
-    const test_codegen_oneOp = b.addTest(.{
-        .name = "test_codegen_oneOp",
-        .root_source_file = b.path("tests/CodeGen/test_oneOpModel.zig"),
+    // ************************************************
+    
+    //Setup test_all_oneOp
+    
+    const test_all_oneOp = b.addTest(.{
+        .name = "test_all_oneOp",
+        .root_source_file = b.path("generated/oneOpModels/test_oneop_models.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    test_codegen_oneOp.root_module.addImport("zant", zant_mod);
+    test_all_oneOp.root_module.addImport("zant", zant_mod);
     codeGen_mod.addOptions("codegen_options", codegen_options);
-    test_codegen_oneOp.root_module.addImport("codegen", codeGen_mod);
-    test_codegen_oneOp.linkLibC();
-
-    const run_test_codegen_oneOp = b.addRunArtifact(test_codegen_oneOp);
-    const step_test_codegen_oneOp = b.step("test-oneOp", "Run generated library tests");
-    step_test_codegen_oneOp.dependOn(&run_test_codegen_oneOp.step);
+    test_all_oneOp.root_module.addImport("codegen", codeGen_mod);
+    test_all_oneOp.linkLibC();
+    
+    const run_test_all_oneOp = b.addRunArtifact(test_all_oneOp);
+    
+    
+    // ************************************************
+    // Setup test oneop
+    // It will run 
+    // - run_oneop_codegen_exe
+    // - run_test_all_oneOp
+    
+    const step_test_oneOp = b.step("test-oneop", "Run generated library tests");
+    step_test_oneOp.dependOn(&run_test_all_oneOp.step);
+    run_test_all_oneOp.step.dependOn(&run_oneop_codegen_exe.step);
 }

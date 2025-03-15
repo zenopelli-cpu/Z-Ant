@@ -9,8 +9,8 @@ const allocator = pkgAllocator.allocator;
 const onnx = zant.onnx;
 const codeGen = @import("codegen");
 
-pub fn oneOpModelsCodegen() !void {
-    std.debug.print("\n     test: OneOptest", .{});
+pub fn main() !void {
+    std.debug.print("One ONNX Operator Model Generator", .{});
 
     std.debug.print("\n     opening available_operations...", .{});
     const op_file = try std.fs.cwd().openFile("tests/CodeGen/Python-ONNX/available_operations.txt", .{});
@@ -35,6 +35,32 @@ pub fn oneOpModelsCodegen() !void {
     var modelList = std.ArrayList(onnx.ModelProto).init(allocator);
     defer modelList.deinit();
 
+    // Create folders if not exist
+    std.fs.cwd().makeDir("generated/oneOpModels/") catch |err| {
+            // Se l'errore è che il percorso esiste già, ignora l'errore
+            if (err == error.PathAlreadyExists) {
+                // La directory esiste già, continua con il codice
+            } else {
+                // Se è un altro tipo di errore, propagalo
+                return err;
+            }
+    };
+
+    // There will be a file named test_oneop_models.zig that will contain all the tests for the one operation models.
+    // So to test all the models, you can just run the global file 
+    
+    // Create test_oneop_models.zig
+    const test_oneop_file = try std.fs.cwd().createFile( "generated/oneOpModels/test_oneop_models.zig", .{});
+    defer test_oneop_file.close();
+
+    const test_oneop_writer = test_oneop_file.writer();
+
+    
+    try test_oneop_writer.writeAll("const std = @import(\"std\");\n");
+    try test_oneop_writer.writeAll("\n");
+    try test_oneop_writer.writeAll("test {\n");
+    try test_oneop_writer.writeAll("\n");
+    
     while (true) {
         // Get the next line from the iterator.
         const maybe_line = lines_iter.next();
@@ -72,15 +98,23 @@ pub fn oneOpModelsCodegen() !void {
         const generated_path = try std.fmt.allocPrint(allocator, "generated/oneOpModels/{s}/", .{trimmed_line});
         defer allocator.free(generated_path);
 
-        //const generated_path = "src/codeGen/";
-        try std.fs.cwd().makePath(generated_path);
+       try std.fs.cwd().makePath(generated_path);
 
         // ONNX model parsing
         try codeGen.globals.setGlobalAttributes(model);
 
         // Create the code for the model
         try codeGen.skeleton.writeZigFile(trimmed_line, generated_path, model);
+        
+        // Create relative tests
+        try codeGen.tests.writeSlimTestFile(trimmed_line, generated_path);
+        
+        // Add relative one op test to global tests file
+        try test_oneop_writer.print("\t _ = @import(\"{s}/test_{s}.zig\"); \n", .{trimmed_line, trimmed_line});
     }
+    
+    // Adding last global test line
+    try test_oneop_writer.writeAll("} \n\n");
 }
 
 // //------------operation structs
