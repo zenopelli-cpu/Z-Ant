@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const rand = std.Random;
 
-const InitMethod = enum {
+pub const InitMethod = enum {
     Dumb, // Generazione casuale semplice
     Uniform, // Distribuzione uniforme
     Gaussian, // Distribuzione normale (media 0, deviazione 1 per normalizzazione)
