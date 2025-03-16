@@ -20,7 +20,7 @@ pub fn div(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T)) !Tensor(T) {
     return result;
 }
 // --------- lean DIV
-pub inline fn div_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), result: *Tensor(T)) void {
+pub inline fn div_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), result: *Tensor(T)) !void {
     for (0..lhs.size) |i| {
         result.data[i] = lhs.data[i] / rhs.data[i];
     }
