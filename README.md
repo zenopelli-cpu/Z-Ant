@@ -88,6 +88,16 @@ To run all tests, including computationally heavy ones, use:
 zig build test -Dheavy --summary all
 ```
 
+If you also want to test the code generation functionality, you can run:
+
+```sh
+python3 tests/CodeGen/Python-ONNX/onnx_gen.py #Note that it requires onnx dependency.
+zig build test-codegen-gen
+zig build test-codegen --summary all
+```
+
+You can learn more about it [here](tests/CodeGen/README.md).
+
 ### Documentation
 
 Generated using [Zig's standard documentation format](https://ziglang.org/documentation/master/#Doc-Comments).

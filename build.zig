@@ -157,7 +157,7 @@ pub fn build(b: *std.Build) void {
     oneop_codegen_exe.linkLibC();
     
     const run_oneop_codegen_exe = b.addRunArtifact(oneop_codegen_exe);
-    const step_test_oneOp_codegen = b.step("test-oneop-codegen", "Run generated library tests");
+    const step_test_oneOp_codegen = b.step("test-codegen-gen", "Run generated library tests");
     step_test_oneOp_codegen.dependOn(&run_oneop_codegen_exe.step);
     
     // ************************************************
@@ -185,7 +185,7 @@ pub fn build(b: *std.Build) void {
     // - run_oneop_codegen_exe
     // - run_test_all_oneOp
     
-    const step_test_oneOp = b.step("test-oneop", "Run generated library tests");
+    const step_test_oneOp = b.step("test-codegen", "Run generated library tests");
     step_test_oneOp.dependOn(&run_test_all_oneOp.step);
     
 }
