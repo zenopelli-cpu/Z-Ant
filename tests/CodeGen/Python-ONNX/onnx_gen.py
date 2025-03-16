@@ -522,9 +522,9 @@ def main():
                         help="Number of models to generate for each operation.")
     parser.add_argument("--seed", type=int, default=None,
                         help="Seed for random generation (for reproducibility).")
-    parser.add_argument("--output-dir", type=str, default=".",
+    parser.add_argument("--output-dir", type=str, default="datasets/oneOpModels",
                         help="Directory to save generated models.")
-    parser.add_argument("--metadata-file", type=str, default="results.json",
+    parser.add_argument("--metadata-file", type=str, default="datasets/oneOpModels/results.json",
                         help="File to save metadata and execution data.")
     args = parser.parse_args()
     
