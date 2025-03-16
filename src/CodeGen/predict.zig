@@ -27,8 +27,6 @@ pub inline fn writePredict(writer: std.fs.File.Writer, do_export: bool) !void {
     //method to reset the tensors values
     try write_outputsResetMethod(writer);
 
-    
-    
     _ = try writer.print(
         \\
         \\
@@ -39,7 +37,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, do_export: bool) !void {
         \\    shape_len: u32,
         \\    result: *[*]T,
         \\) void {{
-    , .{if(do_export == true) "export" else ""});
+    , .{if (do_export == true) "export" else ""});
 
     if (codegen_options.log) {
         _ = try writer.print(
@@ -147,6 +145,10 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
 fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !i64 {
     const shape = output.shape;
     var size: i64 = 1;
+
+    std.debug.print("\n ----------\n output.name:{s}", .{output.name});
+    std.debug.print("\n ----------\n try utils.getSanitizedName(output.name):{s}", .{try utils.getSanitizedName(output.name)});
+
     try writer.print(
         \\
         \\

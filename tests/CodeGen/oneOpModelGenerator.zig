@@ -32,9 +32,6 @@ pub fn main() !void {
     // Split file into lines.
     var lines_iter = std.mem.splitAny(u8, ops_data, "\n");
 
-    var modelList = std.ArrayList(onnx.ModelProto).init(allocator);
-    defer modelList.deinit();
-
     // Create folders if not exist
     try std.fs.cwd().makePath("generated/oneOpModels/");
 
@@ -75,13 +72,10 @@ pub fn main() !void {
 
         // Load the model.
         var model = try onnx.parseFromFile(allocator, model_path);
-        defer model.deinit(allocator);
 
         //Printing the model:
         //DEBUG
         model.print();
-
-        try modelList.append(model);
 
         std.debug.print("\n CODEGENERATING {s} ...", .{model_path});
 
@@ -102,6 +96,9 @@ pub fn main() !void {
 
         // Add relative one op test to global tests file
         try test_oneop_writer.print("\t _ = @import(\"{s}/test_{s}.zig\"); \n", .{ trimmed_line, trimmed_line });
+
+        //try codeGen.globals.setGlobalAttributes(model);
+        model.deinit(allocator);
     }
 
     // Adding last global test line
