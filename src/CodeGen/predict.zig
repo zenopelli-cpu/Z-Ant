@@ -20,24 +20,26 @@ const ReadyNode = globals.ReadyNode;
 const ReadyTensor = globals.ReadyTensor;
 
 // Writes the computation function for predicting outputs
-pub inline fn writePredict(writer: std.fs.File.Writer) !void {
+pub inline fn writePredict(writer: std.fs.File.Writer, do_export: bool) !void {
     //declare all the outputs of each node of the network
     try write_outputsInitialization(writer);
 
     //method to reset the tensors values
     try write_outputsResetMethod(writer);
 
+    
+    
     _ = try writer.print(
         \\
         \\
         \\
-        \\pub export fn predict( 
+        \\pub {s} fn predict( 
         \\    input: [*]T,
         \\    input_shape: [*]u32,
         \\    shape_len: u32,
         \\    result: *[*]T,
         \\) void {{
-    , .{});
+    , .{if(do_export == true) "export" else ""});
 
     if (codegen_options.log) {
         _ = try writer.print(
