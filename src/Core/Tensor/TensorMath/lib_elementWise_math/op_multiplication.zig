@@ -14,7 +14,7 @@ pub fn mul(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T)) !Tensor(T) {
     const allocator = lhs.allocator;
     var result = try Tensor(T).fromShape(allocator, lhs.shape);
 
-    mul_lean(T, lhs, rhs, &result);
+    try mul_lean(T, lhs, rhs, &result);
 
     return result;
 }
