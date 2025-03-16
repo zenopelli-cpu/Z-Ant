@@ -216,11 +216,7 @@ fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
     const b_rows = input_b.shape[input_b.shape.len - 2];
     const b_cols = input_b.shape[input_b.shape.len - 1];
 
-    if (a_rows != b_rows) {
-        return error.ShapeMismatch;
-    }
-    
-    if (a_cols != b_cols) {
+    if (a_cols != b_rows) {
         return error.ShapeMismatch;
     }
 
