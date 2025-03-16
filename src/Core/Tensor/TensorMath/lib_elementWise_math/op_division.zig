@@ -15,7 +15,7 @@ pub fn div(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T)) !Tensor(T) {
     const allocator = lhs.allocator;
     var result = try Tensor(T).fromShape(allocator, lhs.shape);
 
-    div_lean(T, lhs, rhs, &result);
+    try div_lean(T, lhs, rhs, &result);
 
     return result;
 }
