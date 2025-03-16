@@ -14,12 +14,12 @@ pub fn mul(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T)) !Tensor(T) {
     const allocator = lhs.allocator;
     var result = try Tensor(T).fromShape(allocator, lhs.shape);
 
-    mul_lean(T, lhs, rhs, &result);
+    try mul_lean(T, lhs, rhs, &result);
 
     return result;
 }
 // --------- lean MUL
-pub inline fn mul_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), result: *Tensor(T)) void {
+pub inline fn mul_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), result: *Tensor(T)) !void {
     for (0..lhs.size) |i| {
         result.data[i] = lhs.data[i] * rhs.data[i];
     }

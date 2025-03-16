@@ -24,7 +24,7 @@ const codegen_options = @import("codegen_options");
 ///
 /// # Errors
 /// This function may return an error if writing to the file fails.
-pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: ModelOnnx) !void {
+pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: ModelOnnx, do_export: bool) !void {
     var file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ model_path, model_name });
     defer allocator.free(file_path);
 
@@ -60,7 +60,7 @@ pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: Model
     //try write_debug(lib_writer);
 
     // Generate prediction function code
-    try coddeGenPredict.writePredict(lib_writer);
+    try coddeGenPredict.writePredict(lib_writer, do_export);
 }
 
 /// Writes the required library imports to the generated Zig file for predict function.

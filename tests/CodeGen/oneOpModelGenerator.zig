@@ -49,7 +49,7 @@ pub fn main() !void {
 
     try test_oneop_writer.writeAll("const std = @import(\"std\");\n");
     try test_oneop_writer.writeAll("\n");
-    try test_oneop_writer.writeAll("test {\n");
+    try test_oneop_writer.writeAll("test {");
     try test_oneop_writer.writeAll("\n");
 
     while (true) {
@@ -95,7 +95,7 @@ pub fn main() !void {
         try codeGen.globals.setGlobalAttributes(model);
 
         // Create the code for the model
-        try codeGen.skeleton.writeZigFile(trimmed_line, generated_path, model);
+        try codeGen.skeleton.writeZigFile(trimmed_line, generated_path, model, false);
 
         // Create relative tests
         try codeGen.tests.writeSlimTestFile(trimmed_line, generated_path);
