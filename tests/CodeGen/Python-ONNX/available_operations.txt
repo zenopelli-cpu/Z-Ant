@@ -1,1 +1,15 @@
+Gemm
+Div
 Add
+Concat
+Conv
+Div
+Gather
+MatMul
+MaxPool
+Relu
+Reshape
+Shape
+Sigmoid
+Slice
+Transpose
