@@ -120,7 +120,6 @@ pub const NodeProto = struct {
                     node.overload = try reader.readString(reader.allocator);
                 },
                 9 => { // metadata_props
-                    std.debug.print("\n ................ NodoProto READING metadata_props ", .{});
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);

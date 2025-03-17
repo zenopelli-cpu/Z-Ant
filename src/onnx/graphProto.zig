@@ -127,7 +127,6 @@ pub const GraphProto = struct {
                 },
 
                 11 => { // input
-                    std.debug.print("\n\n ........GRAPH PROTO READING input ", .{});
                     var input_reader = try reader.readLengthDelimited();
                     const input_ptr = try reader.allocator.create(ValueInfoProto);
                     input_ptr.* = try ValueInfoProto.parse(&input_reader);
@@ -136,7 +135,6 @@ pub const GraphProto = struct {
                 12 => { // output
                     // This field contains a list of ValueInfoProto messages, each representing an output of the graph.
                     // It provides information about the outputs' names, types, and shapes.
-                    std.debug.print("\n\n ........GRAPH PROTO READING output ", .{});
                     var output_reader = try reader.readLengthDelimited();
                     const output_ptr = try reader.allocator.create(ValueInfoProto);
                     output_ptr.* = try ValueInfoProto.parse(&output_reader);
@@ -145,14 +143,12 @@ pub const GraphProto = struct {
                 13 => { // value_info
                     //This optional field holds a list of ValueInfoProto messages that describe intermediate values within the graph.
                     //While it's not mandatory for a value to appear in this list, when present, it offers detailed information about the values computed at various stages of the graph.
-                    std.debug.print("\n\n ........GRAPH PROTO READING value_info ", .{});
                     var value_info_reader = try reader.readLengthDelimited(); //var value_info_reader
                     const value_info_ptr = try reader.allocator.create(ValueInfoProto);
                     value_info_ptr.* = try ValueInfoProto.parse(&value_info_reader);
                     try value_infos.append(value_info_ptr);
                 },
                 14 => {
-                    std.debug.print("\n\n ........GRAPH PROTO READING  quantization_annotation", .{});
                     var quantization_reader = try reader.readLengthDelimited();
                     const quantization_ptr = try reader.allocator.create(TensorAnnotation);
                     quantization_ptr.* = try TensorAnnotation.parse(&quantization_reader);
@@ -165,7 +161,6 @@ pub const GraphProto = struct {
                     try sparse_inizializers.append(tensor_ptr);
                 },
                 16 => {
-                    std.debug.print("\n ................ GraphProto READING metadata_props ", .{});
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
