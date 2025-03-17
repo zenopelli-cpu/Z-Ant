@@ -166,7 +166,7 @@ extern void setLogFunction(void (*log_function)(uint8_t *string));
 - `-Duser_tests=path/to/user_tests.json`: Specify custom tests.
 
 
-##CI/CD Pipeline
+## CI/CD Pipeline
 - We are committed to enhancing our Continuous Integration/Continuous Deployment (CI/CD) pipeline to ensure robustness, reliability, and performance of Zant across all supported platforms. Key improvements include:
 Hardware-in-the-Loop (HIL) Testing: Integrate a hardware test bench with connected microcontrollers (e.g., Raspberry Pi Pico, ARM Cortex-M) into the CI/CD pipeline to validate real-world performance and compatibility.
 
@@ -179,8 +179,6 @@ Hardware-in-the-Loop (HIL) Testing: Integrate a hardware test bench with connect
 
 - Code Coverage Reporting: Generate and publish code coverage metrics with every CI run to maintain high test quality.
 - Containerized CI Environment: Use Docker containers to standardize the CI/CD environment, ensuring consistent builds and tests across all contributors.
-
-
 
 
 ## Containerization

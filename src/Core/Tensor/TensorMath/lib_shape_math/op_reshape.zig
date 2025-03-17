@@ -195,7 +195,7 @@ fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: [
 
     // Create a new tensor with the correct shape
     var new_output = try Tensor(T).fromShape(&pkg_allocator, modified_shape);
-    errdefer new_output.deinit();
+    defer new_output.deinit();
 
     // Copy the data from input to new_output
     @memcpy(new_output.data, input.data);
