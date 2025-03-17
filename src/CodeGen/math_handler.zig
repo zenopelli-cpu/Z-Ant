@@ -1099,29 +1099,29 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         ".data",
     });
 
-    _ = try writer.print(
-        \\
-        \\
-        \\    const newShape_tensor_{s}: []usize = utils.sliceToUsizeSlice({s});
-        \\    defer allocator.free(newShape_tensor_{s});
-    , .{
-        try utils.getSanitizedName(node.inputs.items[1].name),
-        input_shape,
-        try utils.getSanitizedName(node.inputs.items[1].name),
-    });
+    // _ = try writer.print(
+    //     \\
+    //     \\
+    //     \\    const newShape_tensor_{s}: []usize = utils.sliceToUsizeSlice({s});
+    //     \\    defer allocator.free(newShape_tensor_{s});
+    // , .{
+    //     try utils.getSanitizedName(node.inputs.items[1].name),
+    //     input_shape,
+    //     try utils.getSanitizedName(node.inputs.items[1].name),
+    // });
 
     _ = try writer.print(
         \\
-        \\    tensMath.reshape_lean(
+        \\    tensMath.reshape_lean_f32(
         \\        T, //type
         \\        @constCast(&{s}), //Input tensor
-        \\        newShape_tensor_{s}, //New shape
+        \\        {s}, //New shape
         \\        {s}, //allowzero
         \\        &tensor_{s}, //Output tensor
         \\    )
     , .{
         input_string, // Input tensor
-        try utils.getSanitizedName(node.inputs.items[1].name), // Input shape tensor
+        input_shape, // Input shape tensor
         if (allowzer0) "true" else "false", //allowzer0
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
     });
@@ -1362,16 +1362,6 @@ inline fn write_shape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 }
 
 inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    // https://onnx.ai/onnx/operators/onnx__Unsqueeze.html
-    // INPUTS:
-    //      - data (heterogeneous) - T: Original tensor
-    //      - axes (optional) - tensor(int64): List of integers indicating the dimensions to be inserted.
-    //        Negative value means counting dimensions from the back.
-    // OUTPUTS:
-    //      - expanded (heterogeneous) - T: Reshaped tensor with same data as input.
-    // ATTRIBUTES (deprecated in opset 13):
-    //      - axes - INTS: List of integers indicating the dimensions to be inserted.
-
     const input_name = try utils.getSanitizedName(node.inputs.items[0].name);
     const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
 
@@ -1379,20 +1369,20 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     var input_tensor_string: []u8 = undefined;
     defer allocator.free(input_tensor_string);
     if (node.inputs.items[0].tag == globals.TensorTag.INITIALIZER) {
-        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", input_name, ")" });
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(¶m_lib.tensor_", input_name, ")" });
     } else {
         input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", input_name, ")" });
     }
 
     // Determine if axes is provided as an input tensor or as an attribute
-    var axes_str: []const u8 = "null";
+    var axes_str: []const u8 = undefined;
     var needs_free = false;
 
     if (node.inputs.items.len > 1) {
         // Axes is provided as an input tensor (opset 13+)
         const axes_tensor_name = try utils.getSanitizedName(node.inputs.items[1].name);
         if (node.inputs.items[1].tag == globals.TensorTag.INITIALIZER) {
-            axes_str = try std.fmt.allocPrint(allocator, "@constCast(&param_lib.tensor_{s})", .{axes_tensor_name});
+            axes_str = try std.fmt.allocPrint(allocator, "@constCast(¶m_lib.tensor_{s})", .{axes_tensor_name});
         } else {
             axes_str = try std.fmt.allocPrint(allocator, "&tensor_{s}", .{axes_tensor_name});
         }
@@ -1402,7 +1392,42 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         for (node.nodeProto.attribute) |attr| {
             if (std.mem.eql(u8, attr.name, "axes")) {
                 if (attr.type == AttributeType.INTS) {
-                    axes_str = try utils.i64ToI64ArrayString(attr.ints);
+                    const axes_name = try std.fmt.allocPrint(allocator, "axes_{s}", .{output_name});
+                    defer allocator.free(axes_name);
+                    const tensor_name = try std.fmt.allocPrint(allocator, "tensor_{s}", .{axes_name});
+                    defer allocator.free(tensor_name);
+
+                    try writer.print(
+                        \\
+                        \\    // Create temporary array and tensor for axes
+                        \\    var {s} = [_]i64{{
+                    , .{axes_name});
+
+                    for (attr.ints, 0..) |val, i| {
+                        if (i > 0) try writer.writeAll(", ");
+                        try writer.print("{}", .{val});
+                    }
+
+                    // Define the shape as a named constant array and pass its slice
+                    const shape_name = try std.fmt.allocPrint(allocator, "shape_{s}", .{tensor_name});
+                    defer allocator.free(shape_name);
+
+                    try writer.print(
+                        \\}};
+                        \\    var {s} = [_]usize{{{d}}};
+                        \\    var {s} = Tensor(i64).fromArray(&allocator, &{s}, {s}[0..]) catch return;
+                        \\    defer {s}.deinit();
+                        \\
+                    , .{
+                        shape_name, // const shape array name
+                        attr.ints.len, // shape value
+                        tensor_name, // tensor variable name
+                        axes_name, // axes array reference
+                        shape_name, // shape slice
+                        tensor_name, // tensor for deinit
+                    });
+
+                    axes_str = try std.fmt.allocPrint(allocator, "&{s}", .{tensor_name});
                     needs_free = true;
                     break;
                 }
@@ -1422,12 +1447,11 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\        &tensor_{s}, //output tensor
         \\    )
     , .{
-        input_tensor_string, //input tensor
-        axes_str, //axes tensor
-        output_name, //output tensor
+        input_tensor_string, // input tensor
+        axes_str, // axes tensor
+        output_name, // output tensor
     });
 }
-
 inline fn write_transpose(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // https://onnx.ai/onnx/operators/onnx__Transpose.html
     // INPUTS:
