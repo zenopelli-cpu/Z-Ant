@@ -37,6 +37,7 @@ pub const AttributeProto = struct {
     s: []const u8 = "",
     t: ?*TensorProto = null,
     g: ?*GraphProto = null,
+    graphs: []*GraphProto,
     floats: []f32 = &[_]f32{},
     ints: []i64 = &[_]i64{},
     strings: [][]const u8 = &[_][]const u8{},
@@ -63,6 +64,13 @@ pub const AttributeProto = struct {
                 for (self.strings) |s| allocator.free(s);
                 allocator.free(self.strings);
             },
+            .GRAPHS => {
+                for (self.graphs) |graph| {
+                    graph.deinit(allocator);
+                    allocator.destroy(graph);
+                }
+                allocator.free(self.graphs);
+            },
             .SPARSE_TENSOR => {
                 if (self.sparse_tensor) |sp| {
                     sp.deinit(allocator);
@@ -77,6 +85,7 @@ pub const AttributeProto = struct {
         var attr = AttributeProto{
             .name = "",
             .type = .UNDEFINED,
+            .graphs = &[_]*GraphProto{},
         };
 
         var floats_list = std.ArrayList(f32).init(allocator);
@@ -88,6 +97,8 @@ pub const AttributeProto = struct {
             for (strings_list.items) |s| allocator.free(s);
             strings_list.deinit();
         }
+        var graphs_list = std.ArrayList(*GraphProto).init(allocator);
+        defer graphs_list.deinit();
 
         errdefer {
             for (strings_list.items) |s| allocator.free(s);
@@ -130,7 +141,6 @@ pub const AttributeProto = struct {
                     attr.t = tensor_ptr;
                     if (attr.type != .INTS) attr.type = .TENSOR;
                 },
-                6 => {},
                 7 => { // repeated float (floats)
                     if (attr_tag.wire_type == .LengthDelimited) {
                         var floats_reader = try attr_reader.readLengthDelimited();
@@ -151,6 +161,13 @@ pub const AttributeProto = struct {
                     //DEBUG
                     //std.debug.print("Added int value {d} to {s}\n", .{ v, attr.name });
                     if (attr.type != .INTS) attr.type = .INTS;
+                },
+                11 => {
+                    var graph_reader = try attr_reader.readLengthDelimited();
+                    const graph_ptr = try allocator.create(GraphProto);
+                    graph_ptr.* = try GraphProto.parse(&graph_reader);
+                    try graphs_list.append(graph_ptr);
+                    if (attr.type != .INTS) attr.type = .GRAPHS;
                 },
                 20 => { // type
                     const value = try attr_reader.readVarint();
@@ -178,6 +195,7 @@ pub const AttributeProto = struct {
             .FLOATS => attr.floats = try floats_list.toOwnedSlice(),
             .INTS => attr.ints = try ints_list.toOwnedSlice(),
             .STRINGS => attr.strings = try strings_list.toOwnedSlice(),
+            .GRAPHS => attr.graphs = try graphs_list.toOwnedSlice(),
             else => {},
         }
 
