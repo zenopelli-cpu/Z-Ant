@@ -1,7 +1,7 @@
 const std = @import("std");
 const zant = @import("zant");
 const conv = zant.utils.type_converter;
-const init = zant.utils.tensorInitializer;
+const init = zant.utils.tensor_initializer;
 
 test "Utils description test" {
     std.debug.print("\n--- Running utils test\n", .{});
@@ -114,6 +114,6 @@ test "generateRandomSlice respects Gaussian distribution" {
     for (slice) |val| {
         sum += val;
     }
-    const mean = sum / @as(f64, slice.len);
+    const mean = sum / @as(f64, @floatFromInt(slice.len));
     try std.testing.expect(mean > -0.2 and mean < 0.2);
 }
