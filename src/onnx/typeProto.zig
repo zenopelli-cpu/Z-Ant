@@ -39,15 +39,15 @@ pub const TypeProto = struct {
 
             while (reader.hasMore()) {
                 const tag = try reader.readTag();
-                std.debug.print("\n .............................. tensor TAG: {any} ", .{tag});
+                // std.debug.print("\n .............................. tensor TAG: {any} ", .{tag});
 
                 switch (tag.field_number) {
                     1 => { //elem_type
-                        std.debug.print("\n .............................. Tensor READING elem_type ", .{});
+                        // std.debug.print("\n .............................. Tensor READING elem_type ", .{});
                         tensor.elem_type = @intCast(try reader.readVarint());
                     },
                     2 => { //shape
-                        std.debug.print("\n .............................. Tensor READING shape ", .{});
+                        // std.debug.print("\n .............................. Tensor READING shape ", .{});
 
                         var shape_reader = try reader.readLengthDelimited(); //var shape_reader
                         const shape_ptr = try reader.allocator.create(TensorShapeProto);
@@ -354,11 +354,11 @@ pub const TypeProto = struct {
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
-            std.debug.print("\n ........................ TypeProto TAG: {any} ", .{tag});
+            // std.debug.print("\n ........................ TypeProto TAG: {any} ", .{tag});
 
             switch (tag.field_number) {
                 1 => { //tensor_type
-                    std.debug.print("\n ........................ TypeProto READING tensor_type ", .{});
+                    // std.debug.print("\n ........................ TypeProto READING tensor_type ", .{});
 
                     var tensor_type_reader = try reader.readLengthDelimited();
                     const ensor_type_ptr = try reader.allocator.create(Tensor);
@@ -366,23 +366,23 @@ pub const TypeProto = struct {
                     typeProto.tensor_type = ensor_type_ptr;
                 },
                 4 => { //TODO sequence_type
-                    std.debug.print("\n ........................ TypeProto READING sequence_type ", .{});
+                    // std.debug.print("\n ........................ TypeProto READING sequence_type ", .{});
                     _ = try reader.readLengthDelimited();
                 },
                 5 => { //TODO map_type
-                    std.debug.print("\n ........................ TypeProto READING map_type ", .{});
+                    // std.debug.print("\n ........................ TypeProto READING map_type ", .{});
                     _ = try reader.readLengthDelimited();
                 },
                 6 => { // TODO denotation
-                    std.debug.print("\n ........................ TypeProto READING denotation ", .{});
+                    // std.debug.print("\n ........................ TypeProto READING denotation ", .{});
                     _ = try reader.readLengthDelimited();
                 },
                 8 => { // TODO sparse_tensor_type
-                    std.debug.print("\n ........................ TypeProto READING sparse_tensor_type ", .{});
+                    // std.debug.print("\n ........................ TypeProto READING sparse_tensor_type ", .{});
                     _ = try reader.readLengthDelimited();
                 },
                 9 => { // TODO optional_type
-                    std.debug.print("\n ........................ TypeProto READING sparse_tensor_type ", .{});
+                    // std.debug.print("\n ........................ TypeProto READING sparse_tensor_type ", .{});
                     _ = try reader.readLengthDelimited();
                 },
                 else => {

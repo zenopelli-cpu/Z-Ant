@@ -50,8 +50,8 @@ pub fn main() !void {
     //////////////////////////////////////////
 
     // Create the code for the model
-    try codeGen.skeleton.writeZigFile(model_name, generated_path, model);
+    try codeGen.skeleton.writeZigFile(model_name, generated_path, model, true);
 
     // Test the generated code
-    try codeGen_tests.writeTestFile(model_name, generated_path, model);
+    try codeGen_tests.writeTestFile(model_name, generated_path);
 }
