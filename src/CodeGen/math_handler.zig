@@ -1090,38 +1090,33 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 
     //shape string creation
-    var input_shape: []u8 = undefined;
     const sanitized_shape_name = try utils.getSanitizedName(node.inputs.items[1].name);
-    input_shape = try std.mem.concat(allocator, u8, &[_][]const u8{
+    const shape_tensor_name = try std.mem.concat(allocator, u8, &[_][]const u8{
         if (globals.tensorHashMap.getPtr(node.inputs.items[1].name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
         "tensor_",
         sanitized_shape_name,
-        ".data",
     });
-
-    // _ = try writer.print(
-    //     \\
-    //     \\
-    //     \\    const newShape_tensor_{s}: []usize = utils.sliceToUsizeSlice({s});
-    //     \\    defer allocator.free(newShape_tensor_{s});
-    // , .{
-    //     try utils.getSanitizedName(node.inputs.items[1].name),
-    //     input_shape,
-    //     try utils.getSanitizedName(node.inputs.items[1].name),
-    // });
+    defer allocator.free(shape_tensor_name);
 
     _ = try writer.print(
         \\
-        \\    tensMath.reshape_lean_f32(
+        \\    // Convert shape tensor data to isize slice
+        \\    const shape_slice_{s} = utils.sliceToIsizeSlice({s}.data);
+        \\    defer allocator.free(shape_slice_{s});
+        \\
+        \\    tensMath.reshape_lean(
         \\        T, //type
         \\        @constCast(&{s}), //Input tensor
-        \\        {s}, //New shape
+        \\        shape_slice_{s}, //New shape (converted to isize)
         \\        {s}, //allowzero
         \\        &tensor_{s}, //Output tensor
         \\    )
     , .{
+        sanitized_shape_name, // For the temporary slice name
+        shape_tensor_name, // Shape tensor
+        sanitized_shape_name, // For freeing the slice
         input_string, // Input tensor
-        input_shape, // Input shape tensor
+        sanitized_shape_name, // The converted shape slice
         if (allowzer0) "true" else "false", //allowzer0
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
     });

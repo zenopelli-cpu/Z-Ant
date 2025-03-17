@@ -38,10 +38,10 @@ pub fn reshape_f32(comptime T: anytype, input: *Tensor(T), newShape: []f32, allo
 }
 
 /// Given and input tensor and the new shape, returns a new tensor with the same data of the input, in the same order, but a different shape.
-/// This version accepts a slice of usize for the new shape.
+/// This version accepts a slice of isize for the new shape.
 /// At most one dimension of the new shape can be -1. In this case, the value is inferred from the size of the tensor and the remaining dimensions.
 /// A dimension could also be 0, in which case the actual dimension value is unchanged (i.e. taken from the input tensor).
-pub fn reshape(comptime T: anytype, input: *Tensor(T), newShape: []const usize, allowZero: ?bool) !Tensor(T) {
+pub fn reshape(comptime T: anytype, input: *Tensor(T), newShape: []const isize, allowZero: ?bool) !Tensor(T) {
     //std.debug.print("\n[RESHAPE] Input shape: {any}, newShape: {any}\n", .{ input.shape, newShape });
 
     // Create output tensor with the same size as input but with new shape length
@@ -109,7 +109,7 @@ pub fn reshape_lean_f32(comptime T: anytype, input: *Tensor(T), newShape: []f32,
 }
 
 /// lean version of the reshape function for usize shape arrays
-pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []const usize, allowZero: ?bool, output: *Tensor(T)) !void {
+pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []const isize, allowZero: ?bool, output: *Tensor(T)) !void {
     //std.debug.print("\n[RESHAPE_LEAN] Input shape: {any}, newShape: {any}\n", .{ input.shape, newShape });
     _ = allowZero;
 
@@ -132,15 +132,18 @@ pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []const us
             }
             modified_shape[i] = input.shape[i];
             known_dims_product *= input.shape[i];
-        } else if (dim == std.math.maxInt(usize)) { // Use maxInt as a sentinel for -1
+        } else if (dim == -1) {
             if (neg_one_index != null) {
                 //std.debug.print("[RESHAPE_LEAN] Error: Invalid input - multiple negative dimensions\n", .{});
                 return TensorError.InvalidInput;
             }
             neg_one_index = i;
             modified_shape[i] = 1; // Temporary value, will be updated later
+        } else if (dim < 0) {
+            //std.debug.print("[RESHAPE_LEAN] Error: Invalid input - negative dimension other than -1\n", .{});
+            return TensorError.InvalidInput;
         } else {
-            modified_shape[i] = dim;
+            modified_shape[i] = @intCast(dim);
             known_dims_product *= modified_shape[i];
         }
     }

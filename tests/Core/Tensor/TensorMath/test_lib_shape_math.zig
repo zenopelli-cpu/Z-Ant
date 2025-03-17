@@ -915,7 +915,7 @@ test "Reshape" {
     var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
     defer tensor.deinit();
 
-    var new_shape: [4]usize = [_]usize{ 1, 1, 3, 2 };
+    var new_shape: [4]isize = [_]isize{ 1, 1, 3, 2 };
     var new_tens = try TensMath.reshape(u8, &tensor, &new_shape, false);
     defer new_tens.deinit();
 
@@ -1702,7 +1702,7 @@ test "Reshape - Basic" {
     defer tensor.deinit();
 
     // Reshape to 3x2
-    var new_shape: [2]usize = [_]usize{ 3, 2 };
+    var new_shape: [2]isize = [_]isize{ 3, 2 };
     var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
     defer reshaped.deinit();
 
@@ -1741,7 +1741,7 @@ test "Reshape - Multi-dimensional" {
     defer tensor.deinit();
 
     // Reshape to 2x4
-    var new_shape: [2]usize = [_]usize{ 2, 4 };
+    var new_shape: [2]isize = [_]isize{ 2, 4 };
     var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
     defer reshaped.deinit();
 
@@ -1771,7 +1771,7 @@ test "Reshape - Error case" {
     defer tensor.deinit();
 
     // Try to reshape to invalid size (2x4)
-    var invalid_shape: [2]usize = [_]usize{ 2, 4 };
+    var invalid_shape: [2]isize = [_]isize{ 2, 4 };
     try std.testing.expectError(TensorError.InputArrayWrongSize, TensMath.reshape(u8, &tensor, &invalid_shape, null));
 }
 
@@ -1790,7 +1790,7 @@ test "Reshape - Same size different dimensions" {
     defer tensor.deinit();
 
     // Reshape to 1x6
-    var new_shape: [2]usize = [_]usize{ 1, 6 };
+    var new_shape: [2]isize = [_]isize{ 1, 6 };
     var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
     defer reshaped.deinit();
 
@@ -1820,7 +1820,7 @@ test "Reshape - With negative dimension" {
     defer tensor.deinit();
 
     // Reshape to 3x-1 (should become 3x2)
-    var new_shape: [2]usize = [_]usize{ 3, @bitCast(@as(isize, -1)) };
+    var new_shape: [2]isize = [_]isize{ 3, @bitCast(@as(isize, -1)) };
     var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
     defer reshaped.deinit();
 
@@ -1850,7 +1850,7 @@ test "Reshape - With zero dimension" {
     defer tensor.deinit();
 
     // Reshape to 0x-1 (should keep first dimension as 2, and infer second as 3)
-    var new_shape: [2]usize = [_]usize{ 0, @bitCast(@as(isize, -1)) };
+    var new_shape: [2]isize = [_]isize{ 0, @bitCast(@as(isize, -1)) };
     var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
     defer reshaped.deinit();
 
@@ -1880,7 +1880,7 @@ test "Reshape - Multiple negative dimensions (should fail)" {
     defer tensor.deinit();
 
     // Try to reshape with multiple -1 dimensions (should fail)
-    var invalid_shape: [2]usize = [_]usize{ @bitCast(@as(isize, -1)), @bitCast(@as(isize, -1)) };
+    var invalid_shape: [2]isize = [_]isize{ @bitCast(@as(isize, -1)), @bitCast(@as(isize, -1)) };
     try std.testing.expectError(TensorError.InvalidInput, TensMath.reshape(u8, &tensor, &invalid_shape, null));
 }
 
