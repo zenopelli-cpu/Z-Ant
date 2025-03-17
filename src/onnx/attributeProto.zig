@@ -15,12 +15,12 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 3 : i, optional int64
 //  - 4 : s, optional bytes (UTF-8 string)
 //  - 5 : t, optional TensorProto (tensor value)
-//  - 6 : TODO g, optional GraphProto (graph)
+//  - 6 : g, optional GraphProto (graph)
 //  - 7 : floats, repeated float
 //  - 8 : ints, repeated int64
-//  - 9 : TODO strings, repeated bytes
+//  - 9 : strings, repeated bytes
 //  - 10: TODO tensors, repeated TensorProto
-//  - 11: TODO graphs, repeated GraphProto
+//  - 11: graphs, repeated GraphProto
 //  - 13: TODO doc_string, optional string
 //  - 14: TODO tp, optional TypeProto
 //  - 15: TODO type_protos, repeated TypeProto
@@ -30,87 +30,94 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //reserved 12, 16 to 19;
 //reserved "v";
 pub const AttributeProto = struct {
-    name: []const u8,
-    type: AttributeType,
-    f: f32 = 0,
-    i: i64 = 0,
-    s: []const u8 = "",
-    t: ?*TensorProto = null,
-    g: ?*GraphProto = null,
-    graphs: []*GraphProto,
-    floats: []f32 = &[_]f32{},
-    ints: []i64 = &[_]i64{},
-    strings: [][]const u8 = &[_][]const u8{},
-    sparse_tensor: ?*SparseTensorProto = null,
+    name: []const u8, //Tag:1
+    f: f32 = 0, //Tag:2
+    i: i64 = 0, //Tag:3
+    s: []const u8, //Tag:4s
+    t: ?*TensorProto, //Tag:5
+    g: ?*GraphProto, //Tag:6 WIP
+    floats: []f32, //Tag:7
+    ints: []i64, //Tag:8
+    strings: [][]const u8, //Tag:9
+    graphs: []*GraphProto, //Tag:11
+    type: AttributeType, //Tag:14
+    sparse_tensor: ?*SparseTensorProto, //Tag:23
 
     pub fn deinit(self: *AttributeProto, allocator: std.mem.Allocator) void {
+        //free name
         allocator.free(self.name);
+        allocator.free(self.s);
 
-        switch (self.type) {
-            .FLOAT => {},
-            .INT => {},
-            .STRING => allocator.free(self.s),
-            .TENSOR => if (self.t) |t| {
-                t.deinit(allocator);
-                allocator.destroy(t);
-            },
-            .GRAPH => if (self.g) |g| {
-                g.deinit(allocator);
-                allocator.destroy(g);
-            },
-            .FLOATS => allocator.free(self.floats),
-            .INTS => allocator.free(self.ints),
-            .STRINGS => {
-                for (self.strings) |s| allocator.free(s);
-                allocator.free(self.strings);
-            },
-            .GRAPHS => {
-                for (self.graphs) |graph| {
-                    graph.deinit(allocator);
-                    allocator.destroy(graph);
-                }
-                allocator.free(self.graphs);
-            },
-            .SPARSE_TENSOR => {
-                if (self.sparse_tensor) |sp| {
-                    sp.deinit(allocator);
-                    allocator.destroy(sp);
-                }
-            },
-            else => {},
+        //free t
+        if (self.t) |t| {
+            t.deinit(allocator);
+            allocator.destroy(t);
+        }
+
+        //free g
+        if (self.g) |g| {
+            g.deinit(allocator);
+            allocator.destroy(g);
+        }
+
+        //free floats
+        allocator.free(self.floats);
+
+        //free ints
+        allocator.free(self.ints);
+
+        //free strings
+        for (self.strings) |s| {
+            allocator.free(s);
+        }
+        allocator.free(self.strings);
+
+        //free graphs
+        for (self.graphs) |gs| {
+            gs.deinit(allocator);
+            allocator.destroy(gs);
+        }
+        allocator.free(self.graphs);
+
+        //free sparse_tensor
+        if (self.sparse_tensor) |st| {
+            st.deinit(allocator);
+            allocator.destroy(st);
         }
     }
 
-    pub fn parseSingleAttribute(attr_reader: *protobuf.ProtoReader, allocator: std.mem.Allocator) !AttributeProto {
+    pub fn parse(reader: *protobuf.ProtoReader) !AttributeProto {
         var attr = AttributeProto{
             .name = "",
+            .f = 0,
+            .i = 0,
+            .s = "",
+            .t = null,
+            .g = null,
+            .floats = &[_]f32{},
+            .ints = &[_]i64{},
+            .strings = &[_][]const u8{},
+            .graphs = undefined,
             .type = .UNDEFINED,
-            .graphs = &[_]*GraphProto{},
+            .sparse_tensor = null,
         };
 
-        var floats_list = std.ArrayList(f32).init(allocator);
+        var floats_list = std.ArrayList(f32).init(reader.allocator);
         defer floats_list.deinit();
-        var ints_list = std.ArrayList(i64).init(allocator);
+        var ints_list = std.ArrayList(i64).init(reader.allocator);
         defer ints_list.deinit();
-        var strings_list = std.ArrayList([]const u8).init(allocator);
-        defer {
-            for (strings_list.items) |s| allocator.free(s);
-            strings_list.deinit();
-        }
-        var graphs_list = std.ArrayList(*GraphProto).init(allocator);
+        var strings_list = std.ArrayList([]const u8).init(reader.allocator);
+        defer strings_list.deinit();
+        var graphs_list = std.ArrayList(*GraphProto).init(reader.allocator);
         defer graphs_list.deinit();
 
-        errdefer {
-            for (strings_list.items) |s| allocator.free(s);
-        }
-
-        while (attr_reader.hasMore()) {
-            const attr_tag = try attr_reader.readTag();
+        while (reader.hasMore()) {
+            const attr_tag = try reader.readTag();
             //DEBUG
             //std.debug.print("Parsing attribute field {d} with wire type {}\n", .{ attr_tag.field_number, attr_tag.wire_type });
             switch (attr_tag.field_number) {
                 1 => { // name
-                    attr.name = try attr_reader.readString(allocator);
+                    attr.name = try reader.readString(reader.allocator);
                     // Pre-set type for known Conv attributes
                     if (std.mem.eql(u8, attr.name, "dilations") or
                         std.mem.eql(u8, attr.name, "kernel_shape") or
@@ -121,83 +128,91 @@ pub const AttributeProto = struct {
                     }
                 },
                 2 => { // single float (f)
-                    const value = try attr_reader.readFixed32();
+                    const value = try reader.readFixed32();
                     attr.f = @bitCast(value);
-                    if (attr.type != .INTS) attr.type = .FLOAT;
+                    attr.type = .FLOAT;
                 },
                 3 => { // single int (i)
-                    const value = try attr_reader.readVarint();
+                    const value = try reader.readVarint();
                     attr.i = @intCast(value);
-                    if (attr.type != .INTS) attr.type = .INT;
+                    attr.type = .INT;
                 },
                 4 => { // single string (s)
-                    attr.s = try attr_reader.readString(allocator);
-                    if (attr.type != .INTS) attr.type = .STRING;
+                    attr.s = try reader.readString(reader.allocator);
+                    attr.type = .STRING;
                 },
                 5 => { // single tensor (t)
-                    var tensor_reader = try attr_reader.readLengthDelimited();
-                    const tensor_ptr = try allocator.create(TensorProto);
+                    var tensor_reader = try reader.readLengthDelimited();
+                    const tensor_ptr = try reader.allocator.create(TensorProto);
+                    tensor_ptr.* = try TensorProto.parse(&tensor_reader);
+                    attr.t = tensor_ptr;
+                    attr.type = .TENSOR;
+                },
+                6 => { // single tensor (t)
+                    var tensor_reader = try reader.readLengthDelimited();
+                    const tensor_ptr = try reader.allocator.create(TensorProto);
                     tensor_ptr.* = try TensorProto.parse(&tensor_reader);
                     attr.t = tensor_ptr;
                     if (attr.type != .INTS) attr.type = .TENSOR;
                 },
                 7 => { // repeated float (floats)
                     if (attr_tag.wire_type == .LengthDelimited) {
-                        var floats_reader = try attr_reader.readLengthDelimited();
+                        var floats_reader = try reader.readLengthDelimited();
                         while (floats_reader.hasMore()) {
                             if (floats_reader.available() < 4) break;
                             const v = try floats_reader.readFixed32();
                             try floats_list.append(@bitCast(v));
                         }
                     } else {
-                        const v = try attr_reader.readFixed32();
+                        const v = try reader.readFixed32();
                         try floats_list.append(@bitCast(v));
                     }
                     if (attr.type != .INTS) attr.type = .FLOATS;
                 },
                 8 => { // repeated int64 (ints) or potential repeated int
-                    const v = try attr_reader.readVarint();
+                    const v = try reader.readVarint();
                     try ints_list.append(@intCast(v));
                     //DEBUG
                     //std.debug.print("Added int value {d} to {s}\n", .{ v, attr.name });
-                    if (attr.type != .INTS) attr.type = .INTS;
+                    attr.type = .INTS;
                 },
-                11 => {
-                    var graph_reader = try attr_reader.readLengthDelimited();
-                    const graph_ptr = try allocator.create(GraphProto);
+                9 => { // strings
+                    const value = try reader.readString(reader.allocator);
+                    try strings_list.append(value);
+                },
+                11 => { //graphs TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    var graph_reader = try reader.readLengthDelimited(); //var graph_reader
+                    const graph_ptr = try reader.allocator.create(GraphProto);
                     graph_ptr.* = try GraphProto.parse(&graph_reader);
                     try graphs_list.append(graph_ptr);
-                    if (attr.type != .INTS) attr.type = .GRAPHS;
+                    attr.type = .GRAPHS;
                 },
                 20 => { // type
-                    const value = try attr_reader.readVarint();
+                    const value = try reader.readVarint();
                     // Only set type if it's not already set to INTS
                     if (attr.type != .INTS) {
                         attr.type = @enumFromInt(@as(u8, @intCast(value)));
                     }
                 },
                 23 => {
-                    var tensor_reader = try attr_reader.readLengthDelimited();
-                    const tensor_ptr = try allocator.create(SparseTensorProto);
-                    tensor_ptr.* = try SparseTensorProto.parse(&tensor_reader, allocator);
+                    var tensor_reader = try reader.readLengthDelimited();
+                    const tensor_ptr = try reader.allocator.create(SparseTensorProto);
+                    tensor_ptr.* = try SparseTensorProto.parse(&tensor_reader);
                     attr.sparse_tensor = tensor_ptr;
                     if (attr.type != .INTS) attr.type = .SPARSE_TENSOR;
                 },
                 else => {
                     std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for AttributeProto\n\n ", .{attr_tag});
 
-                    try attr_reader.skipField(attr_tag.wire_type);
+                    try reader.skipField(attr_tag.wire_type);
                 },
             }
         }
 
-        switch (attr.type) {
-            .FLOATS => attr.floats = try floats_list.toOwnedSlice(),
-            .INTS => attr.ints = try ints_list.toOwnedSlice(),
-            .STRINGS => attr.strings = try strings_list.toOwnedSlice(),
-            .GRAPHS => attr.graphs = try graphs_list.toOwnedSlice(),
-            else => {},
-        }
+        attr.floats = try floats_list.toOwnedSlice();
+        attr.ints = try ints_list.toOwnedSlice();
+        attr.strings = try strings_list.toOwnedSlice();
+        attr.graphs = try graphs_list.toOwnedSlice();
 
         return attr;
     }

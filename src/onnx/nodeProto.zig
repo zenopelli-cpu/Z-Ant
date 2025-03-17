@@ -107,7 +107,7 @@ pub const NodeProto = struct {
                 5 => { // attribute (repeated)
                     var attr_reader = try reader.readLengthDelimited();
                     const attr_ptr = try reader.allocator.create(AttributeProto);
-                    attr_ptr.* = try AttributeProto.parseSingleAttribute(&attr_reader, reader.allocator);
+                    attr_ptr.* = try AttributeProto.parse(&attr_reader);
                     try attributes.append(attr_ptr);
                 },
                 6 => { // doc_string
