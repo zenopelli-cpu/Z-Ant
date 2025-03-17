@@ -135,7 +135,7 @@ extern void setLogFunction(void (*log_function)(uint8_t *string));
 - **Standard build & test:**
   ```bash
   zig build
-  zig build test
+  zig build test --summary all
   ```
 
 - **Run code generation:**
@@ -148,7 +148,12 @@ extern void setLogFunction(void (*log_function)(uint8_t *string));
   zig build lib -Dmodel=model_name -Dtarget=target_arch -Dcpu=specific_cpu
   ```
 
-- **Run generated tests:**
+- **Generate onnx oneOperation models:**
+  ```bash
+  zig build test-codegen-gen
+  ```
+
+- **Build and Test generated onnx oneOperation models:**
   ```bash
   zig build test-codegen
   ```
