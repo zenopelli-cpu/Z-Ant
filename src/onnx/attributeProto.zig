@@ -20,7 +20,7 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 8 : ints, repeated int64
 //  - 9 : strings, repeated bytes
 //  - 10: TODO tensors, repeated TensorProto
-//  - 11: graphs, repeated GraphProto
+//  - 11: TODO graphs, repeated GraphProto
 //  - 13: TODO doc_string, optional string
 //  - 14: TODO tp, optional TypeProto
 //  - 15: TODO type_protos, repeated TypeProto
@@ -181,11 +181,11 @@ pub const AttributeProto = struct {
                     try strings_list.append(value);
                 },
                 11 => { //graphs TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    var graph_reader = try reader.readLengthDelimited(); //var graph_reader
-                    const graph_ptr = try reader.allocator.create(GraphProto);
-                    graph_ptr.* = try GraphProto.parse(&graph_reader);
-                    try graphs_list.append(graph_ptr);
-                    attr.type = .GRAPHS;
+                    _ = try reader.readLengthDelimited(); //var graph_reader
+                    // const graph_ptr = try reader.allocator.create(GraphProto);
+                    // graph_ptr.* = try GraphProto.parse(&graph_reader);
+                    // try graphs_list.append(graph_ptr);
+                    // attr.type = .GRAPHS;
                 },
                 20 => { // type
                     const value = try reader.readVarint();
