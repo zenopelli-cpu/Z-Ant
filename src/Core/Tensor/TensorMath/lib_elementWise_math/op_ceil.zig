@@ -1,5 +1,6 @@
 const std = @import("std");
 const zant = @import("../../../../zant.zig");
+const pkg_allocator = zant.utils.allocator.allocator;
 
 const Tensor = zant.core.tensor.Tensor; // Import Tensor type
 
@@ -23,7 +24,7 @@ pub fn ceil(comptime T: anytype, input: *Tensor(T)) !Tensor(T) {
 }
 
 // --------- lean CEIL
-pub inline fn ceil_lean(comptime T: anytype, input: *Tensor(T), result: *Tensor(T)) void {
+pub inline fn ceil_lean(comptime T: anytype, input: *Tensor(T), result: *Tensor(T)) !void {
     for (0..input.size) |i| {
         const x = input.data[i];
         if (std.math.isNan(x) or std.math.isInf(x)) {
@@ -32,4 +33,14 @@ pub inline fn ceil_lean(comptime T: anytype, input: *Tensor(T), result: *Tensor(
             result.data[i] = @ceil(x);
         }
     }
+}
+
+pub fn get_ceil_output_shape(input_shape: []const usize) ![]usize {
+    // Allocate and copy the input shape
+    const output_shape = try pkg_allocator.alloc(usize, input_shape.len);
+    errdefer pkg_allocator.free(output_shape);
+
+    std.mem.copy(usize, output_shape, input_shape);
+
+    return output_shape;
 }

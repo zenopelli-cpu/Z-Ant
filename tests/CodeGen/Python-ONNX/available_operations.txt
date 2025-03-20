@@ -13,3 +13,4 @@ Shape
 Sigmoid
 Slice
 Transpose
+Ceil

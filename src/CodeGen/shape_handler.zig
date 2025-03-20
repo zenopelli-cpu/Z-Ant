@@ -30,6 +30,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Add")) {
         //https://onnx.ai/onnx/operators/onnx__Add.html
         readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Ceil")) {
+        //https://onnx.ai/onnx/operators/onnx__Ceil.html
+        try compute_ceil_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Concat")) {
         //https://onnx.ai/onnx/operators/onnx__Concat.html
         try compute_concat_output_shape(readyNode);
@@ -745,4 +748,14 @@ pub fn compute_concat_output_shape(readyNode: *ReadyNode) !void {
 
     // Set the output shape
     readyNode.outputs.items[0].shape = new_shape;
+}
+
+inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_ceil_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // Ceil is an element-wise operation, output shape is identical to input shape
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
