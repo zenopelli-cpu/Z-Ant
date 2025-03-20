@@ -99,6 +99,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         try compute_transpose_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Unsqueeze")) {
         try compute_unsqueeze_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Identity")) {
+        //https://onnx.ai/onnx/operators/onnx__Identity.html
+        try compute_identity_output_shape(readyNode);
     } else {
         std.debug.print("\n\n ERROR! output shape computation for {s} is not available in codeGen_math_handler.compute_output_shape() \n\n", .{readyNode.nodeProto.op_type});
         return error.OperationNotSupported;
@@ -756,6 +759,16 @@ inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
     // Ceil is an element-wise operation, output shape is identical to input shape
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_identity_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_identity_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // Identity operation preserves the input shape
     readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }

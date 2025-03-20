@@ -14,3 +14,4 @@ Sigmoid
 Slice
 Transpose
 Ceil
+Identity

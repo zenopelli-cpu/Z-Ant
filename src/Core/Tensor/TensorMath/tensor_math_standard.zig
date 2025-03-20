@@ -35,7 +35,7 @@ pub const get_concatenate_output_shape = op_concat.get_concatenate_output_shape;
 const op_identity = @import("lib_shape_math/op_identity.zig");
 
 pub const identity = op_identity.identity;
-pub const identity_lean = op_identity.identity;
+pub const identity_lean = op_identity.identity_lean;
 pub const get_identity_output_shape = op_identity.get_identity_shape_output;
 
 // ---------- importing pooling methods ----------
