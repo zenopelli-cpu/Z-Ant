@@ -54,8 +54,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         //https://onnx.ai/onnx/operators/onnx__Gemm.html
         try compute_gemm_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LeakyRelu")) {
-        // TODO
-        return error.OperationWIP;
+        try compute_leaky_relu_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LogSoftmax")) {
         // TODO
         return error.OperationWIP;
@@ -769,6 +768,16 @@ inline fn compute_identity_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
     // Identity operation preserves the input shape
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_leaky_relu_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_leaky_relu_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // LeakyReLU is an element-wise operation, output shape is identical to input shape
     readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }

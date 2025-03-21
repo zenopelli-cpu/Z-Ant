@@ -67,7 +67,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Identity")) {
         try write_identity(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "LeakyRelu")) {
-        try writer.writeAll("// Handle LeakyRelu\n");
+        try write_leaky_relu(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "LogSoftmax")) {
         try writer.writeAll("// Handle LogSoftmax\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "MatMul")) {
@@ -1554,6 +1554,47 @@ inline fn write_identity(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    tensMath.identity_lean(T, {s}, &tensor_{s})
     , .{
         input_tensor_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_leaky_relu(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__LeakyRelu.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input tensor
+    // OUTPUTS:
+    //      - Y (heterogeneous) - T: Output tensor
+    // ATTRIBUTES:
+    //      - alpha (float, default is 0.01): Coefficient of leakage
+
+    // Get alpha attribute, default to 0.01 if not specified
+    var alpha: f32 = 0.01;
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "alpha")) {
+            if (attr.type == AttributeType.FLOAT) alpha = attr.f;
+        }
+    }
+
+    // Create input tensor string
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+
+    if (node.inputs.items[0].tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name) });
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.leakyReLU_lean(T, {s}, {d}, &tensor_{s})
+    , .{
+        input_tensor_string,
+        alpha,
         try utils.getSanitizedName(node.outputs.items[0].name),
     });
 }

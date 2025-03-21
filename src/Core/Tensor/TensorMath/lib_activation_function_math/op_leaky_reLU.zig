@@ -54,3 +54,12 @@ pub fn leakyReLU_backward(comptime T: anytype, gradient: *Tensor(T), act_relu_in
         gradient.data[i] *= if (act_relu_input.data[i] > 0) 1 else slope;
     }
 }
+
+pub fn get_leaky_relu_output_shape(input_shape: []const usize) ![]usize {
+    const output_shape = try pkg_allocator.alloc(usize, input_shape.len);
+    errdefer pkg_allocator.free(output_shape);
+
+    std.mem.copy(usize, output_shape, input_shape);
+
+    return output_shape;
+}
