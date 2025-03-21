@@ -155,22 +155,17 @@ pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []const is
 
 /// Common implementation for reshape_lean functions
 fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: []usize, neg_one_index: ?usize, known_dims_product: usize, output: *Tensor(T)) !void {
-    std.debug.print("\n[RESHAPE_LEAN_COMMON] Input size: {}, modified_shape: {any}\n", .{ input.size, modified_shape });
-
     // If we have a -1 dimension, calculate its size
     if (neg_one_index) |idx| {
         if (known_dims_product == 0) {
-            std.debug.print("[RESHAPE_LEAN_COMMON] Error: Invalid input - known_dims_product is 0\n", .{});
             return TensorError.InvalidInput;
         }
 
         if (input.size % known_dims_product != 0) {
-            std.debug.print("[RESHAPE_LEAN_COMMON] Error: Input array wrong size - input.size ({}) % known_dims_product ({}) = {}\n", .{ input.size, known_dims_product, input.size % known_dims_product });
             return TensorError.InputArrayWrongSize;
         }
 
         modified_shape[idx] = input.size / known_dims_product;
-        std.debug.print("[RESHAPE_LEAN_COMMON] Inferred dimension at index {}: {}\n", .{ idx, modified_shape[idx] });
     }
 
     // Calculate total size of modified shape
@@ -179,23 +174,23 @@ fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: [
         total_size *= dim;
     }
 
-    std.debug.print("[RESHAPE_LEAN_COMMON] Final modified shape: {any}, total_size: {}\n", .{ modified_shape, total_size });
-
     // Verify sizes match
     if (total_size != input.size) {
         return TensorError.InputArrayWrongSize;
     }
 
-    // Free output's current resources first
-    output.deinit();
-
-    // Correctly set up the new output tensor
-    output.shape = try pkg_allocator.dupe(usize, modified_shape);
-    output.size = total_size;
-    output.data = try pkg_allocator.alloc(T, total_size);
+    // Handle the shape - avoiding any freeing operations
+    if (output.shape.len == modified_shape.len) {
+        // If lengths match, just copy the new values
+        for (modified_shape, 0..) |dim, i| {
+            output.shape[i] = dim;
+        }
+    } else {
+        // If lengths differ, allocate a new shape without freeing the old one
+        // (let the caller handle any cleanup of the old shape if necessary)
+        output.shape = try pkg_allocator.dupe(usize, modified_shape);
+    }
 
     // Copy input data to output
     @memcpy(output.data, input.data);
-
-    std.debug.print("[RESHAPE_LEAN_COMMON] Output shape: {any}, size: {}\n", .{ output.shape, output.size });
 }
