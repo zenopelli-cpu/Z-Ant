@@ -85,7 +85,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Reshape")) {
         try write_reshape(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Resize")) {
-        try writer.writeAll("// Handle Resize\n");
+        try write_resize(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sigmoid")) {
         try write_sigmoid(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Softmax")) {
@@ -1792,4 +1792,102 @@ inline fn write_split(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    // Final dummy operation that returns an error union
         \\    _ = @import("std").fmt.bufPrint(&[_]u8{}, "", .{})
     );
+}
+
+inline fn write_resize(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Resize.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input tensor
+    //      - roi (optional) - T2: ROI (region of interest) tensor
+    //      - scales (optional) - T2: Scales for resize
+    //      - sizes (optional) - T2: Target sizes for resize
+    // OUTPUTS:
+    //      - Y (heterogeneous) - T: Resized output tensor
+
+    // Create input tensor string
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+
+    if (node.inputs.items[0].tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name) });
+    }
+
+    // Get the mode and coordinate_transformation_mode attributes
+    var mode: []const u8 = "nearest"; // Default mode
+    var coordinate_transformation_mode: []const u8 = "half_pixel"; // Default transformation mode
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "mode")) {
+            if (attr.type == AttributeType.STRING) mode = attr.s;
+        } else if (std.mem.eql(u8, attr.name, "coordinate_transformation_mode")) {
+            if (attr.type == AttributeType.STRING) coordinate_transformation_mode = attr.s;
+        }
+    }
+
+    // Extract scales (from input index 2) if present
+    var scales_str: []const u8 = "null";
+    if (node.inputs.items.len > 2 and node.inputs.items[2].tensorProto != null) {
+        const scales_name = try utils.getSanitizedName(node.inputs.items[2].name);
+        if (node.inputs.items[2].tag == globals.TensorTag.INITIALIZER) {
+            scales_str = try std.fmt.allocPrint(allocator, "param_lib.tensor_{s}.data", .{scales_name});
+        } else {
+            scales_str = try std.fmt.allocPrint(allocator, "tensor_{s}.data", .{scales_name});
+        }
+    }
+    defer if (!std.mem.eql(u8, scales_str, "null")) allocator.free(scales_str);
+
+    // Extract sizes (from input index 3) if present
+    var sizes_str: []const u8 = "null";
+    if (node.inputs.items.len > 3 and node.inputs.items[3].tensorProto != null) {
+        const sizes_name = try utils.getSanitizedName(node.inputs.items[3].name);
+
+        // Create a temporary array for sizes
+        try writer.print(
+            \\
+            \\    // Convert int64 sizes to usize array
+            \\    var sizes_usize_{s} = try allocator.alloc(usize, 
+        , .{sizes_name});
+
+        if (node.inputs.items[3].tag == globals.TensorTag.INITIALIZER) {
+            try writer.print("param_lib.tensor_{s}.size);\n", .{sizes_name});
+            try writer.print("    for (0..param_lib.tensor_{s}.size) |i| {{\n", .{sizes_name});
+            try writer.print("        sizes_usize_{s}[i] = @intCast(param_lib.tensor_{s}.data[i]);\n", .{ sizes_name, sizes_name });
+        } else {
+            try writer.print("tensor_{s}.size);\n", .{sizes_name});
+            try writer.print("    for (0..tensor_{s}.size) |i| {{\n", .{sizes_name});
+            try writer.print("        sizes_usize_{s}[i] = @intCast(tensor_{s}.data[i]);\n", .{ sizes_name, sizes_name });
+        }
+        try writer.print("    }}\n", .{});
+        try writer.print("    defer allocator.free(sizes_usize_{s});\n", .{sizes_name});
+
+        sizes_str = try std.fmt.allocPrint(allocator, "sizes_usize_{s}", .{sizes_name});
+    }
+    defer if (!std.mem.eql(u8, sizes_str, "null")) allocator.free(sizes_str);
+
+    // Write the function call
+    _ = try writer.print(
+        \\
+        \\    tensMath.rezise_lean(
+        \\        T, // data type
+        \\        {s}, // input tensor
+        \\        "{s}", // mode
+        \\        {s}, // scales
+        \\        {s}, // sizes
+        \\        "{s}", // coordinate_transformation_mode
+        \\        &tensor_{s} // output tensor
+        \\    )
+    , .{
+        input_tensor_string,
+        mode,
+        scales_str,
+        sizes_str,
+        coordinate_transformation_mode,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
 }

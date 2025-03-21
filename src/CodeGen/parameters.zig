@@ -130,6 +130,17 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
         writeArrayData(writer, f64, d) catch return error.f64DataUnavailable;
     } else if (t.uint64_data) |d| {
         writeArrayData(writer, u64, d) catch return error.u64DataUnavailable;
+    } else if (std.mem.indexOf(u8, name, "Resize") != null) {
+        // Special case for Resize operation with no data
+        if (size == 0) {
+            // Empty array, just close it
+        } else {
+            // For Resize tensors with no explicit data, initialize with zeros
+            try writer.print("0", .{});
+            for (1..@intCast(size)) |_| {
+                try writer.print(", 0", .{});
+            }
+        }
     } else return error.DataTypeNotAvailable;
 
     try writer.print(

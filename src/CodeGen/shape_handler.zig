@@ -77,8 +77,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         // https://onnx.ai/onnx/operators/onnx__Reshape.html
         try compute_reshape_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Resize")) {
-        // TODO
-        return error.OperationWIP;
+        try compute_resize_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Shape")) {
         try compute_shape_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sigmoid")) {
@@ -852,4 +851,76 @@ inline fn compute_split_output_shape(readyNode: *ReadyNode) !void {
         readyNode.outputs.items[i].shape = try utils.usizeSliceToI64Slice(shape);
         std.debug.print("\n output[{}] shape: []i64 = {any}", .{ i, readyNode.outputs.items[i].shape });
     }
+}
+
+pub fn compute_resize_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_resize_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // Extract scales and sizes from inputs
+    var scales: ?[]const f32 = null;
+    var sizes: ?[]const i64 = null;
+
+    // ROI is at index 1, scales at index 2, sizes at index 3
+    if (readyNode.inputs.items.len > 2 and readyNode.inputs.items[2].tensorProto != null) {
+        if (readyNode.inputs.items[2].tensorProto.?.float_data != null) {
+            scales = readyNode.inputs.items[2].tensorProto.?.float_data.?;
+            std.debug.print("\n scales: []f32 = {any}", .{scales});
+        }
+    }
+
+    if (readyNode.inputs.items.len > 3 and readyNode.inputs.items[3].tensorProto != null) {
+        if (readyNode.inputs.items[3].tensorProto.?.int64_data != null) {
+            sizes = readyNode.inputs.items[3].tensorProto.?.int64_data.?;
+            std.debug.print("\n sizes: []i64 = {any}", .{sizes});
+        }
+    }
+
+    // Convert input_shape to usize for the computation function
+    const usize_input_shape = try utils.i64SliceToUsizeSlice(input_shape);
+    defer allocator.free(usize_input_shape);
+
+    // Convert sizes to usize if present
+    var usize_sizes: ?[]const usize = null;
+    var sizes_buffer: []usize = undefined;
+    defer if (usize_sizes != null) allocator.free(sizes_buffer);
+
+    if (sizes) |sz| {
+        sizes_buffer = try allocator.alloc(usize, sz.len);
+        for (sz, 0..) |s, i| {
+            sizes_buffer[i] = @intCast(s);
+        }
+        usize_sizes = sizes_buffer;
+    }
+
+    // Calculate output shape using existing function
+    const output_shape = try tensorMath.get_resize_output_shape(usize_input_shape, scales, usize_sizes);
+    defer allocator.free(output_shape);
+
+    // Convert back to i64 for storing in readyNode
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+pub fn compute_resize_output_shape_generic(comptime T: type, input_shape: []const T, scales: ?[]const f32, sizes: ?[]const T) ![]T {
+    // Make sure we support all parameter types
+    if (scales != null) {
+        // Calculate output shape based on scales
+        var output_shape = try allocator.alloc(T, input_shape.len);
+
+        for (0..input_shape.len) |i| {
+            output_shape[i] = @intFromFloat(@as(f32, @floatFromInt(input_shape[i])) * scales.?[i]);
+        }
+
+        return output_shape;
+    }
+
+    if (sizes != null) {
+        // Use sizes directly
+        return sizes.?;
+    }
+
+    // If neither scales nor sizes is provided, return the input shape
+    return input_shape;
 }
