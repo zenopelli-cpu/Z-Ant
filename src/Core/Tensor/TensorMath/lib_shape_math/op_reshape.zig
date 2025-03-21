@@ -187,10 +187,18 @@ fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: [
         }
     } else {
         // If lengths differ, allocate a new shape without freeing the old one
-        // (let the caller handle any cleanup of the old shape if necessary)
         output.shape = try pkg_allocator.dupe(usize, modified_shape);
     }
 
-    // Copy input data to output
-    @memcpy(output.data, input.data);
+    // Ensure output.size matches the size calculated from the shape
+    output.size = total_size;
+
+    // Copy input data to output - make sure sizes match
+    if (output.data.len == input.data.len) {
+        @memcpy(output.data, input.data);
+    } else {
+        // Don't try to free the existing data, just allocate new memory
+        // and update the reference
+        output.data = try pkg_allocator.dupe(T, input.data);
+    }
 }
