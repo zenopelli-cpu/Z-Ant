@@ -142,7 +142,6 @@ pub fn build(b: *std.Build) void {
     test_step_generated_lib.dependOn(&run_test_generated_lib.step);
 
     // ************************************************ ONEOP CODEGEN ************************************************
-
     // Setup oneOp codegen
 
     const oneop_codegen_exe = b.addExecutable(.{
@@ -162,8 +161,7 @@ pub fn build(b: *std.Build) void {
     step_test_oneOp_codegen.dependOn(&run_oneop_codegen_exe.step);
 
     // ************************************************
-
-    //Setup test_all_oneOp
+    // Setup test_all_oneOp
 
     const test_all_oneOp = b.addTest(.{
         .name = "test_all_oneOp",
