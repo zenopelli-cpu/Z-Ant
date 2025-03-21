@@ -18,7 +18,7 @@ pub fn ceil(comptime T: anytype, input: *Tensor(T)) !Tensor(T) {
     var result = try Tensor(T).fromShape(input.allocator, input.shape);
 
     // Perform element-wise ceil computation
-    ceil_lean(T, input, &result);
+    try ceil_lean(T, input, &result);
 
     return result;
 }
