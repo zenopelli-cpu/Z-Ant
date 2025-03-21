@@ -15,14 +15,17 @@ var failed_parsed_models: std.ArrayList(ErrorDetail) = std.ArrayList(ErrorDetail
 test " Onnx loader" {
     std.debug.print("\n     test:  Onnx loader\n", .{});
 
-    //add here your model name
-    try models.append("best");
-    try models.append("debug_model");
-    try models.append("mnist-1");
-    try models.append("mnist-8");
-    try models.append("sentiment_it");
-    try models.append("simple_lang");
-    try models.append("wakeWord");
+    var dir = try std.fs.cwd().openDir("datasets/models", .{ .iterate = true });
+    defer dir.close();
+
+    // Iterate over directory entries
+    var it = dir.iterate();
+    while (try it.next()) |entry| {
+        if (entry.kind == .directory) {
+            // Print the directory name
+            try models.append(entry.name);
+        }
+    }
 
     for (models.items) |model_name| {
 
