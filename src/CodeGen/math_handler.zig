@@ -93,7 +93,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Slice")) {
         try write_slice(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Split")) {
-        try writer.writeAll("// Handle Split\n");
+        try write_split(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sub")) {
         try writer.writeAll("// Handle Sub\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sum")) {
@@ -312,7 +312,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         pads_string, //Pads
         dilat_string, //Dilatations
         group, //Group
-        auto_pad,
+        auto_pad, //auto_pad
     });
 }
 
@@ -1626,4 +1626,170 @@ inline fn write_leaky_relu(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         alpha,
         try utils.getSanitizedName(node.outputs.items[0].name),
     });
+}
+
+inline fn write_split(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Split.html
+    // INPUTS:
+    //      - input (heterogeneous) - T: The tensor to split
+    //      - split (optional, heterogeneous) - tensor(int64): Optional tensor specifying the size of each split
+    // OUTPUTS:
+    //      - outputs (variadic, heterogeneous) - T: One or more outputs forming splits of the input
+    // ATTRIBUTES:
+    //      - axis (int, default is 0): Which axis to split on
+    //      - split (list of ints, deprecated): Length of each output. This attribute is deprecated in favor of the 'split' input
+
+    // Get axis attribute (default is 0)
+    var axis: i64 = 0;
+    var split_sizes_attr: ?[]i64 = null;
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "axis")) {
+            if (attr.type == AttributeType.INT) axis = attr.i;
+        } else if (std.mem.eql(u8, attr.name, "split")) {
+            if (attr.type == AttributeType.INTS) split_sizes_attr = attr.ints;
+        }
+    }
+
+    // Create input tensor string
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+
+    if (node.inputs.items[0].tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name) });
+    }
+
+    // Handle split sizes - either from input tensor or attribute
+    var split_sizes_str: []const u8 = "null";
+    var needs_free = false;
+
+    if (node.inputs.items.len > 1 and node.inputs.items[1].tensorProto != null) {
+        // Split sizes from input tensor (opset 13+)
+        const split_name = try utils.getSanitizedName(node.inputs.items[1].name);
+        if (node.inputs.items[1].tag == globals.TensorTag.INITIALIZER) {
+            split_sizes_str = try std.fmt.allocPrint(allocator, "(@as([*]const i64, @ptrCast(param_lib.tensor_{s}.data.ptr)))[0..param_lib.tensor_{s}.size]", .{ split_name, split_name });
+        } else {
+            split_sizes_str = try std.fmt.allocPrint(allocator, "(@as([*]const i64, @ptrCast(tensor_{s}.data.ptr)))[0..tensor_{s}.size]", .{ split_name, split_name });
+        }
+        needs_free = true;
+    } else if (split_sizes_attr != null) {
+        // Split sizes from attribute (deprecated but still supported)
+        const split_array_name = try std.fmt.allocPrint(allocator, "split_sizes_{s}", .{try utils.getSanitizedName(node.outputs.items[0].name)});
+        defer allocator.free(split_array_name);
+
+        try writer.print(
+            \\
+            \\    // Define split sizes array
+            \\    const {s} = [_]i64{{
+        , .{split_array_name});
+
+        for (split_sizes_attr.?, 0..) |size, i| {
+            if (i > 0) try writer.writeAll(", ");
+            try writer.print("{d}", .{size});
+        }
+
+        try writer.print(
+            \\}};
+            \\
+        , .{});
+
+        split_sizes_str = try std.fmt.allocPrint(allocator, "&{s}", .{split_array_name});
+        needs_free = true;
+    }
+    defer if (needs_free) allocator.free(split_sizes_str);
+
+    // Create a different approach that works with the expected types
+    try writer.print(
+        \\
+        \\    // Create array for output tensor pointers to store final results
+        \\    var output_ptrs = [_]*Tensor(T){{
+    , .{});
+
+    for (node.outputs.items, 0..) |output, i| {
+        if (i > 0) try writer.writeAll(", ");
+        try writer.print("&tensor_{s}", .{try utils.getSanitizedName(output.name)});
+    }
+
+    try writer.print(
+        \\}};
+        \\
+        \\    // Create temporary tensors that split_lean can operate on
+        \\    var temp_tensors = allocator.alloc(Tensor(T), {d}) catch @panic("Out of memory");
+        \\    defer {{
+        \\        for (temp_tensors) |*t| t.deinit();
+        \\        allocator.free(temp_tensors);
+        \\    }}
+        \\
+        \\    // Initialize the temporary tensors
+        \\    for (temp_tensors) |*t| {{
+        \\        t.* = Tensor(T).init(&allocator) catch @panic("Failed to initialize tensor");
+        \\    }}
+    , .{node.outputs.items.len});
+
+    // Convert split sizes to usize if provided
+    if (!std.mem.eql(u8, split_sizes_str, "null")) {
+        try writer.print(
+            \\
+            \\    // Convert split sizes from i64 to usize
+            \\    var usize_split_sizes = allocator.alloc(usize, {s}.len) catch @panic("Out of memory");
+            \\    defer allocator.free(usize_split_sizes);
+            \\    for ({s}, 0..) |size, i| {{
+            \\        usize_split_sizes[i] = @intCast(size);
+            \\    }}
+            \\
+            \\    // Call split_lean with the temporary tensors
+            \\    tensMath.split_lean(T, {s}, {}, usize_split_sizes, &temp_tensors) catch unreachable;
+        , .{ split_sizes_str, split_sizes_str, input_tensor_string, axis });
+    } else {
+        try writer.print(
+            \\
+            \\    // Call split_lean with null split sizes
+            \\    tensMath.split_lean(T, {s}, {}, null, &temp_tensors) catch unreachable;
+        , .{ input_tensor_string, axis });
+    }
+
+    // Now copy the data from temp_tensors to the output tensors
+    try writer.print(
+        \\
+        \\    // Copy the temporary tensor data to the output tensors
+        \\    for (temp_tensors, 0..) |*src, i| {{
+        \\        // Create new data storage
+        \\        const new_data = allocator.alloc(T, src.size) catch @panic("Out of memory");
+        \\        defer allocator.free(new_data);
+        \\        @memcpy(new_data, src.data);
+        \\
+        \\        // Create new shape storage
+        \\        const new_shape = allocator.dupe(usize, src.shape) catch @panic("Out of memory");
+        \\        defer allocator.free(new_shape);
+        \\        // Free existing data if needed
+        \\        if (output_ptrs[i].data.len > 0 and output_ptrs[i].owns_memory) {{
+        \\            allocator.free(output_ptrs[i].data);
+        \\        }}
+        \\
+        \\        // Free existing shape if needed
+        \\        if (output_ptrs[i].shape.len > 0 and output_ptrs[i].owns_memory) {{
+        \\            allocator.free(output_ptrs[i].shape);
+        \\        }}
+        \\
+        \\        // Set the new data and shape
+        \\        output_ptrs[i].data = new_data;
+        \\        output_ptrs[i].shape = new_shape;
+        \\        output_ptrs[i].size = src.size;
+        \\        output_ptrs[i].allocator = &allocator;
+        \\        output_ptrs[i].owns_memory = true;
+        \\    }}
+    , .{});
+
+    // End with a function that returns an error union
+    try writer.writeAll(
+        \\
+        \\    // Final dummy operation that returns an error union
+        \\    _ = @import("std").fmt.bufPrint(&[_]u8{}, "", .{})
+    );
 }

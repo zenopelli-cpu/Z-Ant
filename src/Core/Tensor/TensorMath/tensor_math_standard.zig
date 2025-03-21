@@ -59,7 +59,7 @@ pub const get_resize_output_shape = op_resize.get_resize_output_shape;
 
 pub const split = op_split.split;
 pub const get_split_output_shapes = op_split.get_split_output_shapes;
-
+pub const split_lean = op_split.split_lean;
 // ---------- importing matrix algebra methods ----------
 const op_mat_mul = @import("op_mat_mul.zig");
 //---matmul

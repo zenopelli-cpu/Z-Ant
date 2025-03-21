@@ -89,8 +89,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Slice")) {
         try compute_slice_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Split")) {
-        // TODO
-        return error.OperationWIP;
+        //https://onnx.ai/onnx/operators/onnx__Split.html
+        try compute_split_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sub")) {
         // TODO
         return error.OperationWIP;
@@ -785,4 +785,71 @@ fn compute_matmul_output_shape(readyNode: *ReadyNode) !void {
 
     readyNode.outputs.items[0].shape = output_shape;
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_split_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_split_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+
+    // Get axis attribute (default is 0)
+    var axis: i64 = 0;
+    var split_sizes: ?[]i64 = null;
+
+    // Extract attributes
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "axis")) {
+            if (attr.type == AttributeType.INT) axis = attr.i;
+        } else if (std.mem.eql(u8, attr.name, "split")) {
+            if (attr.type == AttributeType.INTS) split_sizes = attr.ints;
+        }
+    }
+
+    // Check if split_sizes is provided as an input (ONNX opset 13+)
+    if (readyNode.inputs.items.len > 1 and
+        readyNode.inputs.items[1].tensorProto != null and
+        readyNode.inputs.items[1].tensorProto.?.int64_data != null)
+    {
+        split_sizes = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
+    }
+
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+    std.debug.print("\n axis: {}", .{axis});
+    std.debug.print("\n split_sizes: {any}", .{split_sizes});
+    std.debug.print("\n num_outputs: {}", .{readyNode.outputs.items.len});
+
+    // Convert i64 split_sizes to usize if provided
+    var usize_split_sizes: ?[]usize = null;
+    defer if (usize_split_sizes != null) allocator.free(usize_split_sizes.?);
+
+    if (split_sizes) |sizes| {
+        usize_split_sizes = try allocator.alloc(usize, sizes.len);
+        for (sizes, 0..) |size, i| {
+            usize_split_sizes.?[i] = @intCast(size);
+        }
+    }
+
+    // Convert input_shape to usize
+    const usize_input_shape = try utils.i64SliceToUsizeSlice(input_shape);
+    defer allocator.free(usize_input_shape);
+
+    // Get output shapes using the utility function
+    const output_shapes = try tensorMath.get_split_output_shapes(usize_input_shape, axis, usize_split_sizes, readyNode.outputs.items.len // Pass the number of outputs
+    );
+    defer {
+        for (output_shapes) |shape| {
+            allocator.free(shape);
+        }
+        allocator.free(output_shapes);
+    }
+
+    // Ensure we have enough output tensors
+    if (readyNode.outputs.items.len != output_shapes.len) {
+        return error.MismatchedOutputCount;
+    }
+
+    // Set the output shapes
+    for (output_shapes, 0..) |shape, i| {
+        readyNode.outputs.items[i].shape = try utils.usizeSliceToI64Slice(shape);
+        std.debug.print("\n output[{}] shape: []i64 = {any}", .{ i, readyNode.outputs.items[i].shape });
+    }
 }

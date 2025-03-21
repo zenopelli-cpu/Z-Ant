@@ -55,59 +55,140 @@ pub fn split(comptime T: anytype, t: *Tensor(T), axis: i64, split_sizes: ?[]cons
 //lean split
 //inputs:
 //split_sizes can't be null
-pub fn split_lean(comptime T: anytype, t: *Tensor(T), axis: i64, split_sizes: ?[]const usize, output_tensors: *[]Tensor(T)) !void {
-    const positive_axis = @as(usize, @intCast(if (axis < 0) @as(i64, @intCast(t.shape.len)) + axis else axis));
-    const dim_size = t.shape[positive_axis];
-    const sizes = split_sizes.?;
+pub fn split_lean(comptime T: type, input_tensor: *Tensor(T), axis: i64, split_sizes: ?[]const usize, output_tensors: *[]Tensor(T)) !void {
+    // Handle negative axis
+    var positive_axis: usize = undefined;
+    if (axis < 0) {
+        const adjusted = @as(i64, @intCast(input_tensor.shape.len)) + axis;
+        if (adjusted < 0) return TensorError.InvalidAxis;
+        positive_axis = @intCast(adjusted);
+    } else {
+        positive_axis = @intCast(axis);
+    }
 
-    var offset: usize = 0;
-    for (sizes, 0..) |split_size, i| {
-        // Create shape for the split tensor
-        var new_shape = try t.allocator.alloc(usize, t.shape.len);
-        errdefer t.allocator.free(new_shape);
-        @memcpy(new_shape, t.shape);
-        new_shape[positive_axis] = split_size;
+    if (positive_axis >= input_tensor.shape.len) return TensorError.InvalidAxis;
 
-        // Calculate total size for the split tensor
+    // Get split output shapes
+    const output_shapes = try get_split_output_shapes(input_tensor.shape, axis, split_sizes, output_tensors.len);
+    defer {
+        for (output_shapes) |shape| {
+            input_tensor.allocator.free(shape);
+        }
+        input_tensor.allocator.free(output_shapes);
+    }
+
+    // Ensure we have enough output tensors
+    if (output_tensors.len != output_shapes.len) {
+        return TensorError.InvalidInput;
+    }
+
+    // Initialize output tensors with proper shapes
+    for (output_shapes, 0..) |shape, i| {
+        // Create or resize each output tensor with the correct shape
         var total_size: usize = 1;
-        for (new_shape) |dim| {
+        for (shape) |dim| {
             total_size *= dim;
         }
 
-        // Allocate memory for the split tensor's data
-        var new_data = try t.allocator.alloc(T, total_size);
-        errdefer t.allocator.free(new_data);
-
-        // Calculate strides
-        var stride: usize = 1;
-        for (positive_axis + 1..t.shape.len) |j| {
-            stride *= t.shape[j];
+        // Free the old shape if it exists
+        if (output_tensors.*[i].shape.len > 0 and output_tensors.*[i].owns_memory) {
+            input_tensor.allocator.free(output_tensors.*[i].shape);
         }
 
-        // Copy data to the split tensor
-        const block_size = split_size * stride;
-        const num_blocks = total_size / block_size;
+        // Allocate new shape
+        output_tensors.*[i].shape = try input_tensor.allocator.dupe(usize, shape);
 
-        var block_idx: usize = 0;
-        while (block_idx < num_blocks) : (block_idx += 1) {
-            const src_start = offset + block_idx * dim_size * stride;
-            const dst_start = block_idx * split_size * stride;
-            const copy_size = split_size * stride;
-            @memcpy(new_data[dst_start .. dst_start + copy_size], t.data[src_start .. src_start + copy_size]);
+        // Free the old data if it exists and the tensor owns it
+        if (output_tensors.*[i].data.len > 0 and output_tensors.*[i].owns_memory) {
+            input_tensor.allocator.free(output_tensors.*[i].data);
         }
 
-        // Create the split tensor
-        output_tensors.*[i].data = new_data;
+        // Allocate new data
+        output_tensors.*[i].data = try input_tensor.allocator.alloc(T, total_size);
         output_tensors.*[i].size = total_size;
-        output_tensors.*[i].shape = new_shape;
-        output_tensors.*[i].allocator = t.allocator;
+        output_tensors.*[i].allocator = input_tensor.allocator;
         output_tensors.*[i].owns_memory = true;
+    }
 
-        offset += split_size * stride;
+    // Copy data from input tensor to output tensors
+    const offsets = try compute_split_offsets(input_tensor.shape, positive_axis, split_sizes, output_tensors.len);
+    defer input_tensor.allocator.free(offsets);
+
+    // Now let's implement the actual data copying
+    // Calculate the size of each dimension
+    var dim_sizes = try input_tensor.allocator.alloc(usize, input_tensor.shape.len);
+    defer input_tensor.allocator.free(dim_sizes);
+
+    // Calculate size of each dimension (for faster indexing)
+    dim_sizes[input_tensor.shape.len - 1] = 1;
+    var i: usize = input_tensor.shape.len - 1;
+    while (i > 0) {
+        i -= 1;
+        dim_sizes[i] = dim_sizes[i + 1] * input_tensor.shape[i + 1];
+    }
+
+    // Calculate strides
+    const stride = dim_sizes[positive_axis];
+
+    // Copy data to output tensors
+    for (output_shapes, 0..) |shape, out_idx| {
+        const split_size = shape[positive_axis];
+        const offset = offsets[out_idx];
+        const block_size = split_size * stride;
+
+        // Calculate total number of blocks
+        var total_blocks: usize = 1;
+        for (0..positive_axis) |j| {
+            total_blocks *= input_tensor.shape[j];
+        }
+
+        // Copy data blocks
+        var block_idx: usize = 0;
+        while (block_idx < total_blocks) : (block_idx += 1) {
+            // Calculate source and destination offsets
+            const outer_offset = block_idx * input_tensor.shape[positive_axis] * stride;
+            const src_offset = outer_offset + offset * stride;
+            const dst_offset = block_idx * split_size * stride;
+
+            // Copy the data block
+            @memcpy(output_tensors.*[out_idx].data[dst_offset .. dst_offset + block_size], input_tensor.data[src_offset .. src_offset + block_size]);
+        }
     }
 }
 
-pub fn get_split_output_shapes(input_shape: []const usize, axis: i64, split_sizes: ?[]const usize) ![][]usize {
+// Helper to compute offsets for each split
+fn compute_split_offsets(input_shape: []const usize, axis: usize, split_sizes: ?[]const usize, num_outputs: usize) ![]usize {
+    const dim_size = input_shape[axis];
+    var offsets = try pkg_allocator.alloc(usize, num_outputs);
+    errdefer pkg_allocator.free(offsets);
+
+    // Calculate offsets based on split sizes
+    if (split_sizes) |sizes| {
+        if (sizes.len != num_outputs) return TensorError.InvalidInput;
+
+        var offset: usize = 0;
+        for (sizes, 0..) |size, i| {
+            offsets[i] = offset;
+            offset += size;
+        }
+
+        if (offset != dim_size) return TensorError.InvalidSplitSize;
+    } else {
+        // Split evenly
+        const split_size = dim_size / num_outputs;
+        if (split_size * num_outputs != dim_size) return TensorError.InvalidSplitSize;
+
+        var offset: usize = 0;
+        for (0..num_outputs) |i| {
+            offsets[i] = offset;
+            offset += split_size;
+        }
+    }
+
+    return offsets;
+}
+
+pub fn get_split_output_shapes(input_shape: []const usize, axis: i64, split_sizes: ?[]const usize, num_outputs: ?usize) ![][]usize {
     // Handle negative axis
     var positive_axis: usize = undefined;
     if (axis < 0) {
@@ -120,7 +201,6 @@ pub fn get_split_output_shapes(input_shape: []const usize, axis: i64, split_size
 
     if (positive_axis >= input_shape.len) return TensorError.InvalidAxis;
 
-    // Rest of the function remains the same...
     const dim_size = input_shape[positive_axis];
     var sizes = std.ArrayList(usize).init(pkg_allocator);
     defer sizes.deinit();
@@ -133,11 +213,18 @@ pub fn get_split_output_shapes(input_shape: []const usize, axis: i64, split_size
             total_size += size;
         }
         if (total_size != dim_size) return TensorError.InvalidSplitSize;
+    } else if (num_outputs) |n| {
+        // Split into equal parts based on the number of outputs
+        if (dim_size % n != 0) return TensorError.InvalidSplitSize;
+        const split_size = dim_size / n;
+
+        var i: usize = 0;
+        while (i < n) : (i += 1) {
+            try sizes.append(split_size);
+        }
     } else {
-        // Split into equal parts
-        if (dim_size == 0) return TensorError.InvalidSplitSize;
-        const split_size = dim_size;
-        try sizes.append(split_size);
+        // Default case: just create one output with the full size
+        try sizes.append(dim_size);
     }
 
     // Create output shapes
