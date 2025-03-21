@@ -35,7 +35,7 @@ pub const get_concatenate_output_shape = op_concat.get_concatenate_output_shape;
 const op_identity = @import("lib_shape_math/op_identity.zig");
 
 pub const identity = op_identity.identity;
-pub const identity_lean = op_identity.identity;
+pub const identity_lean = op_identity.identity_lean;
 pub const get_identity_output_shape = op_identity.get_identity_shape_output;
 
 // ---------- importing pooling methods ----------
@@ -104,7 +104,7 @@ const reduction_math_lib = @import("lib_reduction_math.zig");
 pub const mean = reduction_math_lib.mean;
 pub const reduce_mean = reduction_math_lib.reduce_mean;
 pub const reduce_mean_lean = reduction_math_lib.lean_reduce_mean;
-
+pub const get_reduce_mean_output_shape = reduction_math_lib.get_reduce_mean_output_shape;
 // ---------- importing standard Element-Wise math ----------
 const add = @import("lib_elementWise_math/op_addition.zig");
 //--add bias

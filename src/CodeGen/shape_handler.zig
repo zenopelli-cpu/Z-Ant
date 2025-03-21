@@ -30,6 +30,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Add")) {
         //https://onnx.ai/onnx/operators/onnx__Add.html
         readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Ceil")) {
+        //https://onnx.ai/onnx/operators/onnx__Ceil.html
+        try compute_ceil_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Concat")) {
         //https://onnx.ai/onnx/operators/onnx__Concat.html
         try compute_concat_output_shape(readyNode);
@@ -51,13 +54,12 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         //https://onnx.ai/onnx/operators/onnx__Gemm.html
         try compute_gemm_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LeakyRelu")) {
-        // TODO
-        return error.OperationWIP;
+        try compute_leaky_relu_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LogSoftmax")) {
         // TODO
         return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MatMul")) {
-        try compute_mul_output_shape(readyNode);
+        try compute_matmul_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MaxPool")) {
         try compute_maxPool_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mul")) {
@@ -66,8 +68,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "OneHot")) {
         // TODO
         return error.OperationWIP;
-    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "ReduceMean")) {
-        try compute_reduceMean_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mean")) {
+        try compute_reducemean_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Relu")) {
         //https://onnx.ai/onnx/operators/onnx__Relu.html
         try compute_ReLU_output_shape(readyNode);
@@ -96,6 +98,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         try compute_transpose_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Unsqueeze")) {
         try compute_unsqueeze_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Identity")) {
+        //https://onnx.ai/onnx/operators/onnx__Identity.html
+        try compute_identity_output_shape(readyNode);
     } else {
         std.debug.print("\n\n ERROR! output shape computation for {s} is not available in codeGen_math_handler.compute_output_shape() \n\n", .{readyNode.nodeProto.op_type});
         return error.OperationNotSupported;
@@ -200,44 +205,27 @@ inline fn compute_gemm_output_shape(readyNode: *ReadyNode) !void {
 }
 
 fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_mul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     const input_a = readyNode.inputs.items[0];
     const input_b = readyNode.inputs.items[1];
 
-    std.debug.print("\n====== compute_mul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     std.debug.print("\n input_a_shape: []i64 = {any}", .{input_a.shape});
     std.debug.print("\n input_b_shape: []i64 = {any}", .{input_b.shape});
 
-    if (input_a.shape.len < 2 or input_b.shape.len < 2) {
-        return error.InvalidShape;
+    // For element-wise multiplication, shapes must be exactly the same
+    if (input_a.shape.len != input_b.shape.len) {
+        return error.MismatchedRank;
     }
 
-    const a_rows = input_a.shape[input_a.shape.len - 2];
-    const a_cols = input_a.shape[input_a.shape.len - 1];
-    const b_rows = input_b.shape[input_b.shape.len - 2];
-    const b_cols = input_b.shape[input_b.shape.len - 1];
-
-    if (a_cols != b_rows) {
-        return error.ShapeMismatch;
+    for (input_a.shape, input_b.shape) |a, b| {
+        if (a != b) {
+            return error.MismatchedShape;
+        }
     }
 
-    var output_shape: std.ArrayList(i64) = std.ArrayList(i64).init(allocator);
-    defer output_shape.deinit();
-
-    // Broadcast the batch dimensions
-    const a_batch = input_a.shape.len - 2;
-    const b_batch = input_b.shape.len - 2;
-    const batch_dims = if (a_batch < b_batch) a_batch else b_batch;
-
-    for (0..batch_dims) |i| {
-        try output_shape.append(if (input_a.shape[i] > input_b.shape[i]) input_a.shape[i] else input_b.shape[i]);
-    }
-
-    // Append output matrix dimensions
-    try output_shape.append(a_rows);
-    try output_shape.append(b_cols);
-
-    // Update the shape of the output tensor
-    readyNode.outputs.items[0].shape = try output_shape.toOwnedSlice();
+    // Output shape is the same as input shapes
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_a.shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
 inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
@@ -321,56 +309,41 @@ inline fn compute_maxPool_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
-inline fn compute_reduceMean_output_shape(readyNode: *ReadyNode) !void {
-    std.debug.print("\n====== compute_reduceMean_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape: []const i64 = readyNode.inputs.items[0].shape;
+inline fn compute_reducemean_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_reducemean_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = try utils.i64SliceToUsizeSlice(readyNode.inputs.items[0].shape);
+    defer allocator.free(input_shape);
 
+    // Get attributes
     var keepdims: bool = true;
+    var noop_with_empty_axes: bool = false;
+
     for (readyNode.nodeProto.attribute) |attr| {
         if (std.mem.eql(u8, attr.name, "keepdims")) {
             if (attr.type == AttributeType.INT) keepdims = attr.i != 0;
+        } else if (std.mem.eql(u8, attr.name, "noop_with_empty_axes")) {
+            if (attr.type == AttributeType.INT) noop_with_empty_axes = attr.i != 0;
         }
     }
 
-    // If we have axes input tensor
-    if (readyNode.inputs.items.len > 1) {
-        const axes = readyNode.inputs.items[1].shape;
-        std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
-        std.debug.print("\n axes: []i64 = {any}", .{axes});
-
-        // If keepdims is true, the reduced dimensions are retained with length 1
-        if (keepdims) {
-            var newShape = try allocator.alloc(i64, input_shape.len);
-            @memcpy(newShape, input_shape);
-            for (axes) |axis| {
-                newShape[@as(usize, @intCast(axis))] = 1;
-            }
-            readyNode.outputs.items[0].shape = newShape;
-        } else {
-            // If keepdims is false, the reduced dimensions are removed
-            var newShape = try allocator.alloc(i64, input_shape.len - axes.len);
-            var j: usize = 0;
-            outer: for (input_shape, 0..) |dim, i| {
-                for (axes) |axis| {
-                    if (i == @as(usize, @intCast(axis))) continue :outer;
-                }
-                newShape[j] = dim;
-                j += 1;
-            }
-            readyNode.outputs.items[0].shape = newShape;
-        }
-    } else {
-        // If no axes specified, reduce all dimensions to 1 if keepdims is true, or to a scalar if false
-        if (keepdims) {
-            var newShape = try allocator.alloc(i64, input_shape.len);
-            for (newShape, 0..) |_, i| {
-                newShape[i] = 1;
-            }
-            readyNode.outputs.items[0].shape = newShape;
-        } else {
-            readyNode.outputs.items[0].shape = &[_]i64{1};
-        }
+    // Get axes from second input if it exists
+    var axes: ?[]const i64 = null;
+    if (readyNode.inputs.items.len > 1 and
+        readyNode.inputs.items[1].tensorProto != null and
+        readyNode.inputs.items[1].tensorProto.?.int64_data != null)
+    {
+        axes = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
     }
+
+    std.debug.print("\n input_shape: []usize = {any}", .{input_shape});
+    std.debug.print("\n axes: ?[]i64 = {any}", .{axes});
+    std.debug.print("\n keepdims: {}", .{keepdims});
+    std.debug.print("\n noop_with_empty_axes: {}", .{noop_with_empty_axes});
+
+    const output_shape = try tensorMath.get_reduce_mean_output_shape(input_shape, axes, keepdims, noop_with_empty_axes);
+    defer allocator.free(output_shape);
+
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
@@ -745,4 +718,71 @@ pub fn compute_concat_output_shape(readyNode: *ReadyNode) !void {
 
     // Set the output shape
     readyNode.outputs.items[0].shape = new_shape;
+}
+
+inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_ceil_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // Ceil is an element-wise operation, output shape is identical to input shape
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_identity_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_identity_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // Identity operation preserves the input shape
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_leaky_relu_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_leaky_relu_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // LeakyReLU is an element-wise operation, output shape is identical to input shape
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+fn compute_matmul_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_matmul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_a = readyNode.inputs.items[0];
+    const input_b = readyNode.inputs.items[1];
+
+    std.debug.print("\n input_a_shape: []i64 = {any}", .{input_a.shape});
+    std.debug.print("\n input_b_shape: []i64 = {any}", .{input_b.shape});
+
+    if (input_a.shape.len < 2 or input_b.shape.len < 2) {
+        return error.InvalidShape;
+    }
+
+    const a_rows = input_a.shape[input_a.shape.len - 2];
+    const a_cols = input_a.shape[input_a.shape.len - 1];
+    const b_rows = input_b.shape[input_b.shape.len - 2];
+    const b_cols = input_b.shape[input_b.shape.len - 1];
+
+    if (a_cols != b_rows) {
+        return error.ShapeMismatch;
+    }
+
+    var output_shape = try allocator.alloc(i64, input_a.shape.len);
+    errdefer allocator.free(output_shape);
+
+    // Copy batch dimensions from input_a
+    for (0..input_a.shape.len - 2) |i| {
+        output_shape[i] = input_a.shape[i];
+    }
+
+    // Set matrix multiplication dimensions
+    output_shape[output_shape.len - 2] = a_rows;
+    output_shape[output_shape.len - 1] = b_cols;
+
+    readyNode.outputs.items[0].shape = output_shape;
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
