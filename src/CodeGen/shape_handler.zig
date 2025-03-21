@@ -68,8 +68,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "OneHot")) {
         // TODO
         return error.OperationWIP;
-    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "ReduceMean")) {
-        try compute_reduceMean_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mean")) {
+        try compute_reducemean_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Relu")) {
         //https://onnx.ai/onnx/operators/onnx__Relu.html
         try compute_ReLU_output_shape(readyNode);
@@ -326,56 +326,41 @@ inline fn compute_maxPool_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
-inline fn compute_reduceMean_output_shape(readyNode: *ReadyNode) !void {
-    std.debug.print("\n====== compute_reduceMean_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape: []const i64 = readyNode.inputs.items[0].shape;
+inline fn compute_reducemean_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_reducemean_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = try utils.i64SliceToUsizeSlice(readyNode.inputs.items[0].shape);
+    defer allocator.free(input_shape);
 
+    // Get attributes
     var keepdims: bool = true;
+    var noop_with_empty_axes: bool = false;
+
     for (readyNode.nodeProto.attribute) |attr| {
         if (std.mem.eql(u8, attr.name, "keepdims")) {
             if (attr.type == AttributeType.INT) keepdims = attr.i != 0;
+        } else if (std.mem.eql(u8, attr.name, "noop_with_empty_axes")) {
+            if (attr.type == AttributeType.INT) noop_with_empty_axes = attr.i != 0;
         }
     }
 
-    // If we have axes input tensor
-    if (readyNode.inputs.items.len > 1) {
-        const axes = readyNode.inputs.items[1].shape;
-        std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
-        std.debug.print("\n axes: []i64 = {any}", .{axes});
-
-        // If keepdims is true, the reduced dimensions are retained with length 1
-        if (keepdims) {
-            var newShape = try allocator.alloc(i64, input_shape.len);
-            @memcpy(newShape, input_shape);
-            for (axes) |axis| {
-                newShape[@as(usize, @intCast(axis))] = 1;
-            }
-            readyNode.outputs.items[0].shape = newShape;
-        } else {
-            // If keepdims is false, the reduced dimensions are removed
-            var newShape = try allocator.alloc(i64, input_shape.len - axes.len);
-            var j: usize = 0;
-            outer: for (input_shape, 0..) |dim, i| {
-                for (axes) |axis| {
-                    if (i == @as(usize, @intCast(axis))) continue :outer;
-                }
-                newShape[j] = dim;
-                j += 1;
-            }
-            readyNode.outputs.items[0].shape = newShape;
-        }
-    } else {
-        // If no axes specified, reduce all dimensions to 1 if keepdims is true, or to a scalar if false
-        if (keepdims) {
-            var newShape = try allocator.alloc(i64, input_shape.len);
-            for (newShape, 0..) |_, i| {
-                newShape[i] = 1;
-            }
-            readyNode.outputs.items[0].shape = newShape;
-        } else {
-            readyNode.outputs.items[0].shape = &[_]i64{1};
-        }
+    // Get axes from second input if it exists
+    var axes: ?[]const i64 = null;
+    if (readyNode.inputs.items.len > 1 and
+        readyNode.inputs.items[1].tensorProto != null and
+        readyNode.inputs.items[1].tensorProto.?.int64_data != null)
+    {
+        axes = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
     }
+
+    std.debug.print("\n input_shape: []usize = {any}", .{input_shape});
+    std.debug.print("\n axes: ?[]i64 = {any}", .{axes});
+    std.debug.print("\n keepdims: {}", .{keepdims});
+    std.debug.print("\n noop_with_empty_axes: {}", .{noop_with_empty_axes});
+
+    const output_shape = try tensorMath.get_reduce_mean_output_shape(input_shape, axes, keepdims, noop_with_empty_axes);
+    defer allocator.free(output_shape);
+
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 

@@ -78,7 +78,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_mul(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "OneHot")) {
         try writer.writeAll("// Handle OneHot\n");
-    } else if (std.mem.eql(u8, node.nodeProto.op_type, "ReduceMean")) {
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Mean")) {
         try write_reduceMean(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
         try write_ReLU(writer, node);
@@ -1009,8 +1009,17 @@ inline fn write_mul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 }
 
 inline fn write_reduceMean(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    // https://onnx.ai/onnx/operators/onnx__ReduceMean.html
+    // https://onnx.ai/onnx/operators/onnx__Mean.html
+    // INPUTS:
+    //      - data (heterogeneous) - T: Input tensor
+    //      - axes (optional) - tensor(int64): A list of integers, along which to reduce
+    // OUTPUTS:
+    //      - reduced (heterogeneous) - T: Reduced output tensor
+    // ATTRIBUTES:
+    //      - keepdims (int, default is 1): Keep the reduced dimensions or not
+    //      - noop_with_empty_axes (int, default is 0): Behavior for empty axes
 
+    // Get attributes
     var keepdims: bool = true;
     var noop_with_empty_axes: bool = false;
 
@@ -1022,17 +1031,37 @@ inline fn write_reduceMean(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         }
     }
 
+    // Create input tensor string
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+
+    if (node.inputs.items[0].tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name) });
+    }
+
+    // Get axes from second input if it exists
     var axes_str: []const u8 = "null";
     if (node.inputs.items.len > 1) {
-        axes_str = try std.fmt.allocPrint(allocator, "&tensor_{s}.data", .{try utils.getSanitizedName(node.inputs.items[1].name)});
+        const axes_name = try utils.getSanitizedName(node.inputs.items[1].name);
+        if (node.inputs.items[1].tag == globals.TensorTag.INITIALIZER) {
+            axes_str = try std.fmt.allocPrint(allocator, "(@as([*]const i64, @alignCast(@ptrCast(param_lib.tensor_{s}.data))))[0..param_lib.tensor_{s}.size]", .{ axes_name, axes_name });
+        } else {
+            axes_str = try std.fmt.allocPrint(allocator, "(@as([*]const i64, @alignCast(@ptrCast(tensor_{s}.data))))[0..tensor_{s}.size]", .{ axes_name, axes_name });
+        }
     }
+    defer if (axes_str.len > 4) allocator.free(axes_str);
 
     _ = try writer.print(
         \\
-        \\
-        \\    tensMath.reduce_mean_lean(T, &tensor_{s}, &tensor_{s}, {s}, {s}, {s})
+        \\    tensMath.reduce_mean_lean(T, {s}, &tensor_{s}, {s}, {s}, {s})
     , .{
-        try utils.getSanitizedName(node.inputs.items[0].name),
+        input_tensor_string,
         try utils.getSanitizedName(node.outputs.items[0].name),
         axes_str,
         if (keepdims) "true" else "false",

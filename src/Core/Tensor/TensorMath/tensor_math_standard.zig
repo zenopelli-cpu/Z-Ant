@@ -104,7 +104,7 @@ const reduction_math_lib = @import("lib_reduction_math.zig");
 pub const mean = reduction_math_lib.mean;
 pub const reduce_mean = reduction_math_lib.reduce_mean;
 pub const reduce_mean_lean = reduction_math_lib.lean_reduce_mean;
-
+pub const get_reduce_mean_output_shape = reduction_math_lib.get_reduce_mean_output_shape;
 // ---------- importing standard Element-Wise math ----------
 const add = @import("lib_elementWise_math/op_addition.zig");
 //--add bias

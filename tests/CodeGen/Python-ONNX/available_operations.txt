@@ -16,3 +16,4 @@ Transpose
 Ceil
 Identity
 LeakyRelu
+Mean
