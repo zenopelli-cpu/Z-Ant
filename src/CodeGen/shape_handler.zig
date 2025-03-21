@@ -59,7 +59,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         // TODO
         return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MatMul")) {
-        try compute_mul_output_shape(readyNode);
+        try compute_matmul_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MaxPool")) {
         try compute_maxPool_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mul")) {
@@ -205,44 +205,27 @@ inline fn compute_gemm_output_shape(readyNode: *ReadyNode) !void {
 }
 
 fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_mul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     const input_a = readyNode.inputs.items[0];
     const input_b = readyNode.inputs.items[1];
 
-    std.debug.print("\n====== compute_mul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     std.debug.print("\n input_a_shape: []i64 = {any}", .{input_a.shape});
     std.debug.print("\n input_b_shape: []i64 = {any}", .{input_b.shape});
 
-    if (input_a.shape.len < 2 or input_b.shape.len < 2) {
-        return error.InvalidShape;
+    // For element-wise multiplication, shapes must be exactly the same
+    if (input_a.shape.len != input_b.shape.len) {
+        return error.MismatchedRank;
     }
 
-    const a_rows = input_a.shape[input_a.shape.len - 2];
-    const a_cols = input_a.shape[input_a.shape.len - 1];
-    const b_rows = input_b.shape[input_b.shape.len - 2];
-    const b_cols = input_b.shape[input_b.shape.len - 1];
-
-    if (a_cols != b_rows) {
-        return error.ShapeMismatch;
+    for (input_a.shape, input_b.shape) |a, b| {
+        if (a != b) {
+            return error.MismatchedShape;
+        }
     }
 
-    var output_shape: std.ArrayList(i64) = std.ArrayList(i64).init(allocator);
-    defer output_shape.deinit();
-
-    // Broadcast the batch dimensions
-    const a_batch = input_a.shape.len - 2;
-    const b_batch = input_b.shape.len - 2;
-    const batch_dims = if (a_batch < b_batch) a_batch else b_batch;
-
-    for (0..batch_dims) |i| {
-        try output_shape.append(if (input_a.shape[i] > input_b.shape[i]) input_a.shape[i] else input_b.shape[i]);
-    }
-
-    // Append output matrix dimensions
-    try output_shape.append(a_rows);
-    try output_shape.append(b_cols);
-
-    // Update the shape of the output tensor
-    readyNode.outputs.items[0].shape = try output_shape.toOwnedSlice();
+    // Output shape is the same as input shapes
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_a.shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
 inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
@@ -764,5 +747,42 @@ inline fn compute_leaky_relu_output_shape(readyNode: *ReadyNode) !void {
 
     // LeakyReLU is an element-wise operation, output shape is identical to input shape
     readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+fn compute_matmul_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_matmul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_a = readyNode.inputs.items[0];
+    const input_b = readyNode.inputs.items[1];
+
+    std.debug.print("\n input_a_shape: []i64 = {any}", .{input_a.shape});
+    std.debug.print("\n input_b_shape: []i64 = {any}", .{input_b.shape});
+
+    if (input_a.shape.len < 2 or input_b.shape.len < 2) {
+        return error.InvalidShape;
+    }
+
+    const a_rows = input_a.shape[input_a.shape.len - 2];
+    const a_cols = input_a.shape[input_a.shape.len - 1];
+    const b_rows = input_b.shape[input_b.shape.len - 2];
+    const b_cols = input_b.shape[input_b.shape.len - 1];
+
+    if (a_cols != b_rows) {
+        return error.ShapeMismatch;
+    }
+
+    var output_shape = try allocator.alloc(i64, input_a.shape.len);
+    errdefer allocator.free(output_shape);
+
+    // Copy batch dimensions from input_a
+    for (0..input_a.shape.len - 2) |i| {
+        output_shape[i] = input_a.shape[i];
+    }
+
+    // Set matrix multiplication dimensions
+    output_shape[output_shape.len - 2] = a_rows;
+    output_shape[output_shape.len - 1] = b_cols;
+
+    readyNode.outputs.items[0].shape = output_shape;
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
