@@ -70,11 +70,10 @@ so if ignore the fact that C may be not present in `ReadyNode.inputs` my codegen
 spaghetti_lean (&tensor_A, &tensor_B, &tensor_D, ERROR?!?!?!);
 ```
 To avoid this problem every time I'm working with optional parameters I have to check if they are present in the **tensorHashMap** or if the inputs list is long enought when the Tensor is the last one in the list(happens often), if not, set them to "null". 
-
-    
-    
-
-
+  
+      
+  
+Every time a new math operation is added remember to add it into `docs/MATH_TABLE`!! 
 
 
 
