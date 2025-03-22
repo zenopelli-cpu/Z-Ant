@@ -30,14 +30,14 @@ pub const SparseTensorProto = struct {
         allocator.free(self.dims);
     }
 
-    pub fn parse(reader: *protobuf.ProtoReader, allocator: std.mem.Allocator) !SparseTensorProto {
+    pub fn parse(reader: *protobuf.ProtoReader) !SparseTensorProto {
         var sp_tensor = SparseTensorProto{
             .values = null,
             .indices = null,
             .dims = &[_]i64{},
         };
 
-        var dim_list = std.ArrayList(i64).init(allocator);
+        var dim_list = std.ArrayList(i64).init(reader.allocator);
         defer dim_list.deinit();
 
         while (reader.hasMore()) {

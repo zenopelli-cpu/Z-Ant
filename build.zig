@@ -185,4 +185,21 @@ pub fn build(b: *std.Build) void {
 
     const step_test_oneOp = b.step("test-codegen", "Run generated library tests");
     step_test_oneOp.dependOn(&run_test_all_oneOp.step);
+
+    // ************************************************ ONNX PARSER TESTS ************************************************
+    // Add test for generated library
+
+    const test_onnx_parser = b.addTest(.{
+        .name = "test_generated_lib",
+        .root_source_file = b.path("tests/Onnx/onnx_loader.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    test_onnx_parser.root_module.addImport("zant", zant_mod);
+    test_onnx_parser.linkLibC();
+
+    const run_test_onnx_parser = b.addRunArtifact(test_onnx_parser);
+    const step_test_onnx_parser = b.step("onnx-parser", "Run generated library tests");
+    step_test_onnx_parser.dependOn(&run_test_onnx_parser.step);
 }
