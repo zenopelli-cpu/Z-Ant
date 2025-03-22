@@ -134,21 +134,27 @@ pub const ReadyNode = struct {
 };
 
 pub fn setGlobalAttributes(model: ModelOnnx) !void {
+    //initializing global attributes
+    readyGraph.deinit();
+    readyGraph = std.ArrayList(ReadyNode).init(allocator);
+
+    tensorHashMap.deinit();
+    tensorHashMap = std.StringHashMap(ReadyTensor).init(allocator);
+
     //First convert the optional String of numbers divided by a comma into an array
     const parsedInputshape: []const i64 = try utils.parseNumbers(codegen_options.shape);
 
     //setting the input
-    for (model.graph.?.inputs) |input| {
-        if (std.mem.indexOf(u8, try utils.getSanitizedName(input.name.?), "input")) |_| {
-            std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ input.name.?, input.type.?.tensor_type.?.shape.?.shape });
-            networkInput.name = input.name.?;
-            networkInput.shape = input.type.?.tensor_type.?.shape.?.shape;
-        }
-    }
+    const inputs = model.graph.?.inputs;
+    std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ inputs[0].name.?, inputs[0].type.?.tensor_type.?.shape.?.shape });
+    networkInput.name = inputs[0].name.?;
+    networkInput.shape = inputs[0].type.?.tensor_type.?.shape.?.shape;
 
     //setting the output
-    networkOutput.name = model.graph.?.outputs[0].name.?;
-    networkOutput.shape = model.graph.?.outputs[0].type.?.tensor_type.?.shape.?.shape;
+    const outputs = model.graph.?.outputs;
+    std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ outputs[0].name.?, outputs[0].type.?.tensor_type.?.shape.?.shape });
+    networkOutput.name = outputs[0].name.?;
+    networkOutput.shape = outputs[0].type.?.tensor_type.?.shape.?.shape;
 
     // Use -Dshape if provided, otherwise keep the ONNX model's shape
     if (parsedInputshape.len > 0) {
@@ -163,6 +169,8 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
 
     //create the ReadyGraph
     try populateReadyGraph(model);
+
+    std.debug.print("\n NODE: {s}", .{model.graph.?.nodes[0].output[0]});
 }
 
 // ----------------------- HASH MAP -----------------------

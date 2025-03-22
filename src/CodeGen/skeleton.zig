@@ -24,17 +24,22 @@ const codegen_options = @import("codegen_options");
 ///
 /// # Errors
 /// This function may return an error if writing to the file fails.
-pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: ModelOnnx) !void {
-    var file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ model_path, model_name });
-    var src_file = try std.fs.cwd().createFile(file_path, .{});
-    std.debug.print("\n .......... file created, path:{s}", .{file_path});
-    defer src_file.close();
+pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: ModelOnnx, do_export: bool) !void {
 
-    const lib_writer = src_file.writer();
+    //initializing writer for lib_operation file
+    const lib_file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ model_path, model_name });
+    defer allocator.free(lib_file_path);
+    var lib_file = try std.fs.cwd().createFile(lib_file_path, .{});
+    std.debug.print("\n .......... file created, path:{s}", .{lib_file_path});
+    defer lib_file.close();
 
-    file_path = try std.fmt.allocPrint(allocator, "{s}static_parameters.zig", .{model_path});
-    var param_file = try std.fs.cwd().createFile(file_path, .{});
-    std.debug.print("\n .......... file created, path:{s}", .{file_path});
+    const lib_writer = lib_file.writer();
+
+    //initializing writer for static_parameters file
+    const params_file_path = try std.fmt.allocPrint(allocator, "{s}static_parameters.zig", .{model_path});
+    defer allocator.free(params_file_path);
+    var param_file = try std.fs.cwd().createFile(params_file_path, .{});
+    std.debug.print("\n .......... file created, path:{s}", .{params_file_path});
     defer param_file.close();
 
     const param_writer = param_file.writer();
@@ -55,10 +60,8 @@ pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: Model
     // Generate tensor initialization code in the static_parameters.zig file
     try codeGenInitializers.write_parameters(param_writer, model);
 
-    //try write_debug(lib_writer);
-
     // Generate prediction function code
-    try coddeGenPredict.writePredict(lib_writer);
+    try coddeGenPredict.writePredict(lib_writer, do_export);
 }
 
 /// Writes the required library imports to the generated Zig file for predict function.
@@ -113,17 +116,5 @@ fn write_type_T(writer: std.fs.File.Writer) !void {
     _ = try writer.print( //TODO: get the type form the onnx model
         \\
         \\ const T = f32;
-    , .{});
-}
-
-fn write_debug(writer: std.fs.File.Writer) !void {
-    _ = try writer.print(
-        \\
-        \\
-        \\export fn debug() void {{
-        \\      std.debug.print("\n#############################################################", .{{}});
-        \\      std.debug.print("\n+                      DEBUG                     +", .{{}});
-        \\      std.debug.print("\n#############################################################", .{{}});
-        \\}}
     , .{});
 }

@@ -1,185 +1,195 @@
 # Z-Ant
 ![](https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-tests.yml/badge.svg)
+
 ![](https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-heavy-tests.yml/badge.svg)
 
 
 ![image](https://github.com/user-attachments/assets/6a5346e5-58ec-4069-8143-c3b7b03586f3)
 ## Project Overview
 
-**Zant** (Zig-Ant) is an open-source SDK designed to simplify deploying Neural Networks (NN) on microcontrollers. Written in Zig, Zant prioritizes cross-compatibility and efficiency, providing tools to import, optimize, and deploy NNs seamlessly, tailored to specific hardware.
 
-### Why Zant?
+**Zant** (Zig-Ant) is an open-source SDK for deploying optimized neural networks (NNs) on microcontrollers.
 
-1. Many microcontrollers (e.g., ATMEGA, TI Sitara) lack robust deep learning libraries.
-2. No open-source solution exists for end-to-end NN optimization and deployment.
-3. Inspired by cutting-edge research (e.g., MIT Han Lab), we leverage state-of-the-art optimization techniques.
-4. Collaborating with institutions like Politecnico di Milano to advance NN deployment on constrained devices.
-5. Built for flexibility to adapt to new hardware without codebase changes.
+## Why Zant?
 
-### Key Features
+- **Lack of DL Support**: Devices like TI Sitara, Raspberry Pi Pico, or ARM Cortex-M lack comprehensive DL libraries.
+- **Open-source**: End-to-end NN deployment and optimization open-source solution.
+- **Research-Inspired**: Implements optimization inspired by MIT's Han Lab research.
+- **Academic Collaboration**: Developed in collaboration with institutions like Politecnico di Milano.
 
-- **Optimized Performance:** Supports quantization, pruning, and hardware acceleration (SIMD, GPU offloading).
-- **Efficient Memory Usage:** Incorporates memory pooling, static allocation, and buffer optimization.
-- **Cross-Platform Support:** Works on ARM Cortex-M, RISC-V, and more.
-- **Ease of Integration:** Modular design with clear APIs, examples, and documentation.
+## Key Features
 
-### Use Cases
+- **Real-time Optimizations**: Quantization, pruning, buffer optimization.
+- **Cross-platform Compatibility**: ARM Cortex-M, RISC-V, and others.
+- **Modular and Easy Integration**: Clear APIs, examples, and extensive documentation.
 
-- **Real-Time Applications:** Object detection, anomaly detection, and predictive maintenance on edge devices.
-- **IoT and Autonomous Systems:** Enable AI in IoT, drones, robots, and vehicles with constrained resources.
+## Use Cases
 
----
-
-## Roadmap & Timeline
-
-We are actively working towards achieving key milestones for Zant's development and optimization:
-
-### **Short-Term Goals (Q1 2025)**
-
-- **March 5, 2025:** Run MNIST inference on a Raspberry Pi Pico 2, importing models from ONNX.
-- **April 30, 2025:** Get YOLO running efficiently on Raspberry Pi Pico 2.
-
-### **Mid-Term Goals (Q2-Q3 2025)**
-
-- Transition to a **Shape Tracker**, optimizing tensor operations.
-- Develop a **frontend interface** for easier interaction with the library.
-- Implement **im2tensor**, converting JPEG/PNG images into our optimized tensor format.
-- Optimize **code generation**, allowing users to choose between **flash storage** or **RAM** for execution.
-- Expand **ONNX operation support**, ensuring compatibility with more layers and architectures.
-
-### **Long-Term Goals (Q3 2025)**
-
-- Begin work on **pruning and quantization** to improve network efficiency.
-- Support additional **microcontrollers and architectures**.
-- Develop **benchmarking tools** for profiling model execution on constrained devices.
-- Improve the **compiler backend**, integrating more advanced optimization passes.
-- Enhance support for **real-time inference**, focusing on low-latency applications.
+- **Edge AI**: Real-time anomaly detection, predictive maintenance.
+- **IoT & Autonomous Systems**: Lightweight AI models for drones, robots, vehicles, IoT devices.
 
 ---
+
+## Roadmap
+
+### Short-Term Goals (Q1 2025)
+
+- **March 5**: MNIST inference on Raspberry Pi Pico 2.
+- **April 30**: Efficient YOLO on Raspberry Pi Pico 2.
+
+### Mid-Term Goals (Q2-Q3 2025)
+
+- Shape Tracker implementation.
+- Frontend GUI for library interaction.
+- `im2tensor` for image preprocessing.
+- Enhanced code generation (flash vs RAM execution).
+- Expanded ONNX compatibility.
+
+### Long-Term Goals (Q3 2025)
+
+- Advanced pruning and quantization support.
+- Expanded microcontroller compatibility.
+- Model execution benchmarking tools.
+- Improved real-time inference capabilities.
 
 ## Getting Started
 
-### Prerequisites
+### Requirements
 
-1. Install the [latest Zig compiler](https://ziglang.org/learn/getting-started/).
-2. Brush up your Zig skills with [Ziglings exercises](https://codeberg.org/ziglings/exercises).
+- Install the latest [Zig compiler](https://ziglang.org/learn/getting-started/).
+- Improve Zig proficiency via [Ziglings](https://codeberg.org/ziglings/exercises).
 
 ### Running the Project
 
-Navigate to the project folder and execute:
-
-```sh
+```bash
 zig build run
 ```
 
-### Testing
+### Running Tests
 
-1. Add new test files to `build.zig/test_list` if not already listed.
-2. Run:
-   ```sh
-   zig build
-   zig build test --summary all
-   ```
-   *(Ignore stderr warnings.)*
+Add tests to `build.zig/test_list`.
 
-To run all tests, including computationally heavy ones, use:
+- Regular tests:
+  ```bash
+  zig build test --summary all
+  ```
+- Heavy computational tests:
 
-```sh
+```bash
 zig build test -Dheavy --summary all
 ```
 
-### Documentation
+## Documentation
 
-Generated using [Zig's standard documentation format](https://ziglang.org/documentation/master/#Doc-Comments).
+Follow [Zig's doc-comments](https://ziglang.org/documentation/master/#Doc-Comments).
 
----
+## Using Zant
 
-## Using the Library
+### Generating Code for Models
 
-To use Zant effectively, you can create and train neural networks using a structured approach. Below is an example of how to define and configure a simple model.
-
-### **1. Initialize the Model**
-
-```zig
-const allocator = @import("pkgAllocator").allocator;
-var model = Model(f64){
-    .layers = undefined,
-    .allocator = &allocator,
-    .input_tensor = undefined,
-};
-try model.init();
+```bash
+zig build codegen -Dmodel=model_name [-Dlog -Duser_tests=user_tests.json]
 ```
 
-### **2. Add Layers to the Model**
+Generated code will be placed in:
 
-#### **Convolutional Layer**
-
-```zig
-var conv1 = ConvolutionalLayer(f64){
-    .input_channels = 1,
-    .kernel_shape = .{ 32, 1, 3, 3 },
-    .stride = .{ 1, 1 },
-    .allocator = &allocator,
-};
-var conv1_layer = conv1.create();
-try conv1_layer.init(&allocator, @constCast(&conv1));
-try model.addLayer(conv1_layer);
+```
+generated/model_name/
+├── lib_{model_name}.zig
+├── test_{model_name}.zig
+└── user_tests.json
 ```
 
-#### **Activation Layer (ReLU)**
+### Testing Generated Models
 
-```zig
-var conv1_activ = ActivationLayer(f64){
-    .n_inputs = 32 * 26 * 26,
-    .n_neurons = 32 * 26 * 26,
-    .activationFunction = ActivationType.ReLU,
-    .allocator = &allocator,
-};
-var conv1_act = ActivationLayer(f64).create(&conv1_activ);
-try conv1_act.init(&allocator, @constCast(&conv1_activ));
-try model.addLayer(conv1_act);
+```bash
+zig build test-codegen -Dmodel=model_name
 ```
 
-#### **Fully Connected (Dense) Layer**
+### Integrating into your Project
 
-```zig
-var dense1 = DenseLayer(f64){
-    .n_inputs = 64 * 5 * 5,
-    .n_neurons = 512,
-    .allocator = &allocator,
-};
-var dense1_layer = DenseLayer(f64).create(&dense1);
-try dense1_layer.init(&allocator, @constCast(&dense1));
-try model.addLayer(dense1_layer);
+Build the static library:
+
+```bash
+zig build lib -Dmodel=model_name -Dtarget={arch} -Dcpu={cpu}
 ```
 
-### **3. Load Data and Train the Model**
+Linking with CMake:
 
-```zig
-var load = loader.DataLoader(f64, u8, u8, 64, 3){};
-const image_file_name: []const u8 = "datasets/t10k-images-idx3-ubyte";
-const label_file_name: []const u8 = "datasets/t10k-labels-idx1-ubyte";
-try load.loadMNIST2DDataParallel(&allocator, image_file_name, label_file_name);
-
-try Trainer.TrainDataLoader2D(
-    f64, u8, u8, &allocator, 64, 784, &model, &load, 30,
-    LossType.CCE, 0.005, 0.9, 0.0001, 1.0
-);
-
-model.deinit();
+```cmake
+target_link_libraries(your_project PUBLIC path/to/libzant.a)
 ```
 
----
+### Logging (Optional)
 
-## Docker
+To set a custom log function from your C code:
 
-Follow the [Docker Guide](/docs/How_TO_DOCKER_101.md) for containerized usage.
+```c
+extern void setLogFunction(void (*log_function)(uint8_t *string));
+```
 
-## Join Us!
+## Zig Build File (`build.zig`)
 
-Contribute to Zant on [GitHub](#). Let’s make NN deployment on microcontrollers efficient, accessible, and open!
+**Key Build Commands:**
+
+- **Standard build & test:**
+  ```bash
+  zig build
+  zig build test --summary all
+  ```
+
+- **Run code generation:**
+  ```bash
+  zig build codegen -Dmodel=model_name [-Dlog -Duser_tests=path/to/tests.json]
+  ```
+
+- **Compile static library:**
+  ```bash
+  zig build lib -Dmodel=model_name -Dtarget=target_arch -Dcpu=specific_cpu
+  ```
+
+- **Generate onnx oneOperation models:**
+  ```bash
+  zig build test-codegen-gen
+  ```
+
+- **Build and Test generated onnx oneOperation models:**
+  ```bash
+  zig build test-codegen
+  ```
+
+### Build Options
+
+- `-Dtrace_allocator=true|false`: Use tracing allocator for debugging.
+- `-Dheavy=true`: Run intensive computational tests.
+- `-Dlog=true|false`: Enable detailed logging during code generation.
+- `-Duser_tests=path/to/user_tests.json`: Specify custom tests.
+
+
+## CI/CD Pipeline
+- We are committed to enhancing our Continuous Integration/Continuous Deployment (CI/CD) pipeline to ensure robustness, reliability, and performance of Zant across all supported platforms. Key improvements include:
+Hardware-in-the-Loop (HIL) Testing: Integrate a hardware test bench with connected microcontrollers (e.g., Raspberry Pi Pico, ARM Cortex-M) into the CI/CD pipeline to validate real-world performance and compatibility.
+
+- Profiling in CI/CD: Automatically profile generated models during the pipeline to measure execution time, memory usage, and power consumption on target hardware.
+- Daily Fuzzing Tests: Run fuzzing tests daily within the CI/CD pipeline to identify edge-case bugs and ensure model stability under unexpected inputs.
+
+- Multi-Platform Build Matrix: Test builds across a variety of architectures (ARM, RISC-V) and configurations in parallel to catch platform-specific issues early.
+
+- Automated Benchmarking: Include performance benchmarking in the pipeline to track inference speed and resource usage over time, ensuring optimizations don’t regress.
+
+- Code Coverage Reporting: Generate and publish code coverage metrics with every CI run to maintain high test quality.
+- Containerized CI Environment: Use Docker containers to standardize the CI/CD environment, ensuring consistent builds and tests across all contributors.
+
+
+## Containerization
+
+- Follow our [Docker guide](/docs/How_TO_DOCKER_101.md).
+
+## Contributing
+
+Join us on [GitHub](#) and shape the future of tinyML!
 
 ## Contributors
 
-[View all contributors](https://github.com/ZIGTinyBook/Z-Ant/graphs/contributors)
+[All contributors](https://github.com/ZIGTinyBook/Z-Ant/contributors). Let's grow together!
 

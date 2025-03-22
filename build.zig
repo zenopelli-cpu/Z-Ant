@@ -23,10 +23,13 @@ pub fn build(b: *std.Build) void {
     const target = b.resolveTargetQuery(target_query);
     const optimize = b.standardOptimizeOption(.{});
 
-    // Modules creation
+    // -------------------- Modules creation
 
     const zant_mod = b.createModule(.{ .root_source_file = b.path("src/zant.zig") });
     zant_mod.addOptions("build_options", build_options);
+
+    const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/CodeGen/codegen.zig") });
+    codeGen_mod.addImport("zant", zant_mod);
 
     //************************************************UNIT TESTS************************************************
 
@@ -44,6 +47,7 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addOptions("test_options", test_options);
 
     unit_tests.root_module.addImport("zant", zant_mod);
+    unit_tests.root_module.addImport("codegen", codeGen_mod);
 
     unit_tests.linkLibC();
 
@@ -51,11 +55,6 @@ pub fn build(b: *std.Build) void {
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run all unit tests");
     test_step.dependOn(&run_unit_tests.step);
-
-    // ************************************************CODEGEN MODULE************************************************
-
-    const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/CodeGen/codegen.zig") });
-    codeGen_mod.addImport("zant", zant_mod);
 
     // ************************************************CODEGEN EXECUTABLE************************************************
 
@@ -78,6 +77,7 @@ pub fn build(b: *std.Build) void {
     // Define codegen options
     const codegen_options = b.addOptions(); // Model name option
     codegen_options.addOption([]const u8, "model", model_name_option);
+    codegen_options.addOption([]const u8, "user_tests", b.option([]const u8, "user_tests", "User tests path") orelse "");
     codegen_options.addOption(bool, "log", b.option(bool, "log", "Run with log") orelse false);
     codegen_options.addOption([]const u8, "shape", b.option([]const u8, "shape", "Input shape") orelse "");
     codegen_options.addOption([]const u8, "type", b.option([]const u8, "type", "Input type") orelse "f32");
@@ -105,7 +105,7 @@ pub fn build(b: *std.Build) void {
     };
 
     const static_lib = b.addStaticLibrary(.{
-        .name = "static_lib",
+        .name = "zant",
         .root_source_file = b.path(lib_model_path),
         .target = target,
         .optimize = optimize,
@@ -114,7 +114,7 @@ pub fn build(b: *std.Build) void {
     static_lib.root_module.addImport("zant", zant_mod);
     static_lib.root_module.addImport("codegen", codeGen_mod);
 
-    const install_lib_step = b.addInstallArtifact(static_lib, .{});
+    const install_lib_step = b.addInstallArtifact(static_lib, .{ .dest_dir = .{ .override = .{ .custom = model_name_option } } });
     const lib_step = b.step("lib", "Compile tensor_math static library");
     lib_step.dependOn(&install_lib_step.step);
 
@@ -140,6 +140,51 @@ pub fn build(b: *std.Build) void {
     const run_test_generated_lib = b.addRunArtifact(test_generated_lib);
     const test_step_generated_lib = b.step("test-generated-lib", "Run generated library tests");
     test_step_generated_lib.dependOn(&run_test_generated_lib.step);
+
+    // ************************************************ ONEOP CODEGEN ************************************************
+    // Setup oneOp codegen
+
+    const oneop_codegen_exe = b.addExecutable(.{
+        .name = "oneop_codegen",
+        .root_source_file = b.path("tests/CodeGen/oneOpModelGenerator.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    oneop_codegen_exe.root_module.addImport("zant", zant_mod);
+    codeGen_mod.addOptions("codegen_options", codegen_options);
+    oneop_codegen_exe.root_module.addImport("codegen", codeGen_mod);
+    oneop_codegen_exe.linkLibC();
+
+    const run_oneop_codegen_exe = b.addRunArtifact(oneop_codegen_exe);
+    const step_test_oneOp_codegen = b.step("test-codegen-gen", "Run generated library tests");
+    step_test_oneOp_codegen.dependOn(&run_oneop_codegen_exe.step);
+
+    // ************************************************
+    // Setup test_all_oneOp
+
+    const test_all_oneOp = b.addTest(.{
+        .name = "test_all_oneOp",
+        .root_source_file = b.path("generated/oneOpModels/test_oneop_models.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    test_all_oneOp.root_module.addImport("zant", zant_mod);
+    codeGen_mod.addOptions("codegen_options", codegen_options);
+    test_all_oneOp.root_module.addImport("codegen", codeGen_mod);
+    test_all_oneOp.linkLibC();
+
+    const run_test_all_oneOp = b.addRunArtifact(test_all_oneOp);
+
+    // ************************************************
+    // Setup test oneop
+    // It will run
+    // - run_oneop_codegen_exe
+    // - run_test_all_oneOp
+
+    const step_test_oneOp = b.step("test-codegen", "Run generated library tests");
+    step_test_oneOp.dependOn(&run_test_all_oneOp.step);
 
     // ************************************************ ONNX PARSER TESTS ************************************************
     // Add test for generated library

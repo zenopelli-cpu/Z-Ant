@@ -2,8 +2,6 @@
 /build/
 *.o
 *.a
-*.txt
-*.txt
 
 # Ignore temporary files
 *.log
@@ -36,5 +34,7 @@ massif.*
 
 # Onnx models
 /datasets/models/*/*.onnx
+/datasets/oneOpModels/*.onnx
 
-
+/datasets/oneOpModels/results.json
+datasets/oneOpModels/results.json

@@ -180,7 +180,7 @@ pub const GraphProto = struct {
                     try metadataList.append(ssep_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
+                    //std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
 
                     var unknown_reader = try reader.readLengthDelimited();
                     while (unknown_reader.hasMore()) {

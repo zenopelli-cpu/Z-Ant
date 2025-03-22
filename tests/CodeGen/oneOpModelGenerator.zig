@@ -1,0 +1,106 @@
+//! The aim of this file is that, given a onnx oprator (https://onnx.ai/onnx/operators/),
+//! it returns the onnx.ModelProto containing only one node for the operation
+
+const std = @import("std");
+const zant = @import("zant");
+const pkgAllocator = zant.utils.allocator;
+const allocator = pkgAllocator.allocator;
+
+const onnx = zant.onnx;
+const codeGen = @import("codegen");
+
+pub fn main() !void {
+    std.debug.print("One ONNX Operator Model Generator", .{});
+
+    std.debug.print("\n     opening available_operations...", .{});
+    const op_file = try std.fs.cwd().openFile("tests/CodeGen/Python-ONNX/available_operations.txt", .{});
+    defer op_file.close();
+    std.debug.print(" done", .{});
+
+    const file_size = try op_file.getEndPos();
+    const buffer = try allocator.alloc(u8, @intCast(file_size));
+
+    const bytes_read = try op_file.readAll(buffer);
+    if (bytes_read != file_size) {
+        return error.UnexpectedEOF;
+    }
+
+    // Read the available operations from file.
+    const ops_data = buffer[0..file_size];
+    defer allocator.free(ops_data);
+
+    // Split file into lines.
+    var lines_iter = std.mem.splitAny(u8, ops_data, "\n");
+
+    // Create folders if not exist
+    try std.fs.cwd().makePath("generated/oneOpModels/");
+
+    // There will be a file named test_oneop_models.zig that will contain all the tests for the one operation models.
+    // So to test all the models, you can just run the global file
+
+    // Create test_oneop_models.zig
+    const test_oneop_file = try std.fs.cwd().createFile("generated/oneOpModels/test_oneop_models.zig", .{});
+    defer test_oneop_file.close();
+
+    const test_oneop_writer = test_oneop_file.writer();
+
+    try test_oneop_writer.writeAll("const std = @import(\"std\");\n");
+    try test_oneop_writer.writeAll("\n");
+    try test_oneop_writer.writeAll("test {");
+    try test_oneop_writer.writeAll("\n");
+
+    while (true) {
+        // Get the next line from the iterator.
+        const maybe_line = lines_iter.next();
+
+        if (maybe_line) |ml| std.debug.print("maybe_line: {any}\n", .{ml}) else {
+            std.debug.print("maybe_line: null -----> break\n", .{});
+            break;
+        }
+
+        const raw_line = maybe_line.?;
+        // Trim whitespace from the line.
+        const trimmed_line = std.mem.trim(u8, raw_line, " \t\r\n");
+        if (trimmed_line.len > 0) {
+            std.debug.print("Operation: {s}\n", .{trimmed_line});
+        }
+
+        // Construct the model file path: "Phython-ONNX/{op}_0.onnx"
+        const model_path = try std.fmt.allocPrint(allocator, "datasets/oneOpModels/{s}_0.onnx", .{trimmed_line});
+        defer allocator.free(model_path);
+        std.debug.print("model_path : {s}", .{model_path});
+
+        // Load the model.
+        var model = try onnx.parseFromFile(allocator, model_path);
+
+        //Printing the model:
+        //DEBUG
+        model.print();
+
+        std.debug.print("\n CODEGENERATING {s} ...", .{model_path});
+
+        // Create the generated model directory if not present
+        const generated_path = try std.fmt.allocPrint(allocator, "generated/oneOpModels/{s}/", .{trimmed_line});
+        defer allocator.free(generated_path);
+        try std.fs.cwd().makePath(generated_path);
+
+        // CORE PART -------------------------------------------------------
+        // ONNX model parsing
+        try codeGen.globals.setGlobalAttributes(model);
+
+        // Create the code for the model
+        try codeGen.skeleton.writeZigFile(trimmed_line, generated_path, model, false);
+
+        // Create relative tests
+        try codeGen.tests.writeSlimTestFile(trimmed_line, generated_path);
+
+        // Add relative one op test to global tests file
+        try test_oneop_writer.print("\t _ = @import(\"{s}/test_{s}.zig\"); \n", .{ trimmed_line, trimmed_line });
+
+        //try codeGen.globals.setGlobalAttributes(model);
+        model.deinit(allocator);
+    }
+
+    // Adding last global test line
+    try test_oneop_writer.writeAll("} \n\n");
+}
