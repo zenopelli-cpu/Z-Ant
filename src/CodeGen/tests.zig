@@ -11,8 +11,10 @@ const allocator = zant.utils.allocator.allocator;
 pub fn UserTest(comptime T: type) type {
     return struct {
         name: []u8,
+        type: []u8,
         input: []T,
         output: []T,
+        expected_class: usize,
     };
 }
 

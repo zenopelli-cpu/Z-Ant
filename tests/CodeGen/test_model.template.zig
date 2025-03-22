@@ -201,11 +201,48 @@ test "Static Library - User data Prediction Test" {
             input_shape.len,
             &result,
         );
+        
+        if (std.mem.eql(u8, user_test.type, "classify")) {
 
-        for (0.., user_test.output) |i, expected_output| {
-            const result_value = result[i];
-            const expected_output_value = expected_output;
-            try std.testing.expectEqual(result_value, expected_output_value);
+            var max_value: model.data_type = 0;
+            // Find the class with maximum value
+            if(model.data_type == f32 or model.data_type == f64) {
+                max_value = std.math.floatMin(model.data_type);
+            } else {
+                max_value = std.math.minInt(model.data_type);
+            }
+            
+            var max_index: usize = 0;
+            for (0..model.output_data_len) |i| {
+                const value = result[i];
+                if (value > max_value) {
+                    max_value = value;
+                    max_index = i;
+                }
+            }
+            
+            try std.testing.expectEqual(user_test.expected_class, max_index);
         }
+        else if(std.mem.eql(u8, user_test.type, "regress")) {
+            for (0.., user_test.output) |i, expected_output| {
+                const result_value = result[i];
+                const expected_output_value = expected_output;
+                try std.testing.expectEqual(expected_output_value, result_value);
+            }
+        }
+        else if(std.mem.eql(u8, user_test.type, "regress")) {
+            // TODO: Calculate some sort of delta to compare the result with the expected output
+            for (0.., user_test.output) |i, expected_output| {
+                const result_value = result[i];
+                const expected_output_value = expected_output;
+                try std.testing.expectEqual(expected_output_value, result_value);
+            }
+        }
+        else {
+            std.debug.print("Unsupported test type: {s}\n", .{user_test.type});
+            try std.testing.expect(false);
+        }
+
+        
     }
 }
