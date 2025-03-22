@@ -99,7 +99,6 @@ pub const TensorProto = struct {
                     tensor.data_type = @enumFromInt((value));
                 },
                 3 => {
-                    std.debug.print("\n ................................. tensorProto READING segment ", .{});
                     var segment_read = try reader.readLengthDelimited(); //var dim_reader
                     const seg_ptr = try reader.allocator.create(Segment);
                     seg_ptr.* = try Segment.parse(&segment_read);
@@ -192,7 +191,6 @@ pub const TensorProto = struct {
                     tensor.doc_string = try reader.readString(reader.allocator);
                 },
                 13 => {
-                    std.debug.print("\n ................ TensorProto READING metadata_props ", .{});
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
@@ -203,7 +201,6 @@ pub const TensorProto = struct {
                     tensor.data_location = @enumFromInt((value));
                 },
                 16 => {
-                    std.debug.print("\n ................ TensorProto READING metadata_props ", .{});
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
