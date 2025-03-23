@@ -14,4 +14,7 @@ oneOp model generator: ✅ if the oneOpModel is created, remember to add the onn
 | :------------: | :------------: | :---------: | :-----------: | :-------: | :--------: | :------------- |
 | convolution | [Conv](https://onnx.ai/onnx/operators/onnx__Conv.html) | [op_convolution.zig](../src/Core/Tensor/TensorMath/op_convolution.zig) | ✅ | ✅ | ✅ |
 | gemm | [Gemm](https://onnx.ai/onnx/operators/onnx__Gemm.html) | [op_gemm](../src/Core/Tensor/TensorMath/op_gemm.zig) | ✅ | ✅ | ✅ |
+|Div| [Div](https://onnx.ai/onnx/operators/onnx__Div.html) |[op_div](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_division.zig) | ✅ | ✅ | ✅ |
+|Add| [Add](https://onnx.ai/onnx/operators/onnx__Add.html) | [op_add](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_addition.zig) | ✅ | ✅ | ✅ |
+|Concat| [Concat](https://onnx.ai/onnx/operators/onnx__Concat.html)| [op_concat](../src/Core/Tensor/TensorMath/lib_shape_math/op_concatenate.zig) | ✅ | ✅ | ✅ |
 
