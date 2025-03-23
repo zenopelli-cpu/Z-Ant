@@ -96,7 +96,7 @@ pub fn get_resize_output_shape(input_shape: []const usize, scales: ?[]const f32,
     if (scales == null and sizes == null) {
         return TensorError.InvalidInput;
     }
-    if (scales != null and sizes != null) {
+    if (scales != null and sizes != null) { //TODO!!! why this??? is wrong!
         return TensorError.InvalidInput;
     }
 

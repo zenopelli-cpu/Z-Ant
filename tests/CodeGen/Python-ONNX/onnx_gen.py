@@ -192,23 +192,27 @@ def generate_fuzz_model(op_name):
         
         # Empty ROI tensor
         roi = []
-        roi_tensor = helper.make_tensor(input_names[1], TensorProto.FLOAT, [0], roi)
+        roi_name = input_names[1] + "roi"
+        roi_tensor = helper.make_tensor(roi_name, TensorProto.FLOAT, [0], roi)
         initializers.append(roi_tensor)
         
         # Use empty scales tensor
-        scales_tensor = helper.make_tensor(input_names[2], TensorProto.FLOAT, [0], [])
+        scales = []
+        scales_name = input_names[2] + "scales"
+        scales_tensor = helper.make_tensor(scales_name, TensorProto.FLOAT, [0], scales)
         initializers.append(scales_tensor)
         
         # Use only sizes, not scales
         sizes = [shape[0], shape[1], 
                  int(shape[2] * round(random.uniform(0.5, 2.0), 2)),
                  int(shape[3] * round(random.uniform(0.5, 2.0), 2))]
-        sizes_tensor = helper.make_tensor(input_names[3], TensorProto.INT64, [len(sizes)], sizes)
+        sizes_name = input_names[3] + "sizes"
+        sizes_tensor = helper.make_tensor(sizes_name, TensorProto.INT64, [len(sizes)], sizes)
         initializers.append(sizes_tensor)
         
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, sizes)
         mode = random.choice(["nearest", "linear"])
-        node = helper.make_node(op_name, inputs=[input_names[0], input_names[1], input_names[2], input_names[3]],
+        node = helper.make_node(op_name, inputs=[input_names[0], roi_name, scales_name, sizes_name], 
                                 outputs=[output_names[0]], mode=mode, name=f"{op_name}node_mode{mode}")
         
         input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
