@@ -158,7 +158,6 @@ extern void setLogFunction(void (*log_function)(uint8_t *string));
 ### Build Options
 
 - `-Dtrace_allocator=true|false`: Use tracing allocator for debugging.
-- `-Dheavy=true`: Run intensive computational tests.
 - `-Dlog=true|false`: Enable detailed logging during code generation.
 - `-Duser_tests=path/to/user_tests.json`: Specify custom tests.
 
