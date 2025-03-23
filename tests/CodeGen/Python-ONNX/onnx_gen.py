@@ -656,30 +656,21 @@ def main():
                 
                 test_file_name = f"{output_dir}{op}_{i}_user_tests.json"
 
-                # model_info = [
-                #     {
-                #         "name": op,
-                #         "type": "exact",
-                #         "input": data["inputs"],
-                #         "output": data["outputs"],
-                #         "expected_class": ""
-                #     }
-                # ] gigio donnaru
+                
                 user_tests = []
 
                 for (in_key, out_key) in zip(data["inputs"].keys(), data["outputs"].keys()):
-                    #for(in_array, out_array) in zip(data["inputs"][in_key], data["outputs"][out_key]):
-                        in_array = np.array(data["inputs"][in_key]).flatten().tolist()
-                        out_array = np.array(data["outputs"][out_key]).flatten().tolist()
-                        
-                        test_model_info = {
-                            "name": op,
-                            "type": "exact",
-                            "input": in_array,
-                            "output": out_array,
-                            "expected_class": 0
-                        }
-                        user_tests.append(test_model_info)
+                    in_array = np.array(data["inputs"][in_key]).flatten().tolist()
+                    out_array = np.array(data["outputs"][out_key]).flatten().tolist()
+                    
+                    test_model_info = {
+                        "name": op,
+                        "type": "exact",
+                        "input": in_array,
+                        "output": out_array,
+                        "expected_class": 0
+                    }
+                    user_tests.append(test_model_info)
 
                 with open(test_file_name, 'w') as f:
                     json.dump(user_tests, f, indent=2)
