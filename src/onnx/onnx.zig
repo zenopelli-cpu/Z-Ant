@@ -12,6 +12,8 @@ pub const NodeProto = @import("nodeProto.zig").NodeProto;
 pub const GraphProto = @import("graphProto.zig").GraphProto;
 pub const ModelProto = @import("modelProto.zig").ModelProto;
 pub const StringStringEntryProto = @import("stringStringEntryProto.zig").StringStringEntryProto;
+pub const OperatorSetIdProto = @import("operatorSetIdProto.zig").OperatorSetIdProto;
+pub const FunctionProto = @import("functionProto.zig").FunctionProto;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
