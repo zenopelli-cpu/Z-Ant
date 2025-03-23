@@ -8,6 +8,8 @@ const allocator = pkgAllocator.allocator;
 
 const model = @import("model_options.zig");
 
+const ITERATION_COUNT: u32 = 100;
+
 test "Static Library - Random data Prediction Test" {
     std.debug.print("\n     test: Static Library - Model: {s}  - Random data Prediction Test\n", .{model.name});
 
@@ -28,20 +30,71 @@ test "Static Library - Random data Prediction Test" {
     var prng = std.Random.DefaultPrng.init(seed);
     const rand = prng.random();
 
-    // Fill with random values
-    for (0..input_data_size) |i| {
-        input_data[i] = rand.float(model.data_type) * 100;
+    for (0..ITERATION_COUNT) |_| {
+        // Fill with random values
+        for (0..input_data_size) |i| {
+            input_data[i] = rand.float(model.data_type) * 100;
+        }
+
+        var result: [*]model.data_type = undefined;
+
+        // Run prediction
+        model.lib.predict(
+            input_data.ptr,
+            @ptrCast(&input_shape),
+            input_shape.len,
+            &result,
+        );
+    }
+    std.debug.print("\nRan 100 fuzzy tests on model \"{s}\", done without errors:\n", .{model.name});
+}
+
+test "Static Library - Inputs Prediction Test" {
+    std.debug.print("\n     test: Codegen one-op model: \"{s}\" compare with Pre-Generated results.\n", .{model.name});
+
+    var input_shape = model.input_shape;
+
+    var input_data_len: u32 = 1;
+    for (input_shape) |dim| {
+        input_data_len *= dim;
     }
 
-    var result: [*]model.data_type = undefined;
+    // Read json for output to compare it with.
+    const user_tests_path = try std.fmt.allocPrint(allocator, "generated/oneOpModels/{s}/user_tests.json", .{model.name});
+    defer allocator.free(user_tests_path);
 
-    // Run prediction
-    model.lib.predict(
-        input_data.ptr,
-        @ptrCast(&input_shape),
-        input_shape.len,
-        &result,
-    );
+    std.debug.print("{s}", .{user_tests_path});
 
-    std.debug.print("\nPrediction done without errors:\n", .{});
+    const parsed_user_tests = try utils.loadUserTests(model.data_type, user_tests_path);
+    defer parsed_user_tests.deinit();
+
+    const user_tests = parsed_user_tests.value;
+
+    std.debug.print("\nUser tests loaded.\n", .{});
+
+    for (user_tests) |user_test| {
+        std.debug.print("\n\tRunning user test: {s}\n\n", .{user_test.name});
+
+        try std.testing.expectEqual(user_test.input.len, input_data_len);
+
+        var result: [*]model.data_type = undefined;
+
+        // Run prediction
+        model.lib.predict(
+            user_test.input.ptr,
+            @ptrCast(&input_shape),
+            input_shape.len,
+            &result,
+        );
+
+        for (0.., user_test.output) |i, expected_output| {
+            const result_value = result[i];
+            const expected_output_value = expected_output;
+            const approx_eq = std.math.approxEqAbs(model.data_type, expected_output_value, result_value, 0.001);
+            if(!approx_eq)
+                std.debug.print("Test failed for input: {d} expected: {} got: {}\n", .{ i, expected_output_value, result_value });
+            
+            try std.testing.expect(approx_eq);
+        }
+    }
 }
