@@ -8,8 +8,8 @@ Gather
 MatMul
 MaxPool
 Relu
-Reshape
 Shape
+Reshape
 Sigmoid
 Slice
 Transpose

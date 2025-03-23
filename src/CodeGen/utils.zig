@@ -450,7 +450,7 @@ pub fn copyFile(src: []const u8, dst: []const u8) !void {
     const dst_file = try std.fs.cwd().createFile(dst, .{});
     defer dst_file.close();
 
-    const src_content: []const u8 = try src_file.readToEndAlloc(allocator, 50 * 1024);
+    const src_content: []const u8 = try src_file.readToEndAlloc(allocator, 1024 * 1024);
     defer allocator.free(src_content);
 
     try dst_file.writeAll(src_content);
@@ -462,7 +462,7 @@ pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Pa
     const user_tests_file = try std.fs.cwd().openFile(user_tests_path, .{});
     defer user_tests_file.close();
 
-    const user_tests_content: []const u8 = try user_tests_file.readToEndAlloc(allocator, 50 * 1024);
+    const user_tests_content: []const u8 = try user_tests_file.readToEndAlloc(allocator, 1024 * 1024);
     defer allocator.free(user_tests_content);
 
     const parsed_user_tests = try std.json.parseFromSlice([]tests.UserTest(T), allocator, user_tests_content, .{});
