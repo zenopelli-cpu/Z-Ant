@@ -142,7 +142,7 @@ pub const TypeProto = struct {
             }
         }
 
-        pub fn parse(reader: *protobuf.ProtoReader) !Tensor {
+        pub fn parse(reader: *protobuf.ProtoReader) !Map {
             var map = Map{
                 .key_type = 0,
                 .value_type = null,
@@ -155,7 +155,8 @@ pub const TypeProto = struct {
 
                 switch (tag.field_number) {
                     1 => { //elem_type
-                        _ = try reader.readLengthDelimited();
+                        const elem_type = try reader.readVarint();
+                        map.key_type = @intCast(elem_type);
                     },
                     2 => { //value_type
                         _ = try reader.readLengthDelimited();
@@ -261,7 +262,7 @@ pub const TypeProto = struct {
             }
         }
 
-        pub fn parse(reader: *protobuf.ProtoReader) !Sequence {
+        pub fn parse(reader: *protobuf.ProtoReader) !Optional {
             var opt = Optional{
                 .elem_type = null,
             };
@@ -302,7 +303,7 @@ pub const TypeProto = struct {
     tensor_type: ?*Tensor,
     sequence_type: ?*Sequence,
     map_type: ?*Map,
-    sparse_tensor_type: ?*SparseTensor, //TODO
+    sparse_tensor_type: ?*SparseTensor,
     optional_type: ?*Optional,
     denotation: ?[]const u8,
 
@@ -335,7 +336,7 @@ pub const TypeProto = struct {
             .tensor_type = null,
             .sequence_type = null,
             .map_type = null,
-            .sparse_tensor_type = null, //TODO
+            .sparse_tensor_type = null,
             .optional_type = null,
             .denotation = null,
         };
@@ -355,8 +356,11 @@ pub const TypeProto = struct {
                 4 => { //TODO sequence_type
                     _ = try reader.readLengthDelimited();
                 },
-                5 => { //TODO map_type
-                    _ = try reader.readLengthDelimited();
+                5 => { //map_type
+                    var map_reader = try reader.readLengthDelimited();
+                    const map_ptr = try reader.allocator.create(Map);
+                    map_ptr.* = try Map.parse(&map_reader);
+                    typeProto.map_type = map_ptr;
                 },
                 6 => { // TODO denotation
                     _ = try reader.readLengthDelimited();
@@ -367,8 +371,11 @@ pub const TypeProto = struct {
                     sp_tensor_ptr.* = try SparseTensor.parse(&sparse_tensor_type_reader);
                     typeProto.sparse_tensor_type = sp_tensor_ptr;
                 },
-                9 => { // TODO optional_type
-                    _ = try reader.readLengthDelimited();
+                9 => { // optional_type
+                    var optional_reader = try reader.readLengthDelimited();
+                    const opt_ptr = try reader.allocator.create(Optional);
+                    opt_ptr.* = try Optional.parse(&optional_reader);
+                    typeProto.optional_type = opt_ptr;
                 },
                 else => {
                     std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TypeProto", .{tag});
