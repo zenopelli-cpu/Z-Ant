@@ -12,7 +12,7 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 4: sequence_type, type: TypeProto.Sequence
 //  - 5: map_type, type: TypeProto.Map
 //  - 6: denotation, type: []const u8
-//  - 8: TODO sparse_tensor_type, type: TypeProto.SparseTensor
+//  - 8: sparse_tensor_type, type: TypeProto.SparseTensor
 //  - 9: TODO: optional_type, type: TypeProto.Optional
 pub const TypeProto = struct {
     //TENSOR TAG:
@@ -214,10 +214,14 @@ pub const TypeProto = struct {
 
                 switch (tag.field_number) {
                     1 => { //elem_type
-                        _ = try reader.readLengthDelimited();
+                        const elem_type = try reader.readVarint();
+                        sparse_tensor.elem_type = @intCast(elem_type);
                     },
                     2 => { //shape
-                        _ = try reader.readLengthDelimited();
+                        var shape_reader = try reader.readLengthDelimited();
+                        const shape_ptr = try reader.allocator.create(TensorShapeProto);
+                        shape_ptr.* = try TensorShapeProto.parse(&shape_reader);
+                        sparse_tensor.shape = shape_ptr;
                     },
                     else => {
                         std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
@@ -343,7 +347,6 @@ pub const TypeProto = struct {
 
             switch (tag.field_number) {
                 1 => { //tensor_type
-
                     var tensor_type_reader = try reader.readLengthDelimited();
                     const ensor_type_ptr = try reader.allocator.create(Tensor);
                     ensor_type_ptr.* = try Tensor.parse(&tensor_type_reader);
@@ -358,8 +361,11 @@ pub const TypeProto = struct {
                 6 => { // TODO denotation
                     _ = try reader.readLengthDelimited();
                 },
-                8 => { // TODO sparse_tensor_type
-                    _ = try reader.readLengthDelimited();
+                8 => { // sparse_tensor_type
+                    var sparse_tensor_type_reader = try reader.readLengthDelimited();
+                    const sp_tensor_ptr = try reader.allocator.create(SparseTensor);
+                    sp_tensor_ptr.* = try SparseTensor.parse(&sparse_tensor_type_reader);
+                    typeProto.sparse_tensor_type = sp_tensor_ptr;
                 },
                 9 => { // TODO optional_type
                     _ = try reader.readLengthDelimited();
