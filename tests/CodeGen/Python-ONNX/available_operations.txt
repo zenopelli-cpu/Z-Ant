@@ -8,7 +8,6 @@ Gather
 MatMul
 MaxPool
 Relu
-Shape
 Reshape
 Sigmoid
 Slice
@@ -19,4 +18,3 @@ LeakyRelu
 Mean
 Mul
 Split
-Resize
