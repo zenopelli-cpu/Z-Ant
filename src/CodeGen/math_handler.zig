@@ -78,7 +78,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_mul(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "OneHot")) {
         try writer.writeAll("// Handle OneHot\n");
-    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Mean")) {
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "ReduceMean")) {
         try write_reduceMean(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
         try write_ReLU(writer, node);

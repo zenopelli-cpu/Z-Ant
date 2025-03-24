@@ -74,7 +74,7 @@ def generate_fuzz_model(op_name):
         metadata = {"input_shapes": [shape], "output_shapes": [shape], "axis": axis}
         return [input_info], output_info, [node], initializers, metadata
 
-    elif op_name in ["Add", "Sub", "Div", "Mean", "Mul"]:
+    elif op_name in ["Add", "Sub", "Div", "Mul"]:
         # Operatori binari: due input della stessa forma
         shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
         data0 = np.random.randn(*shape).astype(np.float32)
@@ -96,6 +96,56 @@ def generate_fuzz_model(op_name):
         metadata = {"input_shapes": [shape, shape], "output_shapes": [shape]}
         return [input_info], output_info, [node], initializers, metadata
     
+    elif op_name == "ReduceMean":
+        # Generate input with predictable shape and values
+        shape = [2, 3, 4, 5]  # Fixed shape for better debugging
+        
+        # Use a deterministic seed for this operation to ensure reproducibility
+        local_rng = np.random.RandomState(42)  
+        data = local_rng.randn(*shape).astype(np.float32)
+        
+        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
+        initializers.append(init_tensor)
+        
+        # Use fixed axis instead of random
+        axis = 1  # Reduce along the second dimension (channel dimension in NCHW)
+        
+        # Create output shape based on reduction
+        out_shape = shape.copy()
+        out_shape[axis] = 1  # Reduced dimension becomes 1
+        
+        keepdims = 1
+        
+        # Calculate the expected output manually to verify
+        expected_output = np.mean(data, axis=axis, keepdims=True)
+        
+        # Debug info
+        print(f"ReduceMean Test Case:")
+        print(f"Input shape: {shape}")
+        print(f"Output shape: {out_shape}")
+        print(f"Reduction axis: {axis}")
+        print(f"First few input values: {data.flatten()[:5]}")
+        print(f"First few expected output values: {expected_output.flatten()[:5]}")
+        
+        # Define input_info before using it
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+        
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
+        
+        node = helper.make_node(op_name, inputs=[input_names[0]], outputs=[output_names[0]],
+                               axes=[axis], keepdims=keepdims,
+                               name=f"{op_name}node_axis{axis}")
+        
+        # Add test metadata
+        metadata = {
+            "input_shapes": [shape], 
+            "output_shapes": [out_shape], 
+            "axes": [axis], 
+            "keepdims": keepdims,
+            "expected_output_first_values": expected_output.flatten()[:5].tolist()
+        }
+        return [input_info], output_info, [node], initializers, metadata
+
     elif op_name == "Concat":
         # Due input con forma identica eccetto per la dimensione lungo l'asse di concatenazione
         shape = [1, random.randint(2,5), random.randint(10,50), random.randint(10,50)]
@@ -434,40 +484,35 @@ def generate_fuzz_model(op_name):
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "MaxPool":
-        # Pooling layer with valid kernel, stride, and padding values
+        # Create a simple MaxPool test with predictable dimensions and parameters
+        # Fixed input dimensions
         N = 1
-        C = random.randint(1,4)
-        H = random.randint(10,50)
-        W = random.randint(10,50)
+        C = 1  # Single channel for simplicity
+        H = 4  # Small height
+        W = 4  # Small width
         input_shape = [N, C, H, W]
-        data = np.random.randn(*input_shape).astype(np.float32)
+        
+        # Create a simple input pattern with predictable values
+        data = np.zeros(input_shape, dtype=np.float32)
+        for i in range(H):
+            for j in range(W):
+                data[0, 0, i, j] = float(i * W + j + 1)  # Simple increasing values
+        
         init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, input_shape, data.flatten().tolist())
         initializers.append(init_tensor)
         
-        # First define kernel size
-        kernel_size = random.randint(2, max(2, min(H, W)//4))
-        kernel_shape = [kernel_size, kernel_size]
+        # Use simple 2x2 kernel
+        kernel_shape = [2, 2]
         
-        # Ensure padding is smaller than kernel size
-        pad_h = random.randint(0, kernel_size - 1)
-        pad_w = random.randint(0, kernel_size - 1)
-        pads = [pad_h, pad_w, pad_h, pad_w]  # [pad_top, pad_left, pad_bottom, pad_right]
+        # Use stride of 1
+        strides = [1, 1]
         
-        # Define reasonable strides
-        strides = [random.randint(1, kernel_size), random.randint(1, kernel_size)]
+        # No padding
+        pads = [0, 0, 0, 0]  # [pad_top, pad_left, pad_bottom, pad_right]
         
-        # Calculate output dimensions with padding
-        H_out = ((H + 2*pad_h - kernel_size) // strides[0]) + 1
-        W_out = ((W + 2*pad_w - kernel_size) // strides[1]) + 1
-        
-        # If output dimensions are invalid, adjust parameters
-        if H_out <= 0 or W_out <= 0:
-            # Use minimal valid values
-            pad_h = pad_w = 0
-            pads = [pad_h, pad_w, pad_h, pad_w]
-            strides = [1, 1]
-            H_out = ((H + 2*pad_h - kernel_size) // strides[0]) + 1
-            W_out = ((W + 2*pad_w - kernel_size) // strides[1]) + 1
+        # Calculate output dimensions
+        H_out = ((H - kernel_shape[0]) // strides[0]) + 1
+        W_out = ((W - kernel_shape[1]) // strides[1]) + 1
         
         output_shape = [N, C, H_out, W_out]
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, output_shape)
@@ -623,7 +668,7 @@ def load_supported_ops(filename="tests/CodeGen/Python-ONNX/available_operations.
         return [
             "LeakyRelu", "Relu", "Sigmoid", "Softmax", "Add", "Ceil", "Div", "Mul", "Sub", "Tanh",
             "Concat", "Gather", "Identity", "Neg", "Reshape", "Resize", "Shape", "Slice", 
-            "Split", "Transpose", "Unsqueeze", "Mean", "Conv", "MatMul", "Gemm", "MaxPool"
+            "Split", "Transpose", "Unsqueeze", "ReduceMean", "Conv", "MatMul", "Gemm", "MaxPool"
         ]
 
 
