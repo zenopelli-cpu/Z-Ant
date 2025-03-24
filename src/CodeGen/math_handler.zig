@@ -1480,6 +1480,7 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         output_name, // output tensor
     });
 }
+
 inline fn write_transpose(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // https://onnx.ai/onnx/operators/onnx__Transpose.html
     // INPUTS:
@@ -1799,95 +1800,143 @@ inline fn write_resize(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // INPUTS:
     //      - X (heterogeneous) - T: Input tensor
     //      - roi (optional) - T2: ROI (region of interest) tensor
-    //      - scales (optional) - T2: Scales for resize
-    //      - sizes (optional) - T2: Target sizes for resize
+    //      - scales (optional, heterogeneous) - tensor(float): The scale array along each dimension
+    //      - sizes (optional, heterogeneous) - tensor(int64): Target size of the output tensor
     // OUTPUTS:
     //      - Y (heterogeneous) - T: Resized output tensor
+    // ATTRIBUTES:
+    //      - antialias - INT (default is '0')
+    //      - axes - INTS
+    //      - coordinate_transformation_mode - STRING (default is 'half_pixel')
+    //      - cubic_coeff_a - FLOAT (default is '-0.75')
+    //      - exclude_outside - INT (default is '0')
+    //      - extrapolation_value - FLOAT (default is '0.0')
+    //      - keep_aspect_ratio_policy - STRING (default is 'stretch')
+    //      - mode - STRING (default is 'nearest')
+    //      - nearest_mode - STRING (default is 'round_prefer_floor')
+    //
 
-    // Create input tensor string
-    var input_tensor_string: []u8 = undefined;
-    defer allocator.free(input_tensor_string);
+    //----create tensor_X_string
+    var tensor_X_string: []u8 = undefined;
+    defer allocator.free(tensor_X_string);
 
     if (node.inputs.items[0].tag == globals.TensorTag.INITIALIZER) {
-        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
             "@constCast(&param_lib.tensor_",
             try utils.getSanitizedName(node.inputs.items[0].name),
             ")",
         });
     } else {
-        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name) });
+        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name) });
     }
 
-    // Get the mode and coordinate_transformation_mode attributes
-    var mode: []const u8 = "nearest"; // Default mode
-    var coordinate_transformation_mode: []const u8 = "half_pixel"; // Default transformation mode
+    // ---- optional inputs
+    var tensor_roi_string: []const u8 = "null";
+    defer allocator.free(tensor_roi_string);
+    var data_scales_string: []const u8 = "null";
+    defer allocator.free(data_scales_string);
+    var data_sizes_string: []const u8 = "null";
+    defer allocator.free(data_sizes_string);
+
+    //for each other optional input:
+    for (1..node.inputs.items.len) |i| {
+        if (std.mem.indexOf(u8, node.inputs.items[i].name, "roi")) |_| { //----create tensor_roi_string
+            if (node.inputs.items[i].tag == globals.TensorTag.INITIALIZER) {
+                tensor_roi_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "@constCast(&param_lib.tensor_",
+                    try utils.getSanitizedName(node.inputs.items[i].name),
+                    ")",
+                });
+            } else {
+                tensor_roi_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name) });
+            }
+        } else if (std.mem.indexOf(u8, node.inputs.items[i].name, "scales")) |_| { //----create tensor_scales_string
+            if (node.inputs.items[i].tag == globals.TensorTag.INITIALIZER) {
+                data_scales_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "@constCast(&param_lib.tensor_",
+                    try utils.getSanitizedName(node.inputs.items[i].name),
+                    ".data",
+                    ")",
+                });
+            } else {
+                data_scales_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name), ".data" });
+            }
+        } else if (std.mem.indexOf(u8, node.inputs.items[i].name, "sizes")) |_| { //----create tensor_sizes_string
+            if (node.inputs.items[i].tag == globals.TensorTag.INITIALIZER) {
+                data_sizes_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "@constCast(&param_lib.tensor_",
+                    try utils.getSanitizedName(node.inputs.items[i].name),
+                    ".data",
+                    ")",
+                });
+            } else {
+                data_sizes_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name), ".data" });
+            }
+        }
+    }
+
+    // ---- gasthering ATTRIBUTES from protoNode
+    var antialias: i64 = 0;
+    var axes: []i64 = &[_]i64{};
+    defer allocator.free(axes);
+    var coordinate_transformation_mode: []const u8 = "half_pixel";
+    defer allocator.free(coordinate_transformation_mode);
+    var cubic_coeff_a: f64 = -0.75;
+    var exclude_outside: i64 = 0;
+    var extrapolation_value: f64 = 0.0;
+    var keep_aspect_ratio_policy: []const u8 = "stretch";
+    defer allocator.free(keep_aspect_ratio_policy);
+    var mode: []const u8 = "nearest";
+    defer allocator.free(mode);
+    var nearest_mode: []const u8 = "round_prefer_floor";
+    defer allocator.free(nearest_mode);
 
     for (node.nodeProto.attribute) |attr| {
-        if (std.mem.eql(u8, attr.name, "mode")) {
-            if (attr.type == AttributeType.STRING) mode = attr.s;
-        } else if (std.mem.eql(u8, attr.name, "coordinate_transformation_mode")) {
-            if (attr.type == AttributeType.STRING) coordinate_transformation_mode = attr.s;
+        if (std.mem.indexOf(u8, attr.name, "antialias")) |_| {
+            if (attr.type == AttributeType.INT) antialias = attr.i else return error.ResizeAnitialiasNotINT;
+        } else if (std.mem.indexOf(u8, attr.name, "axes")) |_| {
+            if (attr.type == AttributeType.INTS) axes = attr.ints else return error.ResizeAxesNotINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "coordinate_transformation_mode")) |_| {
+            if (attr.type == AttributeType.STRING) coordinate_transformation_mode = attr.s else return error.Resize_coordinate_transformation_mode_NotSTRING;
+        } else if (std.mem.indexOf(u8, attr.name, "cubic_coeff_a")) |_| {
+            if (attr.type == AttributeType.FLOAT) cubic_coeff_a = attr.f else return error.Resize_cubic_coeff_a_NotFLOAT;
+        } else if (std.mem.indexOf(u8, attr.name, "exclude_outside")) |_| {
+            if (attr.type == AttributeType.INT) exclude_outside = attr.i else return error.Resize_exclude_outside_NotINT;
+        } else if (std.mem.indexOf(u8, attr.name, "extrapolation_value")) |_| {
+            if (attr.type == AttributeType.FLOAT) extrapolation_value = attr.f else return error.Resize_extrapolation_value_NotFLOAT;
+        } else if (std.mem.indexOf(u8, attr.name, "keep_aspect_ratio_policy")) |_| {
+            if (attr.type == AttributeType.STRING) keep_aspect_ratio_policy = attr.s else return error.Resize_keep_aspect_ratio_policy_NotSTRING;
+        } else if (std.mem.indexOf(u8, attr.name, "mode")) |_| {
+            if (attr.type == AttributeType.STRING) mode = attr.s else return error.Resize_mode_NotSTRING;
+        } else if (std.mem.indexOf(u8, attr.name, "nearest_mode")) |_| {
+            if (attr.type == AttributeType.STRING) nearest_mode = attr.s else return error.Resize_nearest_mode_NotSTRING;
         }
     }
 
-    // Extract scales (from input index 2) if present
-    var scales_str: []const u8 = "null";
-    if (node.inputs.items.len > 2 and node.inputs.items[2].tensorProto != null) {
-        const scales_name = try utils.getSanitizedName(node.inputs.items[2].name);
-        if (node.inputs.items[2].tag == globals.TensorTag.INITIALIZER) {
-            scales_str = try std.fmt.allocPrint(allocator, "param_lib.tensor_{s}.data", .{scales_name});
-        } else {
-            scales_str = try std.fmt.allocPrint(allocator, "tensor_{s}.data", .{scales_name});
-        }
-    }
-    defer if (!std.mem.eql(u8, scales_str, "null")) allocator.free(scales_str);
+    // ---- CREATING ATTRIBUTES strings
+    const axes_string = try utils.i64SliceToUsizeArrayString(axes);
+    _ = axes_string;
 
-    // Extract sizes (from input index 3) if present
-    var sizes_str: []const u8 = "null";
-    if (node.inputs.items.len > 3 and node.inputs.items[3].tensorProto != null) {
-        const sizes_name = try utils.getSanitizedName(node.inputs.items[3].name);
-
-        // Create a temporary array for sizes
-        try writer.print(
-            \\
-            \\    // Convert int64 sizes to usize array
-            \\    var sizes_usize_{s} = try allocator.alloc(usize, 
-        , .{sizes_name});
-
-        if (node.inputs.items[3].tag == globals.TensorTag.INITIALIZER) {
-            try writer.print("param_lib.tensor_{s}.size);\n", .{sizes_name});
-            try writer.print("    for (0..param_lib.tensor_{s}.size) |i| {{\n", .{sizes_name});
-            try writer.print("        sizes_usize_{s}[i] = @intCast(param_lib.tensor_{s}.data[i]);\n", .{ sizes_name, sizes_name });
-        } else {
-            try writer.print("tensor_{s}.size);\n", .{sizes_name});
-            try writer.print("    for (0..tensor_{s}.size) |i| {{\n", .{sizes_name});
-            try writer.print("        sizes_usize_{s}[i] = @intCast(tensor_{s}.data[i]);\n", .{ sizes_name, sizes_name });
-        }
-        try writer.print("    }}\n", .{});
-        try writer.print("    defer allocator.free(sizes_usize_{s});\n", .{sizes_name});
-
-        sizes_str = try std.fmt.allocPrint(allocator, "sizes_usize_{s}", .{sizes_name});
-    }
-    defer if (!std.mem.eql(u8, sizes_str, "null")) allocator.free(sizes_str);
-
-    // Write the function call
+    //pub fn rezise_lean(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales: ?[]const f32, sizes: ?[]const usize, coordinate_transformation_mode: []const u8, output_tensor: *Tensor(T)) !void {
     _ = try writer.print(
         \\
         \\    tensMath.rezise_lean(
-        \\        T, // data type
-        \\        {s}, // input tensor
-        \\        "{s}", // mode
-        \\        {s}, // scales
-        \\        {s}, // sizes
-        \\        "{s}", // coordinate_transformation_mode
-        \\        &tensor_{s} // output tensor
+        \\      T, 
+        \\      {s}, //*Tensor(T)
+        \\      {s}, //mode
+        \\      {s}, //scales: ?[]const f32
+        \\      {s}, //sizes: ?[]const usize
+        \\      {s}, //coordinate_transformation_mode: []const u8
+        \\      {s}, //output_tensor: *Tensor(T)
         \\    )
-    , .{
-        input_tensor_string,
-        mode,
-        scales_str,
-        sizes_str,
-        coordinate_transformation_mode,
-        try utils.getSanitizedName(node.outputs.items[0].name),
-    });
+    ,
+        .{
+            tensor_X_string, // input
+            mode,
+            data_scales_string,
+            data_sizes_string,
+            coordinate_transformation_mode,
+            try utils.getSanitizedName(node.outputs.items[0].name), //output
+        },
+    );
 }
