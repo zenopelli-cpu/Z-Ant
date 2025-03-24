@@ -84,6 +84,7 @@ pub fn reduce_mean(comptime T: anytype, tensor: *Tensor(T), axes: ?[]const i64, 
 }
 
 /// Lean version of reduce_mean that operates on pre-allocated output tensor
+/// Lean version of reduce_mean that operates on pre-allocated output tensor
 pub inline fn lean_reduce_mean(
     comptime T: anytype,
     input_tensor: *Tensor(T),
@@ -92,64 +93,178 @@ pub inline fn lean_reduce_mean(
     _: bool, // keepdims (unused since output shape is pre-determined)
     noop_with_empty_axes: bool,
 ) !void {
+    //std.debug.print("\n[DEBUG] lean_reduce_mean:", .{});
+    //std.debug.print("\n  Input tensor shape: ", .{});
+    //for (input_tensor.shape) |s| std.debug.print("{d} ", .{s});
+    //std.debug.print("\n  Output tensor shape: ", .{});
+    //for (output_tensor.shape) |s| std.debug.print("{d} ", .{s});
+    //std.debug.print("\n  Axes: ", .{});
+    //if (axes) |a| {
+    //    if (a.len == 0) {
+    //        std.debug.print("empty", .{});
+    //    } else {
+    //        for (a) |axis| std.debug.print("{d} ", .{axis});
+    //    }
+    //} else {
+    //    std.debug.print("null", .{});
+    //}
+    //std.debug.print("\n  noop_with_empty_axes: {}", .{noop_with_empty_axes});
+
     // Handle empty axes case
     if (axes == null or axes.?.len == 0) {
         if (noop_with_empty_axes) {
+            //std.debug.print("\n  Performing identity operation (noop)", .{});
             // Act as identity operation
             @memcpy(output_tensor.data, input_tensor.data);
             return;
         }
         // Reduce over all dimensions
+        //std.debug.print("\n  Reducing over all dimensions", .{});
         var sum: T = 0;
         for (input_tensor.data) |val| {
             sum += val;
         }
         output_tensor.data[0] = sum / @as(T, @floatFromInt(input_tensor.size));
+        //std.debug.print("\n  Final result (all dims): {d}", .{output_tensor.data[0]});
         return;
     }
 
-    // Get the first axis (we'll focus on single-axis reduction for now)
-    var axis: i64 = axes.?[0];
-    if (axis < 0) {
-        axis += @intCast(input_tensor.shape.len);
+    // Validate axes
+    if (axes.?.len == 0) return TensorMathError.InvalidAxes;
+    for (axes.?) |axis| {
+        const abs_axis = if (axis < 0)
+            @as(i64, @intCast(input_tensor.shape.len)) + axis
+        else
+            axis;
+        if (abs_axis < 0 or abs_axis >= input_tensor.shape.len) {
+            //std.debug.print("\n  Error: Axis {d} out of bounds for tensor of rank {d}", .{ axis, input_tensor.shape.len });
+            return TensorMathError.InvalidAxes;
+        }
     }
-    const axis_usize: usize = @intCast(axis);
 
-    // Set up dimensions before and after the reduction axis
-    const outer_size: usize = blk: {
-        var size: usize = 1;
-        for (0..axis_usize) |i| {
-            size *= input_tensor.shape[i];
-        }
-        break :blk size;
-    };
+    // Convert negative axes to positive
+    var actual_axes = try pkg_allocator.alloc(usize, axes.?.len);
+    defer pkg_allocator.free(actual_axes);
 
-    const axis_size: usize = input_tensor.shape[axis_usize];
+    //std.debug.print("\n  Converting axes to positive indices:", .{});
+    for (axes.?, 0..) |axis, i| {
+        actual_axes[i] = if (axis < 0)
+            @intCast(@as(i64, @intCast(input_tensor.shape.len)) + axis)
+        else
+            @intCast(axis);
+        //std.debug.print("\n    axis {d} -> {d}", .{ axis, actual_axes[i] });
+    }
 
-    const inner_size: usize = blk: {
-        var size: usize = 1;
-        for (axis_usize + 1..input_tensor.shape.len) |i| {
-            size *= input_tensor.shape[i];
-        }
-        break :blk size;
-    };
+    // Calculate the size of dimensions being reduced
+    var reduce_size: usize = 1;
+    for (actual_axes) |axis| {
+        reduce_size *= input_tensor.shape[axis];
+    }
+    //std.debug.print("\n  Total elements to reduce per output: {d}", .{reduce_size});
 
-    // Clear output data
+    // Initialize output values to 0
     @memset(output_tensor.data, 0);
 
-    // Perform reduction
-    for (0..outer_size) |i| {
-        for (0..inner_size) |j| {
-            var sum: T = 0;
-            for (0..axis_size) |k| {
-                // Compute index in flattened input array
-                const in_idx = i * axis_size * inner_size + k * inner_size + j;
-                sum += input_tensor.data[in_idx];
+    // Calculate strides for input tensor
+    var input_strides = try pkg_allocator.alloc(usize, input_tensor.shape.len);
+    defer pkg_allocator.free(input_strides);
+
+    var stride: usize = 1;
+    var i = input_tensor.shape.len;
+    while (i > 0) {
+        i -= 1;
+        input_strides[i] = stride;
+        stride *= input_tensor.shape[i];
+    }
+
+    // For each output element
+    for (0..output_tensor.size) |out_idx| {
+        //std.debug.print("\n\nProcessing output element {d}:", .{out_idx});
+
+        // Calculate input indices for non-reduced dimensions
+        var remaining = out_idx;
+        var base_idx: usize = 0;
+
+        // Calculate base index from non-reduced dimensions
+        var non_reduced_dim: usize = 0;
+        var output_dim: usize = 0;
+        var remaining_dims = try pkg_allocator.alloc(usize, input_tensor.shape.len);
+        defer pkg_allocator.free(remaining_dims);
+        var num_remaining: usize = 0;
+
+        // First pass: collect non-reduced dimensions in order
+        for (0..input_tensor.shape.len) |dim_idx| {
+            if (std.mem.indexOfScalar(usize, actual_axes, dim_idx) == null) {
+                remaining_dims[num_remaining] = dim_idx;
+                num_remaining += 1;
             }
-            // Compute index in flattened output array
-            const out_idx = i * inner_size + j;
-            output_tensor.data[out_idx] = sum / @as(T, @floatFromInt(axis_size));
         }
+
+        // Calculate output strides
+        var output_strides = try pkg_allocator.alloc(usize, num_remaining);
+        defer pkg_allocator.free(output_strides);
+        var out_stride: usize = 1;
+        var stride_idx = num_remaining;
+        while (stride_idx > 0) {
+            stride_idx -= 1;
+            output_strides[stride_idx] = out_stride;
+            out_stride *= input_tensor.shape[remaining_dims[stride_idx]];
+        }
+
+        // Second pass: calculate base_idx
+        for (0..num_remaining) |dim_idx| {
+            const dim = remaining_dims[dim_idx];
+            const dim_stride = input_strides[dim];
+            const current_dim = remaining / output_strides[dim_idx];
+            remaining %= output_strides[dim_idx];
+
+            base_idx += current_dim * dim_stride;
+            //std.debug.print("\n  Non-reduced dim {d}: current_dim={d}, stride={d}, base_idx={d}", .{ dim, current_dim, dim_stride, base_idx });
+            non_reduced_dim += 1;
+            output_dim += 1;
+        }
+
+        // Sum up all values in the reduction dimensions
+        var sum: T = 0;
+        const count = reduce_size;
+
+        //std.debug.print("\n  Reduction info: count={d}, base_idx={d}", .{ count, base_idx });
+
+        // Calculate the size and stride for each reduced dimension
+        var reduced_sizes = try pkg_allocator.alloc(usize, actual_axes.len);
+        defer pkg_allocator.free(reduced_sizes);
+        var reduced_strides = try pkg_allocator.alloc(usize, actual_axes.len);
+        defer pkg_allocator.free(reduced_strides);
+
+        // Store sizes and strides in reverse order to match the memory layout
+        for (actual_axes, 0..) |axis, axis_idx| {
+            const rev_idx = actual_axes.len - 1 - axis_idx;
+            reduced_sizes[rev_idx] = input_tensor.shape[axis];
+            reduced_strides[rev_idx] = input_strides[axis];
+            //std.debug.print("\n  Reduced axis {d}: size={d}, stride={d}", .{ axis, input_tensor.shape[axis], input_strides[axis] });
+        }
+
+        // Iterate over all combinations of reduced dimensions
+        var idx: usize = 0;
+        while (idx < count) : (idx += 1) {
+            var temp_idx = base_idx;
+            var temp = idx;
+
+            // Process dimensions from innermost to outermost
+            for (0..actual_axes.len) |dim_idx| {
+                const axis_idx = temp % reduced_sizes[dim_idx];
+                temp /= reduced_sizes[dim_idx];
+                temp_idx += axis_idx * reduced_strides[dim_idx];
+            }
+
+            sum += input_tensor.data[temp_idx];
+            //if (idx < 5 or idx > count - 5) {
+            //std.debug.print("\n    idx={d}: temp_idx={d}, value={d}", .{ idx, temp_idx, input_tensor.data[temp_idx] });
+            //}
+        }
+
+        //std.debug.print("\n  Final sum={d}, mean={d}", .{ sum, sum / @as(T, @floatFromInt(count)) });
+        output_tensor.data[out_idx] = sum / @as(T, @floatFromInt(count));
     }
 }
 
