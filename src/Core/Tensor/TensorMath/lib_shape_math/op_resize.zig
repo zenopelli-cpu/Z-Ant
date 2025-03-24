@@ -7,14 +7,11 @@ const TensorMathError = zant.utils.error_handler.TensorMathError;
 
 const pkg_allocator = zant.utils.allocator.allocator;
 
-pub fn resize(allocator: std.mem.Allocator, input: Tensor, scales: ?[]const f32, sizes: ?[]const i64, mode: []const u8) !Tensor {
-    //check if mode exists:
+pub fn resize(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales: ?[]const f32, sizes: ?[]const usize, coordinate_transformation_mode: []const u8) !Tensor(T) {
+    //check if mode exixts:
     if (!(std.mem.eql(u8, mode, "nearest") or std.mem.eql(u8, mode, "linear") or std.mem.eql(u8, mode, "cubic"))) {
         return TensorError.UnsupportedMode;
     }
-
-    // Add a default coordinate transformation mode
-    const coordinate_transformation_mode = "asymmetric";
 
     //check args: there should be one and only one between scales and sizes
     if (scales == null and sizes == null) {
@@ -25,25 +22,63 @@ pub fn resize(allocator: std.mem.Allocator, input: Tensor, scales: ?[]const f32,
     }
 
     // Create output tensor
-    var output = try Tensor(input.dataType).init(allocator);
+    var output = try Tensor(T).init(t.allocator);
 
     //call rezise_lean
     if (scales) |s| {
-        if (s.len != input.shape.len) {
+        if (s.len != t.shape.len) {
             return TensorError.InvalidInput;
         } else {
-            try rezise_lean(input.dataType, input, mode, scales, null, coordinate_transformation_mode, &output);
+            try rezise_lean(T, t, mode, scales, null, coordinate_transformation_mode, &output);
         }
     } else if (sizes) |sz| {
-        if (sz.len != input.shape.len) {
+        if (sz.len != t.shape.len) {
             return TensorError.InvalidInput;
         } else {
-            try rezise_lean(input.dataType, input, mode, null, sizes, coordinate_transformation_mode, &output);
+            try rezise_lean(T, t, mode, null, sizes, coordinate_transformation_mode, &output);
         }
     }
 
     return output;
 }
+
+// pub fn resize(allocator: std.mem.Allocator, input: Tensor, scales: ?[]const f32, sizes: ?[]const i64, mode: []const u8) !Tensor {
+//     //check if mode exists:
+//     if (!(std.mem.eql(u8, mode, "nearest") or std.mem.eql(u8, mode, "linear") or std.mem.eql(u8, mode, "cubic"))) {
+//         return TensorError.UnsupportedMode;
+//     }
+
+//     // Add a default coordinate transformation mode
+//     const coordinate_transformation_mode = "asymmetric";
+
+//     //check args: there should be one and only one between scales and sizes
+//     if (scales == null and sizes == null) {
+//         return TensorError.InvalidInput;
+//     }
+//     if (scales != null and sizes != null) {
+//         return TensorError.InvalidInput;
+//     }
+
+//     // Create output tensor
+//     var output = try Tensor(input.dataType).init(allocator);
+
+//     //call rezise_lean
+//     if (scales) |s| {
+//         if (s.len != input.shape.len) {
+//             return TensorError.InvalidInput;
+//         } else {
+//             try rezise_lean(input.dataType, input, mode, scales, null, coordinate_transformation_mode, &output);
+//         }
+//     } else if (sizes) |sz| {
+//         if (sz.len != input.shape.len) {
+//             return TensorError.InvalidInput;
+//         } else {
+//             try rezise_lean(input.dataType, input, mode, null, sizes, coordinate_transformation_mode, &output);
+//         }
+//     }
+
+//     return output;
+// }
 
 //resize lean
 pub fn rezise_lean(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales: ?[]const f32, sizes: ?[]const usize, coordinate_transformation_mode: []const u8, output_tensor: *Tensor(T)) !void {
