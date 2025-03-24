@@ -13,7 +13,7 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 5: map_type, type: TypeProto.Map
 //  - 6: denotation, type: []const u8
 //  - 8: sparse_tensor_type, type: TypeProto.SparseTensor
-//  - 9: TODO: optional_type, type: TypeProto.Optional
+//  - 9: optional_type, type: TypeProto.Optional
 pub const TypeProto = struct {
     //TENSOR TAG:
     //  - 1: elem_type int32
@@ -102,6 +102,9 @@ pub const TypeProto = struct {
                 switch (tag.field_number) {
                     1 => { //elem_type
                         _ = try reader.readLengthDelimited();
+                        //const elem_type_ptr = try reader.allocator.create(TypeProto);
+                        //elem_type_ptr.* = try TypeProto.parse(&elem_type_reader);
+                        //sequence.elem_type = elem_type_ptr;
                     },
                     else => {
                         std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for ", .{tag});
@@ -160,6 +163,9 @@ pub const TypeProto = struct {
                     },
                     2 => { //value_type
                         _ = try reader.readLengthDelimited();
+                        //const value_ptr = try reader.allocator.create(TypeProto);
+                        //value_ptr.* = try TypeProto.parse(&value_type_reader);
+                        //map.value_type = value_ptr;
                     },
                     else => {
                         std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
@@ -275,6 +281,9 @@ pub const TypeProto = struct {
                 switch (tag.field_number) {
                     1 => { //elem_type
                         _ = try reader.readLengthDelimited();
+                        //const elm_ptr = try reader.allocator.create(TypeProto);
+                        //elm_ptr.* = try TypeProto.parse(&elem_type_reader);
+                        //opt.elem_type = elm_ptr;
                     },
                     else => {
                         std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
@@ -353,8 +362,11 @@ pub const TypeProto = struct {
                     ensor_type_ptr.* = try Tensor.parse(&tensor_type_reader);
                     typeProto.tensor_type = ensor_type_ptr;
                 },
-                4 => { //TODO sequence_type
+                4 => { //sequence_type
                     _ = try reader.readLengthDelimited();
+                    //const sequence_ptr = try reader.allocator.create(Sequence);
+                    //sequence_ptr.* = try Sequence.parse(&sequence_reader);
+                    //typeProto.tensor_type = sequence_ptr;
                 },
                 5 => { //map_type
                     var map_reader = try reader.readLengthDelimited();
@@ -362,8 +374,8 @@ pub const TypeProto = struct {
                     map_ptr.* = try Map.parse(&map_reader);
                     typeProto.map_type = map_ptr;
                 },
-                6 => { // TODO denotation
-                    _ = try reader.readLengthDelimited();
+                6 => { //  denotation
+                    typeProto.denotation = try reader.readString(reader.allocator);
                 },
                 8 => { // sparse_tensor_type
                     var sparse_tensor_type_reader = try reader.readLengthDelimited();
