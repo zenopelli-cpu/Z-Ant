@@ -34,20 +34,14 @@ pub const TensorShapeProto = struct {
 
             while (reader.hasMore()) {
                 const tag = try reader.readTag();
-                // std.debug.print("\n .................................... Dimension TAG: {any} ", .{tag});
                 switch (tag.field_number) {
                     1 => { //dim_value
-                        // std.debug.print("\n .................................... Dimension READING dim_value ", .{});
                         dim.dim_value = @bitCast(try reader.readVarint());
-                        // std.debug.print("\n .................................... dim.dim_value = {}", .{dim.dim_value.?});
                     },
                     2 => { //dim_param
-                        // std.debug.print("\n .................................... Dimension READING dim_param ", .{});
                         dim.dim_param = try reader.readString(reader.allocator);
-                        // std.debug.print("\n .................................... dim.dim_param = {s}", .{dim.dim_param.?});
                     },
                     3 => { //denotation
-                        // std.debug.print("\n .................................... Dimension READING denotation ", .{});
                         dim.dim_param = try reader.readString(reader.allocator);
                     },
                     else => {
@@ -110,11 +104,9 @@ pub const TensorShapeProto = struct {
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
-            // std.debug.print("\n ................................. tensorShape TAG: {any} ", .{tag});
 
             switch (tag.field_number) {
                 1 => { // dim
-                    // std.debug.print("\n ................................. TensorShapeProto READING dim ", .{});
                     var dim_reader = try reader.readLengthDelimited(); //var dim_reader
                     const dim_ptr = try reader.allocator.create(Dimension);
                     dim_ptr.* = try Dimension.parse(&dim_reader);
@@ -134,7 +126,6 @@ pub const TensorShapeProto = struct {
             if (d.*.dim_value) |val| try shape_list.append(val);
         }
         shape.shape = try shape_list.toOwnedSlice();
-        // std.debug.print("\n ................................. TensorShapeProto resulting shape = {any}", .{shape.shape});
 
         //creating dim []Dimension
         shape.dims = try dims_list.toOwnedSlice();

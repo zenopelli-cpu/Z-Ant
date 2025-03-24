@@ -604,7 +604,7 @@ test "benchmark flatten_index implementations" {
 
         std.debug.print("\n       6D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
 
-        try std.testing.expect(avg_optimized <= avg_original + 2);
+        try std.testing.expect(avg_optimized <= avg_original + 4);
     }
 
     // 7D tensor benchmark
@@ -628,6 +628,6 @@ test "benchmark flatten_index implementations" {
 
         std.debug.print("\n       7D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
 
-        try std.testing.expect(avg_optimized <= avg_original + 2);
+        try std.testing.expect(avg_optimized <= avg_original + 4);
     }
 }

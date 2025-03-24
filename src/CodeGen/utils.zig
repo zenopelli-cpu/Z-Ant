@@ -383,6 +383,45 @@ pub inline fn sliceToUsizeSlice(slice: anytype) []usize {
     }
 }
 
+pub inline fn sliceToIsizeSlice(slice: anytype) []isize {
+    const T = @TypeOf(slice);
+    const info = @typeInfo(T);
+
+    switch (info) {
+        .pointer => {
+            const child = info.pointer.child;
+            const child_info = @typeInfo(child);
+
+            var output = allocator.alloc(isize, slice.len) catch @panic("Out of memory in sliceToIsizeSlice");
+            const maxIsize = std.math.maxInt(isize);
+            const minIsize = std.math.minInt(isize);
+
+            for (slice, 0..) |value, index| {
+                if (child_info == .int) {
+                    // Handle integer types
+                    if (value < minIsize or value > maxIsize) {
+                        @panic("Value out of isize range in sliceToIsizeSlice");
+                    }
+                    output[index] = @intCast(value);
+                } else if (child_info == .float) {
+                    // Handle float types
+                    if (value < @as(f64, @floatFromInt(minIsize)) or value > @as(f64, @floatFromInt(maxIsize))) {
+                        @panic("Value out of isize range in sliceToIsizeSlice");
+                    }
+                    output[index] = @intFromFloat(value);
+                } else {
+                    @compileError("Unsupported element type for sliceToIsizeSlice: " ++ @typeName(child));
+                }
+            }
+
+            return output;
+        },
+        else => {
+            @compileError("Unsupported type for sliceToIsizeSlice: " ++ @typeName(T));
+        },
+    }
+}
+
 pub fn i64ToI64ArrayString(values: []const i64) ![]const u8 {
     var buffer: [20]u8 = undefined;
     var res_string = try std.mem.concat(allocator, u8, &[_][]const u8{"&[_]i64{"});

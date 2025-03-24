@@ -13,3 +13,10 @@ Reshape
 Sigmoid
 Slice
 Transpose
+Ceil
+Identity
+LeakyRelu
+Mean
+Mul
+Split
+Resize

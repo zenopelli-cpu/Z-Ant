@@ -12,6 +12,7 @@ const op_reshape = @import("lib_shape_math/op_reshape.zig");
 pub const reshape = op_reshape.reshape;
 pub const reshape_lean = op_reshape.reshape_lean;
 pub const reshape_lean_f32 = op_reshape.reshape_lean_f32;
+pub const reshape_lean_common = op_reshape.reshape_lean_common;
 //---gather
 const op_gather = @import("lib_shape_math/op_gather.zig");
 
@@ -34,7 +35,7 @@ pub const get_concatenate_output_shape = op_concat.get_concatenate_output_shape;
 const op_identity = @import("lib_shape_math/op_identity.zig");
 
 pub const identity = op_identity.identity;
-pub const identity_lean = op_identity.identity;
+pub const identity_lean = op_identity.identity_lean;
 pub const get_identity_output_shape = op_identity.get_identity_shape_output;
 
 // ---------- importing pooling methods ----------
@@ -58,7 +59,7 @@ pub const get_resize_output_shape = op_resize.get_resize_output_shape;
 
 pub const split = op_split.split;
 pub const get_split_output_shapes = op_split.get_split_output_shapes;
-
+pub const split_lean = op_split.split_lean;
 // ---------- importing matrix algebra methods ----------
 const op_mat_mul = @import("op_mat_mul.zig");
 //---matmul
@@ -103,7 +104,7 @@ const reduction_math_lib = @import("lib_reduction_math.zig");
 pub const mean = reduction_math_lib.mean;
 pub const reduce_mean = reduction_math_lib.reduce_mean;
 pub const reduce_mean_lean = reduction_math_lib.lean_reduce_mean;
-
+pub const get_reduce_mean_output_shape = reduction_math_lib.get_reduce_mean_output_shape;
 // ---------- importing standard Element-Wise math ----------
 const add = @import("lib_elementWise_math/op_addition.zig");
 //--add bias

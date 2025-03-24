@@ -122,6 +122,10 @@ pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(
         //std.debug.print("\n  B shape after transpose: ", .{});
         //for (actual_B_ptr.shape) |s| std.debug.print("{d} ", .{s});
     }
+    defer {
+        if (transA) actual_A.deinit();
+        if (transB) actual_B.deinit();
+    }
 
     // result = alpha * A * B
     //std.debug.print("\n  Performing matrix multiplication...", .{});
