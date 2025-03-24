@@ -117,31 +117,40 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
         \\const array_{s} : [{d}]{s} = [_]{s}{{ 
     , .{ name, size, dataTypeString, dataTypeString });
 
-    // Select appropriate data storage format
-    if (t.float_data) |d| {
-        writeArrayData(writer, f32, d) catch return error.f32DataUnavailable;
-    } else if (t.raw_data) |d| {
-        writeArrayRawData(writer, t.data_type, d) catch return error.u8RawDataUnavailable;
-    } else if (t.int32_data) |d| {
-        writeArrayData(writer, i32, d) catch return error.i32DataUnavailable;
-    } else if (t.int64_data) |d| {
-        writeArrayData(writer, i64, d) catch return error.i64DataUnavailable;
-    } else if (t.double_data) |d| {
-        writeArrayData(writer, f64, d) catch return error.f64DataUnavailable;
-    } else if (t.uint64_data) |d| {
-        writeArrayData(writer, u64, d) catch return error.u64DataUnavailable;
-    } else if (std.mem.indexOf(u8, name, "resize") != null) {
-        // Special case for Resize operation with no data
-        if (size == 0) {
-            // Empty array, just close it
-        } else {
-            // For Resize tensors with no explicit data, initialize with zeros
-            try writer.print("0", .{});
-            for (1..@intCast(size)) |_| {
-                try writer.print(", 0", .{});
+    switch (t.data_type) {
+        .FLOAT => {
+            const data: []f32 = if (t.float_data) |d| d else &[_]f32{};
+            writeArrayData(writer, f32, data) catch return error.f32DataUnavailable;
+        },
+        .INT32 => {
+            if (t.int32_data) |d| {
+                writeArrayData(writer, i32, d) catch return error.i32DataUnavailable;
             }
-        }
-    } else return error.DataTypeNotAvailable;
+        },
+        .INT64 => {
+            if (t.int64_data) |d| {
+                writeArrayData(writer, i64, d) catch return error.i64DataUnavailable;
+            }
+        },
+        .DOUBLE => {
+            if (t.double_data) |d| {
+                writeArrayData(writer, f64, d) catch return error.f64DataUnavailable;
+            }
+        },
+        .UINT64 => {
+            if (t.uint64_data) |d| {
+                writeArrayData(writer, u64, d) catch return error.u64DataUnavailable;
+            }
+        },
+        .UINT32, .UINT8, .INT8, .UINT16, .INT16, .FLOAT16 => {
+            std.debug.print("\n ERROR!! DataType : {any} not available", .{t.data_type});
+            return error.DataTypeNotAvailable;
+        },
+        else => {
+            const data: []const u8 = if (t.raw_data) |d| d else &[_]u8{};
+            writeArrayRawData(writer, t.data_type, data) catch return error.u8RawDataUnavailable;
+        },
+    }
 
     try writer.print(
         \\}} ;
@@ -211,12 +220,12 @@ pub inline fn writeArrayRawData(writer: std.fs.File.Writer, data_type: DataType,
 /// - `T`: The type of data in the tensor.
 /// - `data`: The data array.
 pub inline fn writeArrayData(writer: std.fs.File.Writer, comptime T: type, data: []const T) !void {
-    try writer.print(
-        \\{}
-    , .{data[0]});
-    for (1..data.len) |i| {
+    for (0..data.len) |i| {
+        if (i > 0) try writer.print(
+            \\,
+        , .{});
         try writer.print(
-            \\, {}
+            \\ {}
         , .{data[i]});
     }
 }

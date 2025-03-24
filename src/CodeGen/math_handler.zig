@@ -1923,11 +1923,11 @@ inline fn write_resize(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    tensMath.rezise_lean(
         \\      T, 
         \\      {s}, //*Tensor(T)
-        \\      {s}, //mode
+        \\      "{s}", //mode
         \\      {s}, //scales: ?[]const f32
         \\      {s}, //sizes: ?[]const usize
-        \\      {s}, //coordinate_transformation_mode: []const u8
-        \\      {s}, //output_tensor: *Tensor(T)
+        \\      "{s}", //coordinate_transformation_mode: []const u8
+        \\      &tensor_{s}, //output_tensor: *Tensor(T)
         \\    )
     ,
         .{

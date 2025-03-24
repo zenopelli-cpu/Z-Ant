@@ -216,6 +216,7 @@ pub const TensorProto = struct {
         tensor.dims = try dims.toOwnedSlice();
         tensor.external_data = try externalDataList.toOwnedSlice();
         tensor.metadata_props = try metaDataList.toOwnedSlice();
+
         return tensor;
     }
 
