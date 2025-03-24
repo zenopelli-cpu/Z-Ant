@@ -423,7 +423,7 @@ def generate_fuzz_model(op_name):
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "MaxPool":
-        # Pooling layer con kernel e stride casuali
+        # Pooling layer with valid kernel, stride, and padding values
         N = 1
         C = random.randint(1,4)
         H = random.randint(10,50)
@@ -432,42 +432,51 @@ def generate_fuzz_model(op_name):
         data = np.random.randn(*input_shape).astype(np.float32)
         init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, input_shape, data.flatten().tolist())
         initializers.append(init_tensor)
-        kernel_size = random.randint(2, max(2, min(H, W)//2))
-        kernel_shape = [kernel_size, kernel_size]
-        strides = [random.randint(1, kernel_size), random.randint(1, kernel_size)]
         
-        # Add padding parameters
-        pad_h = random.randint(0, 2)
-        pad_w = random.randint(0, 2)
+        # First define kernel size
+        kernel_size = random.randint(2, max(2, min(H, W)//4))
+        kernel_shape = [kernel_size, kernel_size]
+        
+        # Ensure padding is smaller than kernel size
+        pad_h = random.randint(0, kernel_size - 1)
+        pad_w = random.randint(0, kernel_size - 1)
         pads = [pad_h, pad_w, pad_h, pad_w]  # [pad_top, pad_left, pad_bottom, pad_right]
+        
+        # Define reasonable strides
+        strides = [random.randint(1, kernel_size), random.randint(1, kernel_size)]
         
         # Calculate output dimensions with padding
         H_out = ((H + 2*pad_h - kernel_size) // strides[0]) + 1
         W_out = ((W + 2*pad_w - kernel_size) // strides[1]) + 1
         
-        # Ensure valid output dimensions
+        # If output dimensions are invalid, adjust parameters
         if H_out <= 0 or W_out <= 0:
-            # Fallback to simpler case if dimensions don't work out
-            pad_h = pad_w = 1
+            # Use minimal valid values
+            pad_h = pad_w = 0
             pads = [pad_h, pad_w, pad_h, pad_w]
+            strides = [1, 1]
             H_out = ((H + 2*pad_h - kernel_size) // strides[0]) + 1
             W_out = ((W + 2*pad_w - kernel_size) // strides[1]) + 1
         
         output_shape = [N, C, H_out, W_out]
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, output_shape)
         
-        # Use auto_pad = "NOTSET" to ensure pads attribute is used
-        auto_pad = "NOTSET"
-        
         node = helper.make_node(op_name, inputs=[input_names[0]], outputs=[output_names[0]],
-                                kernel_shape=kernel_shape, strides=strides, pads=pads,
-                                auto_pad=auto_pad,
-                                name=f"{op_name}node_k{kernel_shape}_s{strides}_p{pads}")
+                              kernel_shape=kernel_shape, 
+                              strides=strides, 
+                              pads=pads,
+                              auto_pad="NOTSET",
+                              name=f"{op_name}node_k{kernel_shape}_s{strides}_p{pads}")
         
         input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, input_shape)
-        metadata = {"input_shapes": [input_shape], "output_shapes": [output_shape],
-                    "kernel_shape": kernel_shape, "strides": strides, "pads": pads,
-                    "auto_pad": auto_pad}
+        metadata = {
+            "input_shapes": [input_shape], 
+            "output_shapes": [output_shape],
+            "kernel_shape": kernel_shape, 
+            "strides": strides, 
+            "pads": pads,
+            "auto_pad": "NOTSET"
+        }
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "Shape":
