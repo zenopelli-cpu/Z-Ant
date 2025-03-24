@@ -1879,16 +1879,16 @@ inline fn write_resize(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     var antialias: i64 = 0;
     var axes: []i64 = &[_]i64{};
     defer allocator.free(axes);
-    var coordinate_transformation_mode: []const u8 = "half_pixel";
+    var coordinate_transformation_mode: []const u8 = try allocator.dupe(u8, "half_pixel");
     defer allocator.free(coordinate_transformation_mode);
     var cubic_coeff_a: f64 = -0.75;
     var exclude_outside: i64 = 0;
     var extrapolation_value: f64 = 0.0;
-    var keep_aspect_ratio_policy: []const u8 = "stretch";
+    var keep_aspect_ratio_policy: []const u8 = try allocator.dupe(u8, "stretch");
     defer allocator.free(keep_aspect_ratio_policy);
-    var mode: []const u8 = "nearest";
+    var mode: []const u8 = try allocator.dupe(u8, "nearest");
     defer allocator.free(mode);
-    var nearest_mode: []const u8 = "round_prefer_floor";
+    var nearest_mode: []const u8 = try allocator.dupe(u8, "round_prefer_floor");
     defer allocator.free(nearest_mode);
 
     for (node.nodeProto.attribute) |attr| {
