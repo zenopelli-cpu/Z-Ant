@@ -93,6 +93,14 @@ pub const ReadyTensor = struct {
             .tag = TensorTag.LINK,
         };
     }
+
+    pub fn print(tensor: *ReadyTensor, detailed: bool) void {
+        std.debug.print("\n      READY TENSOR : {s}", .{tensor.name});
+        std.debug.print("\n         status:{s}ready", .{if (!tensor.ready) " not " else " "});
+        std.debug.print("\n         tag: {any}", .{tensor.tag});
+        std.debug.print("\n         shape: {any}", .{tensor.shape});
+        if (detailed) if (tensor.tensorProto) |tp| tp.print("         ") else std.debug.print("\n         tensor.tensorProto :(null)", .{});
+    }
 };
 
 // Struct representing a computational node in the ONNX model
@@ -130,6 +138,15 @@ pub const ReadyNode = struct {
         try shapeGen.compute_output_shape(&newReadyNode);
 
         return newReadyNode;
+    }
+
+    pub fn print(node: *ReadyNode, detailed: bool) void {
+        std.debug.print("\n ------ READY NODE : ", .{});
+        if (detailed) node.nodeProto.print("  ") else std.debug.print("\n {s} ", .{node.nodeProto.name.?});
+        std.debug.print("\n  ---inputs : ", .{});
+        for (node.inputs.items) |in| in.print(detailed);
+        std.debug.print("\n  ---outputs : ", .{});
+        for (node.outputs.items) |out| out.print(detailed);
     }
 };
 
@@ -199,7 +216,6 @@ fn populateReadyTensorHashMap(model: ModelOnnx) !void {
 
 pub fn addToTensorHashMap(name: []const u8) !void {
     if (tensorHashMap.get(name)) |_| {
-        std.debug.print("\n ----- Tensor {s} already present!! ", .{name});
         return;
     } else {
 
@@ -207,14 +223,12 @@ pub fn addToTensorHashMap(name: []const u8) !void {
         if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "input") != null) {
             //add the readyTensor to the HashMap
             try tensorHashMap.put(name, try ReadyTensor.createInput(name));
-            std.debug.print("\n ----- Tensor {s} is INPUT!! ", .{name});
             return;
         }
         //if input
         if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "constant") != null) {
             //add the readyTensor to the HashMap
             try tensorHashMap.put(name, try ReadyTensor.createConstant(name));
-            std.debug.print("\n ----- Tensor {s} is CONSTANT!! ", .{name});
             return;
         }
 
@@ -222,7 +236,6 @@ pub fn addToTensorHashMap(name: []const u8) !void {
 
         //add the readyTensor to the HashMap
         try tensorHashMap.put(name, try ReadyTensor.createLink(name));
-        std.debug.print("\n ----- Tensor {s} is LINK!! ", .{name});
     }
 }
 
