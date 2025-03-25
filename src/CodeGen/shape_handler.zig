@@ -316,12 +316,15 @@ inline fn compute_reducemean_output_shape(readyNode: *ReadyNode) !void {
     // Get attributes
     var keepdims: bool = true;
     var noop_with_empty_axes: bool = false;
+    var axes_attr: ?[]i64 = null;
 
     for (readyNode.nodeProto.attribute) |attr| {
         if (std.mem.eql(u8, attr.name, "keepdims")) {
             if (attr.type == AttributeType.INT) keepdims = attr.i != 0;
         } else if (std.mem.eql(u8, attr.name, "noop_with_empty_axes")) {
             if (attr.type == AttributeType.INT) noop_with_empty_axes = attr.i != 0;
+        } else if (std.mem.eql(u8, attr.name, "axes")) {
+            if (attr.type == AttributeType.INTS) axes_attr = attr.ints;
         }
     }
 
@@ -332,6 +335,9 @@ inline fn compute_reducemean_output_shape(readyNode: *ReadyNode) !void {
         readyNode.inputs.items[1].tensorProto.?.int64_data != null)
     {
         axes = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
+    } else if (axes_attr != null) {
+        // Use axes from attribute if not found in inputs
+        axes = axes_attr;
     }
 
     std.debug.print("\n input_shape: []usize = {any}", .{input_shape});

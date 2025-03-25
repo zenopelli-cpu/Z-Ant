@@ -1009,25 +1009,28 @@ inline fn write_mul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 }
 
 inline fn write_reduceMean(writer: std.fs.File.Writer, node: *ReadyNode) !void {
-    // https://onnx.ai/onnx/operators/onnx__Mean.html
+    // https://onnx.ai/onnx/operators/onnx__ReduceMean.html
     // INPUTS:
-    //      - data (heterogeneous) - T: Input tensor
-    //      - axes (optional) - tensor(int64): A list of integers, along which to reduce
+    //      - data (heterogeneous) - T: An input tensor.
+    //      - axes (optional, heterogeneous) - tensor(int64): A list of integers, along which to reduce. The default is to reduce over all the dimensions of the input tensor if 'keepdims' is true.
     // OUTPUTS:
-    //      - reduced (heterogeneous) - T: Reduced output tensor
+    //      - reduced (heterogeneous) - T: Reduced output tensor.
     // ATTRIBUTES:
-    //      - keepdims (int, default is 1): Keep the reduced dimensions or not
-    //      - noop_with_empty_axes (int, default is 0): Behavior for empty axes
+    //      - keepdims (int, default is 1): Keep the reduced dimension or not, default 1 means keep the reduced dimension.
+    //      - noop_with_empty_axes (int, default is 0): Defines behavior if 'axes' is empty. Default behavior is to reduce all axes.
 
     // Get attributes
     var keepdims: bool = true;
     var noop_with_empty_axes: bool = false;
+    var axes_attr: ?[]i64 = null;
 
     for (node.nodeProto.attribute) |attr| {
         if (std.mem.eql(u8, attr.name, "keepdims")) {
             if (attr.type == AttributeType.INT) keepdims = attr.i != 0;
         } else if (std.mem.eql(u8, attr.name, "noop_with_empty_axes")) {
             if (attr.type == AttributeType.INT) noop_with_empty_axes = attr.i != 0;
+        } else if (std.mem.eql(u8, attr.name, "axes")) {
+            if (attr.type == AttributeType.INTS) axes_attr = attr.ints;
         }
     }
 
@@ -1045,21 +1048,61 @@ inline fn write_reduceMean(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name) });
     }
 
-    // Get axes from second input if it exists
+    // Handle axes - either from attribute, input tensor, or as null
     var axes_str: []const u8 = "null";
-    if (node.inputs.items.len > 1) {
-        const axes_name = try utils.getSanitizedName(node.inputs.items[1].name);
-        if (node.inputs.items[1].tag == globals.TensorTag.INITIALIZER) {
-            axes_str = try std.fmt.allocPrint(allocator, "(@as([*]const i64, @alignCast(@ptrCast(param_lib.tensor_{s}.data))))[0..param_lib.tensor_{s}.size]", .{ axes_name, axes_name });
-        } else {
-            axes_str = try std.fmt.allocPrint(allocator, "(@as([*]const i64, @alignCast(@ptrCast(tensor_{s}.data))))[0..tensor_{s}.size]", .{ axes_name, axes_name });
+    var needs_free = false;
+
+    // First check if axes is defined as an attribute
+    if (axes_attr != null) {
+        // Create a static array from the axes attribute
+        const axes_array_name = try std.fmt.allocPrint(allocator, "axes_{s}", .{try utils.getSanitizedName(node.outputs.items[0].name)});
+        defer allocator.free(axes_array_name);
+
+        try writer.print(
+            \\
+            \\    // Define axes array from attribute
+            \\    const {s} = [_]i64{{
+        , .{axes_array_name});
+
+        for (axes_attr.?, 0..) |axis, i| {
+            if (i > 0) try writer.writeAll(", ");
+            try writer.print("{d}", .{axis});
         }
+
+        try writer.print(
+            \\}};
+            \\
+        , .{});
+
+        axes_str = try std.fmt.allocPrint(allocator, "&{s}", .{axes_array_name});
+        needs_free = true;
     }
-    defer if (axes_str.len > 4) allocator.free(axes_str);
+    // If not found in attributes, check if provided as an input tensor
+    else if (node.inputs.items.len > 1) {
+        // Get axes from second input
+        const axes_name = try utils.getSanitizedName(node.inputs.items[1].name);
+
+        if (node.inputs.items[1].tag == globals.TensorTag.INITIALIZER) {
+            // For initializer tensors, we need to extract the data directly
+            axes_str = try std.fmt.allocPrint(allocator, "(@ptrCast([*]const i64, param_lib.tensor_{s}.data.ptr))[0..param_lib.tensor_{s}.size]", .{ axes_name, axes_name });
+        } else {
+            // For regular tensors
+            axes_str = try std.fmt.allocPrint(allocator, "(@ptrCast([*]const i64, tensor_{s}.data.ptr))[0..tensor_{s}.size]", .{ axes_name, axes_name });
+        }
+        needs_free = true;
+    }
+    defer if (needs_free) allocator.free(axes_str);
 
     _ = try writer.print(
         \\
-        \\    tensMath.reduce_mean_lean(T, {s}, &tensor_{s}, {s}, {s}, {s})
+        \\    tensMath.reduce_mean_lean(
+        \\        T, // type
+        \\        {s}, // input tensor
+        \\        &tensor_{s}, // output tensor
+        \\        {s}, // axes
+        \\        {s}, // keepdims
+        \\        {s} // noop_with_empty_axes
+        \\    )
     , .{
         input_tensor_string,
         try utils.getSanitizedName(node.outputs.items[0].name),
