@@ -97,6 +97,14 @@ pub fn parseFromFile(allocator: std.mem.Allocator, file_path: []const u8) !Model
     var model = try ModelProto.parse(&reader);
     errdefer model.deinit(allocator);
 
+    if (model.graph.?.value_info.len == 0) {
+        std.debug.print("\n\n+-------------------------------------------+ ", .{});
+        std.debug.print("\n   Your model do not contains intermediate tensor shapes,\n   run ' python3 src/onnx/infer_shape.py --path {s} '", .{file_path});
+        std.debug.print("\n+-------------------------------------------+ \n\n", .{});
+
+        unreachable;
+    }
+
     return model;
 }
 
