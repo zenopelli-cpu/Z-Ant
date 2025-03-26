@@ -529,6 +529,7 @@ def generate_model(op_name, filename, model_id=0):
         doc_string=f"Test model for {op_name} operation. Generated on {datetime.datetime.now().isoformat()}",
         opset_imports=opset_imports
     )
+    model = onnx.shape_inference.infer_shapes(model)
     
     meta_prop = StringStringEntryProto()
     meta_prop.key = "test_metadata"
