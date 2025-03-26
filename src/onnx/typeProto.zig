@@ -101,10 +101,10 @@ pub const TypeProto = struct {
 
                 switch (tag.field_number) {
                     1 => { //elem_type
-                        _ = try reader.readLengthDelimited();
-                        //const elem_type_ptr = try reader.allocator.create(TypeProto);
-                        //elem_type_ptr.* = try TypeProto.parse(&elem_type_reader);
-                        //sequence.elem_type = elem_type_ptr;
+                        _ = try reader.readLengthDelimited(); //var elem_type_reader
+                        // const elem_type_ptr = try reader.allocator.create(TypeProto);
+                        // elem_type_ptr.* = try TypeProto.parse(&elem_type_reader);
+                        // sequence.elem_type = elem_type_ptr;
                     },
                     else => {
                         std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for ", .{tag});
@@ -151,8 +151,6 @@ pub const TypeProto = struct {
                 .value_type = null,
             };
 
-            _ = &map;
-
             while (reader.hasMore()) {
                 const tag = try reader.readTag();
 
@@ -162,10 +160,10 @@ pub const TypeProto = struct {
                         map.key_type = @intCast(elem_type);
                     },
                     2 => { //value_type
-                        _ = try reader.readLengthDelimited();
-                        //const value_ptr = try reader.allocator.create(TypeProto);
-                        //value_ptr.* = try TypeProto.parse(&value_type_reader);
-                        //map.value_type = value_ptr;
+                        _ = try reader.readLengthDelimited(); //var value_type_reader
+                        // const value_ptr = try reader.allocator.create(TypeProto);
+                        // value_ptr.* = try TypeProto.parse(&value_type_reader);
+                        // map.value_type = value_ptr;
                     },
                     else => {
                         std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
@@ -363,10 +361,10 @@ pub const TypeProto = struct {
                     typeProto.tensor_type = ensor_type_ptr;
                 },
                 4 => { //sequence_type
-                    _ = try reader.readLengthDelimited();
-                    //const sequence_ptr = try reader.allocator.create(Sequence);
-                    //sequence_ptr.* = try Sequence.parse(&sequence_reader);
-                    //typeProto.tensor_type = sequence_ptr;
+                    var sequence_reader = try reader.readLengthDelimited(); //var sequence_reader
+                    const sequence_ptr = try reader.allocator.create(Sequence);
+                    sequence_ptr.* = try Sequence.parse(&sequence_reader);
+                    typeProto.sequence_type = sequence_ptr;
                 },
                 5 => { //map_type
                     var map_reader = try reader.readLengthDelimited();
