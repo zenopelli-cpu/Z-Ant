@@ -9,7 +9,12 @@ MatMul
 MaxPool
 Relu
 Reshape
-Shape
 Sigmoid
 Slice
 Transpose
+Ceil
+Identity
+LeakyRelu
+Mean
+Mul
+Split
