@@ -21,11 +21,11 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 8 : ints, repeated int64
 //  - 9 : strings, repeated bytes
 //  - 10: tensors, repeated TensorProto
-//  - 11: TODO graphs, repeated GraphProto
+//  - 11: TODO graphs, repeated GraphProto (not possible to inferr error)
 //  - 13: doc_string, optional string
 //  - 14: tp, optional TypeProto
 //  - 15: type_protos, repeated TypeProto
-//  - 20: type, optional AttributeType
+//  - 20: type, optional AttributeType //TODO !!check how
 //  - 21: ref_attr_name, optional string
 //  - 23: sparse_tensor, optional SparseTensorProto
 //reserved 12, 16 to 19;
@@ -252,6 +252,7 @@ pub const AttributeProto = struct {
                     try type_protos_list.append(tp_ptr);
                 },
                 20 => { // type
+
                     const value = try reader.readVarint();
                     // Only set type if it's not already set to INTS
                     if (attr.type != .INTS) {
@@ -391,4 +392,3 @@ pub const AttributeProto = struct {
         }
     }
 };
-
