@@ -15,6 +15,5 @@ Transpose
 Ceil
 Identity
 LeakyRelu
-Mean
 Mul
 Split

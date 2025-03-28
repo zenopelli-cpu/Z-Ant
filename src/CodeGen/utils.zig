@@ -142,6 +142,17 @@ pub inline fn getConstantTensorDims(nodeProto: *NodeProto) ![]const i64 {
     return if (nodeProto.attribute[0].t) |tensorProto| tensorProto.dims else error.ConstantTensorAttributeNotAvailable;
 }
 
+/// This method search for the existance of a Tensor named "tensorName" inside the onnx model.graph.value_info array.
+/// If founded return its shape, else returns null.
+pub fn getTensorShape(tensorName: []const u8) ?[]i64 {
+    for (globals.onnxModel.graph.?.value_info) |vi| {
+        if (std.mem.eql(u8, vi.name.?, tensorName)) {
+            return vi.type.?.tensor_type.?.shape.?.shape;
+        }
+    }
+
+    return null;
+}
 // -------------------- SETTERS --------------------
 
 // Marks output tensors as ready for computation in all the graph
@@ -481,6 +492,7 @@ pub fn i64SliceToUsizeArrayString(values: []const i64) ![]const u8 {
     return res_string;
 }
 
+// ----------------- FILE MANAGEMENT -----------------
 // Copy file from src to dst
 pub fn copyFile(src: []const u8, dst: []const u8) !void {
     const src_file = try std.fs.cwd().openFile(src, .{});
@@ -496,7 +508,6 @@ pub fn copyFile(src: []const u8, dst: []const u8) !void {
 }
 
 // Read the user_tests json file and return a list of test cases
-
 pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Parsed([]tests.UserTest(T)) {
     const user_tests_file = try std.fs.cwd().openFile(user_tests_path, .{});
     defer user_tests_file.close();
