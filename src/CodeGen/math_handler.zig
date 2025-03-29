@@ -1781,52 +1781,70 @@ inline fn write_split(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try writer.print(
             \\
             \\    // Convert split sizes from i64 to usize
-            \\    var usize_split_sizes = allocator.alloc(usize, {s}.len) catch @panic("Out of memory");
+            \\    const usize_split_sizes = allocator.alloc(usize, {s}.len) catch @panic("Out of memory");
             \\    defer allocator.free(usize_split_sizes);
             \\    for ({s}, 0..) |size, i| {{
             \\        usize_split_sizes[i] = @intCast(size);
             \\    }}
             \\
             \\    // Call split_lean with the temporary tensors
-            \\    tensMath.split_lean(T, {s}, {}, usize_split_sizes, &temp_tensors) catch unreachable;
+            \\    tensMath.split_lean(T, {s}, {d}, usize_split_sizes, &temp_tensors) catch unreachable;
         , .{ split_sizes_str, split_sizes_str, input_tensor_string, axis });
     } else {
+        // Get the proper axis value string
+        const axis_str = if (axis < 0)
+            try std.fmt.allocPrint(allocator, "@intCast((@as(i64, @intCast({s}.shape.len)) + {d}) %% @as(i64, @intCast({s}.shape.len)))", .{ input_tensor_string, axis, input_tensor_string })
+        else
+            try std.fmt.allocPrint(allocator, "{d}", .{axis});
+        defer allocator.free(axis_str);
+
         try writer.print(
             \\
-            \\    // Call split_lean with null split sizes
-            \\    tensMath.split_lean(T, {s}, {}, null, &temp_tensors) catch unreachable;
-        , .{ input_tensor_string, axis });
+            \\    // Create default split size array for evenly dividing the tensor
+            \\    const dim_size = {s}.shape[{s}];
+            \\    const num_splits = {d};
+            \\    if (dim_size % num_splits != 0) @panic("Cannot evenly split dimension");
+            \\    const split_size = dim_size / num_splits;
+            \\    
+            \\    const default_split_sizes = allocator.alloc(usize, num_splits) catch @panic("Out of memory");
+            \\    defer allocator.free(default_split_sizes);
+            \\    for (default_split_sizes) |*split_size_item| {{
+            \\        split_size_item.* = split_size;
+            \\    }}
+            \\
+            \\    // Call split_lean with default split sizes
+            \\    tensMath.split_lean(T, {s}, {d}, default_split_sizes, &temp_tensors) catch unreachable;
+        , .{ input_tensor_string, axis_str, node.outputs.items.len, input_tensor_string, axis });
     }
 
     // Now copy the data from temp_tensors to the output tensors
     try writer.print(
         \\
-        \\    // Copy the temporary tensor data to the output tensors
+        \\    // Copy data to existing output tensor arrays
         \\    for (temp_tensors, 0..) |*src, i| {{
-        \\        // Create new data storage
-        \\        const new_data = allocator.alloc(T, src.size) catch @panic("Out of memory");
-        \\        defer allocator.free(new_data);
-        \\        @memcpy(new_data, src.data);
-        \\
-        \\        // Create new shape storage
-        \\        const new_shape = allocator.dupe(usize, src.shape) catch @panic("Out of memory");
-        \\        defer allocator.free(new_shape);
-        \\        // Free existing data if needed
-        \\        if (output_ptrs[i].data.len > 0 and output_ptrs[i].owns_memory) {{
-        \\            allocator.free(output_ptrs[i].data);
+        \\        // Copy data directly to the existing array
+        \\        const size_to_copy = @min(src.size, output_ptrs[i].size);
+        \\        if (size_to_copy > 0) {{
+        \\            @memcpy(output_ptrs[i].data[0..size_to_copy], src.data[0..size_to_copy]);
         \\        }}
         \\
-        \\        // Free existing shape if needed
-        \\        if (output_ptrs[i].shape.len > 0 and output_ptrs[i].owns_memory) {{
-        \\            allocator.free(output_ptrs[i].shape);
+        \\        // Update the shape if needed
+        \\        if (!output_ptrs[i].owns_memory) {{
+        \\            // Shape is pre-allocated statically, just update if needed
+        \\            const shape_size_to_copy = @min(src.shape.len, output_ptrs[i].shape.len);
+        \\            if (shape_size_to_copy > 0) {{
+        \\                @memcpy(output_ptrs[i].shape[0..shape_size_to_copy], src.shape[0..shape_size_to_copy]);
+        \\            }}
+        \\        }} else {{
+        \\            // This is a dynamically allocated shape, replace it
+        \\            if (output_ptrs[i].shape.len > 0) {{
+        \\                allocator.free(output_ptrs[i].shape);
+        \\            }}
+        \\            output_ptrs[i].shape = allocator.dupe(usize, src.shape) catch @panic("Out of memory");
         \\        }}
         \\
-        \\        // Set the new data and shape
-        \\        output_ptrs[i].data = new_data;
-        \\        output_ptrs[i].shape = new_shape;
+        \\        // Update the size
         \\        output_ptrs[i].size = src.size;
-        \\        output_ptrs[i].allocator = &allocator;
-        \\        output_ptrs[i].owns_memory = true;
         \\    }}
     , .{});
 

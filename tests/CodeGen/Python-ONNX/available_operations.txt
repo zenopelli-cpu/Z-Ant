@@ -1,5 +1,6 @@
 Gemm
 <<<<<<< HEAD
+<<<<<<< HEAD
 Resize
 =======
 Div
@@ -21,3 +22,6 @@ LeakyRelu
 Mul
 Split
 >>>>>>> feature
+=======
+Split
+>>>>>>> 391eb5a26815cde5088bf7884ad5daf8efc5de65
