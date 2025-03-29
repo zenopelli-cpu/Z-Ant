@@ -1,2 +1,23 @@
 Gemm
+<<<<<<< HEAD
 Resize
+=======
+Div
+Add
+Concat
+Conv
+Div
+Gather
+MatMul
+MaxPool
+Relu
+Reshape
+Sigmoid
+Slice
+Transpose
+Ceil
+Identity
+LeakyRelu
+Mul
+Split
+>>>>>>> feature

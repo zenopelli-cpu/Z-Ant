@@ -29,7 +29,7 @@ const globals = @import("globals.zig");
 pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Add")) {
         //https://onnx.ai/onnx/operators/onnx__Add.html
-        readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
+        try compute_Add_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Ceil")) {
         //https://onnx.ai/onnx/operators/onnx__Ceil.html
         try compute_ceil_output_shape(readyNode);
@@ -107,6 +107,16 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
 }
 
 // ---------------- SHAPE COMPUTATION METHODS ----------------
+inline fn compute_Add_output_shape(readyNode: *ReadyNode) !void {
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        shape = readyNode.inputs.items[0].shape;
+    }
+    readyNode.outputs.items[0].shape = shape;
+}
 
 inline fn compute_constant_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n====== compute_constant_output_shape node: {s}======", .{readyNode.nodeProto.name.?});

@@ -21,6 +21,8 @@ const codegen_options = @import("codegen_options");
 pub var readyGraph: std.ArrayList(ReadyNode) = std.ArrayList(ReadyNode).init(allocator);
 pub var tensorHashMap: std.StringHashMap(ReadyTensor) = std.StringHashMap(ReadyTensor).init(allocator); //key: TensorProto.name
 
+pub var onnxModel: ModelOnnx = undefined; //initialized in setGlobalAttributes(), it is mandatory
+
 pub const io_struct = struct {
     name: []const u8,
     shape: []const i64,
@@ -152,9 +154,13 @@ pub const ReadyNode = struct {
 
 pub fn setGlobalAttributes(model: ModelOnnx) !void {
     //initializing global attributes
+    onnxModel = model;
+
+    //ready graph
     readyGraph.deinit();
     readyGraph = std.ArrayList(ReadyNode).init(allocator);
 
+    //hash map
     tensorHashMap.deinit();
     tensorHashMap = std.StringHashMap(ReadyTensor).init(allocator);
 
