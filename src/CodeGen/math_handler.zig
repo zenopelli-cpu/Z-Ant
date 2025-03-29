@@ -1899,40 +1899,41 @@ inline fn write_resize(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     var data_sizes_string: []const u8 = "null";
     defer allocator.free(data_sizes_string);
 
-    //for each other optional input:
-    for (1..node.inputs.items.len) |i| {
-        if (std.mem.indexOf(u8, node.inputs.items[i].name, "roi")) |_| { //----create tensor_roi_string
-            if (node.inputs.items[i].tag == globals.TensorTag.INITIALIZER) {
-                tensor_roi_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                    "@constCast(&param_lib.tensor_",
-                    try utils.getSanitizedName(node.inputs.items[i].name),
-                    ")",
-                });
-            } else {
-                tensor_roi_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name) });
-            }
-        } else if (std.mem.indexOf(u8, node.inputs.items[i].name, "scales")) |_| { //----create tensor_scales_string
-            if (node.inputs.items[i].tag == globals.TensorTag.INITIALIZER) {
-                data_scales_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                    "@constCast(&param_lib.tensor_",
-                    try utils.getSanitizedName(node.inputs.items[i].name),
-                    ".data",
-                    ")",
-                });
-            } else {
-                data_scales_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name), ".data" });
-            }
-        } else if (std.mem.indexOf(u8, node.inputs.items[i].name, "sizes")) |_| { //----create tensor_sizes_string
-            if (node.inputs.items[i].tag == globals.TensorTag.INITIALIZER) {
-                data_sizes_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                    "@constCast(&param_lib.tensor_",
-                    try utils.getSanitizedName(node.inputs.items[i].name),
-                    ".data",
-                    ")",
-                });
-            } else {
-                data_sizes_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name), ".data" });
-            }
+    if (node.inputs.items.len >= 2 and !std.mem.eql(u8, node.inputs.items[1].name, "")) { //----create tensor_roi_string
+        if (node.inputs.items[1].tag == globals.TensorTag.INITIALIZER) {
+            tensor_roi_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(node.inputs.items[1].name),
+                ")",
+            });
+        } else {
+            tensor_roi_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[1].name) });
+        }
+    }
+
+    if (node.inputs.items.len >= 3 and !std.mem.eql(u8, node.inputs.items[2].name, "")) { //----create tensor_scales_string
+        if (node.inputs.items[2].tag == globals.TensorTag.INITIALIZER) {
+            data_scales_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(node.inputs.items[2].name),
+                ".data",
+                ")",
+            });
+        } else {
+            data_scales_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[2].name), ".data" });
+        }
+    }
+
+    if (node.inputs.items.len >= 4 and !std.mem.eql(u8, node.inputs.items[3].name, "")) { //----create tensor_sizes_string
+        if (node.inputs.items[3].tag == globals.TensorTag.INITIALIZER) {
+            data_sizes_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(node.inputs.items[3].name),
+                ".data",
+                ")",
+            });
+        } else {
+            data_sizes_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name), ".data" });
         }
     }
 
