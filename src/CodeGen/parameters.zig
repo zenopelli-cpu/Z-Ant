@@ -141,12 +141,12 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
 /// - `T`: The type of data in the tensor.
 /// - `data`: The data array.
 pub inline fn writeArrayData(writer: std.fs.File.Writer, comptime T: type, data: []const T) !void {
-    try writer.print(
-        \\{}
-    , .{data[0]});
-    for (1..data.len) |i| {
+    for (0..data.len) |i| {
+        if (i > 0) try writer.print(
+            \\,
+        , .{});
         try writer.print(
-            \\, {}
+            \\ {}
         , .{data[i]});
     }
 }

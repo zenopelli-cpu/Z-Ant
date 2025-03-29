@@ -42,6 +42,44 @@ pub fn resize(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales
     return output;
 }
 
+// pub fn resize(allocator: std.mem.Allocator, input: Tensor, scales: ?[]const f32, sizes: ?[]const i64, mode: []const u8) !Tensor {
+//     //check if mode exists:
+//     if (!(std.mem.eql(u8, mode, "nearest") or std.mem.eql(u8, mode, "linear") or std.mem.eql(u8, mode, "cubic"))) {
+//         return TensorError.UnsupportedMode;
+//     }
+
+//     // Add a default coordinate transformation mode
+//     const coordinate_transformation_mode = "asymmetric";
+
+//     //check args: there should be one and only one between scales and sizes
+//     if (scales == null and sizes == null) {
+//         return TensorError.InvalidInput;
+//     }
+//     if (scales != null and sizes != null) {
+//         return TensorError.InvalidInput;
+//     }
+
+//     // Create output tensor
+//     var output = try Tensor(input.dataType).init(allocator);
+
+//     //call rezise_lean
+//     if (scales) |s| {
+//         if (s.len != input.shape.len) {
+//             return TensorError.InvalidInput;
+//         } else {
+//             try rezise_lean(input.dataType, input, mode, scales, null, coordinate_transformation_mode, &output);
+//         }
+//     } else if (sizes) |sz| {
+//         if (sz.len != input.shape.len) {
+//             return TensorError.InvalidInput;
+//         } else {
+//             try rezise_lean(input.dataType, input, mode, null, sizes, coordinate_transformation_mode, &output);
+//         }
+//     }
+
+//     return output;
+// }
+
 //resize lean
 pub fn rezise_lean(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales: ?[]const f32, sizes: ?[]const usize, coordinate_transformation_mode: []const u8, output_tensor: *Tensor(T)) !void {
 
@@ -93,7 +131,7 @@ pub fn get_resize_output_shape(input_shape: []const usize, scales: ?[]const f32,
     if (scales == null and sizes == null) {
         return TensorError.InvalidInput;
     }
-    if (scales != null and sizes != null) {
+    if (scales != null and sizes != null) { //TODO!!! why this??? is wrong!
         return TensorError.InvalidInput;
     }
 

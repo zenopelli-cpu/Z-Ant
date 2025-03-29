@@ -94,6 +94,16 @@ pub fn main() !void {
         // Create relative tests
         try codeGen.tests.writeSlimTestFile(trimmed_line, generated_path);
 
+        // Copy user test file into the generated test file
+        const dataset_test_model_path = try std.fmt.allocPrint(allocator, "datasets/oneOpModels/{s}_0_user_tests.json", .{trimmed_line});
+        defer allocator.free(dataset_test_model_path);
+
+        const generated_test_model_path = try std.fmt.allocPrint(allocator, "generated/oneOpModels/{s}/user_tests.json", .{trimmed_line});
+        defer allocator.free(generated_test_model_path);
+
+        try codeGen.utils.copyFile(dataset_test_model_path, generated_test_model_path);
+        std.debug.print("Written user test for {s}", .{trimmed_line});
+
         // Add relative one op test to global tests file
         try test_oneop_writer.print("\t _ = @import(\"{s}/test_{s}.zig\"); \n", .{ trimmed_line, trimmed_line });
 

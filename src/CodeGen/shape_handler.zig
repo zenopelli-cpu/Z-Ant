@@ -29,7 +29,7 @@ const globals = @import("globals.zig");
 pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Add")) {
         //https://onnx.ai/onnx/operators/onnx__Add.html
-        readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
+        try compute_Add_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Ceil")) {
         //https://onnx.ai/onnx/operators/onnx__Ceil.html
         try compute_ceil_output_shape(readyNode);
@@ -68,7 +68,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "OneHot")) {
         // TODO
         return error.OperationWIP;
-    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mean")) {
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "ReduceMean")) {
         try compute_reducemean_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Relu")) {
         //https://onnx.ai/onnx/operators/onnx__Relu.html
@@ -77,8 +77,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         // https://onnx.ai/onnx/operators/onnx__Reshape.html
         try compute_reshape_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Resize")) {
-        // TODO
-        return error.OperationWIP;
+        try compute_resize_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Shape")) {
         try compute_shape_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sigmoid")) {
@@ -108,6 +107,16 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
 }
 
 // ---------------- SHAPE COMPUTATION METHODS ----------------
+inline fn compute_Add_output_shape(readyNode: *ReadyNode) !void {
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        shape = readyNode.inputs.items[0].shape;
+    }
+    readyNode.outputs.items[0].shape = shape;
+}
 
 inline fn compute_constant_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n====== compute_constant_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
@@ -317,12 +326,15 @@ inline fn compute_reducemean_output_shape(readyNode: *ReadyNode) !void {
     // Get attributes
     var keepdims: bool = true;
     var noop_with_empty_axes: bool = false;
+    var axes_attr: ?[]i64 = null;
 
     for (readyNode.nodeProto.attribute) |attr| {
         if (std.mem.eql(u8, attr.name, "keepdims")) {
             if (attr.type == AttributeType.INT) keepdims = attr.i != 0;
         } else if (std.mem.eql(u8, attr.name, "noop_with_empty_axes")) {
             if (attr.type == AttributeType.INT) noop_with_empty_axes = attr.i != 0;
+        } else if (std.mem.eql(u8, attr.name, "axes")) {
+            if (attr.type == AttributeType.INTS) axes_attr = attr.ints;
         }
     }
 
@@ -333,6 +345,9 @@ inline fn compute_reducemean_output_shape(readyNode: *ReadyNode) !void {
         readyNode.inputs.items[1].tensorProto.?.int64_data != null)
     {
         axes = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
+    } else if (axes_attr != null) {
+        // Use axes from attribute if not found in inputs
+        axes = axes_attr;
     }
 
     std.debug.print("\n input_shape: []usize = {any}", .{input_shape});
@@ -852,4 +867,86 @@ inline fn compute_split_output_shape(readyNode: *ReadyNode) !void {
         readyNode.outputs.items[i].shape = try utils.usizeSliceToI64Slice(shape);
         std.debug.print("\n output[{}] shape: []i64 = {any}", .{ i, readyNode.outputs.items[i].shape });
     }
+}
+
+pub fn compute_resize_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_resize_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // Extract scales and sizes from inputs
+    var scales: ?[]const f32 = null;
+    var sizes: ?[]const i64 = null;
+
+    std.debug.print("\n KKKKKKKKKKK {}", .{readyNode.inputs.items.len});
+    for (readyNode.inputs.items) |i| {
+        i.print(true);
+    }
+    // ROI is at index 1, scales at index 2, sizes at index 3
+    if (readyNode.inputs.items.len > 2 and readyNode.inputs.items[2].tensorProto != null) {
+        std.debug.print("\n AAAAAAAAAA", .{});
+        if (readyNode.inputs.items[2].tensorProto.?.float_data != null) {
+            std.debug.print("\n aaaaaaaaaaaaaaaa", .{});
+
+            scales = readyNode.inputs.items[2].tensorProto.?.float_data.?;
+            std.debug.print("\n scales: []f32 = {any}", .{scales});
+        }
+    }
+    if (readyNode.inputs.items.len > 3 and readyNode.inputs.items[3].tensorProto != null) {
+        std.debug.print("\n BBBBBBBBBBB", .{});
+
+        if (readyNode.inputs.items[3].tensorProto.?.int64_data != null) {
+            std.debug.print("\n bbbbbbbbbbbbbbbbbb", .{});
+
+            sizes = readyNode.inputs.items[3].tensorProto.?.int64_data.?;
+            std.debug.print("\n sizes: []i64 = {any}", .{sizes});
+        }
+    }
+
+    // Convert input_shape to usize for the computation function
+    const usize_input_shape = try utils.i64SliceToUsizeSlice(input_shape);
+    defer allocator.free(usize_input_shape);
+
+    // Convert sizes to usize if present --------> TODO why not using utils.sliceToUsizeSlice() ??
+    var usize_sizes: ?[]const usize = null;
+    var sizes_buffer: []usize = undefined;
+    defer if (usize_sizes != null) allocator.free(sizes_buffer);
+
+    if (sizes) |sz| {
+        sizes_buffer = try allocator.alloc(usize, sz.len);
+        for (sz, 0..) |s, i| {
+            sizes_buffer[i] = @intCast(s);
+        }
+        usize_sizes = sizes_buffer;
+    }
+
+    // Calculate output shape using existing function
+    const output_shape = try tensorMath.get_resize_output_shape(usize_input_shape, scales, usize_sizes);
+    defer allocator.free(output_shape);
+
+    // Convert back to i64 for storing in readyNode
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+pub fn compute_resize_output_shape_generic(comptime T: type, input_shape: []const T, scales: ?[]const f32, sizes: ?[]const T) ![]T {
+    // Make sure we support all parameter types
+    if (scales != null) {
+        // Calculate output shape based on scales
+        var output_shape = try allocator.alloc(T, input_shape.len);
+
+        for (0..input_shape.len) |i| {
+            output_shape[i] = @intFromFloat(@as(f32, @floatFromInt(input_shape[i])) * scales.?[i]);
+        }
+
+        return output_shape;
+    }
+
+    if (sizes != null) {
+        // Use sizes directly
+        return sizes.?;
+    }
+
+    // If neither scales nor sizes is provided, return the input shape
+    return input_shape;
 }

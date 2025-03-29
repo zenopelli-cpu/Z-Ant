@@ -84,6 +84,7 @@ pub fn reduce_mean(comptime T: anytype, tensor: *Tensor(T), axes: ?[]const i64, 
 }
 
 /// Lean version of reduce_mean that operates on pre-allocated output tensor
+/// Lean version of reduce_mean that operates on pre-allocated output tensor
 pub inline fn lean_reduce_mean(
     comptime T: anytype,
     input_tensor: *Tensor(T),
