@@ -878,16 +878,26 @@ pub fn compute_resize_output_shape(readyNode: *ReadyNode) !void {
     var scales: ?[]const f32 = null;
     var sizes: ?[]const i64 = null;
 
+    std.debug.print("\n KKKKKKKKKKK {}", .{readyNode.inputs.items.len});
+    for (readyNode.inputs.items) |i| {
+        i.print(true);
+    }
     // ROI is at index 1, scales at index 2, sizes at index 3
     if (readyNode.inputs.items.len > 2 and readyNode.inputs.items[2].tensorProto != null) {
+        std.debug.print("\n AAAAAAAAAA", .{});
         if (readyNode.inputs.items[2].tensorProto.?.float_data != null) {
+            std.debug.print("\n aaaaaaaaaaaaaaaa", .{});
+
             scales = readyNode.inputs.items[2].tensorProto.?.float_data.?;
             std.debug.print("\n scales: []f32 = {any}", .{scales});
         }
     }
-
     if (readyNode.inputs.items.len > 3 and readyNode.inputs.items[3].tensorProto != null) {
+        std.debug.print("\n BBBBBBBBBBB", .{});
+
         if (readyNode.inputs.items[3].tensorProto.?.int64_data != null) {
+            std.debug.print("\n bbbbbbbbbbbbbbbbbb", .{});
+
             sizes = readyNode.inputs.items[3].tensorProto.?.int64_data.?;
             std.debug.print("\n sizes: []i64 = {any}", .{sizes});
         }
@@ -897,7 +907,7 @@ pub fn compute_resize_output_shape(readyNode: *ReadyNode) !void {
     const usize_input_shape = try utils.i64SliceToUsizeSlice(input_shape);
     defer allocator.free(usize_input_shape);
 
-    // Convert sizes to usize if present
+    // Convert sizes to usize if present --------> TODO why not using utils.sliceToUsizeSlice() ??
     var usize_sizes: ?[]const usize = null;
     var sizes_buffer: []usize = undefined;
     defer if (usize_sizes != null) allocator.free(sizes_buffer);
