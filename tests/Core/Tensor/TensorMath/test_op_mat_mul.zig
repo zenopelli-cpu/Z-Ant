@@ -6,16 +6,18 @@ const Tensor = zant.core.tensor.Tensor;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 const ErrorHandler = zant.utils.error_handler;
 
-test "MatMul 2x2" {
-    std.debug.print("\n     test:MatMul 2x2", .{});
+test "MatMul 4x4" {
+    std.debug.print("\n     test:MatMul 4x4", .{});
 
     const allocator = pkgAllocator.allocator;
 
-    var shape: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
+    var shape: [2]usize = [_]usize{ 4, 4 }; // 2x2 matrix
 
-    var inputArray: [2][2]f32 = [_][2]f32{
-        [_]f32{ 1.0, 2.0 },
-        [_]f32{ 4.0, 5.0 },
+    var inputArray: [4][4]f32 = [_][4]f32{
+        [_]f32{ 1.0, 2.0, 3.0, 4.0 },
+        [_]f32{ 5.0, 6.0, 7.0, 8.0 },
+        [_]f32{ 9.0, 10.0, 11.0, 12.0 },
+        [_]f32{ 13.0, 14.0, 15.0, 16.0 },
     };
 
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
@@ -23,13 +25,38 @@ test "MatMul 2x2" {
 
     var result_tensor = try TensMath.mat_mul(f32, &t1, &t2);
 
-    try std.testing.expect(9.0 == result_tensor.data[0]);
-    try std.testing.expect(12.0 == result_tensor.data[1]);
+    try std.testing.expect(1.0 + 2.0 * 5.0 + 3.0 * 9.0 + 4.0 * 13.0 == result_tensor.data[0]);
+    try std.testing.expect(1.0 * 2.0 + 5.0 + 2.0 * 6.0 + 3.0 * 10.0 + 4.0 * 14.0 == result_tensor.data[1]);
 
     result_tensor.deinit();
     t1.deinit();
     t2.deinit();
 }
+
+// test "MatMul 2x2" {
+//     std.debug.print("\n     test:MatMul 2x2", .{});
+
+//     const allocator = pkgAllocator.allocator;
+
+//     var shape: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
+
+//     var inputArray: [2][2]f32 = [_][2]f32{
+//         [_]f32{ 1.0, 2.0 },
+//         [_]f32{ 4.0, 5.0 },
+//     };
+
+//     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+//     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+
+//     var result_tensor = try TensMath.mat_mul(f32, &t1, &t2);
+
+//     try std.testing.expect(9.0 == result_tensor.data[0]);
+//     try std.testing.expect(12.0 == result_tensor.data[1]);
+
+//     result_tensor.deinit();
+//     t1.deinit();
+//     t2.deinit();
+// }
 
 test "Error when input tensors have incompatible sizes for MatMul" {
     const allocator = pkgAllocator.allocator;
