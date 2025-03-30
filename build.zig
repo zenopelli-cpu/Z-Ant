@@ -205,4 +205,36 @@ pub fn build(b: *std.Build) void {
     const run_test_onnx_parser = b.addRunArtifact(test_onnx_parser);
     const step_test_onnx_parser = b.step("onnx-parser", "Run generated library tests");
     step_test_onnx_parser.dependOn(&run_test_onnx_parser.step);
+
+    // ************************************************ NATIVE GUI ************************************************
+
+    {
+        const dvui_dep = b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .sdl, .sdl3 = true });
+
+        const gui_exe = b.addExecutable(.{
+            .name = "gui",
+            .root_source_file = b.path("gui/sdl/sdl-standalone.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+
+        // Can either link the backend ourselves:
+        // const dvui_mod = dvui_dep.module("dvui");
+        // const sdl = dvui_dep.module("sdl");
+        // @import("dvui").linkBackend(dvui_mod, sdl);
+        // exe.root_module.addImport("dvui", dvui_mod);
+
+        // Or use a prelinked one:
+        gui_exe.root_module.addImport("dvui", dvui_dep.module("dvui_sdl"));
+
+        const compile_step = b.step("compile-gui", "Compile gui");
+        compile_step.dependOn(&b.addInstallArtifact(gui_exe, .{}).step);
+        b.getInstallStep().dependOn(compile_step);
+
+        const run_cmd = b.addRunArtifact(gui_exe);
+        run_cmd.step.dependOn(compile_step);
+
+        const run_step = b.step("gui", "Run gui");
+        run_step.dependOn(&run_cmd.step);
+    }
 }
