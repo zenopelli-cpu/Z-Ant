@@ -65,6 +65,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mul")) {
         //https://onnx.ai/onnx/operators/onnx__Mul.html
         try compute_mul_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Neg")) {
+        //https://onnx.ai/onnx/operators/onnx__Neg.html
+        try compute_neg_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "OneHot")) {
         // TODO
         return error.OperationWIP;
@@ -939,4 +942,20 @@ pub fn compute_resize_output_shape_generic(comptime T: type, input_shape: []cons
 
     // If neither scales nor sizes is provided, return the input shape
     return input_shape;
+}
+
+inline fn compute_neg_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_neg_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // Neg operation preserves the input shape - use the utility function
+    const usize_input_shape = try utils.i64SliceToUsizeSlice(input_shape);
+    defer allocator.free(usize_input_shape);
+
+    const output_shape = try tensorMath.get_neg_output_shape(usize_input_shape);
+    defer allocator.free(output_shape);
+
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }

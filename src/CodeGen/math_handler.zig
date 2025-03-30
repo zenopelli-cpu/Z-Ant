@@ -76,6 +76,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_maxPool(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Mul")) {
         try write_mul(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Neg")) {
+        try write_neg(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "OneHot")) {
         try writer.writeAll("// Handle OneHot\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "ReduceMean")) {
@@ -2000,4 +2002,35 @@ inline fn write_resize(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             try utils.getSanitizedName(node.outputs.items[0].name), //output
         },
     );
+}
+
+inline fn write_neg(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Neg.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input tensor
+    // OUTPUTS:
+    //      - Y (heterogeneous) - T: Output tensor with flipped elements
+
+    // Create input tensor string
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+
+    if (node.inputs.items[0].tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name) });
+    }
+
+    _ = try writer.print(
+        \\
+        \\
+        \\    tensMath.neg_lean(T, {s}, &tensor_{s})
+    , .{
+        input_tensor_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
 }

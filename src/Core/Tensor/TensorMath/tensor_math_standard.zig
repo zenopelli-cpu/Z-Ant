@@ -53,6 +53,8 @@ pub const addPaddingAndDilation = op_padding.addPaddingAndDilation;
 pub const neg = op_neg.neg;
 pub const neg_lean = op_neg.neg_lean;
 pub const get_neg_output_shape = op_neg.get_neg_output_shape;
+pub const flip = op_neg.flip_matrix;
+pub const flip_lean = op_neg.flip_matrix_lean;
 
 pub const resize = op_resize.resize;
 pub const get_resize_output_shape = op_resize.get_resize_output_shape;
