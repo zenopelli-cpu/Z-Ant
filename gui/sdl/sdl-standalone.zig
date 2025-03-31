@@ -371,11 +371,8 @@ pub fn runLibGen() !void {
     var arch_flag: ?[]const u8 = null;
     if (target_arch_str) |str| {
         if (!std.mem.eql(u8, str, "")) {
-            arch_flag = try std.fmt.allocPrint(gpa, "-Dtarget=\"{s}\"", .{str});
-            if (arch_flag) |flag| {
-                //std.debug.print("\n{s}\n", .{flag});
-                try args.append(flag);
-            }
+            arch_flag = try std.fmt.allocPrint(gpa, "-Dtarget={s}", .{str});
+            try args.append(arch_flag.?);
         }
     }
     defer if (arch_flag) |flag| gpa.free(flag);
@@ -383,11 +380,8 @@ pub fn runLibGen() !void {
     var cpu_flag: ?[]const u8 = null;
     if (target_cpu_str) |str| {
         if (!std.mem.eql(u8, str, "")) {
-            cpu_flag = try std.fmt.allocPrint(gpa, "-Dcpu=\"{s}\"", .{str});
-            if (arch_flag) |flag| {
-                //std.debug.print("\n{s}\n", .{flag});
-                try args.append(flag);
-            }
+            cpu_flag = try std.fmt.allocPrint(gpa, "-Dcpu={s}", .{str});
+            try args.append(cpu_flag.?);
         }
     }
     defer if (cpu_flag) |flag| gpa.free(flag);
@@ -445,7 +439,7 @@ pub fn pageDeployOptions() !void {
             if (try dvui.button(@src(), "Generate Static Library", .{}, .{ .gravity_x = 0.5, .padding = dvui.Rect.all(15), .color_fill = .{ .color = orange500 }, .color_fill_hover = .{ .color = orange600 }, .color_fill_press = .{ .color = orange700 }, .color_text = .{ .color = orange950 } })) {
                 generating = true;
                 target_arch_str = try gpa.dupeZ(u8, target_arch.getText());
-                target_cpu_str = try gpa.dupeZ(u8, target_arch.getText());
+                target_cpu_str = try gpa.dupeZ(u8, target_cpu.getText());
                 _ = try std.Thread.spawn(.{}, runLibGen, .{});
                 page = .generating_library;
             }
