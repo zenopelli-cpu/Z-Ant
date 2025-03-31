@@ -285,7 +285,9 @@ pub fn concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensor
 pub fn get_concatenate_output_shape(tensors: []const []const usize, axis: isize) ![]usize {
     // Ensure there is at least one tensor to concatenate
     if (tensors.len == 0) return TensorMathError.EmptyTensorList;
-
+    std.debug.print("\n[DEBUG] get_concatenate_output_shape - Starting concatenation", .{});
+    std.debug.print("\n[DEBUG] tensors: {any}", .{tensors});
+    std.debug.print("\n[DEBUG] axis: {d}", .{axis});
     // Determine the rank (number of dimensions) from the first tensor
     const rank = tensors[0].len;
 
