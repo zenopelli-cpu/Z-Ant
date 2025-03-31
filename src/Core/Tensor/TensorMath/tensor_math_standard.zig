@@ -63,8 +63,11 @@ pub const get_split_output_shapes = op_split.get_split_output_shapes;
 const op_mat_mul = @import("op_mat_mul.zig");
 const new_op_mat_mul = @import("new_op_mat_mul.zig");
 //---matmul
-pub const mat_mul = new_op_mat_mul.mat_mul;
-pub const mat_mul_lean = new_op_mat_mul.lean_mat_mul;
+pub const mat_mul = op_mat_mul.mat_mul;
+pub const mat_mul_lean = op_mat_mul.lean_mat_mul;
+
+pub const new_mat_mul = new_op_mat_mul.mat_mul;
+pub const new_mat_mul_lean = new_op_mat_mul.lean_mat_mul;
 
 pub const dot_product_tensor_flat = op_mat_mul.dot_product_tensor_flat;
 

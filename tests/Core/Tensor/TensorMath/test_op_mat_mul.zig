@@ -6,31 +6,95 @@ const Tensor = zant.core.tensor.Tensor;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 const ErrorHandler = zant.utils.error_handler;
 
-test "MatMul 4x4" {
-    std.debug.print("\n     test:MatMul 4x4", .{});
+test "new MatMul Square N" {
 
     const allocator = pkgAllocator.allocator;
+    const N = std.math.pow(usize, 2, 7);
+    
+    std.debug.print("\n     test:MatMul Square {d}\n", .{N});
+    var shape: [2]usize = [_]usize{ N, N }; // 2x2 matrix
 
-    var shape: [2]usize = [_]usize{ 4, 4 }; // 2x2 matrix
+    // Generate two random array with 2^5 x 2^5
 
-    var inputArray: [4][4]f32 = [_][4]f32{
-        [_]f32{ 1.0, 2.0, 3.0, 4.0 },
-        [_]f32{ 5.0, 6.0, 7.0, 8.0 },
-        [_]f32{ 9.0, 10.0, 11.0, 12.0 },
-        [_]f32{ 13.0, 14.0, 15.0, 16.0 },
-    };
+    var input_data_size: usize = 1;
+    for (shape) |dim| {
+        input_data_size *= dim;
+    }
 
-    var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
-    var t2 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    // Create input data array directly instead of ArrayList
+    var inputArray1 = try allocator.alloc(f32, input_data_size);
+    defer allocator.free(inputArray1);
+    var inputArray2 = try allocator.alloc(f32, input_data_size);
+    defer allocator.free(inputArray2);
 
-    var result_tensor = try TensMath.mat_mul(f32, &t1, &t2);
+    // Generate random data
+    var seed: u64 = undefined;
+    try std.posix.getrandom(std.mem.asBytes(&seed));
+    var prng = std.Random.DefaultPrng.init(seed);
+    const rand = prng.random();
 
-    try std.testing.expect(1.0 + 2.0 * 5.0 + 3.0 * 9.0 + 4.0 * 13.0 == result_tensor.data[0]);
-    try std.testing.expect(1.0 * 2.0 + 5.0 + 2.0 * 6.0 + 3.0 * 10.0 + 4.0 * 14.0 == result_tensor.data[1]);
+    // Fill with random values
+    for (0..input_data_size) |i| {
+        inputArray1[i] = rand.float(f32) * 100;
+        inputArray2[i] = rand.float(f32) * 100;
+    }
+    
+    //Allocate input tensors
+    var t1 = try Tensor(f32).fromArray(&allocator, inputArray1, &shape);
+    defer t1.deinit();
+    var t2 = try Tensor(f32).fromArray(&allocator, inputArray2, &shape);
+    defer t2.deinit();
+    
+    //Allocate output tensors
+    // Calculate time 
+    
+    // Benchmark old implementation
+    var timer = try std.time.Timer.start();
+    const old_start = timer.lap();
+    var old = try TensMath.mat_mul(f32, &t1, &t2);
+    defer old.deinit();
+    const old_end = timer.lap();
+    const old_time_ns = old_end - old_start;
+    
+    // Benchmark new implementation
+    const new_start = timer.lap();
+    var new = try TensMath.new_mat_mul(f32, &t1, &t2);
+    const new_end = timer.lap();
+    defer new.deinit();
+    const new_time_ns = new_end - new_start;
+    
+    // Print benchmark results
+    std.debug.print("\nBenchmark Results:\n", .{});
+    std.debug.print("Original mat_mul: {d} ns ({d:.3} ms)\n", .{old_time_ns, @as(f64, @floatFromInt(old_time_ns)) / 1_000_000.0});
+    std.debug.print("New mat_mul:     {d} ns ({d:.3} ms)\n", .{new_time_ns, @as(f64, @floatFromInt(new_time_ns)) / 1_000_000.0});
+    
+    // Calculate speedup
+    const speedup = @as(f64, @floatFromInt(old_time_ns)) / @as(f64, @floatFromInt(new_time_ns));
+    std.debug.print("Speedup:         {d:.2}x\n\n", .{speedup});
+    
+    // std.debug.print("Printing OLD: \n", .{});
+    // for (0..N) |x| {
+    //     for (0..N) |y| {
+    //         std.debug.print("{d:3} ", .{old.data[x*N+y]});
+    //     }
+    //     std.debug.print("\n", .{});
+    // }
+    
+    // std.debug.print("Printing NEW: \n", .{});
+    // for (0..N) |x| {
+    //     for (0..N) |y| {
+    //         std.debug.print("{d:3} ", .{new.data[x*N+y]});
+    //     }
+    //     std.debug.print("\n", .{});
+    // }
 
-    result_tensor.deinit();
-    t1.deinit();
-    t2.deinit();
+    for (0..N) |x| {
+        for (0..N) |y| {
+            try std.testing.expect(old.data[x*N+y] == new.data[x*N+y]);
+        }
+    }
+    
+    
 }
 
 // test "MatMul 2x2" {
