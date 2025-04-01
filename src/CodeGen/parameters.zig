@@ -117,101 +117,22 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
         \\const array_{s} : [{d}]{s} = [_]{s}{{ 
     , .{ name, size, dataTypeString, dataTypeString });
 
-    switch (t.data_type) {
-        .FLOAT => {
-            const data: []f32 = if (t.float_data) |d| d else &[_]f32{};
-            writeArrayData(writer, f32, data) catch return error.f32DataUnavailable;
-        },
-        .INT32 => {
-            if (t.int32_data) |d| {
-                writeArrayData(writer, i32, d) catch return error.i32DataUnavailable;
-            }
-        },
-        .INT64 => {
-            if (t.int64_data) |d| {
-                writeArrayData(writer, i64, d) catch return error.i64DataUnavailable;
-            }
-        },
-        .DOUBLE => {
-            if (t.double_data) |d| {
-                writeArrayData(writer, f64, d) catch return error.f64DataUnavailable;
-            }
-        },
-        .UINT64 => {
-            if (t.uint64_data) |d| {
-                writeArrayData(writer, u64, d) catch return error.u64DataUnavailable;
-            }
-        },
-        .UINT32, .UINT8, .INT8, .UINT16, .INT16, .FLOAT16 => {
-            std.debug.print("\n ERROR!! DataType : {any} not available", .{t.data_type});
-            return error.DataTypeNotAvailable;
-        },
-        else => {
-            const data: []const u8 = if (t.raw_data) |d| d else &[_]u8{};
-            writeArrayRawData(writer, t.data_type, data) catch return error.u8RawDataUnavailable;
-        },
-    }
+    // Select appropriate data storage format
+    if (t.float_data) |d| {
+        writeArrayData(writer, f32, d) catch return error.f32DataUnavailable;
+    } else if (t.int32_data) |d| {
+        writeArrayData(writer, i32, d) catch return error.i32DataUnavailable;
+    } else if (t.int64_data) |d| {
+        writeArrayData(writer, i64, d) catch return error.i64DataUnavailable;
+    } else if (t.double_data) |d| {
+        writeArrayData(writer, f64, d) catch return error.f64DataUnavailable;
+    } else if (t.uint64_data) |d| {
+        writeArrayData(writer, u64, d) catch return error.u64DataUnavailable;
+    } else return error.DataTypeNotAvailable;
 
     try writer.print(
         \\}} ;
     , .{});
-}
-
-/// Converts raw binary tensor data into typed array representation.
-///
-/// - `writer`: The file writer to output generated code.
-/// - `data_type`: The ONNX data type.
-/// - `data`: The raw binary tensor data.
-pub inline fn writeArrayRawData(writer: std.fs.File.Writer, data_type: DataType, data: []const u8) !void {
-    switch (data_type) {
-        .FLOAT => {
-            const float_slice = @as([*]const f32, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 4)];
-            try writeArrayData(writer, f32, float_slice);
-        },
-        .UINT8 => {
-            const uint_slice = @as([*]const u8, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 1)];
-            try writeArrayData(writer, u8, uint_slice);
-        },
-        .INT8 => {
-            const int_slice = @as([*]const i8, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 1)];
-            try writeArrayData(writer, i8, int_slice);
-        },
-        .UINT16 => {
-            const uint_slice = @as([*]const u16, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 2)];
-            try writeArrayData(writer, u16, uint_slice);
-        },
-        .INT16 => {
-            const int_slice = @as([*]const i16, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 2)];
-            try writeArrayData(writer, i16, int_slice);
-        },
-        .INT32 => {
-            const int_slice = @as([*]const i32, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 4)];
-            try writeArrayData(writer, i32, int_slice);
-        },
-        .INT64 => {
-            const int_slice = @as([*]const i64, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 8)];
-            try writeArrayData(writer, i64, int_slice);
-        },
-        .FLOAT16 => {
-            const float_slice = @as([*]const f16, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 2)];
-            try writeArrayData(writer, f16, float_slice);
-        },
-        .DOUBLE => {
-            const double_slice = @as([*]const f64, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 8)];
-            try writeArrayData(writer, f64, double_slice);
-        },
-        .UINT32 => {
-            const uint_slice = @as([*]const u32, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 4)];
-            try writeArrayData(writer, u32, uint_slice);
-        },
-        .UINT64 => {
-            const uint_slice = @as([*]const u64, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 8)];
-            try writeArrayData(writer, u64, uint_slice);
-        },
-        else => {
-            std.debug.print("\n Data type {s} not supported for raw data access \n", .{@tagName(data_type)});
-        },
-    }
 }
 
 /// Writes an array of tensor data.

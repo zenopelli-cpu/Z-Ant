@@ -80,7 +80,7 @@ pub const ReadyTensor = struct {
         return ReadyTensor{
             .name = name,
             .ready = true,
-            .shape = &[_]i64{ 1, 1, 1, 1 }, // it will be changed in the graph creation
+            .shape = networkInput.shape,
             .tensorProto = null,
             .tag = TensorTag.CONSTANT,
         };
@@ -90,7 +90,7 @@ pub const ReadyTensor = struct {
         return ReadyTensor{ //default
             .name = name,
             .ready = false,
-            .shape = &[_]i64{ 1, 1, 1, 1 }, // it will be changed in the graph creation
+            .shape = networkInput.shape,
             .tensorProto = null,
             .tag = TensorTag.LINK,
         };
