@@ -8,7 +8,7 @@ const ArchitectureError = zant.utils.error_handler.ArchitectureError;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 
 // TODO: fetch using zig compiler the size of cache block for target architecture
-const CACHE_BLOCK_SIZE_BYTES: usize = std.atomic.cache_line;
+const CACHE_BLOCK_SIZE_BYTES: usize = 8;
 
 const VEC_WIDTH: usize = std.simd.suggestVectorLength(f32) orelse 4;
 
@@ -69,6 +69,7 @@ pub inline fn mat_mul(
 
     return Y;
 }
+
 pub inline fn lean_mat_mul(
     comptime T: anytype, 
     A: *const Tensor(T), 
@@ -90,9 +91,12 @@ pub inline fn lean_mat_mul(
     //  m colonne
     //  k righe
     
-    const cache_block_size = CACHE_BLOCK_SIZE_BYTES/@sizeOf(T);
-    std.debug.print("Cache block size for type: {d}\n", .{cache_block_size});
-    
+        
+    // 000 00 = 00
+    // 000 00   00
+    // 000 00   00
+    // 000      00
+
     const a_rows = A.shape[A.shape.len-2];
     const a_cols = A.shape[A.shape.len-1];
     
@@ -101,63 +105,26 @@ pub inline fn lean_mat_mul(
     
     const c_rows = a_rows;
     const c_cols = b_cols;
+    
     const A_ptr = A.data.ptr;
     const B_ptr = B.data.ptr;
     const C_ptr = C.data.ptr;
     
-    // Controllo che il tipo sia compatibile con SIMD
-
-
-    // Determinare il numero di elementi per vettore SIMD
-    const simd_lanes = 4;
+    // // For each row...
+    //   for (std::size_t row = 0; row < N; row++)
+    //     // For each col...
+    //     for (std::size_t col = 0; col < N; col++)
+    //       // For each element in the row/col pair...
+    //       for (std::size_t idx = 0; idx < N; idx++)
+    //         // Accumulate the partial results
+    //         C[row * N + col] += A[row * N + idx] * B[idx * N + col];
     
-    // SIMD Implementation
-    var c_column_chunk: usize = 0;
-    while(c_column_chunk < c_cols) : (c_column_chunk += cache_block_size) {
-        for(0..c_rows) |c_chunk_rows| {
-            var tile: usize = 0;
-            while(tile < a_cols) : (tile += cache_block_size) {
-                for(0..cache_block_size) |t_row| {
-                    // Ensure that c_column_chunk + cache_block_size does not exceed c_cols
-                    const end_col = @min(cache_block_size, c_cols - c_column_chunk);
-                    
-                    // Iteration on columns in blocks of simd_lanes
-                    var t_col: usize = 0;
-                    while (t_col + simd_lanes <= end_col) : (t_col += simd_lanes) {
-                        const a_val = A_ptr[c_chunk_rows * a_cols + tile + t_row];
-                        
-                        // Create a vector filled with the same value of A
-                        const a_vec: @Vector(simd_lanes, T) = @splat(a_val);
-                        
-                        // Load elements of B into a vector
-                        var b_vec: @Vector(simd_lanes, T) = undefined;
-                        for (0..simd_lanes) |i| {
-                            b_vec[i] = B_ptr[tile * b_cols + t_row * b_cols + c_column_chunk + t_col + i];
-                        }
-                        
-                        // Load current values of C
-                        var c_vec: @Vector(simd_lanes, T) = undefined;
-                        for (0..simd_lanes) |i| {
-                            c_vec[i] = C_ptr[c_chunk_rows * c_cols + c_column_chunk + t_col + i];
-                        }
-                        
-                        // Multiply and accumulate
-                        c_vec += a_vec * b_vec;
-                        
-                        // Scrivi il risultato in C
-                        for (0..simd_lanes) |i| {
-                            C_ptr[c_chunk_rows * c_cols + c_column_chunk + t_col + i] = c_vec[i];
-                        }
-                    }
-                    
-                    // Handle remaining columns without SIMD
-                    while (t_col < end_col) : (t_col += 1) {
-                        C_ptr[c_chunk_rows * c_cols + c_column_chunk + t_col] +=
-                            A_ptr[c_chunk_rows * a_cols + tile + t_row] *
-                            B_ptr[tile * b_cols + t_row * b_cols + c_column_chunk + t_col];
-                    }
-                }
+    for(0..c_rows) |row| {
+        for(0..c_cols) |col| {
+            for(0..a_cols) |idx| {
+                C_ptr[row * c_cols + col] += A_ptr[row * a_cols + idx] * B_ptr[idx * c_cols + col];
             }
         }
     }
+    
 }

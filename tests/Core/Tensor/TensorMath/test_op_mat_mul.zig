@@ -9,7 +9,7 @@ const ErrorHandler = zant.utils.error_handler;
 test "new MatMul Square N" {
 
     const allocator = pkgAllocator.allocator;
-    const N = std.math.pow(usize, 2, 7);
+    const N = std.math.pow(usize, 2, 8);
     
     std.debug.print("\n     test:MatMul Square {d}\n", .{N});
     var shape: [2]usize = [_]usize{ N, N }; // 2x2 matrix
@@ -51,7 +51,7 @@ test "new MatMul Square N" {
     // Benchmark old implementation
     var timer = try std.time.Timer.start();
     const old_start = timer.lap();
-    var old = try TensMath.mat_mul(f32, &t1, &t2);
+    var old = try TensMath.simple_mat_mul(f32, &t1, &t2);
     defer old.deinit();
     const old_end = timer.lap();
     const old_time_ns = old_end - old_start;
@@ -63,14 +63,25 @@ test "new MatMul Square N" {
     defer new.deinit();
     const new_time_ns = new_end - new_start;
     
+    // Benchmark new implementation
+    const macs_start = timer.lap();
+    var macs = try TensMath.mat_mul(f32, &t1, &t2);
+    const macs_end = timer.lap();
+    defer macs.deinit();
+    const macs_time_ns = macs_end - macs_start;
+    
     // Print benchmark results
     std.debug.print("\nBenchmark Results:\n", .{});
     std.debug.print("Original mat_mul: {d} ns ({d:.3} ms)\n", .{old_time_ns, @as(f64, @floatFromInt(old_time_ns)) / 1_000_000.0});
     std.debug.print("New mat_mul:     {d} ns ({d:.3} ms)\n", .{new_time_ns, @as(f64, @floatFromInt(new_time_ns)) / 1_000_000.0});
+    std.debug.print("MACS mat_mul:    {d} ns ({d:.3} ms)\n", .{macs_time_ns, @as(f64, @floatFromInt(macs_time_ns)) / 1_000_000.0});
     
     // Calculate speedup
-    const speedup = @as(f64, @floatFromInt(old_time_ns)) / @as(f64, @floatFromInt(new_time_ns));
-    std.debug.print("Speedup:         {d:.2}x\n\n", .{speedup});
+    var speedup = @as(f64, @floatFromInt(old_time_ns)) / @as(f64, @floatFromInt(new_time_ns));
+    std.debug.print("Original Speedup:         {d:.2}x\n", .{speedup});
+    
+    speedup = @as(f64, @floatFromInt(macs_time_ns)) / @as(f64, @floatFromInt(new_time_ns));
+    std.debug.print("MACS Speedup:             {d:.2}x\n", .{speedup});
     
     // std.debug.print("Printing OLD: \n", .{});
     // for (0..N) |x| {
