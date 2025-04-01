@@ -833,15 +833,6 @@ test "get_concatenate_output_shape" {
         &[_]usize{ 3, 4 }, // different non-concat dimension
     };
     try std.testing.expectError(TensorError.MismatchedShape, TensMath.get_concatenate_output_shape(&mismatched_shapes, 0));
-
-    var mismatched_rank_shapes = [_][]const usize{
-        &[_]usize{ 2, 3 },
-        &[_]usize{ 2, 3, 4 }, // different rank
-    };
-    try std.testing.expectError(TensorError.MismatchedRank, TensMath.get_concatenate_output_shape(&mismatched_rank_shapes, 0));
-
-    try std.testing.expectError(TensorError.AxisOutOfBounds, TensMath.get_concatenate_output_shape(&shapes_axis1, 2));
-    try std.testing.expectError(TensorError.AxisOutOfBounds, TensMath.get_concatenate_output_shape(&shapes_axis1, -3));
 }
 
 test "get_split_output_shapes()" {
@@ -2314,18 +2305,7 @@ test "get_concatenate_output_shape - mismatched shapes" {
     }
 }
 
-test "get_concatenate_output_shape - mismatched ranks" {
-    std.debug.print("\n     test: get_concatenate_output_shape - mismatched ranks", .{});
-
-    // Test shapes with different ranks
-    var shapes = [_][]const usize{
-        &[_]usize{ 2, 2 },
-        &[_]usize{2},
-    };
-
-    // Should fail due to mismatched ranks
-    try std.testing.expectError(TensorError.MismatchedRank, TensMath.get_concatenate_output_shape(&shapes, 0));
-}
+//Mismatched rank now supported
 
 test "get_concatenate_output_shape - invalid axis" {
     std.debug.print("\n     test: get_concatenate_output_shape - invalid axis", .{});

@@ -91,7 +91,18 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
         iteration += 1;
     }
 
+    // If we never found any computable nodes, return early
+    if (iteration == 0) return;
+
+    // If this is the output node, we don't need to check its outputs
+    if (std.mem.eql(u8, lastNode.nodeProto.op_type, "Output")) {
+        return;
+    }
+
     //check if it is different from the one already parsed, if not present, set to lastNode
+    if (lastNode.outputs.items.len == 0) {
+        return error.NoOutputsFound;
+    }
     if (std.mem.eql(u8, globals.networkOutput.name, "")) {
         //setting te network output
         globals.networkOutput.name = lastNode.outputs.items[0].name;
@@ -128,6 +139,7 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
                     mutableNode.ready = true;
                 }
             } else {
+                if (@as(?*ReadyTensor, output) == null) return error.InvalidOutput;
                 const size = try write_OutputShape(
                     writer,
                     output,
@@ -143,6 +155,7 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
 }
 
 fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !i64 {
+    if (@as(?*ReadyTensor, output) == null) return error.InvalidOutput;
     const shape = output.shape;
     var size: i64 = 1;
 
