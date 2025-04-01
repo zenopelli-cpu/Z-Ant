@@ -91,9 +91,6 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
         iteration += 1;
     }
 
-    // If we never found any computable nodes, return early
-    if (iteration == 0) return;
-
     // If this is the output node, we don't need to check its outputs
     if (std.mem.eql(u8, lastNode.nodeProto.op_type, "Output")) {
         return;
