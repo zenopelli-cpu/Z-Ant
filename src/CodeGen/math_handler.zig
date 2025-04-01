@@ -21,6 +21,7 @@ const ReadyNode = @import("globals.zig").ReadyNode;
 const ReadyTensor = @import("globals.zig").ReadyTensor;
 const codegen = @import("codegen.zig");
 const utils = codegen.utils;
+const parameters = codegen.parameters;
 const codegen_options = @import("codegen_options");
 const globals = @import("globals.zig");
 
@@ -449,14 +450,25 @@ inline fn write_constant(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
 
     for (node.nodeProto.attribute) |attr| {
-        if (std.mem.eql(u8, attr.name, "value")) {
-            // For TENSOR value, the tensor is already initialized during model loading
-            // No additional code needed for initialization
+        if (attr.type == onnx.AttributeType.TENSOR) {
+            const dataTypeString: []const u8 = try utils.getTypeString(attr.t.?.data_type);
+
             try writer.print(
                 \\
-                \\    // Constant tensor was already initialized during model loading
-                \\    // No additional code needed for tensor_{s}
+                \\    // Constant tensor_{s}
             , .{output_name});
+
+            // Generate the shape array for the constant tensor
+            try parameters.wrtiteTensorShape(writer, attr.t.?, output_name);
+            // Generate the data array for the constant tensor
+            try parameters.writeArray(writer, attr.t.?, output_name);
+
+            // Create the constant tensor instance
+            try writer.print(
+                \\
+                \\const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
+            , .{ output_name, dataTypeString, output_name, output_name });
+
             return;
         } else if (std.mem.eql(u8, attr.name, "value_float")) {
             if (attr.type != AttributeType.FLOAT) return error.ConstantAttributeTypeMismatch;
