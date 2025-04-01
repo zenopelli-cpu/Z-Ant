@@ -121,6 +121,7 @@ pub const sum_tensor_list_lean = add.lean_sum_tensor_list;
 const sub = @import("lib_elementWise_math/op_subtraction.zig");
 
 pub const sub_tensors = sub.sub_tensors;
+pub const sub_tensors_lean = sub.lean_sub_tensors;
 
 //--shape
 const op_shape = @import("lib_shape_math/op_shape.zig");

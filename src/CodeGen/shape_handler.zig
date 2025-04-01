@@ -94,8 +94,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         //https://onnx.ai/onnx/operators/onnx__Split.html
         try compute_split_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sub")) {
-        // TODO
-        return error.OperationWIP;
+        //https://onnx.ai/onnx/operators/onnx__Sub.html
+        try compute_Sub_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Transpose")) {
         try compute_transpose_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Unsqueeze")) {
@@ -111,6 +111,17 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
 
 // ---------------- SHAPE COMPUTATION METHODS ----------------
 inline fn compute_Add_output_shape(readyNode: *ReadyNode) !void {
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        shape = readyNode.inputs.items[0].shape;
+    }
+    readyNode.outputs.items[0].shape = shape;
+}
+
+inline fn compute_Sub_output_shape(readyNode: *ReadyNode) !void {
     var shape: []const i64 = undefined;
 
     if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {

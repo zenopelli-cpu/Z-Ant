@@ -97,7 +97,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Split")) {
         try write_split(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sub")) {
-        try writer.writeAll("// Handle Sub\n");
+        try write_sub(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sum")) {
         try write_sum(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Transpose")) {
@@ -185,6 +185,51 @@ inline fn write_add(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     _ = try writer.print(
         \\
         \\    tensMath.sum_tensors_lean(T, T, {s}, {s}, &tensor_{s})
+    , .{
+        tensor_A_string, // Input tensor A
+        tensor_B_string, // Input tensor B
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
+    });
+}
+
+inline fn write_sub(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Sub.html
+    // INPUTS:
+    //      - A (heterogeneous) - T: First operand.
+    //      - B (heterogeneous) - T: Second operand.
+    // OUTPUTS:
+    //      - C (heterogeneous) - T: Result, has same element type as two inputs.
+
+    //----create tensor_A_string
+    var tensor_A_string: []u8 = undefined;
+    defer allocator.free(tensor_A_string);
+
+    if (node.inputs.items[0].tag == globals.TensorTag.INITIALIZER) {
+        tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].name),
+            ")",
+        });
+    } else {
+        tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].name) });
+    }
+
+    //----create tensor_B_string
+    var tensor_B_string: []u8 = undefined;
+    defer allocator.free(tensor_B_string);
+    if (node.inputs.items[1].tag == globals.TensorTag.INITIALIZER) {
+        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[1].name),
+            ")",
+        });
+    } else {
+        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[1].name) });
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.sub_tensors_lean(T, T, {s}, {s}, &tensor_{s})
     , .{
         tensor_A_string, // Input tensor A
         tensor_B_string, // Input tensor B
