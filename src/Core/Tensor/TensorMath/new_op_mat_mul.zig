@@ -105,11 +105,11 @@ pub inline fn lean_mat_mul(
     const B_ptr = B.data.ptr;
     const C_ptr = C.data.ptr;
     
-    // Controllo che il tipo sia compatibile con SIMD
 
 
-    // Determinare il numero di elementi per vettore SIMD
-    const simd_lanes = 4;
+
+    // Determine the number of elements for SIMD vector
+    const simd_lanes = std.simd.suggestVectorLength(T) orelse 4;
     
     // SIMD Implementation
     var c_column_chunk: usize = 0;
