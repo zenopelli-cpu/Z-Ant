@@ -107,7 +107,7 @@ pub const NodeProto = struct {
                 5 => { // attribute (repeated)
                     var attr_reader = try reader.readLengthDelimited();
                     const attr_ptr = try reader.allocator.create(AttributeProto);
-                    attr_ptr.* = try AttributeProto.parseSingleAttribute(&attr_reader, reader.allocator);
+                    attr_ptr.* = try AttributeProto.parse(&attr_reader);
                     try attributes.append(attr_ptr);
                 },
                 6 => { // doc_string
@@ -120,7 +120,6 @@ pub const NodeProto = struct {
                     node.overload = try reader.readString(reader.allocator);
                 },
                 9 => { // metadata_props
-                    std.debug.print("\n ................ NodoProto READING metadata_props ", .{});
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
@@ -164,7 +163,7 @@ pub const NodeProto = struct {
         std.debug.print("{s}Inputs: ", .{space});
         for (self.input, 0..) |inp, i| {
             if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{s}", .{inp});
+            std.debug.print("{s}", .{if (std.mem.eql(u8, inp, "")) "<empty_string>" else inp});
         }
         std.debug.print("\n", .{});
 

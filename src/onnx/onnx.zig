@@ -12,6 +12,8 @@ pub const NodeProto = @import("nodeProto.zig").NodeProto;
 pub const GraphProto = @import("graphProto.zig").GraphProto;
 pub const ModelProto = @import("modelProto.zig").ModelProto;
 pub const StringStringEntryProto = @import("stringStringEntryProto.zig").StringStringEntryProto;
+pub const OperatorSetIdProto = @import("operatorSetIdProto.zig").OperatorSetIdProto;
+pub const FunctionProto = @import("functionProto.zig").FunctionProto;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
@@ -94,6 +96,14 @@ pub fn parseFromFile(allocator: std.mem.Allocator, file_path: []const u8) !Model
     var reader = protobuf.ProtoReader.init(allocator, buffer);
     var model = try ModelProto.parse(&reader);
     errdefer model.deinit(allocator);
+
+    if (model.graph.?.value_info.len == 0 and model.graph.?.nodes.len > 1) {
+        std.debug.print("\n\n+-------------------------------------------+ ", .{});
+        std.debug.print("\n   Your model do not contains intermediate tensor shapes,\n   run ' python3 src/onnx/infer_shape.py --path {s} '", .{file_path});
+        std.debug.print("\n+-------------------------------------------+ \n\n", .{});
+
+        unreachable;
+    }
 
     return model;
 }

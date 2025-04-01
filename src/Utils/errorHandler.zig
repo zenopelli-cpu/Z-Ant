@@ -48,6 +48,7 @@ pub const TensorMathError = error{
     DivisionError,
     InvalidPadding,
     InvalidAxes,
+    OutputTensorWrongShape,
 };
 
 /// Tensor errors
@@ -81,6 +82,7 @@ pub const TensorError = error{
     InvalidRank,
     InvalidPermutation,
     ShapeMismatch,
+    OutputTensorWrongShape,
 };
 
 /// A union type to represent any of the errors

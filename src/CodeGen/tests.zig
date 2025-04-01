@@ -11,8 +11,10 @@ const allocator = zant.utils.allocator.allocator;
 pub fn UserTest(comptime T: type) type {
     return struct {
         name: []u8,
+        type: []u8,
         input: []T,
         output: []T,
+        expected_class: usize,
     };
 }
 
@@ -42,17 +44,8 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
         \\pub const data_type = {s};
         \\pub const enable_user_tests : bool = {any};
         \\pub const user_tests_path = "{s}";
-    , .{
-        model_name,
-        model_name,
-        globals.networkInput.shape.len,
-        globals.networkInput.shape,
-        output_data_len,
-        codegen_options.type,
-        codegen_options.user_tests.len > 0,
-        try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path})
-    });
-    
+    , .{ model_name, model_name, globals.networkInput.shape.len, globals.networkInput.shape, output_data_len, codegen_options.type, codegen_options.user_tests.len > 0, try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path}) });
+
     ////////////
 }
 

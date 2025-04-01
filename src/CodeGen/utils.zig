@@ -142,6 +142,17 @@ pub inline fn getConstantTensorDims(nodeProto: *NodeProto) ![]const i64 {
     return if (nodeProto.attribute[0].t) |tensorProto| tensorProto.dims else error.ConstantTensorAttributeNotAvailable;
 }
 
+/// This method search for the existance of a Tensor named "tensorName" inside the onnx model.graph.value_info array.
+/// If founded return its shape, else returns null.
+pub fn getTensorShape(tensorName: []const u8) ?[]i64 {
+    for (globals.onnxModel.graph.?.value_info) |vi| {
+        if (std.mem.eql(u8, vi.name.?, tensorName)) {
+            return vi.type.?.tensor_type.?.shape.?.shape;
+        }
+    }
+
+    return null;
+}
 // -------------------- SETTERS --------------------
 
 // Marks output tensors as ready for computation in all the graph
@@ -383,6 +394,45 @@ pub inline fn sliceToUsizeSlice(slice: anytype) []usize {
     }
 }
 
+pub inline fn sliceToIsizeSlice(slice: anytype) []isize {
+    const T = @TypeOf(slice);
+    const info = @typeInfo(T);
+
+    switch (info) {
+        .pointer => {
+            const child = info.pointer.child;
+            const child_info = @typeInfo(child);
+
+            var output = allocator.alloc(isize, slice.len) catch @panic("Out of memory in sliceToIsizeSlice");
+            const maxIsize = std.math.maxInt(isize);
+            const minIsize = std.math.minInt(isize);
+
+            for (slice, 0..) |value, index| {
+                if (child_info == .int) {
+                    // Handle integer types
+                    if (value < minIsize or value > maxIsize) {
+                        @panic("Value out of isize range in sliceToIsizeSlice");
+                    }
+                    output[index] = @intCast(value);
+                } else if (child_info == .float) {
+                    // Handle float types
+                    if (value < @as(f64, @floatFromInt(minIsize)) or value > @as(f64, @floatFromInt(maxIsize))) {
+                        @panic("Value out of isize range in sliceToIsizeSlice");
+                    }
+                    output[index] = @intFromFloat(value);
+                } else {
+                    @compileError("Unsupported element type for sliceToIsizeSlice: " ++ @typeName(child));
+                }
+            }
+
+            return output;
+        },
+        else => {
+            @compileError("Unsupported type for sliceToIsizeSlice: " ++ @typeName(T));
+        },
+    }
+}
+
 pub fn i64ToI64ArrayString(values: []const i64) ![]const u8 {
     var buffer: [20]u8 = undefined;
     var res_string = try std.mem.concat(allocator, u8, &[_][]const u8{"&[_]i64{"});
@@ -442,6 +492,7 @@ pub fn i64SliceToUsizeArrayString(values: []const i64) ![]const u8 {
     return res_string;
 }
 
+// ----------------- FILE MANAGEMENT -----------------
 // Copy file from src to dst
 pub fn copyFile(src: []const u8, dst: []const u8) !void {
     const src_file = try std.fs.cwd().openFile(src, .{});
@@ -450,19 +501,18 @@ pub fn copyFile(src: []const u8, dst: []const u8) !void {
     const dst_file = try std.fs.cwd().createFile(dst, .{});
     defer dst_file.close();
 
-    const src_content: []const u8 = try src_file.readToEndAlloc(allocator, 50 * 1024);
+    const src_content: []const u8 = try src_file.readToEndAlloc(allocator, 1024 * 1024);
     defer allocator.free(src_content);
 
     try dst_file.writeAll(src_content);
 }
 
 // Read the user_tests json file and return a list of test cases
-
 pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Parsed([]tests.UserTest(T)) {
     const user_tests_file = try std.fs.cwd().openFile(user_tests_path, .{});
     defer user_tests_file.close();
 
-    const user_tests_content: []const u8 = try user_tests_file.readToEndAlloc(allocator, 50 * 1024);
+    const user_tests_content: []const u8 = try user_tests_file.readToEndAlloc(allocator, 1024 * 1024);
     defer allocator.free(user_tests_content);
 
     const parsed_user_tests = try std.json.parseFromSlice([]tests.UserTest(T), allocator, user_tests_content, .{});

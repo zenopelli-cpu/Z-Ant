@@ -96,16 +96,35 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     const N = B.shape[dim_num - 1];
     const K = A.shape[dim_num - 1];
 
-    // std.debug.print("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
-    // std.debug.print("Input tensor A shape: ", .{});
-    // for (A.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\nInput tensor B shape: ", .{});
-    // for (B.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\n", .{});
+    // Add dimension validation
+    if (M >= std.math.maxInt(usize) / 2 or
+        N >= std.math.maxInt(usize) / 2 or
+        K >= std.math.maxInt(usize) / 2)
+    {
+        return TensorMathError.InputTensorsWrongShape;
+    }
 
-    // std.debug.print("Output tensor Y shape: ", .{});
-    // for (Y.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\n", .{});
+    // Add shape validation
+    if (B.shape[dim_num - 2] != K) {
+        return TensorMathError.InputTensorsWrongShape;
+    }
+
+    // Validate output tensor shape
+    if (Y.shape[dim_num - 2] != M or Y.shape[dim_num - 1] != N) {
+        return TensorMathError.OutputTensorWrongShape;
+    }
+
+    // Debug prints only when needed
+    if (false) {
+        std.debug.print("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
+        std.debug.print("Input tensor A shape: ", .{});
+        for (A.shape) |dim| std.debug.print("{} ", .{dim});
+        std.debug.print("\nInput tensor B shape: ", .{});
+        for (B.shape) |dim| std.debug.print("{} ", .{dim});
+        std.debug.print("\nOutput tensor Y shape: ", .{});
+        for (Y.shape) |dim| std.debug.print("{} ", .{dim});
+        std.debug.print("\n", .{});
+    }
 
     // SIMD vector type
     const Vec = @Vector(DEFAULT_VECTOR_WIDTH, T);

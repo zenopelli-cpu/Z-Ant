@@ -1,8 +1,10 @@
 # Z-Ant
-![](https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-tests.yml/badge.svg)
 
-![](https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-heavy-tests.yml/badge.svg)
-
+<div align="left">
+  <img src="https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-tests.yml/badge.svg" alt="Zig Tests" />
+  <img src="https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-heavy-tests.yml/badge.svg" alt="Zig Heavy Tests" />
+  <img src="https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-codegen-tests.yml/badge.svg" alt="Zig Codegen Tests" />
+</div>
 
 ![image](https://github.com/user-attachments/assets/6a5346e5-58ec-4069-8143-c3b7b03586f3)
 ## Project Overview
@@ -135,7 +137,7 @@ extern void setLogFunction(void (*log_function)(uint8_t *string));
 - **Standard build & test:**
   ```bash
   zig build
-  zig build test
+  zig build test --summary all
   ```
 
 - **Run code generation:**
@@ -148,7 +150,12 @@ extern void setLogFunction(void (*log_function)(uint8_t *string));
   zig build lib -Dmodel=model_name -Dtarget=target_arch -Dcpu=specific_cpu
   ```
 
-- **Run generated tests:**
+- **Generate onnx oneOperation models:**
+  ```bash
+  zig build test-codegen-gen
+  ```
+
+- **Build and Test generated onnx oneOperation models:**
   ```bash
   zig build test-codegen
   ```
@@ -156,7 +163,6 @@ extern void setLogFunction(void (*log_function)(uint8_t *string));
 ### Build Options
 
 - `-Dtrace_allocator=true|false`: Use tracing allocator for debugging.
-- `-Dheavy=true`: Run intensive computational tests.
 - `-Dlog=true|false`: Enable detailed logging during code generation.
 - `-Duser_tests=path/to/user_tests.json`: Specify custom tests.
 
@@ -174,8 +180,6 @@ Hardware-in-the-Loop (HIL) Testing: Integrate a hardware test bench with connect
 
 - Code Coverage Reporting: Generate and publish code coverage metrics with every CI run to maintain high test quality.
 - Containerized CI Environment: Use Docker containers to standardize the CI/CD environment, ensuring consistent builds and tests across all contributors.
-
-
 
 
 ## Containerization

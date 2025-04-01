@@ -46,6 +46,9 @@ pub fn build(b: *std.Build) void {
     test_options.addOption(bool, "heavy", b.option(bool, "heavy", "Run heavy tests") orelse false);
     unit_tests.root_module.addOptions("test_options", test_options);
 
+    const test_name = b.option([]const u8, "test_name", "specify a test name to run") orelse "";
+    test_options.addOption([]const u8, "test_name", test_name);
+
     unit_tests.root_module.addImport("zant", zant_mod);
     unit_tests.root_module.addImport("codegen", codeGen_mod);
 
@@ -142,7 +145,6 @@ pub fn build(b: *std.Build) void {
     test_step_generated_lib.dependOn(&run_test_generated_lib.step);
 
     // ************************************************ ONEOP CODEGEN ************************************************
-
     // Setup oneOp codegen
 
     const oneop_codegen_exe = b.addExecutable(.{
@@ -162,8 +164,7 @@ pub fn build(b: *std.Build) void {
     step_test_oneOp_codegen.dependOn(&run_oneop_codegen_exe.step);
 
     // ************************************************
-
-    //Setup test_all_oneOp
+    // Setup test_all_oneOp
 
     const test_all_oneOp = b.addTest(.{
         .name = "test_all_oneOp",
@@ -187,4 +188,21 @@ pub fn build(b: *std.Build) void {
 
     const step_test_oneOp = b.step("test-codegen", "Run generated library tests");
     step_test_oneOp.dependOn(&run_test_all_oneOp.step);
+
+    // ************************************************ ONNX PARSER TESTS ************************************************
+    // Add test for generated library
+
+    const test_onnx_parser = b.addTest(.{
+        .name = "test_generated_lib",
+        .root_source_file = b.path("tests/Onnx/onnx_loader.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    test_onnx_parser.root_module.addImport("zant", zant_mod);
+    test_onnx_parser.linkLibC();
+
+    const run_test_onnx_parser = b.addRunArtifact(test_onnx_parser);
+    const step_test_onnx_parser = b.step("onnx-parser", "Run generated library tests");
+    step_test_onnx_parser.dependOn(&run_test_onnx_parser.step);
 }
