@@ -9,7 +9,8 @@ const ErrorHandler = zant.utils.error_handler;
 test "new MatMul Square N" {
 
     const allocator = pkgAllocator.allocator;
-    const N = std.math.pow(usize, 2, 8);
+    const N = std.math.pow(usize, 2, 2);
+    const data_type = u8;
     
     std.debug.print("\n     test:MatMul Square {d}\n", .{N});
     var shape: [2]usize = [_]usize{ N, N }; // 2x2 matrix
@@ -22,9 +23,9 @@ test "new MatMul Square N" {
     }
 
     // Create input data array directly instead of ArrayList
-    var inputArray1 = try allocator.alloc(f32, input_data_size);
+    var inputArray1 = try allocator.alloc(data_type, input_data_size);
     defer allocator.free(inputArray1);
-    var inputArray2 = try allocator.alloc(f32, input_data_size);
+    var inputArray2 = try allocator.alloc(data_type, input_data_size);
     defer allocator.free(inputArray2);
 
     // Generate random data
@@ -35,14 +36,14 @@ test "new MatMul Square N" {
 
     // Fill with random values
     for (0..input_data_size) |i| {
-        inputArray1[i] = rand.float(f32) * 100;
-        inputArray2[i] = rand.float(f32) * 100;
+        inputArray1[i] = rand.int(data_type);
+        inputArray2[i] = rand.int(data_type);
     }
     
     //Allocate input tensors
-    var t1 = try Tensor(f32).fromArray(&allocator, inputArray1, &shape);
+    var t1 = try Tensor(data_type).fromArray(&allocator, inputArray1, &shape);
     defer t1.deinit();
-    var t2 = try Tensor(f32).fromArray(&allocator, inputArray2, &shape);
+    var t2 = try Tensor(data_type).fromArray(&allocator, inputArray2, &shape);
     defer t2.deinit();
     
     //Allocate output tensors
@@ -51,21 +52,21 @@ test "new MatMul Square N" {
     // Benchmark old implementation
     var timer = try std.time.Timer.start();
     const old_start = timer.lap();
-    var old = try TensMath.simple_mat_mul(f32, &t1, &t2);
+    var old = try TensMath.simple_mat_mul(data_type, &t1, &t2);
     defer old.deinit();
     const old_end = timer.lap();
     const old_time_ns = old_end - old_start;
     
     // Benchmark new implementation
     const new_start = timer.lap();
-    var new = try TensMath.new_mat_mul(f32, &t1, &t2);
+    var new = try TensMath.new_mat_mul(data_type, &t1, &t2);
     const new_end = timer.lap();
     defer new.deinit();
     const new_time_ns = new_end - new_start;
     
     // Benchmark new implementation
     const macs_start = timer.lap();
-    var macs = try TensMath.mat_mul(f32, &t1, &t2);
+    var macs = try TensMath.mat_mul(data_type, &t1, &t2);
     const macs_end = timer.lap();
     defer macs.deinit();
     const macs_time_ns = macs_end - macs_start;
@@ -83,22 +84,6 @@ test "new MatMul Square N" {
     speedup = @as(f64, @floatFromInt(macs_time_ns)) / @as(f64, @floatFromInt(new_time_ns));
     std.debug.print("MACS Speedup:             {d:.2}x\n", .{speedup});
     
-    // std.debug.print("Printing OLD: \n", .{});
-    // for (0..N) |x| {
-    //     for (0..N) |y| {
-    //         std.debug.print("{d:3} ", .{old.data[x*N+y]});
-    //     }
-    //     std.debug.print("\n", .{});
-    // }
-    
-    // std.debug.print("Printing NEW: \n", .{});
-    // for (0..N) |x| {
-    //     for (0..N) |y| {
-    //         std.debug.print("{d:3} ", .{new.data[x*N+y]});
-    //     }
-    //     std.debug.print("\n", .{});
-    // }
-
     for (0..N) |x| {
         for (0..N) |y| {
             try std.testing.expect(old.data[x*N+y] == new.data[x*N+y]);
