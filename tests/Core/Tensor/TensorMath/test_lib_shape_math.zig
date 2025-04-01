@@ -442,7 +442,7 @@ test "test neg() " {
     var tensor = try Tensor(i8).fromArray(&allocator, &inputArray, &shape);
     defer tensor.deinit();
 
-    var flippedTensor = try TensMath.neg(i8, &tensor);
+    var flippedTensor = try TensMath.flip(i8, &tensor);
     defer flippedTensor.deinit();
     // DEBUG flippedTensor.print();
 
@@ -2367,7 +2367,7 @@ test "neg - 2D tensor" {
         var tensor = try Tensor(i8).fromArray(&allocator, &input_array, &shape);
         defer tensor.deinit();
 
-        var flipped = try TensMath.neg(i8, &tensor);
+        var flipped = try TensMath.flip(i8, &tensor);
         defer flipped.deinit();
 
         // Expected: [[6, 5, 4], [3, 2, 1]]
@@ -2389,7 +2389,7 @@ test "neg - 2D tensor" {
         var tensor = try Tensor(i8).fromArray(&allocator, &input_array, &shape);
         defer tensor.deinit();
 
-        var flipped = try TensMath.neg(i8, &tensor);
+        var flipped = try TensMath.flip(i8, &tensor);
         defer flipped.deinit();
 
         // Expected: [[4, 3], [2, 1]]
@@ -2420,7 +2420,7 @@ test "neg - 3D tensor" {
     var tensor = try Tensor(i8).fromArray(&allocator, &input_array, &shape);
     defer tensor.deinit();
 
-    var flipped = try TensMath.neg(i8, &tensor);
+    var flipped = try TensMath.flip(i8, &tensor);
     defer flipped.deinit();
 
     // Each 2x2 matrix should be flipped independently
@@ -2440,21 +2440,6 @@ test "neg - 3D tensor" {
     try std.testing.expectEqual(@as(usize, 2), flipped.shape[1]);
     try std.testing.expectEqual(@as(usize, 2), flipped.shape[2]);
     try std.testing.expectEqual(@as(usize, 8), flipped.size);
-}
-
-test "get_neg_shape_output output correctness" {
-    const input_shape = [_]usize{ 3, 3, 5, 8 };
-    // Call the function under test
-    const output_shape = try TensMath.get_neg_output_shape(&input_shape);
-    defer pkgAllocator.allocator.free(output_shape);
-
-    // Check the length matches
-    try std.testing.expectEqual(@as(usize, input_shape.len), output_shape.len);
-
-    // Check each element was copied correctly
-    for (output_shape, 0..) |val, i| {
-        try std.testing.expectEqual(input_shape[i], val);
-    }
 }
 
 test "get_split_output_shapes - basic functionality" {
