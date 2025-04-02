@@ -498,23 +498,10 @@ inline fn write_constant(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     for (node.nodeProto.attribute) |attr| {
         if (attr.type == onnx.AttributeType.TENSOR) {
-            const dataTypeString: []const u8 = try utils.getTypeString(attr.t.?.data_type);
-
             try writer.print(
                 \\
-                \\    // Constant tensor_{s}
+                \\    // Constant tensor_{s} already declared and inizialized in predict.zig write_constantTensor()
             , .{output_name});
-
-            // Generate the shape array for the constant tensor
-            try parameters.wrtiteTensorShape(writer, attr.t.?, output_name);
-            // Generate the data array for the constant tensor
-            try parameters.writeArray(writer, attr.t.?, output_name);
-
-            // Create the constant tensor instance
-            try writer.print(
-                \\
-                \\const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
-            , .{ output_name, dataTypeString, output_name, output_name });
 
             return;
         } else if (std.mem.eql(u8, attr.name, "value_float")) {

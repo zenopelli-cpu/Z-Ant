@@ -195,6 +195,13 @@ pub fn isInitializer(name: []const u8, initializers: []*TensorProto) bool {
     return false;
 }
 
+//return true if the name is an input of the nn
+pub fn isInput(name: []const u8) bool {
+    for (globals.onnxModel.graph.?.inputs) |input| {
+        if (std.mem.eql(u8, input.name.?, name)) return true;
+    }
+    return false;
+}
 // -------------------- PRINTERS --------------------
 
 // Prints the list of nodes in the given computation graph.

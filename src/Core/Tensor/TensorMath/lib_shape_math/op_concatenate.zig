@@ -285,22 +285,22 @@ pub fn concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensor
 pub fn get_concatenate_output_shape(tensors: []const []const usize, axis: isize) ![]usize {
     // Ensure there is at least one tensor to concatenate
     if (tensors.len == 0) return TensorMathError.EmptyTensorList;
-    std.debug.print("\n[DEBUG] get_concatenate_output_shape - Starting concatenation", .{});
-    std.debug.print("\n[DEBUG] tensors: {any}", .{tensors});
-    std.debug.print("\n[DEBUG] axis: {d}", .{axis});
+    // std.debug.print("\n[DEBUG] get_concatenate_output_shape - Starting concatenation", .{});
+    // std.debug.print("\n[DEBUG] tensors: {any}", .{tensors});
+    // std.debug.print("\n[DEBUG] axis: {d}", .{axis});
 
     // Find the maximum rank among all tensors
     var max_rank: usize = 0;
     for (tensors) |tensor| {
         max_rank = @max(max_rank, tensor.len);
     }
-    std.debug.print("\n[DEBUG] max_rank: {}", .{max_rank});
+    // std.debug.print("\n[DEBUG] max_rank: {}", .{max_rank});
 
     // Handle negative axis values (numpy style)
     var concat_axis = axis;
     if (concat_axis < 0) {
         concat_axis += @as(isize, @intCast(max_rank));
-        std.debug.print("\n[DEBUG] normalized negative axis to: {}", .{concat_axis});
+        // std.debug.print("\n[DEBUG] normalized negative axis to: {}", .{concat_axis});
     }
 
     if (concat_axis < 0 or concat_axis >= @as(isize, @intCast(max_rank))) {
@@ -309,7 +309,7 @@ pub fn get_concatenate_output_shape(tensors: []const []const usize, axis: isize)
     }
 
     const concat_axis_usize = @as(usize, @intCast(concat_axis));
-    std.debug.print("\n[DEBUG] concat_axis_usize: {}", .{concat_axis_usize});
+    // std.debug.print("\n[DEBUG] concat_axis_usize: {}", .{concat_axis_usize});
 
     // Create broadcasted shapes for all tensors
     var broadcasted_shapes = try pkg_allocator.alloc([]usize, tensors.len);
@@ -344,7 +344,7 @@ pub fn get_concatenate_output_shape(tensors: []const []const usize, axis: isize)
                 broadcasted_shapes[i][j] = dim;
             }
         }
-        std.debug.print("\n[DEBUG] Broadcasted shape[{}]: {any}", .{ i, broadcasted_shapes[i] });
+        // std.debug.print("\n[DEBUG] Broadcasted shape[{}]: {any}", .{ i, broadcasted_shapes[i] });
     }
 
     // Validate that all tensors have matching shapes except along the concatenation axis
@@ -358,7 +358,7 @@ pub fn get_concatenate_output_shape(tensors: []const []const usize, axis: isize)
     }
 
     // Calculate the new shape after concatenation
-    std.debug.print("\n[DEBUG] Allocating new shape array of size {}", .{max_rank});
+    // std.debug.print("\n[DEBUG] Allocating new shape array of size {}", .{max_rank});
     var new_shape = try pkg_allocator.alloc(usize, max_rank);
     errdefer {
         std.debug.print("\n[DEBUG] Error occurred, freeing new_shape", .{});
@@ -372,10 +372,10 @@ pub fn get_concatenate_output_shape(tensors: []const []const usize, axis: isize)
                 sum += shape[d];
             }
             new_shape[d] = sum;
-            std.debug.print("\n[DEBUG] Concatenation dimension {}: sum = {}", .{ d, sum });
+            // std.debug.print("\n[DEBUG] Concatenation dimension {}: sum = {}", .{ d, sum });
         } else {
             new_shape[d] = broadcasted_shapes[0][d];
-            std.debug.print("\n[DEBUG] Non-concatenation dimension {}: {}", .{ d, new_shape[d] });
+            // std.debug.print("\n[DEBUG] Non-concatenation dimension {}: {}", .{ d, new_shape[d] });
         }
     }
 
@@ -385,6 +385,6 @@ pub fn get_concatenate_output_shape(tensors: []const []const usize, axis: isize)
     }
     pkg_allocator.free(broadcasted_shapes);
 
-    std.debug.print("\n[DEBUG] Final output shape: {any}", .{new_shape});
+    // std.debug.print("\n[DEBUG] Final output shape: {any}", .{new_shape});
     return new_shape;
 }

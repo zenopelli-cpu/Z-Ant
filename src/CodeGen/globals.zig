@@ -226,7 +226,7 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto) !void {
     } else {
 
         //if input
-        if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "input") != null) {
+        if (utils.isInput(name)) {
             //add the readyTensor to the HashMap
             try tensorHashMap.put(name, try ReadyTensor.createInput(name));
             return;

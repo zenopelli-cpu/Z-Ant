@@ -619,9 +619,9 @@ pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize,
 /// Input shape: [batch_size * out_height * out_width, channels * kernel_height * kernel_width]
 /// Output shape: [batch_size, channels, height, width]
 pub fn col2im(comptime T: type, col_matrix: *Tensor(T), output_shape: []const usize, kernel: [2]usize, stride: [2]usize) !Tensor(T) {
-    std.debug.print("\n[DEBUG] col2im - Starting transformation", .{});
-    std.debug.print("\n[DEBUG] Col matrix shape: {any}", .{col_matrix.shape});
-    std.debug.print("\n[DEBUG] Target output shape: {any}", .{output_shape});
+    // std.debug.print("\n[DEBUG] col2im - Starting transformation", .{});
+    // std.debug.print("\n[DEBUG] Col matrix shape: {any}", .{col_matrix.shape});
+    // std.debug.print("\n[DEBUG] Target output shape: {any}", .{output_shape});
 
     if (output_shape.len != 4) {
         return TensorMathError.InvalidDimensions;
@@ -1134,11 +1134,12 @@ pub fn debug_print_max_pool(input_shape: []const usize, kernel_shape: []const us
 }
 
 pub fn get_max_pool_output_shape(input_shape: []const usize, kernel_shape: []const usize, stride: []const usize, padding: ?[]const usize) ![]usize {
-    debug_print_max_pool(input_shape, kernel_shape, stride, padding);
-
+    //debug_print_max_pool(input_shape, kernel_shape, stride, padding);
+    _ = stride;
+    _ = padding;
     // Special case handling for MaxPool when kernel is larger than input
     if (input_shape.len > 2 and input_shape[2] < kernel_shape[0]) {
-        std.debug.print("\n[DEBUG] MaxPool - Using special case for small input", .{});
+        // std.debug.print("\n[DEBUG] MaxPool - Using special case for small input", .{});
 
         // Return a shape with 1x1 spatial dimensions
         var result = try pkg_allocator.alloc(usize, 4);
