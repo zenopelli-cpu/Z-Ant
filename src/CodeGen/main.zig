@@ -52,4 +52,7 @@ pub fn main() !void {
 
     // Test the generated code
     try codeGen_tests.writeTestFile(model_name, generated_path);
+
+    //PRINTING DETAILS OF THE MODEL
+    try onnx.printModelDetails(&model);
 }
