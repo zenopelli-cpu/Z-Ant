@@ -202,6 +202,14 @@ pub fn isInput(name: []const u8) bool {
     }
     return false;
 }
+
+//return true if the name is an output of the nn
+pub fn isOutput(name: []const u8) bool {
+    for (globals.onnxModel.graph.?.outputs) |output| {
+        if (std.mem.eql(u8, output.name.?, name)) return true;
+    }
+    return false;
+}
 // -------------------- PRINTERS --------------------
 
 // Prints the list of nodes in the given computation graph.

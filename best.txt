@@ -1666,7 +1666,7 @@ ModelProto:
       Op Type: Mul
       Domain: (none)
       Inputs: /model.9/cv2/conv/Conv_output_0, /model.9/cv2/act/Sigmoid_output_0
-      Outputs:       /model.9/cv2/act/Mul_output_0
+      Outputs:       /model.9/cv2/act/Mul_output_0 
       Attributes:
       metadata_props (key, value) [0]: 
       ------------- NODE
@@ -14474,7 +14474,6 @@ Functions count: 0
             Data Location: null
             metadata_props (key, value) [0]: 
 
- scales: []f32 = { 1e0, 1e0, 2e0, 2e0 }
    input[0] shape: []i64 = { 1, 192, 16, 16 }
    input[1] shape: []i64 = { 1, 96, 16, 16 }
    Converting input shapes to usize...
@@ -14533,7 +14532,6 @@ Functions count: 0
             Data Location: null
             metadata_props (key, value) [0]: 
 
- scales: []f32 = { 1e0, 1e0, 2e0, 2e0 }
    input[0] shape: []i64 = { 1, 24, 32, 32 }
    input[1] shape: []i64 = { 1, 48, 32, 32 }
    Converting input shapes to usize...
@@ -15156,18 +15154,18 @@ Functions count: 0
     LastNode:/model.9/cv2/act/Mul
 
 error: DifferentOutputNames
-/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/skeleton.zig:64:5: 0x11b54d3 in writeZigFile (Codegen)
+/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/skeleton.zig:64:5: 0x11b4db3 in writeZigFile (Codegen)
     try coddeGenPredict.writePredict(lib_writer, do_export);
     ^
-/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/main.zig:51:5: 0x11b8bad in main (Codegen)
+/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/main.zig:51:5: 0x11b848d in main (Codegen)
     try codeGen.skeleton.writeZigFile(model_name, generated_path, model, true);
     ^
 codegen
 +- run Codegen failure
 error: the following command exited with error code 1:
-/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/61fde53be2fccbb3932049036e2fa387/Codegen 
+/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/9a849ddd90b17adb0c6084a4108da79f/Codegen 
 Build Summary: 3/5 steps succeeded; 1 failed
 codegen transitive failure
 +- run Codegen failure
 error: the following build command failed with exit code 1:
-/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/eef542034016f2ce0d73a86b572be875/build /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/zig /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib /home/mirko/Documents/zig/Tiny/Z-Ant /home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache /home/mirko/.cache/zig --seed 0x374bda21 -Zad6ab15866e8c263 codegen -Dmodel=best
+/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/eef542034016f2ce0d73a86b572be875/build /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/zig /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib /home/mirko/Documents/zig/Tiny/Z-Ant /home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache /home/mirko/.cache/zig --seed 0xff1b6a17 -Zba6e6e932354e9c2 codegen -Dmodel=best
