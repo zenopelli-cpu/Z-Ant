@@ -116,34 +116,34 @@ inline fn compute_Add_output_shape(readyNode: *ReadyNode) !void {
     if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
         shape = tensorShape;
     } else {
-        shape = readyNode.inputs.items[0].shape;
+        shape = readyNode.inputs.items[0].?.shape;
     }
     readyNode.outputs.items[0].shape = shape;
 }
 
 inline fn compute_Sub_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_Sub_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    // std.debug.print("\n input[0] shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
-    // std.debug.print("\n input[1] shape: []i64 = {any}", .{readyNode.inputs.items[1].shape});
+    // std.debug.print("\n input[0] shape: []i64 = {any}", .{readyNode.inputs.items[0].?.shape});
+    // std.debug.print("\n input[1] shape: []i64 = {any}", .{readyNode.inputs.items[1].?.shape});
 
     var shape: []const i64 = undefined;
 
     if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
         std.debug.print("\n Using shape from tensor: []i64 = {any}", .{tensorShape});
         // Use the shape with more dimensions between tensor shape and input shapes
-        const max_dim = @max(tensorShape.len, readyNode.inputs.items[0].shape.len, readyNode.inputs.items[1].shape.len);
+        const max_dim = @max(tensorShape.len, readyNode.inputs.items[0].?.shape.len, readyNode.inputs.items[1].?.shape.len);
         if (tensorShape.len < max_dim) {
             std.debug.print("\n Tensor shape has fewer dimensions, using shape with {} dimensions", .{max_dim});
             // For element-wise operations, use input[0] shape and add first dimension from input[1]
-            if (readyNode.inputs.items[1].shape.len > readyNode.inputs.items[0].shape.len) {
-                var new_shape = try allocator.alloc(i64, readyNode.inputs.items[1].shape.len);
-                new_shape[0] = readyNode.inputs.items[1].shape[0]; // Use first dimension from input[1]
-                for (readyNode.inputs.items[0].shape, 0..) |dim, i| {
+            if (readyNode.inputs.items[1].?.shape.len > readyNode.inputs.items[0].?.shape.len) {
+                var new_shape = try allocator.alloc(i64, readyNode.inputs.items[1].?.shape.len);
+                new_shape[0] = readyNode.inputs.items[1].?.shape[0]; // Use first dimension from input[1]
+                for (readyNode.inputs.items[0].?.shape, 0..) |dim, i| {
                     new_shape[i + 1] = dim; // Copy remaining dimensions from input[0]
                 }
                 shape = new_shape;
             } else {
-                shape = readyNode.inputs.items[0].shape;
+                shape = readyNode.inputs.items[0].?.shape;
             }
         } else {
             shape = tensorShape;
@@ -151,15 +151,15 @@ inline fn compute_Sub_output_shape(readyNode: *ReadyNode) !void {
     } else {
         std.debug.print("\n Using shape with more dimensions", .{});
         // For element-wise operations, use input[0] shape and add first dimension from input[1]
-        if (readyNode.inputs.items[1].shape.len > readyNode.inputs.items[0].shape.len) {
-            var new_shape = try allocator.alloc(i64, readyNode.inputs.items[1].shape.len);
-            new_shape[0] = readyNode.inputs.items[1].shape[0]; // Use first dimension from input[1]
-            for (readyNode.inputs.items[0].shape, 0..) |dim, i| {
+        if (readyNode.inputs.items[1].?.shape.len > readyNode.inputs.items[0].?.shape.len) {
+            var new_shape = try allocator.alloc(i64, readyNode.inputs.items[1].?.shape.len);
+            new_shape[0] = readyNode.inputs.items[1].?.shape[0]; // Use first dimension from input[1]
+            for (readyNode.inputs.items[0].?.shape, 0..) |dim, i| {
                 new_shape[i + 1] = dim; // Copy remaining dimensions from input[0]
             }
             shape = new_shape;
         } else {
-            shape = readyNode.inputs.items[0].shape;
+            shape = readyNode.inputs.items[0].?.shape;
         }
     }
     readyNode.outputs.items[0].shape = shape;
@@ -224,30 +224,30 @@ inline fn compute_constant_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_ReLU_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_ReLU_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    // std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
-    readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
+    // std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].?.shape});
+    readyNode.outputs.items[0].shape = readyNode.inputs.items[0].?.shape;
 }
 
 inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_reshape_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    // std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
+    // std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].?.shape});
 
     // Get the new shape from either tensorProto or input shape
     var new_shape: []i64 = undefined;
-    if (readyNode.inputs.items[1].tensorProto != null and
-        readyNode.inputs.items[1].tensorProto.?.int64_data != null)
+    if (readyNode.inputs.items[1].?.tensorProto != null and
+        readyNode.inputs.items[1].?.tensorProto.?.int64_data != null)
     {
-        new_shape = try allocator.dupe(i64, readyNode.inputs.items[1].tensorProto.?.int64_data.?);
+        new_shape = try allocator.dupe(i64, readyNode.inputs.items[1].?.tensorProto.?.int64_data.?);
         std.debug.print("\n new shape from tensorProto: []i64 = {any}", .{new_shape});
     } else {
-        new_shape = try allocator.dupe(i64, readyNode.inputs.items[1].shape);
+        new_shape = try allocator.dupe(i64, readyNode.inputs.items[1].?.shape);
         std.debug.print("\n new shape from input shape: []i64 = {any}", .{new_shape});
     }
     errdefer allocator.free(new_shape);
 
     // Calculate total elements in input shape
     var total_elements: i64 = 1;
-    for (readyNode.inputs.items[0].shape) |dim| {
+    for (readyNode.inputs.items[0].?.shape) |dim| {
         total_elements *= dim;
     }
 
@@ -288,22 +288,22 @@ inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_softmax_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_softmax_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    // std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
-    readyNode.outputs.items[0].shape = readyNode.inputs.items[0].shape;
+    // std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].?.shape});
+    readyNode.outputs.items[0].shape = readyNode.inputs.items[0].?.shape;
 }
 
 inline fn compute_gemm_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_gemm_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    // std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
-    // std.debug.print("\n weight_shape: []i64 = {any}", .{readyNode.inputs.items[1].shape});
-    // std.debug.print("\n bias_shape: []i64 = {any}", .{readyNode.inputs.items[2].shape});
-    readyNode.outputs.items[0].shape = readyNode.inputs.items[2].shape;
+    // std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].?.shape});
+    // std.debug.print("\n weight_shape: []i64 = {any}", .{readyNode.inputs.items[1].?.shape});
+    // std.debug.print("\n bias_shape: []i64 = {any}", .{readyNode.inputs.items[2].?.shape});
+    readyNode.outputs.items[0].shape = readyNode.inputs.items[2].?.shape;
 }
 
 fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_mul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_a = readyNode.inputs.items[0];
-    const input_b = readyNode.inputs.items[1];
+    const input_a: *globals.ReadyTensor = readyNode.inputs.items[0].?;
+    const input_b: *globals.ReadyTensor = readyNode.inputs.items[1].?;
 
     // std.debug.print("\n input_a_shape: []i64 = {any}", .{input_a.shape});
     // std.debug.print("\n input_b_shape: []i64 = {any}", .{input_b.shape});
@@ -359,8 +359,8 @@ fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_conv_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape: []const i64 = readyNode.inputs.items[0].shape;
-    const kernel_shape: []const i64 = readyNode.inputs.items[1].shape;
+    const input_shape: []const i64 = readyNode.inputs.items[0].?.shape;
+    const kernel_shape: []const i64 = readyNode.inputs.items[1].?.shape;
 
     var stride: ?[]i64 = null;
     var dilation: ?[]i64 = null;
@@ -403,7 +403,7 @@ inline fn compute_conv_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_maxPool_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_maxPool_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape: []const i64 = readyNode.inputs.items[0].shape;
+    const input_shape: []const i64 = readyNode.inputs.items[0].?.shape;
 
     var kernel_shape: ?[]i64 = null;
     var stride: ?[]i64 = null;
@@ -501,7 +501,7 @@ inline fn compute_maxPool_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_reducemean_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_reducemean_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = try utils.i64SliceToUsizeSlice(readyNode.inputs.items[0].shape);
+    const input_shape = try utils.i64SliceToUsizeSlice(readyNode.inputs.items[0].?.shape);
     defer allocator.free(input_shape);
 
     // Get attributes
@@ -522,10 +522,10 @@ inline fn compute_reducemean_output_shape(readyNode: *ReadyNode) !void {
     // Get axes from second input if it exists
     var axes: ?[]const i64 = null;
     if (readyNode.inputs.items.len > 1 and
-        readyNode.inputs.items[1].tensorProto != null and
-        readyNode.inputs.items[1].tensorProto.?.int64_data != null)
+        readyNode.inputs.items[1].?.tensorProto != null and
+        readyNode.inputs.items[1].?.tensorProto.?.int64_data != null)
     {
-        axes = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
+        axes = readyNode.inputs.items[1].?.tensorProto.?.int64_data.?;
     } else if (axes_attr != null) {
         // Use axes from attribute if not found in inputs
         axes = axes_attr;
@@ -552,15 +552,15 @@ inline fn compute_slice_output_shape(readyNode: *ReadyNode) !void {
         // std.debug.print("\nInput[{}]:", .{i});
         // std.debug.print("\n  shape: {any}", .{input.shape});
         // std.debug.print("\n  tensorProto: {}", .{input.tensorProto != null});
-        if (input.tensorProto != null) {
-            std.debug.print("\n  int64_data: {}", .{input.tensorProto.?.int64_data != null});
-            if (input.tensorProto.?.int64_data != null) {
-                std.debug.print("\n  int64_data values: {any}", .{input.tensorProto.?.int64_data.?});
+        if (input.?.tensorProto != null) {
+            std.debug.print("\n  int64_data: {}", .{input.?.tensorProto.?.int64_data != null});
+            if (input.?.tensorProto.?.int64_data != null) {
+                std.debug.print("\n  int64_data values: {any}", .{input.?.tensorProto.?.int64_data.?});
             }
         }
     }
 
-    const input_shape = readyNode.inputs.items[0].shape;
+    const input_shape = readyNode.inputs.items[0].?.shape;
     // std.debug.print("\nInput shape: {any}", .{input_shape});
 
     // Check if we have enough inputs
@@ -574,17 +574,17 @@ inline fn compute_slice_output_shape(readyNode: *ReadyNode) !void {
     var ends: []i64 = undefined;
 
     // Handle starts
-    if (readyNode.inputs.items[1].tensorProto != null and readyNode.inputs.items[1].tensorProto.?.int64_data != null) {
-        starts = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
+    if (readyNode.inputs.items[1].?.tensorProto != null and readyNode.inputs.items[1].?.tensorProto.?.int64_data != null) {
+        starts = readyNode.inputs.items[1].?.tensorProto.?.int64_data.?;
     } else {
-        starts = try allocator.dupe(i64, readyNode.inputs.items[1].shape);
+        starts = try allocator.dupe(i64, readyNode.inputs.items[1].?.shape);
     }
 
     // Handle ends
-    if (readyNode.inputs.items[2].tensorProto != null and readyNode.inputs.items[2].tensorProto.?.int64_data != null) {
-        ends = readyNode.inputs.items[2].tensorProto.?.int64_data.?;
+    if (readyNode.inputs.items[2].?.tensorProto != null and readyNode.inputs.items[2].?.tensorProto.?.int64_data != null) {
+        ends = readyNode.inputs.items[2].?.tensorProto.?.int64_data.?;
     } else {
-        ends = try allocator.dupe(i64, readyNode.inputs.items[2].shape);
+        ends = try allocator.dupe(i64, readyNode.inputs.items[2].?.shape);
     }
 
     // std.debug.print("\nStarts values: {any}", .{starts});
@@ -595,7 +595,7 @@ inline fn compute_slice_output_shape(readyNode: *ReadyNode) !void {
 
     // Get axes if provided (input 3)
     if (readyNode.inputs.items.len > 3) {
-        const axes_tensor = readyNode.inputs.items[3].tensorProto;
+        const axes_tensor = readyNode.inputs.items[3].?.tensorProto;
         // std.debug.print("\nAxes tensor: {}", .{axes_tensor != null});
         if (axes_tensor != null and axes_tensor.?.int64_data != null) {
             axes = axes_tensor.?.int64_data.?;
@@ -605,7 +605,7 @@ inline fn compute_slice_output_shape(readyNode: *ReadyNode) !void {
 
     // Get steps if provided (input 4)
     if (readyNode.inputs.items.len > 4) {
-        const steps_tensor = readyNode.inputs.items[4].tensorProto;
+        const steps_tensor = readyNode.inputs.items[4].?.tensorProto;
         // std.debug.print("\nSteps tensor: {}", .{steps_tensor != null});
         if (steps_tensor != null and steps_tensor.?.int64_data != null) {
             steps = steps_tensor.?.int64_data.?;
@@ -627,17 +627,17 @@ inline fn compute_slice_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\nFinal output shape: {any}", .{readyNode.outputs.items[0].shape});
 
     // Clean up allocated memory
-    if (readyNode.inputs.items[1].tensorProto == null) {
+    if (readyNode.inputs.items[1].?.tensorProto == null) {
         allocator.free(starts);
     }
-    if (readyNode.inputs.items[2].tensorProto == null) {
+    if (readyNode.inputs.items[2].?.tensorProto == null) {
         allocator.free(ends);
     }
 }
 
 inline fn compute_shape_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_shape_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
+    const input_shape = readyNode.inputs.items[0].?.shape;
 
     // Get start and end attributes if they exist
     var start: ?i64 = null;
@@ -670,8 +670,8 @@ inline fn compute_shape_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_gather_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_gather_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const data_shape = readyNode.inputs.items[0].shape;
-    const indices_shape = readyNode.inputs.items[1].shape;
+    const data_shape = readyNode.inputs.items[0].?.shape;
+    const indices_shape = readyNode.inputs.items[1].?.shape;
 
     // Get axis attribute, default is 0
     var axis: i64 = 0;
@@ -722,7 +722,7 @@ inline fn compute_gather_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_sigmoid_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_sigmoid_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
+    const input_shape = readyNode.inputs.items[0].?.shape;
     // std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
     // Sigmoid is element-wise, output shape is identical to input shape
@@ -732,7 +732,7 @@ inline fn compute_sigmoid_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_transpose_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_transpose_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
+    const input_shape = readyNode.inputs.items[0].?.shape;
 
     // Get the perm attribute if it exists
     var perm: ?[]i64 = null;
@@ -774,15 +774,15 @@ inline fn compute_transpose_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_unsqueeze_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_unsqueeze_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
+    const input_shape = readyNode.inputs.items[0].?.shape;
     // std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
     // Get axes from attributes or from the second input tensor
     var axes: ?[]const i64 = null;
 
     // First check if axes is provided as an input tensor (ONNX opset 13+)
-    if (readyNode.inputs.items.len > 1 and readyNode.inputs.items[1].tensorProto != null) {
-        axes = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
+    if (readyNode.inputs.items.len > 1 and readyNode.inputs.items[1].?.tensorProto != null) {
+        axes = readyNode.inputs.items[1].?.tensorProto.?.int64_data.?;
         std.debug.print("\n axes from input tensor: []i64 = {any}", .{axes.?});
     } else {
         // Otherwise, check for axes attribute (ONNX opset < 13)
@@ -868,7 +868,7 @@ pub fn compute_concat_output_shape(readyNode: *ReadyNode) !void {
 
     // Print input shapes
     for (readyNode.inputs.items, 0..) |input, i| {
-        std.debug.print("\n   input[{}] shape: []i64 = {any}", .{ i, input.shape });
+        if (input) |in| std.debug.print("\n   input[{}] shape: []i64 = {any}", .{ i, in.shape }) else std.debug.print("\n   input[{}] is null", .{i});
     }
 
     // Convert input shapes to usize for get_concatenate_output_shape
@@ -885,8 +885,8 @@ pub fn compute_concat_output_shape(readyNode: *ReadyNode) !void {
     for (readyNode.inputs.items, 0..) |input, i| {
         std.debug.print("\n   Converting input[{}] shape to usize...", .{i});
         // Handle negative values by using 1 as a placeholder
-        var shape = try allocator.alloc(usize, input.shape.len);
-        for (input.shape, 0..) |dim, j| {
+        var shape = try allocator.alloc(usize, input.?.shape.len);
+        for (input.?.shape, 0..) |dim, j| {
             shape[j] = if (dim < 0) 1 else @intCast(dim);
         }
         input_shapes[i] = shape;
@@ -919,7 +919,7 @@ pub fn compute_concat_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_ceil_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
+    const input_shape = readyNode.inputs.items[0].?.shape;
     // std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
     // Ceil is an element-wise operation, output shape is identical to input shape
@@ -929,7 +929,7 @@ inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_identity_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_identity_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
+    const input_shape = readyNode.inputs.items[0].?.shape;
     // std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
     // Identity operation preserves the input shape
@@ -939,7 +939,7 @@ inline fn compute_identity_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_leaky_relu_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_leaky_relu_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
+    const input_shape = readyNode.inputs.items[0].?.shape;
     // std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
     // LeakyReLU is an element-wise operation, output shape is identical to input shape
@@ -949,8 +949,8 @@ inline fn compute_leaky_relu_output_shape(readyNode: *ReadyNode) !void {
 
 fn compute_matmul_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_matmul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_a = readyNode.inputs.items[0];
-    const input_b = readyNode.inputs.items[1];
+    const input_a = readyNode.inputs.items[0].?;
+    const input_b = readyNode.inputs.items[1].?;
 
     // std.debug.print("\n input_a_shape: []i64 = {any}", .{input_a.shape});
     // std.debug.print("\n input_b_shape: []i64 = {any}", .{input_b.shape});
@@ -986,7 +986,7 @@ fn compute_matmul_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_split_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_split_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
+    const input_shape = readyNode.inputs.items[0].?.shape;
 
     // Get axis attribute (default is 0)
     var axis: i64 = 0;
@@ -1003,10 +1003,10 @@ inline fn compute_split_output_shape(readyNode: *ReadyNode) !void {
 
     // Check if split_sizes is provided as an input (ONNX opset 13+)
     if (readyNode.inputs.items.len > 1 and
-        readyNode.inputs.items[1].tensorProto != null and
-        readyNode.inputs.items[1].tensorProto.?.int64_data != null)
+        readyNode.inputs.items[1].?.tensorProto != null and
+        readyNode.inputs.items[1].?.tensorProto.?.int64_data != null)
     {
-        split_sizes = readyNode.inputs.items[1].tensorProto.?.int64_data.?;
+        split_sizes = readyNode.inputs.items[1].?.tensorProto.?.int64_data.?;
     }
 
     // std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
@@ -1053,29 +1053,27 @@ inline fn compute_split_output_shape(readyNode: *ReadyNode) !void {
 
 pub fn compute_resize_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_resize_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
+    const input_shape = readyNode.inputs.items[0].?.shape;
     // std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
     // Extract scales and sizes from inputs
     var scales: ?[]const f32 = null;
     var sizes: ?[]const i64 = null;
 
-    for (readyNode.inputs.items) |i| {
-        i.print(true);
-    }
+    readyNode.print(true);
 
     // ROI is at index 1,
     // scales at index 2,
     // sizes at index 3
-    if (readyNode.inputs.items.len > 2 and readyNode.inputs.items[2].tensorProto != null) {
-        if (readyNode.inputs.items[2].tensorProto.?.float_data != null) {
-            scales = readyNode.inputs.items[2].tensorProto.?.float_data.?;
+    if (readyNode.inputs.items.len > 2 and readyNode.inputs.items[2].?.tensorProto != null) {
+        if (readyNode.inputs.items[2].?.tensorProto.?.float_data != null) {
+            scales = readyNode.inputs.items[2].?.tensorProto.?.float_data.?;
             // std.debug.print("\n scales: []f32 = {any}", .{scales});
         }
     }
-    if (readyNode.inputs.items.len > 3 and readyNode.inputs.items[3].tensorProto != null) {
-        if (readyNode.inputs.items[3].tensorProto.?.int64_data != null) {
-            sizes = readyNode.inputs.items[3].tensorProto.?.int64_data.?;
+    if (readyNode.inputs.items.len > 3 and readyNode.inputs.items[3].?.tensorProto != null) {
+        if (readyNode.inputs.items[3].?.tensorProto.?.int64_data != null) {
+            sizes = readyNode.inputs.items[3].?.tensorProto.?.int64_data.?;
             // std.debug.print("\n sizes: []i64 = {any}", .{sizes});
         }
     }
@@ -1130,7 +1128,7 @@ pub fn compute_resize_output_shape_generic(comptime T: type, input_shape: []cons
 
 inline fn compute_neg_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_neg_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
+    const input_shape = readyNode.inputs.items[0].?.shape;
     // std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
     // Neg operation preserves the input shape - use the utility function
@@ -1146,27 +1144,27 @@ inline fn compute_neg_output_shape(readyNode: *ReadyNode) !void {
 
 inline fn compute_Div_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_Div_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    // std.debug.print("\n input[0] shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
-    // std.debug.print("\n input[1] shape: []i64 = {any}", .{readyNode.inputs.items[1].shape});
+    // std.debug.print("\n input[0] shape: []i64 = {any}", .{readyNode.inputs.items[0].?.shape});
+    // std.debug.print("\n input[1] shape: []i64 = {any}", .{readyNode.inputs.items[1].?.shape});
 
     var shape: []const i64 = undefined;
 
     if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
         std.debug.print("\n Using shape from tensor: []i64 = {any}", .{tensorShape});
         // Use the shape with more dimensions between tensor shape and input shapes
-        const max_dim = @max(tensorShape.len, readyNode.inputs.items[0].shape.len, readyNode.inputs.items[1].shape.len);
+        const max_dim = @max(tensorShape.len, readyNode.inputs.items[0].?.shape.len, readyNode.inputs.items[1].?.shape.len);
         if (tensorShape.len < max_dim) {
             std.debug.print("\n Tensor shape has fewer dimensions, using shape with {} dimensions", .{max_dim});
             // For element-wise operations, use input[0] shape and add first dimension from input[1]
-            if (readyNode.inputs.items[1].shape.len > readyNode.inputs.items[0].shape.len) {
-                var new_shape = try allocator.alloc(i64, readyNode.inputs.items[1].shape.len);
-                new_shape[0] = readyNode.inputs.items[1].shape[0]; // Use first dimension from input[1]
-                for (readyNode.inputs.items[0].shape, 0..) |dim, i| {
+            if (readyNode.inputs.items[1].?.shape.len > readyNode.inputs.items[0].?.shape.len) {
+                var new_shape = try allocator.alloc(i64, readyNode.inputs.items[1].?.shape.len);
+                new_shape[0] = readyNode.inputs.items[1].?.shape[0]; // Use first dimension from input[1]
+                for (readyNode.inputs.items[0].?.shape, 0..) |dim, i| {
                     new_shape[i + 1] = dim; // Copy remaining dimensions from input[0]
                 }
                 shape = new_shape;
             } else {
-                shape = readyNode.inputs.items[0].shape;
+                shape = readyNode.inputs.items[0].?.shape;
             }
         } else {
             shape = tensorShape;
@@ -1174,15 +1172,15 @@ inline fn compute_Div_output_shape(readyNode: *ReadyNode) !void {
     } else {
         std.debug.print("\n Using shape with more dimensions", .{});
         // For element-wise operations, use input[0] shape and add first dimension from input[1]
-        if (readyNode.inputs.items[1].shape.len > readyNode.inputs.items[0].shape.len) {
-            var new_shape = try allocator.alloc(i64, readyNode.inputs.items[1].shape.len);
-            new_shape[0] = readyNode.inputs.items[1].shape[0]; // Use first dimension from input[1]
-            for (readyNode.inputs.items[0].shape, 0..) |dim, i| {
+        if (readyNode.inputs.items[1].?.shape.len > readyNode.inputs.items[0].?.shape.len) {
+            var new_shape = try allocator.alloc(i64, readyNode.inputs.items[1].?.shape.len);
+            new_shape[0] = readyNode.inputs.items[1].?.shape[0]; // Use first dimension from input[1]
+            for (readyNode.inputs.items[0].?.shape, 0..) |dim, i| {
                 new_shape[i + 1] = dim; // Copy remaining dimensions from input[0]
             }
             shape = new_shape;
         } else {
-            shape = readyNode.inputs.items[0].shape;
+            shape = readyNode.inputs.items[0].?.shape;
         }
     }
     readyNode.outputs.items[0].shape = shape;

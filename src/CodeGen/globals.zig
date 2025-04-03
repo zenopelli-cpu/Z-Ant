@@ -108,7 +108,7 @@ pub const ReadyTensor = struct {
 // Struct representing a computational node in the ONNX model
 pub const ReadyNode = struct {
     nodeProto: *NodeProto,
-    inputs: std.ArrayList(*ReadyTensor),
+    inputs: std.ArrayList(?*ReadyTensor),
     outputs: std.ArrayList(*ReadyTensor),
     ready: bool,
 
@@ -117,7 +117,7 @@ pub const ReadyNode = struct {
         // std.debug.print("\n\nReadyNode.create() --> {s}", .{nodeProto.name.?});
         var newReadyNode = ReadyNode{
             .nodeProto = nodeProto,
-            .inputs = std.ArrayList(*ReadyTensor).init(allocator),
+            .inputs = std.ArrayList(?*ReadyTensor).init(allocator),
             .outputs = std.ArrayList(*ReadyTensor).init(allocator),
             .ready = false,
         };
@@ -125,9 +125,11 @@ pub const ReadyNode = struct {
         for (nodeProto.input) |input_name| { //for each input tensor in NodeProto
 
             //adding the readyTensor to the model
-            try newReadyNode.inputs.append(if (tensorHashMap.getPtr(input_name)) |V_ptr| V_ptr else return error.keyNotAvailable);
-            // std.debug.print("\n   added input {s} to node {s} ", .{ input_name, nodeProto.name.? });
-
+            if (std.mem.eql(u8, input_name, "")) {
+                try newReadyNode.inputs.append(null);
+            } else {
+                try newReadyNode.inputs.append(if (tensorHashMap.getPtr(input_name)) |V_ptr| V_ptr else return error.keyNotAvailable);
+            }
         }
         for (nodeProto.output) |output_name| { //for each output tensor
 
@@ -146,7 +148,7 @@ pub const ReadyNode = struct {
         std.debug.print("\n ------ READY NODE : ", .{});
         if (detailed) node.nodeProto.print("  ") else std.debug.print("\n {s} ", .{node.nodeProto.name.?});
         std.debug.print("\n  ---inputs : ", .{});
-        for (node.inputs.items) |in| in.print(detailed);
+        for (node.inputs.items) |in| if (in) |i| i.print(detailed) else std.debug.print("\n      NULL INPUT", .{});
         std.debug.print("\n  ---outputs : ", .{});
         for (node.outputs.items) |out| out.print(detailed);
     }
@@ -221,10 +223,9 @@ fn populateReadyTensorHashMap(model: ModelOnnx) !void {
 }
 
 pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto) !void {
-    if (tensorHashMap.get(name)) |_| {
+    if (tensorHashMap.get(name) != null or std.mem.eql(u8, name, "")) {
         return;
     } else {
-
         //if input
         if (utils.isInput(name)) {
             //add the readyTensor to the HashMap

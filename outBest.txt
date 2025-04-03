@@ -14319,458 +14319,174 @@ Functions count: 0
  SETTING networkInput 
  name = output0 
  shape={ 1, 84, 1344 }
-====== compute_conv_output_shape node: /model.0/conv/Conv======
- input_shape: []i64 = { 1, 3, 256, 256 }
- kernel_shape: []i64 = { 16, 3, 3, 3 }
- stride: []i64 = { 2, 2 }
- output_shape: []i64 = { 1, 16, 128, 128 }
-====== compute_sigmoid_output_shape node: /model.0/act/Sigmoid======
- input_shape: []i64 = { 1, 16, 128, 128 }
- output_shape: []i64 = { 1, 16, 128, 128 }
-====== compute_mul_output_shape node: /model.0/act/Mul======
- input_a_shape: []i64 = { 1, 16, 128, 128 }
- input_b_shape: []i64 = { 1, 16, 128, 128 }
- output_shape: []i64 = { 1, 16, 128, 128 }
-====== compute_conv_output_shape node: /model.1/conv/Conv======
- input_shape: []i64 = { 1, 16, 128, 128 }
- kernel_shape: []i64 = { 24, 16, 3, 3 }
- stride: []i64 = { 2, 2 }
- output_shape: []i64 = { 1, 24, 64, 64 }
-====== compute_sigmoid_output_shape node: /model.1/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 64, 64 }
- output_shape: []i64 = { 1, 24, 64, 64 }
-====== compute_mul_output_shape node: /model.1/act/Mul======
- input_a_shape: []i64 = { 1, 24, 64, 64 }
- input_b_shape: []i64 = { 1, 24, 64, 64 }
- output_shape: []i64 = { 1, 24, 64, 64 }
-====== compute_conv_output_shape node: /model.2/cv1/conv/Conv======
- input_shape: []i64 = { 1, 24, 64, 64 }
- kernel_shape: []i64 = { 24, 24, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 64, 64 }
-====== compute_sigmoid_output_shape node: /model.2/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 64, 64 }
- output_shape: []i64 = { 1, 24, 64, 64 }
-====== compute_mul_output_shape node: /model.2/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 24, 64, 64 }
- input_b_shape: []i64 = { 1, 24, 64, 64 }
- output_shape: []i64 = { 1, 24, 64, 64 }
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
 ====== compute_constant_output_shape node: Constant_9======
  output_shape from tensor: []i64 = { 2 }
-====== compute_split_output_shape node: /model.2/Split======
- input_shape: []i64 = { 1, 24, 64, 64 }
- axis: 1
- split_sizes: { 12, 12 }
- num_outputs: 2
  output[0] shape: []i64 = { 1, 12, 64, 64 }
  output[1] shape: []i64 = { 1, 12, 64, 64 }
-====== compute_conv_output_shape node: /model.2/m.0/cv1/conv/Conv======
- input_shape: []i64 = { 1, 12, 64, 64 }
- kernel_shape: []i64 = { 12, 12, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 12, 64, 64 }
-====== compute_sigmoid_output_shape node: /model.2/m.0/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 12, 64, 64 }
- output_shape: []i64 = { 1, 12, 64, 64 }
-====== compute_mul_output_shape node: /model.2/m.0/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 12, 64, 64 }
- input_b_shape: []i64 = { 1, 12, 64, 64 }
- output_shape: []i64 = { 1, 12, 64, 64 }
-====== compute_conv_output_shape node: /model.2/m.0/cv2/conv/Conv======
- input_shape: []i64 = { 1, 12, 64, 64 }
- kernel_shape: []i64 = { 12, 12, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 12, 64, 64 }
-====== compute_sigmoid_output_shape node: /model.2/m.0/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 12, 64, 64 }
- output_shape: []i64 = { 1, 12, 64, 64 }
-====== compute_mul_output_shape node: /model.2/m.0/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 12, 64, 64 }
- input_b_shape: []i64 = { 1, 12, 64, 64 }
- output_shape: []i64 = { 1, 12, 64, 64 }
- compute_concat_output_shape for node: /model.2/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 12, 64, 64 }, { 1, 12, 64, 64 }, { 1, 12, 64, 64 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 36, 64, 64 }
-====== compute_conv_output_shape node: /model.2/cv2/conv/Conv======
- input_shape: []i64 = { 1, 36, 64, 64 }
- kernel_shape: []i64 = { 24, 36, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 64, 64 }
-====== compute_sigmoid_output_shape node: /model.2/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 64, 64 }
- output_shape: []i64 = { 1, 24, 64, 64 }
-====== compute_mul_output_shape node: /model.2/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 24, 64, 64 }
- input_b_shape: []i64 = { 1, 24, 64, 64 }
- output_shape: []i64 = { 1, 24, 64, 64 }
-====== compute_conv_output_shape node: /model.3/conv/Conv======
- input_shape: []i64 = { 1, 24, 64, 64 }
- kernel_shape: []i64 = { 48, 24, 3, 3 }
- stride: []i64 = { 2, 2 }
- output_shape: []i64 = { 1, 48, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.3/act/Sigmoid======
- input_shape: []i64 = { 1, 48, 32, 32 }
- output_shape: []i64 = { 1, 48, 32, 32 }
-====== compute_mul_output_shape node: /model.3/act/Mul======
- input_a_shape: []i64 = { 1, 48, 32, 32 }
- input_b_shape: []i64 = { 1, 48, 32, 32 }
- output_shape: []i64 = { 1, 48, 32, 32 }
-====== compute_conv_output_shape node: /model.4/cv1/conv/Conv======
- input_shape: []i64 = { 1, 48, 32, 32 }
- kernel_shape: []i64 = { 48, 48, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 48, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.4/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 48, 32, 32 }
- output_shape: []i64 = { 1, 48, 32, 32 }
-====== compute_mul_output_shape node: /model.4/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 48, 32, 32 }
- input_b_shape: []i64 = { 1, 48, 32, 32 }
- output_shape: []i64 = { 1, 48, 32, 32 }
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 12, 64, 64 }
+   input[1] shape: []i64 = { 1, 12, 64, 64 }
+   input[2] shape: []i64 = { 1, 12, 64, 64 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 12, 64, 64 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 12, 64, 64 }
+   Converting input[2] shape to usize...
+   Converted shape: []usize = { 1, 12, 64, 64 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 36, 64, 64 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 36, 64, 64 }
+   Cleaning up temporary allocations...
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
 ====== compute_constant_output_shape node: Constant_28======
  output_shape from tensor: []i64 = { 2 }
-====== compute_split_output_shape node: /model.4/Split======
- input_shape: []i64 = { 1, 48, 32, 32 }
- axis: 1
- split_sizes: { 24, 24 }
- num_outputs: 2
  output[0] shape: []i64 = { 1, 24, 32, 32 }
  output[1] shape: []i64 = { 1, 24, 32, 32 }
-====== compute_conv_output_shape node: /model.4/m.0/cv1/conv/Conv======
- input_shape: []i64 = { 1, 24, 32, 32 }
- kernel_shape: []i64 = { 24, 24, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.4/m.0/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 32, 32 }
- output_shape: []i64 = { 1, 24, 32, 32 }
-====== compute_mul_output_shape node: /model.4/m.0/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 24, 32, 32 }
- input_b_shape: []i64 = { 1, 24, 32, 32 }
- output_shape: []i64 = { 1, 24, 32, 32 }
-====== compute_conv_output_shape node: /model.4/m.0/cv2/conv/Conv======
- input_shape: []i64 = { 1, 24, 32, 32 }
- kernel_shape: []i64 = { 24, 24, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.4/m.0/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 32, 32 }
- output_shape: []i64 = { 1, 24, 32, 32 }
-====== compute_mul_output_shape node: /model.4/m.0/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 24, 32, 32 }
- input_b_shape: []i64 = { 1, 24, 32, 32 }
- output_shape: []i64 = { 1, 24, 32, 32 }
-====== compute_conv_output_shape node: /model.4/m.1/cv1/conv/Conv======
- input_shape: []i64 = { 1, 24, 32, 32 }
- kernel_shape: []i64 = { 24, 24, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.4/m.1/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 32, 32 }
- output_shape: []i64 = { 1, 24, 32, 32 }
-====== compute_mul_output_shape node: /model.4/m.1/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 24, 32, 32 }
- input_b_shape: []i64 = { 1, 24, 32, 32 }
- output_shape: []i64 = { 1, 24, 32, 32 }
-====== compute_conv_output_shape node: /model.4/m.1/cv2/conv/Conv======
- input_shape: []i64 = { 1, 24, 32, 32 }
- kernel_shape: []i64 = { 24, 24, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.4/m.1/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 32, 32 }
- output_shape: []i64 = { 1, 24, 32, 32 }
-====== compute_mul_output_shape node: /model.4/m.1/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 24, 32, 32 }
- input_b_shape: []i64 = { 1, 24, 32, 32 }
- output_shape: []i64 = { 1, 24, 32, 32 }
- compute_concat_output_shape for node: /model.4/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 24, 32, 32 }, { 1, 24, 32, 32 }, { 1, 24, 32, 32 }, { 1, 24, 32, 32 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 96, 32, 32 }
-====== compute_conv_output_shape node: /model.4/cv2/conv/Conv======
- input_shape: []i64 = { 1, 96, 32, 32 }
- kernel_shape: []i64 = { 48, 96, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 48, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.4/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 48, 32, 32 }
- output_shape: []i64 = { 1, 48, 32, 32 }
-====== compute_mul_output_shape node: /model.4/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 48, 32, 32 }
- input_b_shape: []i64 = { 1, 48, 32, 32 }
- output_shape: []i64 = { 1, 48, 32, 32 }
-====== compute_conv_output_shape node: /model.5/conv/Conv======
- input_shape: []i64 = { 1, 48, 32, 32 }
- kernel_shape: []i64 = { 96, 48, 3, 3 }
- stride: []i64 = { 2, 2 }
- output_shape: []i64 = { 1, 96, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.5/act/Sigmoid======
- input_shape: []i64 = { 1, 96, 16, 16 }
- output_shape: []i64 = { 1, 96, 16, 16 }
-====== compute_mul_output_shape node: /model.5/act/Mul======
- input_a_shape: []i64 = { 1, 96, 16, 16 }
- input_b_shape: []i64 = { 1, 96, 16, 16 }
- output_shape: []i64 = { 1, 96, 16, 16 }
-====== compute_conv_output_shape node: /model.6/cv1/conv/Conv======
- input_shape: []i64 = { 1, 96, 16, 16 }
- kernel_shape: []i64 = { 96, 96, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 96, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.6/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 96, 16, 16 }
- output_shape: []i64 = { 1, 96, 16, 16 }
-====== compute_mul_output_shape node: /model.6/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 96, 16, 16 }
- input_b_shape: []i64 = { 1, 96, 16, 16 }
- output_shape: []i64 = { 1, 96, 16, 16 }
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 24, 32, 32 }
+   input[1] shape: []i64 = { 1, 24, 32, 32 }
+   input[2] shape: []i64 = { 1, 24, 32, 32 }
+   input[3] shape: []i64 = { 1, 24, 32, 32 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 24, 32, 32 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 24, 32, 32 }
+   Converting input[2] shape to usize...
+   Converted shape: []usize = { 1, 24, 32, 32 }
+   Converting input[3] shape to usize...
+   Converted shape: []usize = { 1, 24, 32, 32 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 96, 32, 32 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 96, 32, 32 }
+   Cleaning up temporary allocations...
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
 ====== compute_constant_output_shape node: Constant_54======
  output_shape from tensor: []i64 = { 2 }
-====== compute_split_output_shape node: /model.6/Split======
- input_shape: []i64 = { 1, 96, 16, 16 }
- axis: 1
- split_sizes: { 48, 48 }
- num_outputs: 2
  output[0] shape: []i64 = { 1, 48, 16, 16 }
  output[1] shape: []i64 = { 1, 48, 16, 16 }
-====== compute_conv_output_shape node: /model.6/m.0/cv1/conv/Conv======
- input_shape: []i64 = { 1, 48, 16, 16 }
- kernel_shape: []i64 = { 48, 48, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.6/m.0/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_mul_output_shape node: /model.6/m.0/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 48, 16, 16 }
- input_b_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_conv_output_shape node: /model.6/m.0/cv2/conv/Conv======
- input_shape: []i64 = { 1, 48, 16, 16 }
- kernel_shape: []i64 = { 48, 48, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.6/m.0/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_mul_output_shape node: /model.6/m.0/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 48, 16, 16 }
- input_b_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_conv_output_shape node: /model.6/m.1/cv1/conv/Conv======
- input_shape: []i64 = { 1, 48, 16, 16 }
- kernel_shape: []i64 = { 48, 48, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.6/m.1/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_mul_output_shape node: /model.6/m.1/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 48, 16, 16 }
- input_b_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_conv_output_shape node: /model.6/m.1/cv2/conv/Conv======
- input_shape: []i64 = { 1, 48, 16, 16 }
- kernel_shape: []i64 = { 48, 48, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.6/m.1/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_mul_output_shape node: /model.6/m.1/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 48, 16, 16 }
- input_b_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
- compute_concat_output_shape for node: /model.6/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 48, 16, 16 }, { 1, 48, 16, 16 }, { 1, 48, 16, 16 }, { 1, 48, 16, 16 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 192, 16, 16 }
-====== compute_conv_output_shape node: /model.6/cv2/conv/Conv======
- input_shape: []i64 = { 1, 192, 16, 16 }
- kernel_shape: []i64 = { 96, 192, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 96, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.6/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 96, 16, 16 }
- output_shape: []i64 = { 1, 96, 16, 16 }
-====== compute_mul_output_shape node: /model.6/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 96, 16, 16 }
- input_b_shape: []i64 = { 1, 96, 16, 16 }
- output_shape: []i64 = { 1, 96, 16, 16 }
-====== compute_conv_output_shape node: /model.7/conv/Conv======
- input_shape: []i64 = { 1, 96, 16, 16 }
- kernel_shape: []i64 = { 192, 96, 3, 3 }
- stride: []i64 = { 2, 2 }
- output_shape: []i64 = { 1, 192, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.7/act/Sigmoid======
- input_shape: []i64 = { 1, 192, 8, 8 }
- output_shape: []i64 = { 1, 192, 8, 8 }
-====== compute_mul_output_shape node: /model.7/act/Mul======
- input_a_shape: []i64 = { 1, 192, 8, 8 }
- input_b_shape: []i64 = { 1, 192, 8, 8 }
- output_shape: []i64 = { 1, 192, 8, 8 }
-====== compute_conv_output_shape node: /model.8/cv1/conv/Conv======
- input_shape: []i64 = { 1, 192, 8, 8 }
- kernel_shape: []i64 = { 192, 192, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 192, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.8/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 192, 8, 8 }
- output_shape: []i64 = { 1, 192, 8, 8 }
-====== compute_mul_output_shape node: /model.8/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 192, 8, 8 }
- input_b_shape: []i64 = { 1, 192, 8, 8 }
- output_shape: []i64 = { 1, 192, 8, 8 }
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 48, 16, 16 }
+   input[1] shape: []i64 = { 1, 48, 16, 16 }
+   input[2] shape: []i64 = { 1, 48, 16, 16 }
+   input[3] shape: []i64 = { 1, 48, 16, 16 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 48, 16, 16 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 48, 16, 16 }
+   Converting input[2] shape to usize...
+   Converted shape: []usize = { 1, 48, 16, 16 }
+   Converting input[3] shape to usize...
+   Converted shape: []usize = { 1, 48, 16, 16 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 192, 16, 16 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 192, 16, 16 }
+   Cleaning up temporary allocations...
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
 ====== compute_constant_output_shape node: Constant_80======
  output_shape from tensor: []i64 = { 2 }
-====== compute_split_output_shape node: /model.8/Split======
- input_shape: []i64 = { 1, 192, 8, 8 }
- axis: 1
- split_sizes: { 96, 96 }
- num_outputs: 2
  output[0] shape: []i64 = { 1, 96, 8, 8 }
  output[1] shape: []i64 = { 1, 96, 8, 8 }
-====== compute_conv_output_shape node: /model.8/m.0/cv1/conv/Conv======
- input_shape: []i64 = { 1, 96, 8, 8 }
- kernel_shape: []i64 = { 96, 96, 3, 3 }
- stride: []i64 = { 1, 1 }
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 96, 8, 8 }
+   input[1] shape: []i64 = { 1, 96, 8, 8 }
+   input[2] shape: []i64 = { 1, 96, 8, 8 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 96, 8, 8 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 96, 8, 8 }
+   Converting input[2] shape to usize...
+   Converted shape: []usize = { 1, 96, 8, 8 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 288, 8, 8 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 288, 8, 8 }
+   Cleaning up temporary allocations...
+ max_rank: 4
+ max_rank: 4
  output_shape: []i64 = { 1, 96, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.8/m.0/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 96, 8, 8 }
  output_shape: []i64 = { 1, 96, 8, 8 }
-====== compute_mul_output_shape node: /model.8/m.0/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 96, 8, 8 }
- input_b_shape: []i64 = { 1, 96, 8, 8 }
  output_shape: []i64 = { 1, 96, 8, 8 }
-====== compute_conv_output_shape node: /model.8/m.0/cv2/conv/Conv======
- input_shape: []i64 = { 1, 96, 8, 8 }
- kernel_shape: []i64 = { 96, 96, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 96, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.8/m.0/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 96, 8, 8 }
- output_shape: []i64 = { 1, 96, 8, 8 }
-====== compute_mul_output_shape node: /model.8/m.0/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 96, 8, 8 }
- input_b_shape: []i64 = { 1, 96, 8, 8 }
- output_shape: []i64 = { 1, 96, 8, 8 }
- compute_concat_output_shape for node: /model.8/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 96, 8, 8 }, { 1, 96, 8, 8 }, { 1, 96, 8, 8 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 288, 8, 8 }
-====== compute_conv_output_shape node: /model.8/cv2/conv/Conv======
- input_shape: []i64 = { 1, 288, 8, 8 }
- kernel_shape: []i64 = { 192, 288, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 192, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.8/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 192, 8, 8 }
- output_shape: []i64 = { 1, 192, 8, 8 }
-====== compute_mul_output_shape node: /model.8/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 192, 8, 8 }
- input_b_shape: []i64 = { 1, 192, 8, 8 }
- output_shape: []i64 = { 1, 192, 8, 8 }
-====== compute_conv_output_shape node: /model.9/cv1/conv/Conv======
- input_shape: []i64 = { 1, 192, 8, 8 }
- kernel_shape: []i64 = { 96, 192, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 96, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.9/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 96, 8, 8 }
- output_shape: []i64 = { 1, 96, 8, 8 }
-====== compute_mul_output_shape node: /model.9/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 96, 8, 8 }
- input_b_shape: []i64 = { 1, 96, 8, 8 }
- output_shape: []i64 = { 1, 96, 8, 8 }
-====== compute_maxPool_output_shape node: /model.9/m/MaxPool======
- input_shape: []i64 = { 1, 96, 8, 8 }
- kernel_shape: []i64 = { 5, 5 }
- stride: []i64 = { 1, 1 }
- dilation: []i64 = { 1, 1 }
- pads: []i64 = { 2, 2, 2, 2 }
- auto_pad: NOTSET
- ceil_mode: false
-[DEBUG] get_onnx_maxpool_output_shape - Input shape: { 1, 96, 8, 8 }
-[DEBUG] get_onnx_maxpool_output_shape - Kernel shape: { 5, 5 }
-[DEBUG] get_onnx_maxpool_output_shape - Strides: { 1, 1 }
-[DEBUG] get_onnx_maxpool_output_shape - Dilations: { 1, 1 }
-[DEBUG] get_onnx_maxpool_output_shape - Pads: { 2, 2, 2, 2 }
-[DEBUG] get_onnx_maxpool_output_shape - AutoPad: Core.Tensor.TensorMath.op_pooling.AutoPadType.NOTSET
-[DEBUG] get_onnx_maxpool_output_shape - Ceil mode: false
- output_shape: []i64 = { 1, 96, 8, 8 }
-====== compute_maxPool_output_shape node: /model.9/m_1/MaxPool======
- input_shape: []i64 = { 1, 96, 8, 8 }
- kernel_shape: []i64 = { 5, 5 }
- stride: []i64 = { 1, 1 }
- dilation: []i64 = { 1, 1 }
- pads: []i64 = { 2, 2, 2, 2 }
- auto_pad: NOTSET
- ceil_mode: false
-[DEBUG] get_onnx_maxpool_output_shape - Input shape: { 1, 96, 8, 8 }
-[DEBUG] get_onnx_maxpool_output_shape - Kernel shape: { 5, 5 }
-[DEBUG] get_onnx_maxpool_output_shape - Strides: { 1, 1 }
-[DEBUG] get_onnx_maxpool_output_shape - Dilations: { 1, 1 }
-[DEBUG] get_onnx_maxpool_output_shape - Pads: { 2, 2, 2, 2 }
-[DEBUG] get_onnx_maxpool_output_shape - AutoPad: Core.Tensor.TensorMath.op_pooling.AutoPadType.NOTSET
-[DEBUG] get_onnx_maxpool_output_shape - Ceil mode: false
- output_shape: []i64 = { 1, 96, 8, 8 }
-====== compute_maxPool_output_shape node: /model.9/m_2/MaxPool======
- input_shape: []i64 = { 1, 96, 8, 8 }
- kernel_shape: []i64 = { 5, 5 }
- stride: []i64 = { 1, 1 }
- dilation: []i64 = { 1, 1 }
- pads: []i64 = { 2, 2, 2, 2 }
- auto_pad: NOTSET
- ceil_mode: false
-[DEBUG] get_onnx_maxpool_output_shape - Input shape: { 1, 96, 8, 8 }
-[DEBUG] get_onnx_maxpool_output_shape - Kernel shape: { 5, 5 }
-[DEBUG] get_onnx_maxpool_output_shape - Strides: { 1, 1 }
-[DEBUG] get_onnx_maxpool_output_shape - Dilations: { 1, 1 }
-[DEBUG] get_onnx_maxpool_output_shape - Pads: { 2, 2, 2, 2 }
-[DEBUG] get_onnx_maxpool_output_shape - AutoPad: Core.Tensor.TensorMath.op_pooling.AutoPadType.NOTSET
-[DEBUG] get_onnx_maxpool_output_shape - Ceil mode: false
- output_shape: []i64 = { 1, 96, 8, 8 }
- compute_concat_output_shape for node: /model.9/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 96, 8, 8 }, { 1, 96, 8, 8 }, { 1, 96, 8, 8 }, { 1, 96, 8, 8 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 384, 8, 8 }
-====== compute_conv_output_shape node: /model.9/cv2/conv/Conv======
- input_shape: []i64 = { 1, 384, 8, 8 }
- kernel_shape: []i64 = { 192, 384, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 192, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.9/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 192, 8, 8 }
- output_shape: []i64 = { 1, 192, 8, 8 }
-====== compute_mul_output_shape node: /model.9/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 192, 8, 8 }
- input_b_shape: []i64 = { 1, 192, 8, 8 }
- output_shape: []i64 = { 1, 192, 8, 8 }
+   input[0] shape: []i64 = { 1, 96, 8, 8 }
+   input[1] shape: []i64 = { 1, 96, 8, 8 }
+   input[2] shape: []i64 = { 1, 96, 8, 8 }
+   input[3] shape: []i64 = { 1, 96, 8, 8 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 96, 8, 8 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 96, 8, 8 }
+   Converting input[2] shape to usize...
+   Converted shape: []usize = { 1, 96, 8, 8 }
+   Converting input[3] shape to usize...
+   Converted shape: []usize = { 1, 96, 8, 8 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 384, 8, 8 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 384, 8, 8 }
+   Cleaning up temporary allocations...
+ max_rank: 4
 ====== compute_constant_output_shape node: /model.10/Constant======
  output_shape from tensor: []i64 = { 4 }
-====== compute_resize_output_shape node: /model.10/Resize======
- input_shape: []i64 = { 1, 192, 8, 8 }
+ ------ READY NODE :      ------------- NODE
+     Name: /model.10/Resize
+     Op Type: Resize
+     Domain: (none)
+     Inputs: /model.9/cv2/act/Mul_output_0, <empty_string>, /model.10/Constant_output_0
+     Outputs:      /model.10/Resize_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: coordinate_transformation_mode
+        Type: onnx.onnx.AttributeType.STRING
+        String: "asymmetric"
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: cubic_coeff_a
+        Type: onnx.onnx.AttributeType.FLOAT
+        Float: -7.5e-1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: mode
+        Type: onnx.onnx.AttributeType.STRING
+        String: "nearest"
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: nearest_mode
+        Type: onnx.onnx.AttributeType.STRING
+        String: "floor"
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
       READY TENSOR : /model.9/cv2/act/Mul_output_0
          status: not ready
          tag: globals.TensorTag.LINK
          shape: { 1, 192, 8, 8 }
          tensor.tensorProto :(null)
-      READY TENSOR : 
-         status: not ready
-         tag: globals.TensorTag.LINK
-         shape: { 1, 3, 256, 256 }
-         tensor.tensorProto :(null)
+      NULL INPUT
       READY TENSOR : /model.10/Constant_output_0
          status: ready
          tag: globals.TensorTag.CONSTANT
@@ -14784,89 +14500,83 @@ Functions count: 0
             Data Location: null
             metadata_props (key, value) [0]: 
 
- scales: []f32 = { 1e0, 1e0, 2e0, 2e0 }
- output_shape: []i64 = { 1, 192, 16, 16 }
- compute_concat_output_shape for node: /model.11/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 192, 16, 16 }, { 1, 96, 16, 16 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 288, 16, 16 }
-====== compute_conv_output_shape node: /model.12/cv1/conv/Conv======
- input_shape: []i64 = { 1, 288, 16, 16 }
- kernel_shape: []i64 = { 24, 288, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.12/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 16, 16 }
- output_shape: []i64 = { 1, 24, 16, 16 }
-====== compute_mul_output_shape node: /model.12/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 24, 16, 16 }
- input_b_shape: []i64 = { 1, 24, 16, 16 }
- output_shape: []i64 = { 1, 24, 16, 16 }
-====== compute_split_output_shape node: /model.12/Split======
- input_shape: []i64 = { 1, 24, 16, 16 }
- axis: 1
- split_sizes: { 12, 12 }
- num_outputs: 2
+  ---outputs : 
+      READY TENSOR : /model.10/Resize_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 3, 256, 256 }
+         tensor.tensorProto :(null)
+   input[0] shape: []i64 = { 1, 192, 16, 16 }
+   input[1] shape: []i64 = { 1, 96, 16, 16 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 192, 16, 16 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 96, 16, 16 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 288, 16, 16 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 288, 16, 16 }
+   Cleaning up temporary allocations...
+ max_rank: 4
  output[0] shape: []i64 = { 1, 12, 16, 16 }
  output[1] shape: []i64 = { 1, 12, 16, 16 }
-====== compute_conv_output_shape node: /model.12/m.0/cv1/conv/Conv======
- input_shape: []i64 = { 1, 12, 16, 16 }
- kernel_shape: []i64 = { 12, 12, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 12, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.12/m.0/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 12, 16, 16 }
- output_shape: []i64 = { 1, 12, 16, 16 }
-====== compute_mul_output_shape node: /model.12/m.0/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 12, 16, 16 }
- input_b_shape: []i64 = { 1, 12, 16, 16 }
- output_shape: []i64 = { 1, 12, 16, 16 }
-====== compute_conv_output_shape node: /model.12/m.0/cv2/conv/Conv======
- input_shape: []i64 = { 1, 12, 16, 16 }
- kernel_shape: []i64 = { 12, 12, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 12, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.12/m.0/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 12, 16, 16 }
- output_shape: []i64 = { 1, 12, 16, 16 }
-====== compute_mul_output_shape node: /model.12/m.0/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 12, 16, 16 }
- input_b_shape: []i64 = { 1, 12, 16, 16 }
- output_shape: []i64 = { 1, 12, 16, 16 }
- compute_concat_output_shape for node: /model.12/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 12, 16, 16 }, { 1, 12, 16, 16 }, { 1, 12, 16, 16 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 36, 16, 16 }
-====== compute_conv_output_shape node: /model.12/cv2/conv/Conv======
- input_shape: []i64 = { 1, 36, 16, 16 }
- kernel_shape: []i64 = { 24, 36, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.12/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 16, 16 }
- output_shape: []i64 = { 1, 24, 16, 16 }
-====== compute_mul_output_shape node: /model.12/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 24, 16, 16 }
- input_b_shape: []i64 = { 1, 24, 16, 16 }
- output_shape: []i64 = { 1, 24, 16, 16 }
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 12, 16, 16 }
+   input[1] shape: []i64 = { 1, 12, 16, 16 }
+   input[2] shape: []i64 = { 1, 12, 16, 16 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 12, 16, 16 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 12, 16, 16 }
+   Converting input[2] shape to usize...
+   Converted shape: []usize = { 1, 12, 16, 16 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 36, 16, 16 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 36, 16, 16 }
+   Cleaning up temporary allocations...
+ max_rank: 4
 ====== compute_constant_output_shape node: /model.13/Constant======
  output_shape from tensor: []i64 = { 4 }
-====== compute_resize_output_shape node: /model.13/Resize======
- input_shape: []i64 = { 1, 24, 16, 16 }
+ ------ READY NODE :      ------------- NODE
+     Name: /model.13/Resize
+     Op Type: Resize
+     Domain: (none)
+     Inputs: /model.12/cv2/act/Mul_output_0, <empty_string>, /model.13/Constant_output_0
+     Outputs:      /model.13/Resize_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: coordinate_transformation_mode
+        Type: onnx.onnx.AttributeType.STRING
+        String: "asymmetric"
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: cubic_coeff_a
+        Type: onnx.onnx.AttributeType.FLOAT
+        Float: -7.5e-1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: mode
+        Type: onnx.onnx.AttributeType.STRING
+        String: "nearest"
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: nearest_mode
+        Type: onnx.onnx.AttributeType.STRING
+        String: "floor"
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
       READY TENSOR : /model.12/cv2/act/Mul_output_0
          status: not ready
          tag: globals.TensorTag.LINK
          shape: { 1, 24, 16, 16 }
          tensor.tensorProto :(null)
-      READY TENSOR : 
-         status: not ready
-         tag: globals.TensorTag.LINK
-         shape: { 1, 3, 256, 256 }
-         tensor.tensorProto :(null)
+      NULL INPUT
       READY TENSOR : /model.13/Constant_output_0
          status: ready
          tag: globals.TensorTag.CONSTANT
@@ -14880,484 +14590,646 @@ Functions count: 0
             Data Location: null
             metadata_props (key, value) [0]: 
 
- scales: []f32 = { 1e0, 1e0, 2e0, 2e0 }
- output_shape: []i64 = { 1, 24, 32, 32 }
- compute_concat_output_shape for node: /model.14/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 24, 32, 32 }, { 1, 48, 32, 32 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 72, 32, 32 }
-====== compute_conv_output_shape node: /model.15/cv1/conv/Conv======
- input_shape: []i64 = { 1, 72, 32, 32 }
- kernel_shape: []i64 = { 16, 72, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.15/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 16, 32, 32 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_mul_output_shape node: /model.15/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 16, 32, 32 }
- input_b_shape: []i64 = { 1, 16, 32, 32 }
- output_shape: []i64 = { 1, 16, 32, 32 }
+  ---outputs : 
+      READY TENSOR : /model.13/Resize_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 3, 256, 256 }
+         tensor.tensorProto :(null)
+   input[0] shape: []i64 = { 1, 24, 32, 32 }
+   input[1] shape: []i64 = { 1, 48, 32, 32 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 24, 32, 32 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 48, 32, 32 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 72, 32, 32 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 72, 32, 32 }
+   Cleaning up temporary allocations...
+ max_rank: 4
 ====== compute_constant_output_shape node: Constant_126======
  output_shape from tensor: []i64 = { 2 }
-====== compute_split_output_shape node: /model.15/Split======
- input_shape: []i64 = { 1, 16, 32, 32 }
- axis: 1
- split_sizes: { 8, 8 }
- num_outputs: 2
  output[0] shape: []i64 = { 1, 8, 32, 32 }
  output[1] shape: []i64 = { 1, 8, 32, 32 }
-====== compute_conv_output_shape node: /model.15/m.0/cv1/conv/Conv======
- input_shape: []i64 = { 1, 8, 32, 32 }
- kernel_shape: []i64 = { 8, 8, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 8, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.15/m.0/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 8, 32, 32 }
- output_shape: []i64 = { 1, 8, 32, 32 }
-====== compute_mul_output_shape node: /model.15/m.0/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 8, 32, 32 }
- input_b_shape: []i64 = { 1, 8, 32, 32 }
- output_shape: []i64 = { 1, 8, 32, 32 }
-====== compute_conv_output_shape node: /model.15/m.0/cv2/conv/Conv======
- input_shape: []i64 = { 1, 8, 32, 32 }
- kernel_shape: []i64 = { 8, 8, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 8, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.15/m.0/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 8, 32, 32 }
- output_shape: []i64 = { 1, 8, 32, 32 }
-====== compute_mul_output_shape node: /model.15/m.0/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 8, 32, 32 }
- input_b_shape: []i64 = { 1, 8, 32, 32 }
- output_shape: []i64 = { 1, 8, 32, 32 }
- compute_concat_output_shape for node: /model.15/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 8, 32, 32 }, { 1, 8, 32, 32 }, { 1, 8, 32, 32 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 24, 32, 32 }
-====== compute_conv_output_shape node: /model.15/cv2/conv/Conv======
- input_shape: []i64 = { 1, 24, 32, 32 }
- kernel_shape: []i64 = { 16, 24, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.15/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 16, 32, 32 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_mul_output_shape node: /model.15/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 16, 32, 32 }
- input_b_shape: []i64 = { 1, 16, 32, 32 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_conv_output_shape node: /model.16/conv/Conv======
- input_shape: []i64 = { 1, 16, 32, 32 }
- kernel_shape: []i64 = { 8, 16, 3, 3 }
- stride: []i64 = { 2, 2 }
- output_shape: []i64 = { 1, 8, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.16/act/Sigmoid======
- input_shape: []i64 = { 1, 8, 16, 16 }
- output_shape: []i64 = { 1, 8, 16, 16 }
-====== compute_mul_output_shape node: /model.16/act/Mul======
- input_a_shape: []i64 = { 1, 8, 16, 16 }
- input_b_shape: []i64 = { 1, 8, 16, 16 }
- output_shape: []i64 = { 1, 8, 16, 16 }
- compute_concat_output_shape for node: /model.17/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 8, 16, 16 }, { 1, 24, 16, 16 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 32, 16, 16 }
-====== compute_conv_output_shape node: /model.18/cv1/conv/Conv======
- input_shape: []i64 = { 1, 32, 16, 16 }
- kernel_shape: []i64 = { 48, 32, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.18/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_mul_output_shape node: /model.18/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 48, 16, 16 }
- input_b_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_split_output_shape node: /model.18/Split======
- input_shape: []i64 = { 1, 48, 16, 16 }
- axis: 1
- split_sizes: { 24, 24 }
- num_outputs: 2
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 8, 32, 32 }
+   input[1] shape: []i64 = { 1, 8, 32, 32 }
+   input[2] shape: []i64 = { 1, 8, 32, 32 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 8, 32, 32 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 8, 32, 32 }
+   Converting input[2] shape to usize...
+   Converted shape: []usize = { 1, 8, 32, 32 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 24, 32, 32 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 24, 32, 32 }
+   Cleaning up temporary allocations...
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 8, 16, 16 }
+   input[1] shape: []i64 = { 1, 24, 16, 16 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 8, 16, 16 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 24, 16, 16 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 32, 16, 16 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 32, 16, 16 }
+   Cleaning up temporary allocations...
+ max_rank: 4
  output[0] shape: []i64 = { 1, 24, 16, 16 }
  output[1] shape: []i64 = { 1, 24, 16, 16 }
-====== compute_conv_output_shape node: /model.18/m.0/cv1/conv/Conv======
- input_shape: []i64 = { 1, 24, 16, 16 }
- kernel_shape: []i64 = { 24, 24, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.18/m.0/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 16, 16 }
- output_shape: []i64 = { 1, 24, 16, 16 }
-====== compute_mul_output_shape node: /model.18/m.0/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 24, 16, 16 }
- input_b_shape: []i64 = { 1, 24, 16, 16 }
- output_shape: []i64 = { 1, 24, 16, 16 }
-====== compute_conv_output_shape node: /model.18/m.0/cv2/conv/Conv======
- input_shape: []i64 = { 1, 24, 16, 16 }
- kernel_shape: []i64 = { 24, 24, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.18/m.0/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 16, 16 }
- output_shape: []i64 = { 1, 24, 16, 16 }
-====== compute_mul_output_shape node: /model.18/m.0/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 24, 16, 16 }
- input_b_shape: []i64 = { 1, 24, 16, 16 }
- output_shape: []i64 = { 1, 24, 16, 16 }
- compute_concat_output_shape for node: /model.18/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 24, 16, 16 }, { 1, 24, 16, 16 }, { 1, 24, 16, 16 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 72, 16, 16 }
-====== compute_conv_output_shape node: /model.18/cv2/conv/Conv======
- input_shape: []i64 = { 1, 72, 16, 16 }
- kernel_shape: []i64 = { 48, 72, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.18/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_mul_output_shape node: /model.18/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 48, 16, 16 }
- input_b_shape: []i64 = { 1, 48, 16, 16 }
- output_shape: []i64 = { 1, 48, 16, 16 }
-====== compute_conv_output_shape node: /model.19/conv/Conv======
- input_shape: []i64 = { 1, 48, 16, 16 }
- kernel_shape: []i64 = { 24, 48, 3, 3 }
- stride: []i64 = { 2, 2 }
- output_shape: []i64 = { 1, 24, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.19/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 8, 8 }
- output_shape: []i64 = { 1, 24, 8, 8 }
-====== compute_mul_output_shape node: /model.19/act/Mul======
- input_a_shape: []i64 = { 1, 24, 8, 8 }
- input_b_shape: []i64 = { 1, 24, 8, 8 }
- output_shape: []i64 = { 1, 24, 8, 8 }
- compute_concat_output_shape for node: /model.20/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 24, 8, 8 }, { 1, 192, 8, 8 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 216, 8, 8 }
-====== compute_conv_output_shape node: /model.21/cv1/conv/Conv======
- input_shape: []i64 = { 1, 216, 8, 8 }
- kernel_shape: []i64 = { 48, 216, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 48, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.21/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 48, 8, 8 }
- output_shape: []i64 = { 1, 48, 8, 8 }
-====== compute_mul_output_shape node: /model.21/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 48, 8, 8 }
- input_b_shape: []i64 = { 1, 48, 8, 8 }
- output_shape: []i64 = { 1, 48, 8, 8 }
-====== compute_split_output_shape node: /model.21/Split======
- input_shape: []i64 = { 1, 48, 8, 8 }
- axis: 1
- split_sizes: { 24, 24 }
- num_outputs: 2
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 24, 16, 16 }
+   input[1] shape: []i64 = { 1, 24, 16, 16 }
+   input[2] shape: []i64 = { 1, 24, 16, 16 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 24, 16, 16 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 24, 16, 16 }
+   Converting input[2] shape to usize...
+   Converted shape: []usize = { 1, 24, 16, 16 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 72, 16, 16 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 72, 16, 16 }
+   Cleaning up temporary allocations...
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 24, 8, 8 }
+   input[1] shape: []i64 = { 1, 192, 8, 8 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 24, 8, 8 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 192, 8, 8 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 216, 8, 8 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 216, 8, 8 }
+   Cleaning up temporary allocations...
+ max_rank: 4
  output[0] shape: []i64 = { 1, 24, 8, 8 }
  output[1] shape: []i64 = { 1, 24, 8, 8 }
-====== compute_conv_output_shape node: /model.21/m.0/cv1/conv/Conv======
- input_shape: []i64 = { 1, 24, 8, 8 }
- kernel_shape: []i64 = { 24, 24, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.21/m.0/cv1/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 8, 8 }
- output_shape: []i64 = { 1, 24, 8, 8 }
-====== compute_mul_output_shape node: /model.21/m.0/cv1/act/Mul======
- input_a_shape: []i64 = { 1, 24, 8, 8 }
- input_b_shape: []i64 = { 1, 24, 8, 8 }
- output_shape: []i64 = { 1, 24, 8, 8 }
-====== compute_conv_output_shape node: /model.21/m.0/cv2/conv/Conv======
- input_shape: []i64 = { 1, 24, 8, 8 }
- kernel_shape: []i64 = { 24, 24, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 24, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.21/m.0/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 24, 8, 8 }
- output_shape: []i64 = { 1, 24, 8, 8 }
-====== compute_mul_output_shape node: /model.21/m.0/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 24, 8, 8 }
- input_b_shape: []i64 = { 1, 24, 8, 8 }
- output_shape: []i64 = { 1, 24, 8, 8 }
- compute_concat_output_shape for node: /model.21/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 24, 8, 8 }, { 1, 24, 8, 8 }, { 1, 24, 8, 8 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 72, 8, 8 }
-====== compute_conv_output_shape node: /model.21/cv2/conv/Conv======
- input_shape: []i64 = { 1, 72, 8, 8 }
- kernel_shape: []i64 = { 48, 72, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 48, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.21/cv2/act/Sigmoid======
- input_shape: []i64 = { 1, 48, 8, 8 }
- output_shape: []i64 = { 1, 48, 8, 8 }
-====== compute_mul_output_shape node: /model.21/cv2/act/Mul======
- input_a_shape: []i64 = { 1, 48, 8, 8 }
- input_b_shape: []i64 = { 1, 48, 8, 8 }
- output_shape: []i64 = { 1, 48, 8, 8 }
-====== compute_conv_output_shape node: /model.22/cv2.0/cv2.0.0/conv/Conv======
- input_shape: []i64 = { 1, 16, 32, 32 }
- kernel_shape: []i64 = { 16, 16, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.22/cv2.0/cv2.0.0/act/Sigmoid======
- input_shape: []i64 = { 1, 16, 32, 32 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_mul_output_shape node: /model.22/cv2.0/cv2.0.0/act/Mul======
- input_a_shape: []i64 = { 1, 16, 32, 32 }
- input_b_shape: []i64 = { 1, 16, 32, 32 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_conv_output_shape node: /model.22/cv2.0/cv2.0.1/conv/Conv======
- input_shape: []i64 = { 1, 16, 32, 32 }
- kernel_shape: []i64 = { 16, 16, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.22/cv2.0/cv2.0.1/act/Sigmoid======
- input_shape: []i64 = { 1, 16, 32, 32 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_mul_output_shape node: /model.22/cv2.0/cv2.0.1/act/Mul======
- input_a_shape: []i64 = { 1, 16, 32, 32 }
- input_b_shape: []i64 = { 1, 16, 32, 32 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_conv_output_shape node: /model.22/cv2.0/cv2.0.2/Conv======
- input_shape: []i64 = { 1, 16, 32, 32 }
- kernel_shape: []i64 = { 16, 16, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 16, 32, 32 }
-====== compute_conv_output_shape node: /model.22/cv3.0/cv3.0.0/conv/Conv======
- input_shape: []i64 = { 1, 16, 32, 32 }
- kernel_shape: []i64 = { 80, 16, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 80, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.22/cv3.0/cv3.0.0/act/Sigmoid======
- input_shape: []i64 = { 1, 80, 32, 32 }
- output_shape: []i64 = { 1, 80, 32, 32 }
-====== compute_mul_output_shape node: /model.22/cv3.0/cv3.0.0/act/Mul======
- input_a_shape: []i64 = { 1, 80, 32, 32 }
- input_b_shape: []i64 = { 1, 80, 32, 32 }
- output_shape: []i64 = { 1, 80, 32, 32 }
-====== compute_conv_output_shape node: /model.22/cv3.0/cv3.0.1/conv/Conv======
- input_shape: []i64 = { 1, 80, 32, 32 }
- kernel_shape: []i64 = { 80, 80, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 80, 32, 32 }
-====== compute_sigmoid_output_shape node: /model.22/cv3.0/cv3.0.1/act/Sigmoid======
- input_shape: []i64 = { 1, 80, 32, 32 }
- output_shape: []i64 = { 1, 80, 32, 32 }
-====== compute_mul_output_shape node: /model.22/cv3.0/cv3.0.1/act/Mul======
- input_a_shape: []i64 = { 1, 80, 32, 32 }
- input_b_shape: []i64 = { 1, 80, 32, 32 }
- output_shape: []i64 = { 1, 80, 32, 32 }
-====== compute_conv_output_shape node: /model.22/cv3.0/cv3.0.2/Conv======
- input_shape: []i64 = { 1, 80, 32, 32 }
- kernel_shape: []i64 = { 80, 80, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 80, 32, 32 }
- compute_concat_output_shape for node: /model.22/Concat
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 16, 32, 32 }, { 1, 80, 32, 32 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 96, 32, 32 }
-====== compute_conv_output_shape node: /model.22/cv2.1/cv2.1.0/conv/Conv======
- input_shape: []i64 = { 1, 48, 16, 16 }
- kernel_shape: []i64 = { 16, 48, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 16, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.22/cv2.1/cv2.1.0/act/Sigmoid======
- input_shape: []i64 = { 1, 16, 16, 16 }
- output_shape: []i64 = { 1, 16, 16, 16 }
-====== compute_mul_output_shape node: /model.22/cv2.1/cv2.1.0/act/Mul======
- input_a_shape: []i64 = { 1, 16, 16, 16 }
- input_b_shape: []i64 = { 1, 16, 16, 16 }
- output_shape: []i64 = { 1, 16, 16, 16 }
-====== compute_conv_output_shape node: /model.22/cv2.1/cv2.1.1/conv/Conv======
- input_shape: []i64 = { 1, 16, 16, 16 }
- kernel_shape: []i64 = { 16, 16, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 16, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.22/cv2.1/cv2.1.1/act/Sigmoid======
- input_shape: []i64 = { 1, 16, 16, 16 }
- output_shape: []i64 = { 1, 16, 16, 16 }
-====== compute_mul_output_shape node: /model.22/cv2.1/cv2.1.1/act/Mul======
- input_a_shape: []i64 = { 1, 16, 16, 16 }
- input_b_shape: []i64 = { 1, 16, 16, 16 }
- output_shape: []i64 = { 1, 16, 16, 16 }
-====== compute_conv_output_shape node: /model.22/cv2.1/cv2.1.2/Conv======
- input_shape: []i64 = { 1, 16, 16, 16 }
- kernel_shape: []i64 = { 16, 16, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 16, 16, 16 }
-====== compute_conv_output_shape node: /model.22/cv3.1/cv3.1.0/conv/Conv======
- input_shape: []i64 = { 1, 48, 16, 16 }
- kernel_shape: []i64 = { 80, 48, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 80, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.22/cv3.1/cv3.1.0/act/Sigmoid======
- input_shape: []i64 = { 1, 80, 16, 16 }
- output_shape: []i64 = { 1, 80, 16, 16 }
-====== compute_mul_output_shape node: /model.22/cv3.1/cv3.1.0/act/Mul======
- input_a_shape: []i64 = { 1, 80, 16, 16 }
- input_b_shape: []i64 = { 1, 80, 16, 16 }
- output_shape: []i64 = { 1, 80, 16, 16 }
-====== compute_conv_output_shape node: /model.22/cv3.1/cv3.1.1/conv/Conv======
- input_shape: []i64 = { 1, 80, 16, 16 }
- kernel_shape: []i64 = { 80, 80, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 80, 16, 16 }
-====== compute_sigmoid_output_shape node: /model.22/cv3.1/cv3.1.1/act/Sigmoid======
- input_shape: []i64 = { 1, 80, 16, 16 }
- output_shape: []i64 = { 1, 80, 16, 16 }
-====== compute_mul_output_shape node: /model.22/cv3.1/cv3.1.1/act/Mul======
- input_a_shape: []i64 = { 1, 80, 16, 16 }
- input_b_shape: []i64 = { 1, 80, 16, 16 }
- output_shape: []i64 = { 1, 80, 16, 16 }
-====== compute_conv_output_shape node: /model.22/cv3.1/cv3.1.2/Conv======
- input_shape: []i64 = { 1, 80, 16, 16 }
- kernel_shape: []i64 = { 80, 80, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 80, 16, 16 }
- compute_concat_output_shape for node: /model.22/Concat_1
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 16, 16, 16 }, { 1, 80, 16, 16 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 96, 16, 16 }
-====== compute_conv_output_shape node: /model.22/cv2.2/cv2.2.0/conv/Conv======
- input_shape: []i64 = { 1, 48, 8, 8 }
- kernel_shape: []i64 = { 16, 48, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 16, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.22/cv2.2/cv2.2.0/act/Sigmoid======
- input_shape: []i64 = { 1, 16, 8, 8 }
- output_shape: []i64 = { 1, 16, 8, 8 }
-====== compute_mul_output_shape node: /model.22/cv2.2/cv2.2.0/act/Mul======
- input_a_shape: []i64 = { 1, 16, 8, 8 }
- input_b_shape: []i64 = { 1, 16, 8, 8 }
- output_shape: []i64 = { 1, 16, 8, 8 }
-====== compute_conv_output_shape node: /model.22/cv2.2/cv2.2.1/conv/Conv======
- input_shape: []i64 = { 1, 16, 8, 8 }
- kernel_shape: []i64 = { 16, 16, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 16, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.22/cv2.2/cv2.2.1/act/Sigmoid======
- input_shape: []i64 = { 1, 16, 8, 8 }
- output_shape: []i64 = { 1, 16, 8, 8 }
-====== compute_mul_output_shape node: /model.22/cv2.2/cv2.2.1/act/Mul======
- input_a_shape: []i64 = { 1, 16, 8, 8 }
- input_b_shape: []i64 = { 1, 16, 8, 8 }
- output_shape: []i64 = { 1, 16, 8, 8 }
-====== compute_conv_output_shape node: /model.22/cv2.2/cv2.2.2/Conv======
- input_shape: []i64 = { 1, 16, 8, 8 }
- kernel_shape: []i64 = { 16, 16, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 16, 8, 8 }
-====== compute_conv_output_shape node: /model.22/cv3.2/cv3.2.0/conv/Conv======
- input_shape: []i64 = { 1, 48, 8, 8 }
- kernel_shape: []i64 = { 80, 48, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 80, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.22/cv3.2/cv3.2.0/act/Sigmoid======
- input_shape: []i64 = { 1, 80, 8, 8 }
- output_shape: []i64 = { 1, 80, 8, 8 }
-====== compute_mul_output_shape node: /model.22/cv3.2/cv3.2.0/act/Mul======
- input_a_shape: []i64 = { 1, 80, 8, 8 }
- input_b_shape: []i64 = { 1, 80, 8, 8 }
- output_shape: []i64 = { 1, 80, 8, 8 }
-====== compute_conv_output_shape node: /model.22/cv3.2/cv3.2.1/conv/Conv======
- input_shape: []i64 = { 1, 80, 8, 8 }
- kernel_shape: []i64 = { 80, 80, 3, 3 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 80, 8, 8 }
-====== compute_sigmoid_output_shape node: /model.22/cv3.2/cv3.2.1/act/Sigmoid======
- input_shape: []i64 = { 1, 80, 8, 8 }
- output_shape: []i64 = { 1, 80, 8, 8 }
-====== compute_mul_output_shape node: /model.22/cv3.2/cv3.2.1/act/Mul======
- input_a_shape: []i64 = { 1, 80, 8, 8 }
- input_b_shape: []i64 = { 1, 80, 8, 8 }
- output_shape: []i64 = { 1, 80, 8, 8 }
-====== compute_conv_output_shape node: /model.22/cv3.2/cv3.2.2/Conv======
- input_shape: []i64 = { 1, 80, 8, 8 }
- kernel_shape: []i64 = { 80, 80, 1, 1 }
- stride: []i64 = { 1, 1 }
- output_shape: []i64 = { 1, 80, 8, 8 }
- compute_concat_output_shape for node: /model.22/Concat_2
-   axis: 1
-[DEBUG] get_concatenate_output_shape - Starting concatenation
-[DEBUG] tensors: { { 1, 16, 8, 8 }, { 1, 80, 8, 8 } }
-[DEBUG] axis: 1
-   output shape: []i64 = { 1, 96, 8, 8 }
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 24, 8, 8 }
+   input[1] shape: []i64 = { 1, 24, 8, 8 }
+   input[2] shape: []i64 = { 1, 24, 8, 8 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 24, 8, 8 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 24, 8, 8 }
+   Converting input[2] shape to usize...
+   Converted shape: []usize = { 1, 24, 8, 8 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 72, 8, 8 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 72, 8, 8 }
+   Cleaning up temporary allocations...
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 16, 32, 32 }
+   input[1] shape: []i64 = { 1, 80, 32, 32 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 16, 32, 32 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 80, 32, 32 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 96, 32, 32 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 96, 32, 32 }
+   Cleaning up temporary allocations...
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 16, 16, 16 }
+   input[1] shape: []i64 = { 1, 80, 16, 16 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 16, 16, 16 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 80, 16, 16 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 96, 16, 16 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 96, 16, 16 }
+   Cleaning up temporary allocations...
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
+ max_rank: 4
+   input[0] shape: []i64 = { 1, 16, 8, 8 }
+   input[1] shape: []i64 = { 1, 80, 8, 8 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 16, 8, 8 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 80, 8, 8 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 96, 8, 8 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 96, 8, 8 }
+   Cleaning up temporary allocations...
 ====== compute_constant_output_shape node: /model.22/Constant======
  output_shape from tensor: []i64 = { 3 }
 ====== compute_constant_output_shape node: /model.22/Constant_1======
  output_shape from tensor: []i64 = { 3 }
 ====== compute_constant_output_shape node: /model.22/Constant_2======
  output_shape from tensor: []i64 = { 3 }
-====== compute_reshape_output_shape node: /model.22/Reshape======
- input_shape: []i64 = { 1, 96, 32, 32 }
  new shape from tensorProto: []i64 = { 1, 96, -1 }
- output_shape: []i64 = { 1, 96, -1 }
-====== compute_reshape_output_shape node: /model.22/Reshape_1======
- input_shape: []i64 = { 1, 96, 16, 16 }
+ output_shape: []i64 = { 1, 96, 1024 }
  new shape from tensorProto: []i64 = { 1, 96, -1 }
- output_shape: []i64 = { 1, 96, -1 }
-====== compute_reshape_output_shape node: /model.22/Reshape_2======
- input_shape: []i64 = { 1, 96, 8, 8 }
+ output_shape: []i64 = { 1, 96, 256 }
  new shape from tensorProto: []i64 = { 1, 96, -1 }
- output_shape: []i64 = { 1, 96, -1 }
- compute_concat_output_shape for node: /model.22/Concat_3
-   axis: 2thread 29873 panic: integer overflow
-/home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib/std/mem.zig:4308:61: 0x11d2da8 in sliceAsBytes__anon_30096 (Codegen)
-    return @as(cast_target, @ptrCast(slice))[0 .. slice.len * @sizeOf(std.meta.Elem(Slice))];
-                                                            ^
-/home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib/std/mem/Allocator.zig:401:35: 0x114f79c in free__anon_25881 (Codegen)
-    const bytes = mem.sliceAsBytes(memory);
-                                  ^
-/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/shape_handler.zig:697:27: 0x114ed70 in compute_concat_output_shape (Codegen)
-            allocator.free(shape);
-                          ^
-/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/shape_handler.zig:38:40: 0x116b2dd in compute_output_shape (Codegen)
-        try compute_concat_output_shape(readyNode);
-                                       ^
-/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/globals.zig:140:42: 0x117c46b in create (Codegen)
-        try shapeGen.compute_output_shape(&newReadyNode);
-                                         ^
-/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/globals.zig:254:51: 0x117ca3c in populateReadyGraph (Codegen)
-        try readyGraph.append(try ReadyNode.create(node_ptr));
-                                                  ^
-/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/globals.zig:194:27: 0x117d3dc in setGlobalAttributes (Codegen)
-    try populateReadyGraph(model);
-                          ^
-/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/main.zig:37:36: 0x11baba8 in main (Codegen)
-    try globals.setGlobalAttributes(model);
-                                   ^
-/home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib/std/start.zig:656:37: 0x11bbfa7 in main (Codegen)
-            const result = root.main() catch |err| {
-                                    ^
-../sysdeps/nptl/libc_start_call_main.h:58:16: 0x708d9da29d8f in __libc_start_call_main (../sysdeps/x86/libc-start.c)
-../csu/libc-start.c:392:3: 0x708d9da29e3f in __libc_start_main_impl (../sysdeps/x86/libc-start.c)
-???:?:?: 0x1070b54 in ??? (???)
-???:?:?: 0x0 in ??? (???)
+ output_shape: []i64 = { 1, 96, 64 }
+   input[0] shape: []i64 = { 1, 96, 1024 }
+   input[1] shape: []i64 = { 1, 96, 256 }
+   input[2] shape: []i64 = { 1, 96, 64 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 96, 1024 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 96, 256 }
+   Converting input[2] shape to usize...
+   Converted shape: []usize = { 1, 96, 64 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 96, 1344 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 96, 1344 }
+   Cleaning up temporary allocations...
+====== compute_constant_output_shape node: Constant_226======
+ output_shape from tensor: []i64 = { 2 }
+ output[0] shape: []i64 = { 1, 16, 1344 }
+ output[1] shape: []i64 = { 1, 80, 1344 }
+====== compute_constant_output_shape node: /model.22/dfl/Constant======
+ output_shape from tensor: []i64 = { 4 }
+ new shape from tensorProto: []i64 = { 1, 4, 4, 1344 }
+ output_shape: []i64 = { 1, 4, 4, 1344 }
+====== compute_constant_output_shape node: /model.22/dfl/Constant_1======
+ output_shape from tensor: []i64 = { 3 }
+ new shape from tensorProto: []i64 = { 1, 4, 1344 }
+ output_shape: []i64 = { 1, 4, 1344 }
+====== compute_constant_output_shape node: /model.22/Constant_3======
+ output_shape from tensor: []i64 = { 1 }
+====== compute_constant_output_shape node: /model.22/Constant_4======
+ output_shape from tensor: []i64 = { 1 }
+====== compute_constant_output_shape node: /model.22/Constant_5======
+ output_shape from tensor: []i64 = { 1 }
+====== compute_constant_output_shape node: /model.22/Constant_6======
+ output_shape from tensor: []i64 = { 1 }
+ Using shape from tensor: []i64 = { 1 }
+====== compute_constant_output_shape node: /model.22/Constant_7======
+ output_shape from tensor: []i64 = { 1 }
+ max_rank: 1
+  int64_data: true
+  int64_data values: { 0 }
+  int64_data: true
+  int64_data values: { 1 }
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 1, 4, 1344 }
+  starts: { 0 }
+  ends: { 1 }
+  axes: { 1 }
+  steps: null
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 1, 4, 1344 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] After processing axis 1:
+  dim_size: 4
+  actual_start: 0
+  actual_end: 1
+  actual_step: 1
+[DEBUG] Final values before shape calculation:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 1, 1, 1344 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] Positive step calculation for dim 0:
+  end (1) - start (0) = 1
+  (end-start) + step(1) - 1 = 1
+  final dim_size = 1
+[DEBUG] Positive step calculation for dim 1:
+  end (1) - start (0) = 1
+  (end-start) + step(1) - 1 = 1
+  final dim_size = 1
+[DEBUG] Positive step calculation for dim 2:
+  end (1344) - start (0) = 1344
+  (end-start) + step(1) - 1 = 1344
+  final dim_size = 1344
+[DEBUG] Final output_shape: { 1, 1, 1344 }
+
+====== compute_constant_output_shape node: /model.22/Constant_8======
+ output_shape from tensor: []i64 = { 1 }
+ max_rank: 1
+  int64_data: true
+  int64_data values: { 1 }
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 1, 4, 1344 }
+  starts: { 1 }
+  ends: { 1 }
+  axes: { 1 }
+  steps: null
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 1, 4, 1344 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] After processing axis 1:
+  dim_size: 4
+  actual_start: 1
+  actual_end: 1
+  actual_step: 1
+[DEBUG] Final values before shape calculation:
+  actual_starts: { 0, 1, 0 }
+  actual_ends: { 1, 1, 1344 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] Positive step calculation for dim 0:
+  end (1) - start (0) = 1
+  (end-start) + step(1) - 1 = 1
+  final dim_size = 1
+[DEBUG] Positive step calculation for dim 2:
+  end (1344) - start (0) = 1344
+  (end-start) + step(1) - 1 = 1344
+  final dim_size = 1344
+[DEBUG] Final output_shape: { 1, 0, 1344 }
+
+====== compute_constant_output_shape node: /model.22/Constant_9======
+ output_shape from tensor: []i64 = { 1, 2, 1344 }
+ Using shape from tensor: []i64 = { 2, 1344 }
+ Tensor shape has fewer dimensions, using shape with 3 dimensions
+====== compute_constant_output_shape node: /model.22/Constant_10======
+ output_shape from tensor: []i64 = { 1, 2, 1344 }
+====== compute_constant_output_shape node: /model.22/Constant_11======
+ output_shape from tensor: []i64 = { 1 }
+ Using shape from tensor: []i64 = { 2, 1344 }
+ Using shape from tensor: []i64 = { 2, 1344 }
+ Tensor shape has fewer dimensions, using shape with 3 dimensions
+   input[0] shape: []i64 = { 2, 1344 }
+   input[1] shape: []i64 = { 1, 2, 1344 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 2, 1344 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 2, 1344 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 4, 1344 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 4, 1344 }
+   Cleaning up temporary allocations...
+====== compute_constant_output_shape node: /model.22/Constant_12======
+ output_shape from tensor: []i64 = { 1, 1344 }
+ max_rank: 3
+   input[0] shape: []i64 = { 1, 4, 1344 }
+   input[1] shape: []i64 = { 1, 80, 1344 }
+   Converting input shapes to usize...
+   Converting input[0] shape to usize...
+   Converted shape: []usize = { 1, 4, 1344 }
+   Converting input[1] shape to usize...
+   Converted shape: []usize = { 1, 80, 1344 }
+   Calling get_concatenate_output_shape...
+   Got output shape: []usize = { 1, 84, 1344 }
+   Converting output shape back to i64...
+   Final output shape: []i64 = { 1, 84, 1344 }
+   Cleaning up temporary allocations...
+ NODE: /model.0/conv/Conv_output_0
+ .......... file created, path:generated/best/lib_best.zig
+ .......... file created, path:generated/best/static_parameters.zig
+*** 
+ -----> set /model.0/conv/Conv outputs to ready
+    /model.0/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.0/act/Sigmoid outputs to ready
+    /model.0/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.0/act/Mul outputs to ready
+    /model.0/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.1/conv/Conv outputs to ready
+    /model.1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.1/act/Sigmoid outputs to ready
+    /model.1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.1/act/Mul outputs to ready
+    /model.1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.2/cv1/conv/Conv outputs to ready
+    /model.2/cv1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.2/cv1/act/Sigmoid outputs to ready
+    /model.2/cv1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.2/cv1/act/Mul outputs to ready
+    /model.2/cv1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.2/Split outputs to ready
+    /model.2/Split_output_0 --> ready
+    /model.2/Split_output_1 --> ready
+*** 
+ -----> set /model.2/m.0/cv1/conv/Conv outputs to ready
+    /model.2/m.0/cv1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.2/m.0/cv1/act/Sigmoid outputs to ready
+    /model.2/m.0/cv1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.2/m.0/cv1/act/Mul outputs to ready
+    /model.2/m.0/cv1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.2/m.0/cv2/conv/Conv outputs to ready
+    /model.2/m.0/cv2/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.2/m.0/cv2/act/Sigmoid outputs to ready
+    /model.2/m.0/cv2/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.2/m.0/cv2/act/Mul outputs to ready
+    /model.2/m.0/cv2/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.2/m.0/Add outputs to ready
+    /model.2/m.0/Add_output_0 --> ready
+*** 
+ -----> set /model.2/Concat outputs to ready
+    /model.2/Concat_output_0 --> ready
+*** 
+ -----> set /model.2/cv2/conv/Conv outputs to ready
+    /model.2/cv2/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.2/cv2/act/Sigmoid outputs to ready
+    /model.2/cv2/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.2/cv2/act/Mul outputs to ready
+    /model.2/cv2/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.3/conv/Conv outputs to ready
+    /model.3/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.3/act/Sigmoid outputs to ready
+    /model.3/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.3/act/Mul outputs to ready
+    /model.3/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.4/cv1/conv/Conv outputs to ready
+    /model.4/cv1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.4/cv1/act/Sigmoid outputs to ready
+    /model.4/cv1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.4/cv1/act/Mul outputs to ready
+    /model.4/cv1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.4/Split outputs to ready
+    /model.4/Split_output_0 --> ready
+    /model.4/Split_output_1 --> ready
+*** 
+ -----> set /model.4/m.0/cv1/conv/Conv outputs to ready
+    /model.4/m.0/cv1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.4/m.0/cv1/act/Sigmoid outputs to ready
+    /model.4/m.0/cv1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.4/m.0/cv1/act/Mul outputs to ready
+    /model.4/m.0/cv1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.4/m.0/cv2/conv/Conv outputs to ready
+    /model.4/m.0/cv2/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.4/m.0/cv2/act/Sigmoid outputs to ready
+    /model.4/m.0/cv2/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.4/m.0/cv2/act/Mul outputs to ready
+    /model.4/m.0/cv2/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.4/m.0/Add outputs to ready
+    /model.4/m.0/Add_output_0 --> ready
+*** 
+ -----> set /model.4/m.1/cv1/conv/Conv outputs to ready
+    /model.4/m.1/cv1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.4/m.1/cv1/act/Sigmoid outputs to ready
+    /model.4/m.1/cv1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.4/m.1/cv1/act/Mul outputs to ready
+    /model.4/m.1/cv1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.4/m.1/cv2/conv/Conv outputs to ready
+    /model.4/m.1/cv2/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.4/m.1/cv2/act/Sigmoid outputs to ready
+    /model.4/m.1/cv2/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.4/m.1/cv2/act/Mul outputs to ready
+    /model.4/m.1/cv2/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.4/m.1/Add outputs to ready
+    /model.4/m.1/Add_output_0 --> ready
+*** 
+ -----> set /model.4/Concat outputs to ready
+    /model.4/Concat_output_0 --> ready
+*** 
+ -----> set /model.4/cv2/conv/Conv outputs to ready
+    /model.4/cv2/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.4/cv2/act/Sigmoid outputs to ready
+    /model.4/cv2/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.4/cv2/act/Mul outputs to ready
+    /model.4/cv2/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.5/conv/Conv outputs to ready
+    /model.5/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.5/act/Sigmoid outputs to ready
+    /model.5/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.5/act/Mul outputs to ready
+    /model.5/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.6/cv1/conv/Conv outputs to ready
+    /model.6/cv1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.6/cv1/act/Sigmoid outputs to ready
+    /model.6/cv1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.6/cv1/act/Mul outputs to ready
+    /model.6/cv1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.6/Split outputs to ready
+    /model.6/Split_output_0 --> ready
+    /model.6/Split_output_1 --> ready
+*** 
+ -----> set /model.6/m.0/cv1/conv/Conv outputs to ready
+    /model.6/m.0/cv1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.6/m.0/cv1/act/Sigmoid outputs to ready
+    /model.6/m.0/cv1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.6/m.0/cv1/act/Mul outputs to ready
+    /model.6/m.0/cv1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.6/m.0/cv2/conv/Conv outputs to ready
+    /model.6/m.0/cv2/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.6/m.0/cv2/act/Sigmoid outputs to ready
+    /model.6/m.0/cv2/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.6/m.0/cv2/act/Mul outputs to ready
+    /model.6/m.0/cv2/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.6/m.0/Add outputs to ready
+    /model.6/m.0/Add_output_0 --> ready
+*** 
+ -----> set /model.6/m.1/cv1/conv/Conv outputs to ready
+    /model.6/m.1/cv1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.6/m.1/cv1/act/Sigmoid outputs to ready
+    /model.6/m.1/cv1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.6/m.1/cv1/act/Mul outputs to ready
+    /model.6/m.1/cv1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.6/m.1/cv2/conv/Conv outputs to ready
+    /model.6/m.1/cv2/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.6/m.1/cv2/act/Sigmoid outputs to ready
+    /model.6/m.1/cv2/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.6/m.1/cv2/act/Mul outputs to ready
+    /model.6/m.1/cv2/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.6/m.1/Add outputs to ready
+    /model.6/m.1/Add_output_0 --> ready
+*** 
+ -----> set /model.6/Concat outputs to ready
+    /model.6/Concat_output_0 --> ready
+*** 
+ -----> set /model.6/cv2/conv/Conv outputs to ready
+    /model.6/cv2/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.6/cv2/act/Sigmoid outputs to ready
+    /model.6/cv2/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.6/cv2/act/Mul outputs to ready
+    /model.6/cv2/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.7/conv/Conv outputs to ready
+    /model.7/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.7/act/Sigmoid outputs to ready
+    /model.7/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.7/act/Mul outputs to ready
+    /model.7/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.8/cv1/conv/Conv outputs to ready
+    /model.8/cv1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.8/cv1/act/Sigmoid outputs to ready
+    /model.8/cv1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.8/cv1/act/Mul outputs to ready
+    /model.8/cv1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.8/Split outputs to ready
+    /model.8/Split_output_0 --> ready
+    /model.8/Split_output_1 --> ready
+*** 
+ -----> set /model.8/m.0/cv1/conv/Conv outputs to ready
+    /model.8/m.0/cv1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.8/m.0/cv1/act/Sigmoid outputs to ready
+    /model.8/m.0/cv1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.8/m.0/cv1/act/Mul outputs to ready
+    /model.8/m.0/cv1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.8/m.0/cv2/conv/Conv outputs to ready
+    /model.8/m.0/cv2/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.8/m.0/cv2/act/Sigmoid outputs to ready
+    /model.8/m.0/cv2/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.8/m.0/cv2/act/Mul outputs to ready
+    /model.8/m.0/cv2/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.8/m.0/Add outputs to ready
+    /model.8/m.0/Add_output_0 --> ready
+*** 
+ -----> set /model.8/Concat outputs to ready
+    /model.8/Concat_output_0 --> ready
+*** 
+ -----> set /model.8/cv2/conv/Conv outputs to ready
+    /model.8/cv2/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.8/cv2/act/Sigmoid outputs to ready
+    /model.8/cv2/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.8/cv2/act/Mul outputs to ready
+    /model.8/cv2/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.9/cv1/conv/Conv outputs to ready
+    /model.9/cv1/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.9/cv1/act/Sigmoid outputs to ready
+    /model.9/cv1/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.9/cv1/act/Mul outputs to ready
+    /model.9/cv1/act/Mul_output_0 --> ready
+*** 
+ -----> set /model.9/m/MaxPool outputs to ready
+    /model.9/m/MaxPool_output_0 --> ready
+*** 
+ -----> set /model.9/m_1/MaxPool outputs to ready
+    /model.9/m_1/MaxPool_output_0 --> ready
+*** 
+ -----> set /model.9/m_2/MaxPool outputs to ready
+    /model.9/m_2/MaxPool_output_0 --> ready
+*** 
+ -----> set /model.9/Concat outputs to ready
+    /model.9/Concat_output_0 --> ready
+*** 
+ -----> set /model.9/cv2/conv/Conv outputs to ready
+    /model.9/cv2/conv/Conv_output_0 --> ready
+*** 
+ -----> set /model.9/cv2/act/Sigmoid outputs to ready
+    /model.9/cv2/act/Sigmoid_output_0 --> ready
+*** 
+ -----> set /model.9/cv2/act/Mul outputs to ready
+    /model.9/cv2/act/Mul_output_0 --> ready
+
+   ERROR!!
+    DifferentOutputNames: 
+      output0 vs /model.9/cv2/act/Mul_output_0
+    LastNode:/model.9/cv2/act/Mul
+
+error: DifferentOutputNames
+/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/skeleton.zig:64:5: 0x11b7835 in writeZigFile (Codegen)
+    try coddeGenPredict.writePredict(lib_writer, do_export);
+    ^
+/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/main.zig:51:5: 0x11baf0d in main (Codegen)
+    try codeGen.skeleton.writeZigFile(model_name, generated_path, model, true);
+    ^
 codegen
 +- run Codegen failure
-error: the following command terminated unexpectedly:
-/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/9655e89384c56d41dbd337f5f2cd957e/Codegen 
+error: the following command exited with error code 1:
+/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/99a7092fdea1865119ab2f92fd0d32ee/Codegen 
 Build Summary: 3/5 steps succeeded; 1 failed
 codegen transitive failure
 +- run Codegen failure
 error: the following build command failed with exit code 1:
-/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/eef542034016f2ce0d73a86b572be875/build /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/zig /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib /home/mirko/Documents/zig/Tiny/Z-Ant /home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache /home/mirko/.cache/zig --seed 0xc8049722 -Z88995fc8b57af28d codegen -Dmodel=best
+/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/eef542034016f2ce0d73a86b572be875/build /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/zig /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib /home/mirko/Documents/zig/Tiny/Z-Ant /home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache /home/mirko/.cache/zig --seed 0x959130aa -Z99952b3379413557 codegen -Dmodel=best

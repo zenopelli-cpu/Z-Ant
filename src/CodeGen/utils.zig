@@ -119,7 +119,7 @@ pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.Arr
     for (readyGraph.items) |*node| {
         if (!node.ready) {
             for (node.inputs.items) |input| {
-                if (input.ready) ready_input_counter += 1;
+                if (input != null and input.?.ready) ready_input_counter += 1;
             }
             for (node.outputs.items) |output| {
                 if (output.ready) return error.OutputReadyTooEarly;
