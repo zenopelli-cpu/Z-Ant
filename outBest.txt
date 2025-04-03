@@ -14910,326 +14910,4529 @@ Functions count: 0
  NODE: /model.0/conv/Conv_output_0
  .......... file created, path:generated/best/lib_best.zig
  .......... file created, path:generated/best/static_parameters.zig
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.0/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: images, model.0.conv.weight, model.0.conv.bias
+     Outputs:      /model.0/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [2, 2]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : images
+         status: ready
+         tag: globals.TensorTag.INPUT
+         shape: { 1, 3, 256, 256 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.0.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 16, 3, 3, 3 }            ------------- TENSOR
+            Name: model.0.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [16, 3, 3, 3]
+            Raw Data: 1728 bytes
+            Float Data: [-4.1767783e-2, 1.2296715e0, -1.1143898e0, -1.7075665e0, -5.907314e-1, 1.2757841e0, -3.498625e-1, 1.200327e0, -8.542418e-3, 1.35456e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.0.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 16 }            ------------- TENSOR
+            Name: model.0.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [16]
+            Raw Data: 64 bytes
+            Float Data: [1.3195595e0, 4.6312368e-1, 5.0565153e-2, 4.288426e-1, 1.7785453e0, 1.5741849e0, 1.5016518e0, 1.6259177e0, 9.5184636e-1, 6.902268e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.0/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 16, 128, 128 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.0/conv/Conv outputs to ready
     /model.0/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.0/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.0/conv/Conv_output_0
+     Outputs:      /model.0/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.0/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 16, 128, 128 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.0/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 16, 128, 128 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.0/act/Sigmoid outputs to ready
     /model.0/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.0/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.0/conv/Conv_output_0, /model.0/act/Sigmoid_output_0
+     Outputs:      /model.0/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.0/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 16, 128, 128 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.0/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 16, 128, 128 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.0/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 16, 128, 128 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.0/act/Mul outputs to ready
     /model.0/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.0/act/Mul_output_0, model.1.conv.weight, model.1.conv.bias
+     Outputs:      /model.1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [2, 2]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.0/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 16, 128, 128 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24, 16, 3, 3 }            ------------- TENSOR
+            Name: model.1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24, 16, 3, 3]
+            Raw Data: 13824 bytes
+            Float Data: [1.5994431e-1, 5.1706135e-2, -1.1676516e-1, -9.818723e-2, 3.0887614e-3, -2.0653427e-1, 1.4151153e-1, -1.5675123e-1, -1.660402e-1, -1.9187512e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24 }            ------------- TENSOR
+            Name: model.1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24]
+            Raw Data: 96 bytes
+            Float Data: [6.8227595e-1, 1.9172761e0, 2.019897e0, -3.8076976e-1, 1.463451e0, 1.6044704e0, -1.0149221e0, 2.0700316e-1, 5.213805e-1, -1.0162083e0, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.1/conv/Conv outputs to ready
     /model.1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.1/conv/Conv_output_0
+     Outputs:      /model.1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.1/act/Sigmoid outputs to ready
     /model.1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.1/conv/Conv_output_0, /model.1/act/Sigmoid_output_0
+     Outputs:      /model.1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.1/act/Mul outputs to ready
     /model.1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/cv1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.1/act/Mul_output_0, model.2.cv1.conv.weight, model.2.cv1.conv.bias
+     Outputs:      /model.2/cv1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [0, 0, 0, 0]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.2.cv1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24, 24, 1, 1 }            ------------- TENSOR
+            Name: model.2.cv1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24, 24, 1, 1]
+            Raw Data: 2304 bytes
+            Float Data: [5.5692786e-1, 4.6872982e-1, -1.376316e-1, 4.37656e-2, 7.152753e-2, -6.779334e-2, -1.9666737e-1, -2.6139334e-1, -2.9091123e-1, 2.6459408e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.2.cv1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24 }            ------------- TENSOR
+            Name: model.2.cv1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24]
+            Raw Data: 96 bytes
+            Float Data: [-5.4953e-1, 2.8467423e-1, 8.991594e-1, -3.6202177e-2, 2.5882295e-1, -7.363578e-1, 4.5936525e-2, 9.8973095e-2, -7.710576e-2, 1.8213953e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.2/cv1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/cv1/conv/Conv outputs to ready
     /model.2/cv1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/cv1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.2/cv1/conv/Conv_output_0
+     Outputs:      /model.2/cv1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.2/cv1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/cv1/act/Sigmoid outputs to ready
     /model.2/cv1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/cv1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.2/cv1/conv/Conv_output_0, /model.2/cv1/act/Sigmoid_output_0
+     Outputs:      /model.2/cv1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.2/cv1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.2/cv1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/cv1/act/Mul outputs to ready
     /model.2/cv1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/Split
+     Op Type: Split
+     Domain: (none)
+     Inputs: /model.2/cv1/act/Mul_output_0, onnx::Split_137
+     Outputs:      /model.2/Split_output_0 ,      /model.2/Split_output_1 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: axis
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : onnx::Split_137
+         status: ready
+         tag: globals.TensorTag.CONSTANT
+         shape: { 2 }            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.INT64
+            Dims: [2]
+            Raw Data: 16 bytes
+            Int64 Data: [12, 12]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.2/Split_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.2/Split_output_1
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/Split outputs to ready
     /model.2/Split_output_0 --> ready
     /model.2/Split_output_1 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/m.0/cv1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.2/Split_output_1, model.2.m.0.cv1.conv.weight, model.2.m.0.cv1.conv.bias
+     Outputs:      /model.2/m.0/cv1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.2.m.0.cv1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 12, 12, 3, 3 }            ------------- TENSOR
+            Name: model.2.m.0.cv1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [12, 12, 3, 3]
+            Raw Data: 5184 bytes
+            Float Data: [2.977136e-2, 2.2508206e-2, -2.7872348e-1, 7.039962e-2, -1.9186828e-1, -1.8853933e-1, 4.7120648e-3, -2.5542086e-1, 2.932498e-1, 2.5027612e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.2.m.0.cv1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 12 }            ------------- TENSOR
+            Name: model.2.m.0.cv1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [12]
+            Raw Data: 48 bytes
+            Float Data: [7.3157316e-1, 5.922198e-1, 1.2473541e0, -7.5024545e-1, -2.396211e-1, 1.2231976e0, -4.991957e-1, 9.8823434e-1, 3.240879e-1, -4.5158345e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.2/m.0/cv1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/m.0/cv1/conv/Conv outputs to ready
     /model.2/m.0/cv1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/m.0/cv1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.2/m.0/cv1/conv/Conv_output_0
+     Outputs:      /model.2/m.0/cv1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/m.0/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.2/m.0/cv1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/m.0/cv1/act/Sigmoid outputs to ready
     /model.2/m.0/cv1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/m.0/cv1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.2/m.0/cv1/conv/Conv_output_0, /model.2/m.0/cv1/act/Sigmoid_output_0
+     Outputs:      /model.2/m.0/cv1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/m.0/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.2/m.0/cv1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.2/m.0/cv1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/m.0/cv1/act/Mul outputs to ready
     /model.2/m.0/cv1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/m.0/cv2/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.2/m.0/cv1/act/Mul_output_0, model.2.m.0.cv2.conv.weight, model.2.m.0.cv2.conv.bias
+     Outputs:      /model.2/m.0/cv2/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/m.0/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.2.m.0.cv2.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 12, 12, 3, 3 }            ------------- TENSOR
+            Name: model.2.m.0.cv2.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [12, 12, 3, 3]
+            Raw Data: 5184 bytes
+            Float Data: [1.649125e-1, 2.2994018e-1, 3.9653696e-2, -1.085854e-3, 1.5524623e-1, -1.8951757e-1, -2.5245821e-2, 1.7238191e-1, 9.988484e-2, 6.224495e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.2.m.0.cv2.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 12 }            ------------- TENSOR
+            Name: model.2.m.0.cv2.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [12]
+            Raw Data: 48 bytes
+            Float Data: [-9.578934e-2, 1.9811991e-1, 9.327475e-1, -1.0083561e0, -3.5265088e-4, -1.664828e-1, 6.5293646e-1, -7.939294e-1, -6.7348874e-1, 6.212497e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.2/m.0/cv2/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/m.0/cv2/conv/Conv outputs to ready
     /model.2/m.0/cv2/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/m.0/cv2/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.2/m.0/cv2/conv/Conv_output_0
+     Outputs:      /model.2/m.0/cv2/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/m.0/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.2/m.0/cv2/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/m.0/cv2/act/Sigmoid outputs to ready
     /model.2/m.0/cv2/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/m.0/cv2/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.2/m.0/cv2/conv/Conv_output_0, /model.2/m.0/cv2/act/Sigmoid_output_0
+     Outputs:      /model.2/m.0/cv2/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/m.0/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.2/m.0/cv2/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.2/m.0/cv2/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/m.0/cv2/act/Mul outputs to ready
     /model.2/m.0/cv2/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/m.0/Add
+     Op Type: Add
+     Domain: (none)
+     Inputs: /model.2/Split_output_1, /model.2/m.0/cv2/act/Mul_output_0
+     Outputs:      /model.2/m.0/Add_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.2/m.0/cv2/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.2/m.0/Add_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/m.0/Add outputs to ready
     /model.2/m.0/Add_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/Concat
+     Op Type: Concat
+     Domain: (none)
+     Inputs: /model.2/Split_output_0, /model.2/Split_output_1, /model.2/m.0/Add_output_0
+     Outputs:      /model.2/Concat_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: axis
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/Split_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.2/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.2/m.0/Add_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 12, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.2/Concat_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 36, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/Concat outputs to ready
     /model.2/Concat_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/cv2/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.2/Concat_output_0, model.2.cv2.conv.weight, model.2.cv2.conv.bias
+     Outputs:      /model.2/cv2/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [0, 0, 0, 0]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/Concat_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 36, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.2.cv2.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24, 36, 1, 1 }            ------------- TENSOR
+            Name: model.2.cv2.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24, 36, 1, 1]
+            Raw Data: 3456 bytes
+            Float Data: [6.4413935e-2, 4.8102087e-1, 3.1337795e-1, -2.6146582e-1, 2.8384995e-1, 4.5943052e-1, 2.4051044e-2, -3.0036023e-1, 1.1295259e-1, -7.854293e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.2.cv2.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24 }            ------------- TENSOR
+            Name: model.2.cv2.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24]
+            Raw Data: 96 bytes
+            Float Data: [-7.3306507e-1, 1.4255251e0, 9.1049427e-1, 1.0014637e0, -1.7353898e-1, 9.754247e-1, 4.5606118e-1, 1.216136e0, -1.5892282e-1, -9.8569775e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.2/cv2/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/cv2/conv/Conv outputs to ready
     /model.2/cv2/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/cv2/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.2/cv2/conv/Conv_output_0
+     Outputs:      /model.2/cv2/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.2/cv2/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/cv2/act/Sigmoid outputs to ready
     /model.2/cv2/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.2/cv2/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.2/cv2/conv/Conv_output_0, /model.2/cv2/act/Sigmoid_output_0
+     Outputs:      /model.2/cv2/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.2/cv2/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.2/cv2/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.2/cv2/act/Mul outputs to ready
     /model.2/cv2/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.3/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.2/cv2/act/Mul_output_0, model.3.conv.weight, model.3.conv.bias
+     Outputs:      /model.3/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [2, 2]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.2/cv2/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 64, 64 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.3.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48, 24, 3, 3 }            ------------- TENSOR
+            Name: model.3.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48, 24, 3, 3]
+            Raw Data: 41472 bytes
+            Float Data: [-1.0164493e-2, 1.2481052e-1, -7.8336075e-2, 1.0727515e-1, 8.165977e-2, -1.2220314e-2, 1.1969604e-2, 1.2675889e-1, 5.5048717e-3, -6.4289165e-3, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.3.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48 }            ------------- TENSOR
+            Name: model.3.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48]
+            Raw Data: 192 bytes
+            Float Data: [7.2020286e-1, 6.412765e-1, 4.5927066e-1, -1.9084918e-1, 5.5494124e-1, -2.8162137e-1, 9.979325e-1, -2.7509418e-1, 4.7351962e-1, 4.1539556e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.3/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.3/conv/Conv outputs to ready
     /model.3/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.3/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.3/conv/Conv_output_0
+     Outputs:      /model.3/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.3/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.3/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.3/act/Sigmoid outputs to ready
     /model.3/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.3/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.3/conv/Conv_output_0, /model.3/act/Sigmoid_output_0
+     Outputs:      /model.3/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.3/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.3/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.3/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.3/act/Mul outputs to ready
     /model.3/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/cv1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.3/act/Mul_output_0, model.4.cv1.conv.weight, model.4.cv1.conv.bias
+     Outputs:      /model.4/cv1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [0, 0, 0, 0]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.3/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.4.cv1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48, 48, 1, 1 }            ------------- TENSOR
+            Name: model.4.cv1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48, 48, 1, 1]
+            Raw Data: 9216 bytes
+            Float Data: [1.01584494e-1, 3.9588445e-1, -2.3216903e-1, -8.236352e-2, 7.515566e-2, -2.5733333e-2, 3.0348894e-1, 2.7280283e-1, -9.9476926e-2, -3.601402e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.4.cv1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48 }            ------------- TENSOR
+            Name: model.4.cv1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48]
+            Raw Data: 192 bytes
+            Float Data: [-7.9152983e-1, -3.2101753e-1, 5.0558436e-1, 9.094475e-1, 1.63715e-1, -1.3934529e-1, 7.19494e-1, 7.675194e-1, -4.8941624e-1, -6.106101e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.4/cv1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/cv1/conv/Conv outputs to ready
     /model.4/cv1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/cv1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.4/cv1/conv/Conv_output_0
+     Outputs:      /model.4/cv1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/cv1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/cv1/act/Sigmoid outputs to ready
     /model.4/cv1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/cv1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.4/cv1/conv/Conv_output_0, /model.4/cv1/act/Sigmoid_output_0
+     Outputs:      /model.4/cv1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/cv1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/cv1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/cv1/act/Mul outputs to ready
     /model.4/cv1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/Split
+     Op Type: Split
+     Domain: (none)
+     Inputs: /model.4/cv1/act/Mul_output_0, onnx::Split_157
+     Outputs:      /model.4/Split_output_0 ,      /model.4/Split_output_1 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: axis
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : onnx::Split_157
+         status: ready
+         tag: globals.TensorTag.CONSTANT
+         shape: { 2 }            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.INT64
+            Dims: [2]
+            Raw Data: 16 bytes
+            Int64 Data: [24, 24]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.4/Split_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/Split_output_1
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/Split outputs to ready
     /model.4/Split_output_0 --> ready
     /model.4/Split_output_1 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.0/cv1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.4/Split_output_1, model.4.m.0.cv1.conv.weight, model.4.m.0.cv1.conv.bias
+     Outputs:      /model.4/m.0/cv1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.4.m.0.cv1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24, 24, 3, 3 }            ------------- TENSOR
+            Name: model.4.m.0.cv1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24, 24, 3, 3]
+            Raw Data: 20736 bytes
+            Float Data: [-6.2049128e-2, -1.8277375e-1, 7.588527e-2, -7.6397724e-2, 7.383547e-2, -4.210629e-2, -1.4237563e-1, 2.9209638e-2, -1.472439e-1, -1.3024765e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.4.m.0.cv1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24 }            ------------- TENSOR
+            Name: model.4.m.0.cv1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24]
+            Raw Data: 96 bytes
+            Float Data: [6.560317e-1, -1.2588296e0, -5.4682456e-2, 4.3713084e-1, 1.3080714e0, -8.972661e-1, 5.410765e-1, -5.056632e-1, 6.8059325e-1, 1.2169743e0, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.4/m.0/cv1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.0/cv1/conv/Conv outputs to ready
     /model.4/m.0/cv1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.0/cv1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.4/m.0/cv1/conv/Conv_output_0
+     Outputs:      /model.4/m.0/cv1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.0/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/m.0/cv1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.0/cv1/act/Sigmoid outputs to ready
     /model.4/m.0/cv1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.0/cv1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.4/m.0/cv1/conv/Conv_output_0, /model.4/m.0/cv1/act/Sigmoid_output_0
+     Outputs:      /model.4/m.0/cv1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.0/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/m.0/cv1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/m.0/cv1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.0/cv1/act/Mul outputs to ready
     /model.4/m.0/cv1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.0/cv2/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.4/m.0/cv1/act/Mul_output_0, model.4.m.0.cv2.conv.weight, model.4.m.0.cv2.conv.bias
+     Outputs:      /model.4/m.0/cv2/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.0/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.4.m.0.cv2.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24, 24, 3, 3 }            ------------- TENSOR
+            Name: model.4.m.0.cv2.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24, 24, 3, 3]
+            Raw Data: 20736 bytes
+            Float Data: [-9.2617474e-2, 1.93222e-2, -1.0657464e-1, -2.0320581e-2, 1.2131841e-2, -6.53889e-2, -1.2375889e-1, -1.6893815e-1, 1.085109e-1, -9.527983e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.4.m.0.cv2.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24 }            ------------- TENSOR
+            Name: model.4.m.0.cv2.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24]
+            Raw Data: 96 bytes
+            Float Data: [5.797223e-1, -2.4954742e-1, -2.2768417e-1, -1.3389173e-1, -8.085689e-2, -4.3602577e-1, 9.3219686e-1, 3.8701284e-1, 1.4913046e0, 1.1810594e0, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.4/m.0/cv2/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.0/cv2/conv/Conv outputs to ready
     /model.4/m.0/cv2/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.0/cv2/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.4/m.0/cv2/conv/Conv_output_0
+     Outputs:      /model.4/m.0/cv2/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.0/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/m.0/cv2/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.0/cv2/act/Sigmoid outputs to ready
     /model.4/m.0/cv2/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.0/cv2/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.4/m.0/cv2/conv/Conv_output_0, /model.4/m.0/cv2/act/Sigmoid_output_0
+     Outputs:      /model.4/m.0/cv2/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.0/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/m.0/cv2/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/m.0/cv2/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.0/cv2/act/Mul outputs to ready
     /model.4/m.0/cv2/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.0/Add
+     Op Type: Add
+     Domain: (none)
+     Inputs: /model.4/Split_output_1, /model.4/m.0/cv2/act/Mul_output_0
+     Outputs:      /model.4/m.0/Add_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/m.0/cv2/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/m.0/Add_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.0/Add outputs to ready
     /model.4/m.0/Add_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.1/cv1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.4/m.0/Add_output_0, model.4.m.1.cv1.conv.weight, model.4.m.1.cv1.conv.bias
+     Outputs:      /model.4/m.1/cv1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.0/Add_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.4.m.1.cv1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24, 24, 3, 3 }            ------------- TENSOR
+            Name: model.4.m.1.cv1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24, 24, 3, 3]
+            Raw Data: 20736 bytes
+            Float Data: [1.4446275e-1, -4.9678784e-2, 6.362038e-2, 7.727811e-2, 2.8072454e-3, -1.08567856e-1, 1.6922329e-2, 4.4915926e-2, 1.3323376e-1, -8.8444e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.4.m.1.cv1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24 }            ------------- TENSOR
+            Name: model.4.m.1.cv1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24]
+            Raw Data: 96 bytes
+            Float Data: [6.702727e-1, -6.098635e-1, 1.1138202e0, 4.5244414e-1, 1.4099073e0, 1.2976272e0, -1.2025007e0, 1.332604e0, 4.208641e-1, -1.2499422e0, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.4/m.1/cv1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.1/cv1/conv/Conv outputs to ready
     /model.4/m.1/cv1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.1/cv1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.4/m.1/cv1/conv/Conv_output_0
+     Outputs:      /model.4/m.1/cv1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.1/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/m.1/cv1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.1/cv1/act/Sigmoid outputs to ready
     /model.4/m.1/cv1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.1/cv1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.4/m.1/cv1/conv/Conv_output_0, /model.4/m.1/cv1/act/Sigmoid_output_0
+     Outputs:      /model.4/m.1/cv1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.1/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/m.1/cv1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/m.1/cv1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.1/cv1/act/Mul outputs to ready
     /model.4/m.1/cv1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.1/cv2/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.4/m.1/cv1/act/Mul_output_0, model.4.m.1.cv2.conv.weight, model.4.m.1.cv2.conv.bias
+     Outputs:      /model.4/m.1/cv2/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.1/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.4.m.1.cv2.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24, 24, 3, 3 }            ------------- TENSOR
+            Name: model.4.m.1.cv2.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24, 24, 3, 3]
+            Raw Data: 20736 bytes
+            Float Data: [1.9009307e-1, 1.1389034e-3, -1.5594408e-1, 8.55508e-2, 1.4778578e-2, -1.7400493e-3, -1.0637009e-1, -1.4239149e-1, -1.6914004e-1, -3.9275795e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.4.m.1.cv2.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 24 }            ------------- TENSOR
+            Name: model.4.m.1.cv2.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [24]
+            Raw Data: 96 bytes
+            Float Data: [9.828717e-1, 7.958597e-1, 4.8883063e-1, 3.4740815e-1, 6.523882e-2, 1.0219112e-2, 4.032001e-3, -3.0437738e-1, -2.9236162e-1, -2.363593e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.4/m.1/cv2/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.1/cv2/conv/Conv outputs to ready
     /model.4/m.1/cv2/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.1/cv2/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.4/m.1/cv2/conv/Conv_output_0
+     Outputs:      /model.4/m.1/cv2/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.1/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/m.1/cv2/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.1/cv2/act/Sigmoid outputs to ready
     /model.4/m.1/cv2/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.1/cv2/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.4/m.1/cv2/conv/Conv_output_0, /model.4/m.1/cv2/act/Sigmoid_output_0
+     Outputs:      /model.4/m.1/cv2/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.1/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/m.1/cv2/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/m.1/cv2/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.1/cv2/act/Mul outputs to ready
     /model.4/m.1/cv2/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/m.1/Add
+     Op Type: Add
+     Domain: (none)
+     Inputs: /model.4/m.0/Add_output_0, /model.4/m.1/cv2/act/Mul_output_0
+     Outputs:      /model.4/m.1/Add_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/m.0/Add_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/m.1/cv2/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/m.1/Add_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/m.1/Add outputs to ready
     /model.4/m.1/Add_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/Concat
+     Op Type: Concat
+     Domain: (none)
+     Inputs: /model.4/Split_output_0, /model.4/Split_output_1, /model.4/m.0/Add_output_0, /model.4/m.1/Add_output_0
+     Outputs:      /model.4/Concat_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: axis
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/Split_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/m.0/Add_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/m.1/Add_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 24, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/Concat_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/Concat outputs to ready
     /model.4/Concat_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/cv2/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.4/Concat_output_0, model.4.cv2.conv.weight, model.4.cv2.conv.bias
+     Outputs:      /model.4/cv2/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [0, 0, 0, 0]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/Concat_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.4.cv2.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48, 96, 1, 1 }            ------------- TENSOR
+            Name: model.4.cv2.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48, 96, 1, 1]
+            Raw Data: 18432 bytes
+            Float Data: [-1.00380205e-1, 1.2510622e-1, 8.105148e-2, 3.8472928e-2, 5.992366e-2, 1.1717174e-1, -9.493679e-2, -6.901139e-2, 2.4426157e-2, -1.18740186e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.4.cv2.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48 }            ------------- TENSOR
+            Name: model.4.cv2.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48]
+            Raw Data: 192 bytes
+            Float Data: [1.15425326e-1, 5.573539e-1, 7.678058e-1, 1.6574264e-1, 7.967115e-1, -7.575828e-2, -7.6491356e-1, 1.0529552e0, 1.0328408e0, 7.7410936e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.4/cv2/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/cv2/conv/Conv outputs to ready
     /model.4/cv2/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/cv2/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.4/cv2/conv/Conv_output_0
+     Outputs:      /model.4/cv2/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/cv2/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/cv2/act/Sigmoid outputs to ready
     /model.4/cv2/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.4/cv2/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.4/cv2/conv/Conv_output_0, /model.4/cv2/act/Sigmoid_output_0
+     Outputs:      /model.4/cv2/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.4/cv2/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.4/cv2/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.4/cv2/act/Mul outputs to ready
     /model.4/cv2/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.5/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.4/cv2/act/Mul_output_0, model.5.conv.weight, model.5.conv.bias
+     Outputs:      /model.5/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [2, 2]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.4/cv2/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 32, 32 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.5.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96, 48, 3, 3 }            ------------- TENSOR
+            Name: model.5.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96, 48, 3, 3]
+            Raw Data: 165888 bytes
+            Float Data: [3.828226e-2, -6.447301e-2, -2.4995135e-2, -9.6822314e-2, 1.1261346e-1, -1.1658381e-1, -1.8938102e-2, 1.2461474e-1, 1.3535272e-1, -1.2696084e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.5.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96 }            ------------- TENSOR
+            Name: model.5.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96]
+            Raw Data: 384 bytes
+            Float Data: [-9.420736e-3, 6.001963e-1, 3.6414456e-1, 3.694452e-1, -1.4192158e-1, 1.4763312e-2, 2.984015e-1, 5.89666e-1, 5.4692024e-1, -1.8438798e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.5/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.5/conv/Conv outputs to ready
     /model.5/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.5/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.5/conv/Conv_output_0
+     Outputs:      /model.5/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.5/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.5/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.5/act/Sigmoid outputs to ready
     /model.5/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.5/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.5/conv/Conv_output_0, /model.5/act/Sigmoid_output_0
+     Outputs:      /model.5/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.5/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.5/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.5/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.5/act/Mul outputs to ready
     /model.5/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/cv1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.5/act/Mul_output_0, model.6.cv1.conv.weight, model.6.cv1.conv.bias
+     Outputs:      /model.6/cv1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [0, 0, 0, 0]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.5/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.6.cv1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96, 96, 1, 1 }            ------------- TENSOR
+            Name: model.6.cv1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96, 96, 1, 1]
+            Raw Data: 36864 bytes
+            Float Data: [9.872631e-2, 1.4377618e-1, -1.3383166e-1, 6.140441e-2, -4.2773414e-2, 1.5431976e-1, 1.1478132e-1, -1.0669391e-1, -1.1130673e-1, -1.7804284e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.6.cv1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96 }            ------------- TENSOR
+            Name: model.6.cv1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96]
+            Raw Data: 384 bytes
+            Float Data: [8.743238e-2, -6.6594774e-1, -3.2365993e-2, 4.392077e-1, 8.20378e-1, 5.641833e-3, -5.2890205e-1, 2.128709e-1, 1.4515142e-1, 5.645124e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.6/cv1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/cv1/conv/Conv outputs to ready
     /model.6/cv1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/cv1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.6/cv1/conv/Conv_output_0
+     Outputs:      /model.6/cv1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/cv1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/cv1/act/Sigmoid outputs to ready
     /model.6/cv1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/cv1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.6/cv1/conv/Conv_output_0, /model.6/cv1/act/Sigmoid_output_0
+     Outputs:      /model.6/cv1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/cv1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/cv1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/cv1/act/Mul outputs to ready
     /model.6/cv1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/Split
+     Op Type: Split
+     Domain: (none)
+     Inputs: /model.6/cv1/act/Mul_output_0, onnx::Split_184
+     Outputs:      /model.6/Split_output_0 ,      /model.6/Split_output_1 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: axis
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : onnx::Split_184
+         status: ready
+         tag: globals.TensorTag.CONSTANT
+         shape: { 2 }            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.INT64
+            Dims: [2]
+            Raw Data: 16 bytes
+            Int64 Data: [48, 48]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.6/Split_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/Split_output_1
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/Split outputs to ready
     /model.6/Split_output_0 --> ready
     /model.6/Split_output_1 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.0/cv1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.6/Split_output_1, model.6.m.0.cv1.conv.weight, model.6.m.0.cv1.conv.bias
+     Outputs:      /model.6/m.0/cv1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.6.m.0.cv1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48, 48, 3, 3 }            ------------- TENSOR
+            Name: model.6.m.0.cv1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48, 48, 3, 3]
+            Raw Data: 82944 bytes
+            Float Data: [1.00128956e-1, -1.0732097e-2, -2.1755006e-2, 2.9685237e-2, 1.9294286e-2, 9.672868e-2, -1.1632497e-1, 7.113719e-2, -1.1909887e-1, 1.1847251e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.6.m.0.cv1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48 }            ------------- TENSOR
+            Name: model.6.m.0.cv1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48]
+            Raw Data: 192 bytes
+            Float Data: [2.8077394e-1, 2.0938316e-1, -3.1683353e-1, 1.3177127e-1, 1.3329966e-1, -2.604676e-1, -5.2964e-1, -4.370396e-1, 6.6262975e-2, -1.4480658e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.6/m.0/cv1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.0/cv1/conv/Conv outputs to ready
     /model.6/m.0/cv1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.0/cv1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.6/m.0/cv1/conv/Conv_output_0
+     Outputs:      /model.6/m.0/cv1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.0/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/m.0/cv1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.0/cv1/act/Sigmoid outputs to ready
     /model.6/m.0/cv1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.0/cv1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.6/m.0/cv1/conv/Conv_output_0, /model.6/m.0/cv1/act/Sigmoid_output_0
+     Outputs:      /model.6/m.0/cv1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.0/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/m.0/cv1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/m.0/cv1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.0/cv1/act/Mul outputs to ready
     /model.6/m.0/cv1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.0/cv2/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.6/m.0/cv1/act/Mul_output_0, model.6.m.0.cv2.conv.weight, model.6.m.0.cv2.conv.bias
+     Outputs:      /model.6/m.0/cv2/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.0/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.6.m.0.cv2.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48, 48, 3, 3 }            ------------- TENSOR
+            Name: model.6.m.0.cv2.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48, 48, 3, 3]
+            Raw Data: 82944 bytes
+            Float Data: [-1.14821576e-1, -3.638091e-2, 9.620326e-2, -8.032065e-3, 9.0239175e-2, 2.1820767e-2, -1.14199236e-1, -9.970392e-3, -3.0624272e-2, -1.5299171e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.6.m.0.cv2.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48 }            ------------- TENSOR
+            Name: model.6.m.0.cv2.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48]
+            Raw Data: 192 bytes
+            Float Data: [-2.4474782e-1, 3.9433804e-1, 8.527674e-1, 6.2894696e-1, 1.9130093e-1, 2.483804e-1, -1.4496684e-1, -9.8616414e-2, -1.6695684e-1, -3.2238832e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.6/m.0/cv2/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.0/cv2/conv/Conv outputs to ready
     /model.6/m.0/cv2/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.0/cv2/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.6/m.0/cv2/conv/Conv_output_0
+     Outputs:      /model.6/m.0/cv2/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.0/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/m.0/cv2/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.0/cv2/act/Sigmoid outputs to ready
     /model.6/m.0/cv2/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.0/cv2/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.6/m.0/cv2/conv/Conv_output_0, /model.6/m.0/cv2/act/Sigmoid_output_0
+     Outputs:      /model.6/m.0/cv2/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.0/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/m.0/cv2/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/m.0/cv2/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.0/cv2/act/Mul outputs to ready
     /model.6/m.0/cv2/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.0/Add
+     Op Type: Add
+     Domain: (none)
+     Inputs: /model.6/Split_output_1, /model.6/m.0/cv2/act/Mul_output_0
+     Outputs:      /model.6/m.0/Add_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/m.0/cv2/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/m.0/Add_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.0/Add outputs to ready
     /model.6/m.0/Add_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.1/cv1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.6/m.0/Add_output_0, model.6.m.1.cv1.conv.weight, model.6.m.1.cv1.conv.bias
+     Outputs:      /model.6/m.1/cv1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.0/Add_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.6.m.1.cv1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48, 48, 3, 3 }            ------------- TENSOR
+            Name: model.6.m.1.cv1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48, 48, 3, 3]
+            Raw Data: 82944 bytes
+            Float Data: [-9.30042e-3, -4.311345e-2, 1.6918764e-2, 2.0756513e-2, 9.3020536e-2, -2.8089065e-2, 9.001566e-2, -6.1436668e-2, 4.063116e-2, -6.69565e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.6.m.1.cv1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48 }            ------------- TENSOR
+            Name: model.6.m.1.cv1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48]
+            Raw Data: 192 bytes
+            Float Data: [7.6437436e-2, -2.6651257e-1, 2.8999263e-1, -4.061272e-1, -2.4740592e-1, -5.203781e-1, 1.8595666e-1, 1.593884e-1, -1.1075182e-2, 2.939429e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.6/m.1/cv1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.1/cv1/conv/Conv outputs to ready
     /model.6/m.1/cv1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.1/cv1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.6/m.1/cv1/conv/Conv_output_0
+     Outputs:      /model.6/m.1/cv1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.1/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/m.1/cv1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.1/cv1/act/Sigmoid outputs to ready
     /model.6/m.1/cv1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.1/cv1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.6/m.1/cv1/conv/Conv_output_0, /model.6/m.1/cv1/act/Sigmoid_output_0
+     Outputs:      /model.6/m.1/cv1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.1/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/m.1/cv1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/m.1/cv1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.1/cv1/act/Mul outputs to ready
     /model.6/m.1/cv1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.1/cv2/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.6/m.1/cv1/act/Mul_output_0, model.6.m.1.cv2.conv.weight, model.6.m.1.cv2.conv.bias
+     Outputs:      /model.6/m.1/cv2/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.1/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.6.m.1.cv2.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48, 48, 3, 3 }            ------------- TENSOR
+            Name: model.6.m.1.cv2.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48, 48, 3, 3]
+            Raw Data: 82944 bytes
+            Float Data: [1.587039e-1, 1.4461775e-1, -1.4093481e-2, 3.6095746e-2, 5.663804e-2, -9.725309e-2, 3.9059706e-2, 1.677425e-1, 1.4461775e-1, 8.797971e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.6.m.1.cv2.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 48 }            ------------- TENSOR
+            Name: model.6.m.1.cv2.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [48]
+            Raw Data: 192 bytes
+            Float Data: [1.6133314e-1, 8.478235e-3, -2.3564422e-1, 1.5297261e-1, 2.1091712e-1, -2.0971207e-1, 3.174401e-1, -3.69256e-1, -1.6072023e-1, 2.6610404e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.6/m.1/cv2/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.1/cv2/conv/Conv outputs to ready
     /model.6/m.1/cv2/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.1/cv2/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.6/m.1/cv2/conv/Conv_output_0
+     Outputs:      /model.6/m.1/cv2/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.1/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/m.1/cv2/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.1/cv2/act/Sigmoid outputs to ready
     /model.6/m.1/cv2/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.1/cv2/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.6/m.1/cv2/conv/Conv_output_0, /model.6/m.1/cv2/act/Sigmoid_output_0
+     Outputs:      /model.6/m.1/cv2/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.1/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/m.1/cv2/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/m.1/cv2/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.1/cv2/act/Mul outputs to ready
     /model.6/m.1/cv2/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/m.1/Add
+     Op Type: Add
+     Domain: (none)
+     Inputs: /model.6/m.0/Add_output_0, /model.6/m.1/cv2/act/Mul_output_0
+     Outputs:      /model.6/m.1/Add_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/m.0/Add_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/m.1/cv2/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/m.1/Add_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/m.1/Add outputs to ready
     /model.6/m.1/Add_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/Concat
+     Op Type: Concat
+     Domain: (none)
+     Inputs: /model.6/Split_output_0, /model.6/Split_output_1, /model.6/m.0/Add_output_0, /model.6/m.1/Add_output_0
+     Outputs:      /model.6/Concat_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: axis
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/Split_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/m.0/Add_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/m.1/Add_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 48, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/Concat_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/Concat outputs to ready
     /model.6/Concat_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/cv2/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.6/Concat_output_0, model.6.cv2.conv.weight, model.6.cv2.conv.bias
+     Outputs:      /model.6/cv2/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [0, 0, 0, 0]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/Concat_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.6.cv2.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96, 192, 1, 1 }            ------------- TENSOR
+            Name: model.6.cv2.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96, 192, 1, 1]
+            Raw Data: 73728 bytes
+            Float Data: [-8.557312e-2, -1.3321376e-1, -1.1341172e-1, 9.888164e-2, 8.583029e-2, -3.8382538e-2, 7.7665165e-2, -1.9335926e-2, 8.820911e-2, -1.0036036e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.6.cv2.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96 }            ------------- TENSOR
+            Name: model.6.cv2.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96]
+            Raw Data: 384 bytes
+            Float Data: [7.1556944e-1, 7.950947e-1, -4.2093125e-1, 3.8656205e-1, -1.5041409e-3, -4.119429e-1, 5.4804826e-1, 8.3466804e-1, 2.073104e-1, -8.082339e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.6/cv2/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/cv2/conv/Conv outputs to ready
     /model.6/cv2/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/cv2/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.6/cv2/conv/Conv_output_0
+     Outputs:      /model.6/cv2/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/cv2/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/cv2/act/Sigmoid outputs to ready
     /model.6/cv2/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.6/cv2/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.6/cv2/conv/Conv_output_0, /model.6/cv2/act/Sigmoid_output_0
+     Outputs:      /model.6/cv2/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.6/cv2/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.6/cv2/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.6/cv2/act/Mul outputs to ready
     /model.6/cv2/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.7/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.6/cv2/act/Mul_output_0, model.7.conv.weight, model.7.conv.bias
+     Outputs:      /model.7/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [2, 2]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.6/cv2/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 16, 16 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.7.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 192, 96, 3, 3 }            ------------- TENSOR
+            Name: model.7.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [192, 96, 3, 3]
+            Raw Data: 663552 bytes
+            Float Data: [-4.7432814e-2, 5.339188e-2, 1.08136535e-2, 2.787748e-2, 2.669594e-2, -3.1233735e-2, 7.846963e-3, -6.483055e-2, 6.524152e-2, -6.2844194e-3, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.7.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 192 }            ------------- TENSOR
+            Name: model.7.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [192]
+            Raw Data: 768 bytes
+            Float Data: [-3.2665113e-1, 1.3161469e-1, 3.13863e-1, -5.6132384e-2, 4.095756e-1, -3.634378e-1, -1.9722912e-1, -3.2381615e-1, -2.939857e-1, 1.3893804e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.7/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.7/conv/Conv outputs to ready
     /model.7/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.7/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.7/conv/Conv_output_0
+     Outputs:      /model.7/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.7/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.7/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.7/act/Sigmoid outputs to ready
     /model.7/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.7/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.7/conv/Conv_output_0, /model.7/act/Sigmoid_output_0
+     Outputs:      /model.7/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.7/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.7/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.7/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.7/act/Mul outputs to ready
     /model.7/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/cv1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.7/act/Mul_output_0, model.8.cv1.conv.weight, model.8.cv1.conv.bias
+     Outputs:      /model.8/cv1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [0, 0, 0, 0]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.7/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.8.cv1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 192, 192, 1, 1 }            ------------- TENSOR
+            Name: model.8.cv1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [192, 192, 1, 1]
+            Raw Data: 147456 bytes
+            Float Data: [1.6327916e-1, -1.0141847e-1, 1.1289115e-1, 7.838134e-2, -6.37422e-2, -6.250315e-2, 1.892533e-1, -1.7181483e-1, 3.3637892e-2, -1.6373806e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.8.cv1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 192 }            ------------- TENSOR
+            Name: model.8.cv1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [192]
+            Raw Data: 768 bytes
+            Float Data: [7.302827e-2, 3.3404323e-1, 2.5470376e-1, 2.914647e-2, 8.332222e-2, 2.3173328e-1, -1.3247797e-1, 2.0816728e-1, 4.0302455e-2, 8.334515e-3, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.8/cv1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/cv1/conv/Conv outputs to ready
     /model.8/cv1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/cv1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.8/cv1/conv/Conv_output_0
+     Outputs:      /model.8/cv1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.8/cv1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/cv1/act/Sigmoid outputs to ready
     /model.8/cv1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/cv1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.8/cv1/conv/Conv_output_0, /model.8/cv1/act/Sigmoid_output_0
+     Outputs:      /model.8/cv1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.8/cv1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.8/cv1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/cv1/act/Mul outputs to ready
     /model.8/cv1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/Split
+     Op Type: Split
+     Domain: (none)
+     Inputs: /model.8/cv1/act/Mul_output_0, onnx::Split_211
+     Outputs:      /model.8/Split_output_0 ,      /model.8/Split_output_1 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: axis
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : onnx::Split_211
+         status: ready
+         tag: globals.TensorTag.CONSTANT
+         shape: { 2 }            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.INT64
+            Dims: [2]
+            Raw Data: 16 bytes
+            Int64 Data: [96, 96]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.8/Split_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.8/Split_output_1
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/Split outputs to ready
     /model.8/Split_output_0 --> ready
     /model.8/Split_output_1 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/m.0/cv1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.8/Split_output_1, model.8.m.0.cv1.conv.weight, model.8.m.0.cv1.conv.bias
+     Outputs:      /model.8/m.0/cv1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.8.m.0.cv1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96, 96, 3, 3 }            ------------- TENSOR
+            Name: model.8.m.0.cv1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96, 96, 3, 3]
+            Raw Data: 331776 bytes
+            Float Data: [-8.082473e-2, -4.890214e-2, 8.352242e-2, 2.589248e-2, -1.1617233e-2, -1.9082148e-2, -9.838613e-2, -1.00872226e-1, -2.5231281e-2, -4.5701943e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.8.m.0.cv1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96 }            ------------- TENSOR
+            Name: model.8.m.0.cv1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96]
+            Raw Data: 384 bytes
+            Float Data: [-2.6153607e-2, -2.637773e-1, 2.2115909e-1, 2.4544612e-2, 1.9991831e-1, -2.0346355e-1, -2.207256e-1, -2.664866e-1, -1.3036141e-1, 1.0677925e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.8/m.0/cv1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/m.0/cv1/conv/Conv outputs to ready
     /model.8/m.0/cv1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/m.0/cv1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.8/m.0/cv1/conv/Conv_output_0
+     Outputs:      /model.8/m.0/cv1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/m.0/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.8/m.0/cv1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/m.0/cv1/act/Sigmoid outputs to ready
     /model.8/m.0/cv1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/m.0/cv1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.8/m.0/cv1/conv/Conv_output_0, /model.8/m.0/cv1/act/Sigmoid_output_0
+     Outputs:      /model.8/m.0/cv1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/m.0/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.8/m.0/cv1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.8/m.0/cv1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/m.0/cv1/act/Mul outputs to ready
     /model.8/m.0/cv1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/m.0/cv2/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.8/m.0/cv1/act/Mul_output_0, model.8.m.0.cv2.conv.weight, model.8.m.0.cv2.conv.bias
+     Outputs:      /model.8/m.0/cv2/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [3, 3]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1, 1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/m.0/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.8.m.0.cv2.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96, 96, 3, 3 }            ------------- TENSOR
+            Name: model.8.m.0.cv2.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96, 96, 3, 3]
+            Raw Data: 331776 bytes
+            Float Data: [2.0907423e-2, -5.930728e-2, 7.583624e-2, 2.5307296e-2, 1.6154276e-2, 3.6976058e-2, -4.125817e-2, 2.7448352e-2, 7.0997454e-2, 6.792504e-3, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.8.m.0.cv2.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96 }            ------------- TENSOR
+            Name: model.8.m.0.cv2.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96]
+            Raw Data: 384 bytes
+            Float Data: [-2.2054259e-2, 2.2336102e-1, 5.212222e-2, -1.4459884e-1, 3.8377434e-2, -4.8036e-2, 1.9957213e-1, 1.4295466e-1, 1.11648e-1, -2.468318e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.8/m.0/cv2/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/m.0/cv2/conv/Conv outputs to ready
     /model.8/m.0/cv2/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/m.0/cv2/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.8/m.0/cv2/conv/Conv_output_0
+     Outputs:      /model.8/m.0/cv2/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/m.0/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.8/m.0/cv2/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/m.0/cv2/act/Sigmoid outputs to ready
     /model.8/m.0/cv2/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/m.0/cv2/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.8/m.0/cv2/conv/Conv_output_0, /model.8/m.0/cv2/act/Sigmoid_output_0
+     Outputs:      /model.8/m.0/cv2/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/m.0/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.8/m.0/cv2/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.8/m.0/cv2/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/m.0/cv2/act/Mul outputs to ready
     /model.8/m.0/cv2/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/m.0/Add
+     Op Type: Add
+     Domain: (none)
+     Inputs: /model.8/Split_output_1, /model.8/m.0/cv2/act/Mul_output_0
+     Outputs:      /model.8/m.0/Add_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.8/m.0/cv2/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.8/m.0/Add_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/m.0/Add outputs to ready
     /model.8/m.0/Add_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/Concat
+     Op Type: Concat
+     Domain: (none)
+     Inputs: /model.8/Split_output_0, /model.8/Split_output_1, /model.8/m.0/Add_output_0
+     Outputs:      /model.8/Concat_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: axis
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/Split_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.8/Split_output_1
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.8/m.0/Add_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.8/Concat_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 288, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/Concat outputs to ready
     /model.8/Concat_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/cv2/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.8/Concat_output_0, model.8.cv2.conv.weight, model.8.cv2.conv.bias
+     Outputs:      /model.8/cv2/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [0, 0, 0, 0]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/Concat_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 288, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.8.cv2.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 192, 288, 1, 1 }            ------------- TENSOR
+            Name: model.8.cv2.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [192, 288, 1, 1]
+            Raw Data: 221184 bytes
+            Float Data: [5.8202185e-2, 2.4873331e-2, 5.0314766e-4, 7.1120344e-2, 4.641143e-2, 4.8713207e-2, -7.863636e-2, -6.106767e-3, -7.1590096e-2, 3.4949496e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.8.cv2.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 192 }            ------------- TENSOR
+            Name: model.8.cv2.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [192]
+            Raw Data: 768 bytes
+            Float Data: [-2.0908086e-1, 1.3509016e-1, 3.2066706e-1, 4.665514e-2, -1.526217e-2, -1.7051633e-1, -9.529952e-2, 2.7718922e-1, 9.689502e-2, 2.5932348e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.8/cv2/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/cv2/conv/Conv outputs to ready
     /model.8/cv2/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/cv2/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.8/cv2/conv/Conv_output_0
+     Outputs:      /model.8/cv2/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.8/cv2/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/cv2/act/Sigmoid outputs to ready
     /model.8/cv2/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.8/cv2/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.8/cv2/conv/Conv_output_0, /model.8/cv2/act/Sigmoid_output_0
+     Outputs:      /model.8/cv2/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.8/cv2/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.8/cv2/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.8/cv2/act/Mul outputs to ready
     /model.8/cv2/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.9/cv1/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.8/cv2/act/Mul_output_0, model.9.cv1.conv.weight, model.9.cv1.conv.bias
+     Outputs:      /model.9/cv1/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [0, 0, 0, 0]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.8/cv2/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.9.cv1.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96, 192, 1, 1 }            ------------- TENSOR
+            Name: model.9.cv1.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96, 192, 1, 1]
+            Raw Data: 73728 bytes
+            Float Data: [-8.643182e-2, -6.560284e-2, 6.238535e-2, 1.1820026e-1, -1.028918e-1, 4.9490007e-3, 1.4373693e-1, 5.0395984e-2, -1.10410556e-1, 1.8932363e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.9.cv1.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 96 }            ------------- TENSOR
+            Name: model.9.cv1.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [96]
+            Raw Data: 384 bytes
+            Float Data: [1.831515e-1, 1.3754597e-1, -8.705773e-2, 6.0708124e-2, -2.2090128e-2, -1.1125579e-1, -1.1204563e-1, 1.5380381e-1, 2.031681e-2, 1.8834953e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.9/cv1/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.9/cv1/conv/Conv outputs to ready
     /model.9/cv1/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.9/cv1/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.9/cv1/conv/Conv_output_0
+     Outputs:      /model.9/cv1/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.9/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.9/cv1/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.9/cv1/act/Sigmoid outputs to ready
     /model.9/cv1/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.9/cv1/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.9/cv1/conv/Conv_output_0, /model.9/cv1/act/Sigmoid_output_0
+     Outputs:      /model.9/cv1/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.9/cv1/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.9/cv1/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.9/cv1/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.9/cv1/act/Mul outputs to ready
     /model.9/cv1/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.9/m/MaxPool
+     Op Type: MaxPool
+     Domain: (none)
+     Inputs: /model.9/cv1/act/Mul_output_0
+     Outputs:      /model.9/m/MaxPool_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: ceil_mode
+        Type: onnx.onnx.AttributeType.INT
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [5, 5]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [2, 2, 2, 2]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.9/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.9/m/MaxPool_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.9/m/MaxPool outputs to ready
     /model.9/m/MaxPool_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.9/m_1/MaxPool
+     Op Type: MaxPool
+     Domain: (none)
+     Inputs: /model.9/m/MaxPool_output_0
+     Outputs:      /model.9/m_1/MaxPool_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: ceil_mode
+        Type: onnx.onnx.AttributeType.INT
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [5, 5]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [2, 2, 2, 2]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.9/m/MaxPool_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.9/m_1/MaxPool_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.9/m_1/MaxPool outputs to ready
     /model.9/m_1/MaxPool_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.9/m_2/MaxPool
+     Op Type: MaxPool
+     Domain: (none)
+     Inputs: /model.9/m_1/MaxPool_output_0
+     Outputs:      /model.9/m_2/MaxPool_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: ceil_mode
+        Type: onnx.onnx.AttributeType.INT
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [5, 5]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [2, 2, 2, 2]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.9/m_1/MaxPool_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.9/m_2/MaxPool_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.9/m_2/MaxPool outputs to ready
     /model.9/m_2/MaxPool_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.9/Concat
+     Op Type: Concat
+     Domain: (none)
+     Inputs: /model.9/cv1/act/Mul_output_0, /model.9/m/MaxPool_output_0, /model.9/m_1/MaxPool_output_0, /model.9/m_2/MaxPool_output_0
+     Outputs:      /model.9/Concat_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: axis
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.9/cv1/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.9/m/MaxPool_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.9/m_1/MaxPool_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.9/m_2/MaxPool_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 96, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.9/Concat_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 384, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.9/Concat outputs to ready
     /model.9/Concat_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.9/cv2/conv/Conv
+     Op Type: Conv
+     Domain: (none)
+     Inputs: /model.9/Concat_output_0, model.9.cv2.conv.weight, model.9.cv2.conv.bias
+     Outputs:      /model.9/cv2/conv/Conv_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: dilations
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: group
+        Type: onnx.onnx.AttributeType.INT
+        Int: 1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: kernel_shape
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: pads
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [0, 0, 0, 0]
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: strides
+        Type: onnx.onnx.AttributeType.INTS
+        Ints: [1, 1]
+        Doc String: ""
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.9/Concat_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 384, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : model.9.cv2.conv.weight
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 192, 384, 1, 1 }            ------------- TENSOR
+            Name: model.9.cv2.conv.weight
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [192, 384, 1, 1]
+            Raw Data: 294912 bytes
+            Float Data: [1.3361747e-2, 1.05406605e-2, 4.167095e-3, 5.811192e-3, 8.051467e-3, 1.9925844e-2, 5.801973e-3, -1.7061735e-2, -1.0946307e-2, 2.1680573e-3, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+      READY TENSOR : model.9.cv2.conv.bias
+         status: ready
+         tag: globals.TensorTag.INITIALIZER
+         shape: { 192 }            ------------- TENSOR
+            Name: model.9.cv2.conv.bias
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [192]
+            Raw Data: 768 bytes
+            Float Data: [1.8979593e-1, -1.8004951e-1, -8.851798e-2, -4.6398818e-1, 1.4832901e-2, 3.7663502e-1, -5.9799355e-1, -4.43598e-1, -2.0600367e-1, -2.7282324e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+
+  ---outputs : 
+      READY TENSOR : /model.9/cv2/conv/Conv_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.9/cv2/conv/Conv outputs to ready
     /model.9/cv2/conv/Conv_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.9/cv2/act/Sigmoid
+     Op Type: Sigmoid
+     Domain: (none)
+     Inputs: /model.9/cv2/conv/Conv_output_0
+     Outputs:      /model.9/cv2/act/Sigmoid_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.9/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.9/cv2/act/Sigmoid_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.9/cv2/act/Sigmoid outputs to ready
     /model.9/cv2/act/Sigmoid_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.9/cv2/act/Mul
+     Op Type: Mul
+     Domain: (none)
+     Inputs: /model.9/cv2/conv/Conv_output_0, /model.9/cv2/act/Sigmoid_output_0
+     Outputs:      /model.9/cv2/act/Mul_output_0 
+     Attributes:
+     metadata_props (key, value) [0]: 
+
+  ---inputs : 
+      READY TENSOR : /model.9/cv2/conv/Conv_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+      READY TENSOR : /model.9/cv2/act/Sigmoid_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+  ---outputs : 
+      READY TENSOR : /model.9/cv2/act/Mul_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
 *** 
  -----> set /model.9/cv2/act/Mul outputs to ready
     /model.9/cv2/act/Mul_output_0 --> ready
+------------------------------------------------------------
++                  COMPUTABLE NODES  n:1                  +
+------------------------------------------------------------
+ ------ READY NODE :      ------------- NODE
+     Name: /model.10/Resize
+     Op Type: Resize
+     Domain: (none)
+     Inputs: /model.9/cv2/act/Mul_output_0, <empty_string>, /model.10/Constant_output_0
+     Outputs:      /model.10/Resize_output_0 
+     Attributes:
+        ------------- ATTRIBUTE 
+        Name: coordinate_transformation_mode
+        Type: onnx.onnx.AttributeType.STRING
+        String: "asymmetric"
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: cubic_coeff_a
+        Type: onnx.onnx.AttributeType.FLOAT
+        Float: -7.5e-1
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: mode
+        Type: onnx.onnx.AttributeType.STRING
+        String: "nearest"
+        Doc String: ""
+        ------------- ATTRIBUTE 
+        Name: nearest_mode
+        Type: onnx.onnx.AttributeType.STRING
+        String: "floor"
+        Doc String: ""
+     metadata_props (key, value) [0]: 
 
-   ERROR!!
-    DifferentOutputNames: 
-      output0 vs /model.9/cv2/act/Mul_output_0
-    LastNode:/model.9/cv2/act/Mul
+  ---inputs : 
+      READY TENSOR : /model.9/cv2/act/Mul_output_0
+         status: ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 8, 8 }
+         tensor.tensorProto :(null)
+      NULL INPUT
+      READY TENSOR : /model.10/Constant_output_0
+         status: ready
+         tag: globals.TensorTag.CONSTANT
+         shape: { 4 }            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [4]
+            Raw Data: 16 bytes
+            Float Data: [1e0, 1e0, 2e0, 2e0]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
 
-error: DifferentOutputNames
-/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/skeleton.zig:64:5: 0x11b7835 in writeZigFile (Codegen)
-    try coddeGenPredict.writePredict(lib_writer, do_export);
-    ^
-/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/main.zig:51:5: 0x11baf0d in main (Codegen)
-    try codeGen.skeleton.writeZigFile(model_name, generated_path, model, true);
-    ^
+  ---outputs : 
+      READY TENSOR : /model.10/Resize_output_0
+         status: not ready
+         tag: globals.TensorTag.LINK
+         shape: { 1, 192, 16, 16 }
+         tensor.tensorProto :(null)
+*** munmap_chunk(): invalid pointer
 codegen
 +- run Codegen failure
-error: the following command exited with error code 1:
-/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/99a7092fdea1865119ab2f92fd0d32ee/Codegen 
+error: the following command terminated unexpectedly:
+/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/45e354fea636a96c014a9533b9b934e0/Codegen 
 Build Summary: 3/5 steps succeeded; 1 failed
 codegen transitive failure
 +- run Codegen failure
 error: the following build command failed with exit code 1:
-/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/eef542034016f2ce0d73a86b572be875/build /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/zig /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib /home/mirko/Documents/zig/Tiny/Z-Ant /home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache /home/mirko/.cache/zig --seed 0x959130aa -Z99952b3379413557 codegen -Dmodel=best
+/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/eef542034016f2ce0d73a86b572be875/build /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/zig /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib /home/mirko/Documents/zig/Tiny/Z-Ant /home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache /home/mirko/.cache/zig --seed 0x43890ae4 -Z6145a162584c4f04 codegen -Dmodel=best

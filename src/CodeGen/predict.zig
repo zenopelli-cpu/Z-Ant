@@ -78,7 +78,7 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
 
         //DEBUG
         // for (globals.readyGraph.items) |*readyNode| readyNode.print(false);
-        // try utils.printComputableNodes(computableNodes);
+        try utils.printComputableNodes(computableNodes, true);
 
         if (computableNodes.items.len == 0) break;
         //else set the last node as the network output
@@ -110,6 +110,7 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
         //check the output tensor name is the same
         if (!std.mem.eql(u8, globals.networkOutput.name, lastNode.outputs.items[0].name)) {
             std.debug.print("\n\n   ERROR!!\n    DifferentOutputNames: \n      {s} vs {s}\n    LastNode:{s}\n\n", .{ globals.networkOutput.name, lastNode.outputs.items[0].name, lastNode.nodeProto.name.? });
+            lastNode.print(true);
             return error.DifferentOutputNames;
         }
     }
