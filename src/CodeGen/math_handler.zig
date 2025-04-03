@@ -1489,60 +1489,68 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // ATTRIBUTES (deprecated in opset 13):
     //      - axes - INTS: List of integers indicating the dimensions to be inserted.
 
-    const input_name = try utils.getSanitizedName(node.inputs.items[0].name);
-    const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
+    if (node.inputs.items[0]) |input_tensor| {
+        const input_name = try utils.getSanitizedName(input_tensor.name);
+        const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
 
-    // Create input tensor string
-    var input_tensor_string: []u8 = undefined;
-    defer allocator.free(input_tensor_string);
-    if (node.inputs.items[0].tag == globals.TensorTag.INITIALIZER) {
-        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", input_name, ")" });
-    } else {
-        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", input_name, ")" });
-    }
-
-    // Determine if axes is provided as an input tensor or as an attribute
-    var axes_str: []const u8 = "null";
-    var needs_free = false;
-
-    if (node.inputs.items.len > 1) {
-        // Axes is provided as an input tensor (opset 13+)
-        const axes_tensor_name = try utils.getSanitizedName(node.inputs.items[1].name);
-        if (node.inputs.items[1].tag == globals.TensorTag.INITIALIZER) {
-            axes_str = try std.fmt.allocPrint(allocator, "@constCast(&param_lib.tensor_{s})", .{axes_tensor_name});
+        // Create input tensor string
+        var input_tensor_string: []u8 = undefined;
+        defer allocator.free(input_tensor_string);
+        if (input_tensor.tag == globals.TensorTag.INITIALIZER) {
+            input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", input_name, ")" });
         } else {
-            axes_str = try std.fmt.allocPrint(allocator, "&tensor_{s}", .{axes_tensor_name});
+            input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", input_name, ")" });
         }
-        needs_free = true;
-    } else {
-        // Axes is provided as an attribute (opset < 13)
-        for (node.nodeProto.attribute) |attr| {
-            if (std.mem.eql(u8, attr.name, "axes")) {
-                if (attr.type == AttributeType.INTS) {
-                    axes_str = try utils.i64ToI64ArrayString(attr.ints);
-                    needs_free = true;
-                    break;
+
+        // Determine if axes is provided as an input tensor or as an attribute
+        var axes_str: []const u8 = "null";
+        var needs_free = false;
+
+        if (node.inputs.items.len > 1) {
+            // Axes is provided as an input tensor (opset 13+)
+            if (node.inputs.items[1]) |axes_tensor| {
+                const axes_tensor_name = try utils.getSanitizedName(axes_tensor.name);
+                if (axes_tensor.tag == globals.TensorTag.INITIALIZER) {
+                    axes_str = try std.fmt.allocPrint(allocator, "@constCast(&param_lib.tensor_{s})", .{axes_tensor_name});
+                } else {
+                    axes_str = try std.fmt.allocPrint(allocator, "&tensor_{s}", .{axes_tensor_name});
+                }
+                needs_free = true;
+            } else {
+                return error.InvalidAxesTensor;
+            }
+        } else {
+            // Axes is provided as an attribute (opset < 13)
+            for (node.nodeProto.attribute) |attr| {
+                if (std.mem.eql(u8, attr.name, "axes")) {
+                    if (attr.type == AttributeType.INTS) {
+                        axes_str = try utils.i64ToI64ArrayString(attr.ints);
+                        needs_free = true;
+                        break;
+                    }
                 }
             }
         }
+
+        defer if (needs_free) allocator.free(axes_str);
+
+        // Generate code for the unsqueeze operation
+        try writer.print(
+            \\     
+            \\    tensMath.unsqueeze_lean(
+            \\        T, //type
+            \\        {s}, //input tensor
+            \\        {s}, //axes tensor
+            \\        &tensor_{s}, //output tensor
+            \\    )
+        , .{
+            input_tensor_string, //input tensor
+            axes_str, //axes tensor
+            output_name, //output tensor
+        });
+    } else {
+        return error.InvalidInput;
     }
-
-    defer if (needs_free) allocator.free(axes_str);
-
-    // Generate code for the unsqueeze operation
-    try writer.print(
-        \\     
-        \\    tensMath.unsqueeze_lean(
-        \\        T, //type
-        \\        {s}, //input tensor
-        \\        {s}, //axes tensor
-        \\        &tensor_{s}, //output tensor
-        \\    )
-    , .{
-        input_tensor_string, //input tensor
-        axes_str, //axes tensor
-        output_name, //output tensor
-    });
 }
 
 inline fn write_transpose(writer: std.fs.File.Writer, node: *ReadyNode) !void {
