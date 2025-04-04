@@ -75,6 +75,11 @@ const op_gemm = @import("op_gemm.zig");
 pub const gemm = op_gemm.gemm;
 pub const gemm_lean = op_gemm.lean_gemm;
 
+//----------- importing standard mean method ----------
+const op_mean = @import("op_mean.zig");
+pub const mean_standard = op_mean.mean_standard;
+pub const mean_lean = op_mean.mean_lean;
+
 // ---------- importing standard Convolution methods ----------
 const convolution_math_lib = @import("op_convolution.zig");
 pub const multidim_convolution_with_bias = convolution_math_lib.multidim_convolution_with_bias;

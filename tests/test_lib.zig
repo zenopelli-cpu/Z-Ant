@@ -33,6 +33,9 @@ comptime {
     if (test_name.len == 0 or std.mem.eql(u8, test_name, "opPooling")) {
         _ = @import("Core/Tensor/TensorMath/test_op_pooling.zig");
     }
+    if (test_name.len == 0 or std.mem.eql(u8, test_name, "opMean")) {
+        _ = @import("Core/Tensor/TensorMath/test_op_mean.zig");
+    }
     if (test_name.len == 0 or std.mem.eql(u8, test_name, "tensorMath")) {
         _ = @import("Core/Tensor/TensorMath/test_tensor_math.zig");
     }
