@@ -139,6 +139,7 @@ const mult = @import("lib_elementWise_math/op_multiplication.zig");
 pub const lean_matmul = op_mat_mul.lean_mat_mul;
 pub const mul = mult.mul;
 pub const mul_lean = mult.mul_lean;
+pub const get_mul_output_shape = mult.get_mul_output_shape;
 
 //--div
 const division = @import("lib_elementWise_math/op_division.zig");
