@@ -1489,13 +1489,13 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // ATTRIBUTES (deprecated in opset 13):
     //      - axes - INTS: List of integers indicating the dimensions to be inserted.
 
-    const input_name = try utils.getSanitizedName(node.inputs.items[0].name);
+    const input_name = try utils.getSanitizedName(node.inputs.items[0].?.name);
     const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
 
     // Create input tensor string
     var input_tensor_string: []u8 = undefined;
     defer allocator.free(input_tensor_string);
-    if (node.inputs.items[0].tag == globals.TensorTag.INITIALIZER) {
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
         input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", input_name, ")" });
     } else {
         input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", input_name, ")" });
@@ -1507,8 +1507,8 @@ inline fn write_unsqueeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     if (node.inputs.items.len > 1) {
         // Axes is provided as an input tensor (opset 13+)
-        const axes_tensor_name = try utils.getSanitizedName(node.inputs.items[1].name);
-        if (node.inputs.items[1].tag == globals.TensorTag.INITIALIZER) {
+        const axes_tensor_name = try utils.getSanitizedName(node.inputs.items[1].?.name);
+        if (node.inputs.items[1].?.tag == globals.TensorTag.INITIALIZER) {
             axes_str = try std.fmt.allocPrint(allocator, "@constCast(&param_lib.tensor_{s})", .{axes_tensor_name});
         } else {
             axes_str = try std.fmt.allocPrint(allocator, "&tensor_{s}", .{axes_tensor_name});
@@ -1913,12 +1913,24 @@ inline fn write_resize(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     }
 
     // ---- optional inputs
-    var tensor_roi_string: []const u8 = "null";
-    defer allocator.free(tensor_roi_string);
-    var data_scales_string: []const u8 = "null";
-    defer allocator.free(data_scales_string);
-    var data_sizes_string: []const u8 = "null";
-    defer allocator.free(data_sizes_string);
+    var tensor_roi_string: []const u8 = try allocator.dupe(u8, "null");
+    defer {
+        if (node.inputs.items.len >= 2 and node.inputs.items[1] != null) {
+            allocator.free(tensor_roi_string);
+        }
+    }
+    var data_scales_string: []const u8 = try allocator.dupe(u8, "null");
+    defer {
+        if (node.inputs.items.len >= 3 and node.inputs.items[2] != null) {
+            allocator.free(data_scales_string);
+        }
+    }
+    var data_sizes_string: []const u8 = try allocator.dupe(u8, "null");
+    defer {
+        if (node.inputs.items.len >= 4 and node.inputs.items[3] != null) {
+            allocator.free(data_sizes_string);
+        }
+    }
 
     if (node.inputs.items.len >= 2 and node.inputs.items[1] != null) { //----create tensor_roi_string
         if (node.inputs.items[1].?.tag == globals.TensorTag.INITIALIZER) {
@@ -1963,14 +1975,14 @@ inline fn write_resize(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     var axes: []i64 = &[_]i64{};
     defer allocator.free(axes);
     var coordinate_transformation_mode: []const u8 = try allocator.dupe(u8, "half_pixel");
-    defer allocator.free(coordinate_transformation_mode);
+
     var cubic_coeff_a: f64 = -0.75;
     var exclude_outside: i64 = 0;
     var extrapolation_value: f64 = 0.0;
     var keep_aspect_ratio_policy: []const u8 = try allocator.dupe(u8, "stretch");
     defer allocator.free(keep_aspect_ratio_policy);
     var mode: []const u8 = try allocator.dupe(u8, "nearest");
-    defer allocator.free(mode);
+
     var nearest_mode: []const u8 = try allocator.dupe(u8, "round_prefer_floor");
     defer allocator.free(nearest_mode);
 

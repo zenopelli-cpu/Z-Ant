@@ -87,8 +87,10 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
         for (computableNodes.items) |node_ptr| {
             //writing the operation
             try writeOperation(writer, node_ptr);
+            std.debug.print("\n AAAAAAAAAAAAAAAA", .{});
             //set the output as ready
             try utils.setOutputsReady(node_ptr, &globals.tensorHashMap);
+            std.debug.print("\n BBBBBBBBBBBBB", .{});
         }
         iteration += 1;
     }
@@ -386,7 +388,6 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
 }
 
 fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
-    std.debug.print("\n*** ", .{});
     try mathGen.write_math_op(writer, readyNode);
 }
 
