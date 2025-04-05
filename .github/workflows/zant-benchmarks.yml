@@ -21,7 +21,7 @@ jobs:
       run: zig build -Doptimize=ReleaseFast -Dtarget=native -Dfull=true benchmark > latest_benchmark.txt 2>&1
 
     - name: Upload benchmark results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: benchmark-results
-        path: latest_benchmark.txt
+        path: ./latest_benchmark.txt
