@@ -578,8 +578,9 @@ inline fn compute_identity_output_shape(readyNode: *ReadyNode) !void {
     const input_shape = readyNode.inputs.items[0].shape;
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
+    const output_shape = try tensorMath.get_identity_output_shape(try utils.i64SliceToUsizeArrayString(input_shape));
     // Identity operation preserves the input shape
-    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
@@ -588,8 +589,9 @@ inline fn compute_leaky_relu_output_shape(readyNode: *ReadyNode) !void {
     const input_shape = readyNode.inputs.items[0].shape;
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
+    const output_shape = try tensorMath.get_leaky_relu_output_shape(try utils.i64SliceToUsizeArrayString(input_shape));
     // LeakyReLU is an element-wise operation, output shape is identical to input shape
-    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
