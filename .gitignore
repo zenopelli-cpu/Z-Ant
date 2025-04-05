@@ -37,3 +37,5 @@ massif.*
 /datasets/oneOpModels
 
 /datasets/oneOpModels/results.json
+
+latest_benchmark.txt

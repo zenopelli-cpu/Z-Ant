@@ -1,8 +1,10 @@
 name: Zig Tests
 
 on:
-  push:
-    branches: [ "optimized" ]
+ workflow_dispatch:
+#   push:
+#     branches: [ "optimized" ]
+    
 
 jobs:
   test:
@@ -18,10 +20,4 @@ jobs:
         version: 0.14.0 # Current zig version supported by the library
     
     - name: Run Benchmarks
-      run: zig build -Doptimize=ReleaseFast -Dtarget=native -Dfull=true benchmark > latest_benchmark.txt 2>&1
-
-    - name: Upload benchmark results
-      uses: actions/upload-artifact@v4
-      with:
-        name: benchmark-results
-        path: ./latest_benchmark.txt
+      run: zig build -Doptimize=ReleaseFast -Dtarget=native -Dfull=true benchmark
