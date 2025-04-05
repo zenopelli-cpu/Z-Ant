@@ -58,7 +58,7 @@ pub const flip_lean = op_neg.flip_matrix_lean;
 
 pub const resize = op_resize.resize;
 pub const get_resize_output_shape = op_resize.get_resize_output_shape;
-
+pub const resize_lean = op_resize.rezise_lean;
 pub const split = op_split.split;
 pub const get_split_output_shapes = op_split.get_split_output_shapes;
 pub const split_lean = op_split.split_lean;
