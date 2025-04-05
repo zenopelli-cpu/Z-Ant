@@ -158,6 +158,7 @@ const Ceil = @import("lib_elementWise_math/op_ceil.zig");
 
 pub const ceil = Ceil.ceil;
 pub const ceil_lean = Ceil.ceil_lean;
+pub const get_ceil_output_shape = Ceil.get_ceil_output_shape;
 
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");

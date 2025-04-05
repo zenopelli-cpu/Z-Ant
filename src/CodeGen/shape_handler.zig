@@ -569,7 +569,7 @@ inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
     // Ceil is an element-wise operation, output shape is identical to input shape
-    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    readyNode.outputs.items[0].shape = try tensorMath.get_ceil_output_shape(input_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
