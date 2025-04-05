@@ -1,0 +1,27 @@
+name: Zig Tests
+
+on:
+  push:
+    branches: [ "optimized" ]
+
+jobs:
+  test:
+    name: Run Zig Benchmarks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: 0.14.0 # Current zig version supported by the library
+    
+    - name: Run Benchmarks
+      run: zig build -Doptimize=ReleaseFast -Dtarget=native -Dfull=true benchmark > latest_benchmark.txt 2>&1
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: latest_benchmark.txt
