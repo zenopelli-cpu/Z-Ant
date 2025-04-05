@@ -1,4 +1,4 @@
-name: Zig Tests
+name: Zig Benchmarks
 
 on:
  workflow_dispatch:
