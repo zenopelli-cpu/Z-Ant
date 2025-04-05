@@ -18,6 +18,7 @@ const op_gather = @import("lib_shape_math/op_gather.zig");
 
 pub const gather = op_gather.gather;
 pub const gather_lean = op_gather.lean_gather;
+pub const get_gather_output_shape = op_gather.get_gather_output_shape;
 
 //--unsqueeze
 const op_unsqueeze = @import("lib_shape_math/op_unsqueeze.zig");

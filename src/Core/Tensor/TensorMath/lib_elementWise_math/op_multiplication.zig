@@ -26,7 +26,7 @@ pub inline fn mul_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), re
 }
 
 pub inline fn get_mul_output_shape(lhs: []const usize, rhs: []const usize) ![]const usize {
-    if (lhs.size != rhs.size) {
+    if (lhs.len != rhs.len) {
         return TensorError.MismatchedShape;
     }
     return lhs;

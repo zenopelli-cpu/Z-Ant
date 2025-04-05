@@ -219,10 +219,10 @@ inline fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
         std.debug.print("\n input_b_shape: []i64 = {any}", .{input_b.shape});
 
         // Use TensorMath to compute the output shape for multiplication
-        shape = tensorMath.get_mul_output_shape(try utils.i64SliceToUsizeSlice(input_a.shape), try utils.i64SliceToUsizeSlice(input_b.shape));
+        shape = try utils.usizeSliceToI64Slice(@constCast(try tensorMath.get_mul_output_shape(try utils.i64SliceToUsizeSlice(input_a.shape), try utils.i64SliceToUsizeSlice(input_b.shape))));
     }
 
-    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(shape);
+    readyNode.outputs.items[0].shape = shape;
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
@@ -428,32 +428,13 @@ inline fn compute_gather_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n axis: {}", .{axis});
 
     // Calculate output shape:
-    // - Take all dimensions from data before axis
-    // - Add all dimensions from indices
-    // - Take all dimensions from data after axis
-    const output_rank = data_shape.len + indices_shape.len - 1;
-    var output_shape = try allocator.alloc(i64, output_rank);
+    const output_shape = try tensorMath.get_gather_output_shape(
+        try utils.i64SliceToUsizeSlice(data_shape),
+        try utils.i64SliceToUsizeSlice(indices_shape),
+        axis,
+    );
 
-    // Copy dimensions from data before axis
-    var out_idx: usize = 0;
-    for (0..@as(usize, @intCast(axis))) |i| {
-        output_shape[out_idx] = data_shape[i];
-        out_idx += 1;
-    }
-
-    // Copy dimensions from indices
-    for (indices_shape) |dim| {
-        output_shape[out_idx] = dim;
-        out_idx += 1;
-    }
-
-    // Copy remaining dimensions from data after axis
-    for (@as(usize, @intCast(axis + 1))..data_shape.len) |i| {
-        output_shape[out_idx] = data_shape[i];
-        out_idx += 1;
-    }
-
-    readyNode.outputs.items[0].shape = output_shape;
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
