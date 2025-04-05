@@ -134,31 +134,31 @@ pub fn build(b: *std.Build) void {
     const run_test_generated_lib = b.addRunArtifact(test_generated_lib);
     const test_step_generated_lib = b.step("test-generated-lib", "Run generated library tests");
     test_step_generated_lib.dependOn(&run_test_generated_lib.step);
-    
+
     // ************************************************ ONEOP CODEGEN ************************************************
 
     // Setup oneOp codegen
-    
+
     const oneop_codegen_exe = b.addExecutable(.{
         .name = "oneop_codegen",
         .root_source_file = b.path("tests/CodeGen/oneOpModelGenerator.zig"),
         .target = target,
         .optimize = optimize,
     });
-    
+
     oneop_codegen_exe.root_module.addImport("zant", zant_mod);
     codeGen_mod.addOptions("codegen_options", codegen_options);
     oneop_codegen_exe.root_module.addImport("codegen", codeGen_mod);
     oneop_codegen_exe.linkLibC();
-    
+
     const run_oneop_codegen_exe = b.addRunArtifact(oneop_codegen_exe);
     const step_test_oneOp_codegen = b.step("test-codegen-gen", "Run generated library tests");
     step_test_oneOp_codegen.dependOn(&run_oneop_codegen_exe.step);
-    
+
     // ************************************************
-    
+
     //Setup test_all_oneOp
-    
+
     const test_all_oneOp = b.addTest(.{
         .name = "test_all_oneOp",
         .root_source_file = b.path("generated/oneOpModels/test_oneop_models.zig"),
@@ -170,17 +170,35 @@ pub fn build(b: *std.Build) void {
     codeGen_mod.addOptions("codegen_options", codegen_options);
     test_all_oneOp.root_module.addImport("codegen", codeGen_mod);
     test_all_oneOp.linkLibC();
-    
+
     const run_test_all_oneOp = b.addRunArtifact(test_all_oneOp);
-    
-    
+
     // ************************************************
     // Setup test oneop
-    // It will run 
+    // It will run
     // - run_oneop_codegen_exe
     // - run_test_all_oneOp
-    
+
     const step_test_oneOp = b.step("test-codegen", "Run generated library tests");
     step_test_oneOp.dependOn(&run_test_all_oneOp.step);
-    
+
+    // ************************************************
+    // Benchmark
+
+    const benchmark = b.addExecutable(.{
+        .name = "benchmark",
+        .root_source_file = b.path("benchmarks/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const bench_options = b.addOptions();
+    bench_options.addOption(bool, "full", b.option(bool, "full", "Choose whenever run full benchmark or not") orelse false);
+
+    benchmark.root_module.addImport("zant", zant_mod);
+    benchmark.root_module.addOptions("bench_options", bench_options);
+
+    const run_benchmark = b.addRunArtifact(benchmark);
+    const benchmark_step = b.step("benchmark", "Run benchmarks");
+    benchmark_step.dependOn(&run_benchmark.step);
 }
