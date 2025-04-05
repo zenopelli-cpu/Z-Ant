@@ -443,8 +443,10 @@ inline fn compute_sigmoid_output_shape(readyNode: *ReadyNode) !void {
     const input_shape = readyNode.inputs.items[0].shape;
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
+    const output_shape = try tensorMath.get_sigmoid_output_shape(try utils.i64SliceToUsizeSlice(input_shape));
+
     // Sigmoid is element-wise, output shape is identical to input shape
-    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
@@ -568,8 +570,9 @@ inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
     const input_shape = readyNode.inputs.items[0].shape;
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
-    // Ceil is an element-wise operation, output shape is identical to input shape
-    readyNode.outputs.items[0].shape = try tensorMath.get_ceil_output_shape(input_shape);
+    const output_shape = try tensorMath.get_ceil_output_shape(try utils.i64SliceToUsizeSlice(input_shape));
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
+
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
@@ -578,7 +581,7 @@ inline fn compute_identity_output_shape(readyNode: *ReadyNode) !void {
     const input_shape = readyNode.inputs.items[0].shape;
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
-    const output_shape = try tensorMath.get_identity_output_shape(try utils.i64SliceToUsizeArrayString(input_shape));
+    const output_shape = try tensorMath.get_identity_output_shape(try utils.i64SliceToUsizeSlice(input_shape));
     // Identity operation preserves the input shape
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
@@ -589,7 +592,7 @@ inline fn compute_leaky_relu_output_shape(readyNode: *ReadyNode) !void {
     const input_shape = readyNode.inputs.items[0].shape;
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
-    const output_shape = try tensorMath.get_leaky_relu_output_shape(try utils.i64SliceToUsizeArrayString(input_shape));
+    const output_shape = try tensorMath.get_leaky_relu_output_shape(try utils.i64SliceToUsizeSlice(input_shape));
     // LeakyReLU is an element-wise operation, output shape is identical to input shape
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
@@ -603,32 +606,12 @@ fn compute_matmul_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n input_a_shape: []i64 = {any}", .{input_a.shape});
     std.debug.print("\n input_b_shape: []i64 = {any}", .{input_b.shape});
 
-    if (input_a.shape.len < 2 or input_b.shape.len < 2) {
-        return error.InvalidShape;
-    }
+    const output_shape = try tensorMath.get_matmul_output_shape(
+        try utils.i64SliceToUsizeSlice(input_a.shape),
+        try utils.i64SliceToUsizeSlice(input_b.shape),
+    );
 
-    const a_rows = input_a.shape[input_a.shape.len - 2];
-    const a_cols = input_a.shape[input_a.shape.len - 1];
-    const b_rows = input_b.shape[input_b.shape.len - 2];
-    const b_cols = input_b.shape[input_b.shape.len - 1];
-
-    if (a_cols != b_rows) {
-        return error.ShapeMismatch;
-    }
-
-    var output_shape = try allocator.alloc(i64, input_a.shape.len);
-    errdefer allocator.free(output_shape);
-
-    // Copy batch dimensions from input_a
-    for (0..input_a.shape.len - 2) |i| {
-        output_shape[i] = input_a.shape[i];
-    }
-
-    // Set matrix multiplication dimensions
-    output_shape[output_shape.len - 2] = a_rows;
-    output_shape[output_shape.len - 1] = b_cols;
-
-    readyNode.outputs.items[0].shape = output_shape;
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 

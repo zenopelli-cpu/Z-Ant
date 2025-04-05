@@ -53,3 +53,13 @@ pub fn sigmoid_backward(comptime T: anytype, gradient: *Tensor(T), act_forward_o
         gradient.data[i] *= sigmoid_output * (1 - sigmoid_output);
     }
 }
+
+pub fn get_sigmoid_output_shape(input_shape: []const usize) ![]usize {
+    // Allocate and copy the input shape
+    const output_shape = try pkg_allocator.alloc(usize, input_shape.len);
+    errdefer pkg_allocator.free(output_shape);
+
+    std.mem.copyForwards(usize, output_shape, input_shape);
+
+    return output_shape;
+}

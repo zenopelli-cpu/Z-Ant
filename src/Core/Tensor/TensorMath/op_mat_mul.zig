@@ -190,6 +190,35 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     // std.debug.print("Matrix multiplication completed\n", .{});
 }
 
+pub fn get_mat_mul_output_shape(shape_a: []const usize, shape_b: []const usize) ![]usize {
+    if (shape_a < 2 or shape_b < 2) {
+        return error.InvalidShape;
+    }
+
+    const a_rows = shape_a[shape_a.len - 2];
+    const a_cols = shape_a[shape_a.len - 1];
+    const b_rows = shape_b[shape_b.len - 2];
+    const b_cols = shape_b[shape_b.shape.len - 1];
+
+    if (a_cols != b_rows) {
+        return error.ShapeMismatch;
+    }
+
+    var output_shape = try pkg_allocator.alloc(i64, shape_a.len);
+    errdefer pkg_allocator.free(output_shape);
+
+    // Copy batch dimensions from input_a
+    for (0..shape_a.len - 2) |i| {
+        output_shape[i] = shape_a[i];
+    }
+
+    // Set matrix multiplication dimensions
+    output_shape[output_shape.len - 2] = a_rows;
+    output_shape[output_shape.len - 1] = b_cols;
+
+    return output_shape;
+}
+
 /// Function that performs the multiplication of two tensors used in a recursive way to handle multidimensional tensors
 fn multidim_multiplication(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType), t3: *Tensor(outputType), current_depth: usize, location: []usize) !void {
     if (current_depth == (t1.shape.len - 2)) {

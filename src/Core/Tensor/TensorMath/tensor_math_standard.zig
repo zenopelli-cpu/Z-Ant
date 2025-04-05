@@ -66,7 +66,7 @@ const op_mat_mul = @import("op_mat_mul.zig");
 //---matmul
 pub const mat_mul = op_mat_mul.mat_mul;
 pub const mat_mul_lean = op_mat_mul.lean_mat_mul;
-
+pub const get_mat_mul_output_shape = op_mat_mul.get_mat_mul_output_shape;
 pub const dot_product_tensor_flat = op_mat_mul.dot_product_tensor_flat;
 
 // ---------- importing standard gemm method ----------
@@ -177,6 +177,7 @@ const op_leaky_relu = @import("lib_activation_function_math/op_leaky_reLU.zig");
 pub const leakyReLU = op_leaky_relu.leakyReLU;
 pub const leakyReLU_lean = op_leaky_relu.lean_leakyReLU;
 pub const leakyReLU_backward = op_leaky_relu.leakyReLU_backward;
+pub const get_leaky_relu_output_shape = op_leaky_relu.get_leaky_relu_output_shape;
 
 const op_sigmoid = @import("lib_activation_function_math/op_sigmoid.zig");
 
@@ -184,7 +185,7 @@ const op_sigmoid = @import("lib_activation_function_math/op_sigmoid.zig");
 pub const sigmoid = op_sigmoid.sigmoid;
 pub const sigmoid_lean = op_sigmoid.sigmoid_lean;
 pub const sigmoid_backward = op_sigmoid.sigmoid_backward;
-
+pub const get_sigmoid_output_shape = op_sigmoid.get_sigmoid_output_shape;
 //Softmax
 const op_softmax = @import("lib_activation_function_math/op_softmax.zig");
 
