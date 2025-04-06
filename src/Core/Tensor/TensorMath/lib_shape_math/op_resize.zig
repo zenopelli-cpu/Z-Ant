@@ -22,7 +22,9 @@ pub fn resize(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales
     }
 
     // Create output tensor
-    var output = try Tensor(T).init(t.allocator);
+    const output_shape = try get_resize_output_shape(t.shape, scales, sizes);
+    defer t.allocator.free(output_shape);
+    var output = try Tensor(T).fromShape(t.allocator, output_shape);
 
     //call rezise_lean
     if (scales) |s| {
@@ -42,44 +44,6 @@ pub fn resize(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales
     return output;
 }
 
-// pub fn resize(allocator: std.mem.Allocator, input: Tensor, scales: ?[]const f32, sizes: ?[]const i64, mode: []const u8) !Tensor {
-//     //check if mode exists:
-//     if (!(std.mem.eql(u8, mode, "nearest") or std.mem.eql(u8, mode, "linear") or std.mem.eql(u8, mode, "cubic"))) {
-//         return TensorError.UnsupportedMode;
-//     }
-
-//     // Add a default coordinate transformation mode
-//     const coordinate_transformation_mode = "asymmetric";
-
-//     //check args: there should be one and only one between scales and sizes
-//     if (scales == null and sizes == null) {
-//         return TensorError.InvalidInput;
-//     }
-//     if (scales != null and sizes != null) {
-//         return TensorError.InvalidInput;
-//     }
-
-//     // Create output tensor
-//     var output = try Tensor(input.dataType).init(allocator);
-
-//     //call rezise_lean
-//     if (scales) |s| {
-//         if (s.len != input.shape.len) {
-//             return TensorError.InvalidInput;
-//         } else {
-//             try rezise_lean(input.dataType, input, mode, scales, null, coordinate_transformation_mode, &output);
-//         }
-//     } else if (sizes) |sz| {
-//         if (sz.len != input.shape.len) {
-//             return TensorError.InvalidInput;
-//         } else {
-//             try rezise_lean(input.dataType, input, mode, null, sizes, coordinate_transformation_mode, &output);
-//         }
-//     }
-
-//     return output;
-// }
-
 //resize lean
 pub fn rezise_lean(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales: ?[]const f32, sizes: ?[]const usize, coordinate_transformation_mode: []const u8, output_tensor: *Tensor(T)) !void {
     std.debug.print("rezise_lean\n", .{});
@@ -88,57 +52,23 @@ pub fn rezise_lean(comptime T: type, t: *Tensor(T), comptime mode: []const u8, s
     std.debug.print("sizes: {any}\n", .{sizes});
     std.debug.print("coordinate_transformation_mode: {s}\n", .{coordinate_transformation_mode});
 
-    // Calculate output dimensions
-    var output_shape = try t.allocator.alloc(usize, t.shape.len);
-    errdefer t.allocator.free(output_shape);
-
-    if (scales) |s| {
-        if (s.len != t.shape.len) {
-            return TensorError.InvalidInput;
-        }
-        for (0..t.shape.len) |i| {
-            output_shape[i] = @intFromFloat(@floor(@as(f32, @floatFromInt(t.shape[i])) * s[i]));
-        }
-    } else if (sizes) |sz| {
-        if (sz.len != t.shape.len) {
-            return TensorError.InvalidInput;
-        }
-        @memcpy(output_shape, sz);
-    }
-
-    // Calculate total size of output tensor
-    var total_size: usize = 1;
-    for (output_shape) |dim| {
-        total_size *= dim;
-    }
-
-    // Allocate memory for output data
-    const output_data = try t.allocator.alloc(T, total_size);
-    errdefer t.allocator.free(output_data);
-
     // Perform interpolation based on mode
     if (std.mem.eql(u8, mode, "nearest")) {
-        try nearest_interpolation(T, t, output_data, output_shape, coordinate_transformation_mode);
+        try nearest_interpolation(T, t, output_tensor.data, output_tensor.shape, coordinate_transformation_mode);
     } else if (std.mem.eql(u8, mode, "linear")) {
-        try linear_interpolation(T, t, output_data, output_shape, coordinate_transformation_mode);
+        try linear_interpolation(T, t, output_tensor.data, output_tensor.shape, coordinate_transformation_mode);
     } else if (std.mem.eql(u8, mode, "floor")) {
-        try floor_interpolation(T, t, output_data, output_shape, coordinate_transformation_mode);
+        try floor_interpolation(T, t, output_tensor.data, output_tensor.shape, coordinate_transformation_mode);
     } else { //cubic interpolation
-        try cubic_interpolation(T, t, output_data, output_shape, coordinate_transformation_mode);
+        try cubic_interpolation(T, t, output_tensor.data, output_tensor.shape, coordinate_transformation_mode);
     }
-
-    //fill output tensor
-    output_tensor.data = output_data;
-    output_tensor.shape = output_shape;
-    output_tensor.size = total_size;
-    output_tensor.allocator = t.allocator;
 }
 
 pub fn get_resize_output_shape(input_shape: []const usize, scales: ?[]const f32, sizes: ?[]const usize) ![]usize {
     if (scales == null and sizes == null) {
         return TensorError.InvalidInput;
     }
-    if (scales != null and sizes != null) { //TODO!!! why this??? is wrong!
+    if (scales != null and sizes != null) {
         return TensorError.InvalidInput;
     }
 

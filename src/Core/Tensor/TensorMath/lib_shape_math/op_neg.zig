@@ -42,9 +42,8 @@ pub fn flip_matrix_lean(comptime T: type, kernel: *Tensor(T), output_kernel: *Te
 /// Computes element-wise negation, multiplying each element by -1
 /// This is the ONNX Neg operation: Y = -X
 pub fn neg(comptime T: type, tensor: *Tensor(T)) !Tensor(T) {
-    const neg_shape = try tensor.allocator.alloc(usize, tensor.shape.len);
+    const neg_shape = get_neg_output_shape(tensor.shape);
     defer tensor.allocator.free(neg_shape);
-    @memcpy(neg_shape, tensor.shape);
 
     var neg_tensor = try Tensor(T).fromShape(tensor.allocator, neg_shape);
 
