@@ -214,14 +214,12 @@ pub fn get_slice_output_shape(input_shape: []const usize, starts: []const i64, e
             }
         } else {
             if (start > end) {
-                // For negative steps, we need to handle the range differently
-                // Add 1 to end because end is exclusive
-                const range = start - (end + 1);
-                const abs_step = -step;
-                dim_size = @intCast(@divTrunc(range + abs_step - 1, abs_step));
+                // For negative steps, treat end as inclusive.
+                const range = start - end;
+                dim_size = @intCast((@divTrunc(range, -step)) + 1);
                 std.debug.print("\n[DEBUG] Negative step calculation for dim {d}:", .{i});
-                std.debug.print("\n  start ({d}) - (end ({d}) + 1) = range ({d})", .{ start, end, range });
-                std.debug.print("\n  (range + abs_step - 1) / abs_step = {d}", .{dim_size});
+                std.debug.print("\n  start ({d}) - end ({d}) = range ({d})", .{ start, end, range });
+                std.debug.print("\n  (range) / abs(step) + 1 = {d}", .{dim_size});
             }
         }
         output_shape[i] = dim_size;
