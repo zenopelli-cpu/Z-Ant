@@ -451,37 +451,25 @@ inline fn compute_sigmoid_output_shape(readyNode: *ReadyNode) !void {
 }
 
 inline fn compute_transpose_output_shape(readyNode: *ReadyNode) !void {
-    std.debug.print("\n====== compute_transpose_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    const input_shape = readyNode.inputs.items[0].shape;
+    var shape: []const i64 = undefined;
 
-    // Get the perm attribute if it exists
-    var perm: ?[]i64 = null;
-    for (readyNode.nodeProto.attribute) |attr| {
-        if (std.mem.eql(u8, attr.name, "perm")) {
-            if (attr.type == AttributeType.INTS) {
-                perm = attr.ints;
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        //get perm
+        var perm: ?[]i64 = null;
+        for (readyNode.nodeProto.attribute) |attr| {
+            if (std.mem.eql(u8, attr.name, "perm")) {
+                if (attr.type == AttributeType.INTS) {
+                    perm = attr.ints;
+                }
             }
         }
+        const input_shape = try utils.i64SliceToUsizeSlice(readyNode.inputs.items[0].shape);
+
+        shape = try tensorMath.get_transpose_output_shape(input_shape, perm);
     }
-
-    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
-    std.debug.print("\n perm: []i64 = {any}", .{perm});
-
-    // If no perm is provided, reverse the dimensions
-    var output_shape = try allocator.alloc(i64, input_shape.len);
-
-    if (perm) |p| {
-        // Validate perm length
-        output_shape = try tensorMath.get_transpose_output_shape(try utils.i64SliceToUsizeSlice(input_shape), try utils.i64SliceToUsizeSlice(p));
-    } else {
-        // Reverse dimensions
-        for (input_shape, 0..) |_, i| {
-            output_shape[i] = input_shape[input_shape.len - 1 - i];
-        }
-    }
-
-    readyNode.outputs.items[0].shape = output_shape;
-    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+    readyNode.outputs.items[0].shape = shape;
 }
 
 inline fn compute_unsqueeze_output_shape(readyNode: *ReadyNode) !void {
