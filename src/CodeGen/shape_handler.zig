@@ -800,40 +800,13 @@ inline fn compute_unsqueeze_output_shape(readyNode: *ReadyNode) !void {
     if (axes == null) return error.UnsqueezeAxesNotFound;
 
     // Calculate output shape by inserting dimensions at the specified axes
-    const output_rank = input_shape.len + axes.?.len;
-    var output_shape = try allocator.alloc(i64, output_rank);
+    const usize_input_shape = try utils.i64SliceToUsizeSlice(input_shape);
 
-    // Initialize with 1s
-    @memset(output_shape, 1);
-
-    // Create a mask to track which positions are for the new dimensions
-    var is_unsqueezed_axis = try allocator.alloc(bool, output_rank);
-    defer allocator.free(is_unsqueezed_axis);
-    @memset(is_unsqueezed_axis, false);
-
-    // Mark the positions where dimensions will be inserted
-    for (axes.?) |axis| {
-        var normalized_axis = axis;
-        if (normalized_axis < 0) normalized_axis += @as(i64, @intCast(output_rank));
-
-        if (normalized_axis < 0 or normalized_axis >= @as(i64, @intCast(output_rank))) {
-            return error.UnsqueezeInvalidAxis;
-        }
-
-        is_unsqueezed_axis[@intCast(normalized_axis)] = true;
-    }
-
-    // Fill in the output shape with the input dimensions
-    var input_idx: usize = 0;
-    for (0..output_rank) |output_idx| {
-        if (!is_unsqueezed_axis[output_idx]) {
-            output_shape[output_idx] = input_shape[input_idx];
-            input_idx += 1;
-        }
-    }
-
-    readyNode.outputs.items[0].shape = output_shape;
-    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(
+        @constCast(
+            try tensorMath.get_unsqueeze_output_shape(usize_input_shape, axes.?),
+        ),
+    );
 }
 
 pub fn compute_concat_output_shape(readyNode: *ReadyNode) !void {

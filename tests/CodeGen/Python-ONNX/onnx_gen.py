@@ -9,6 +9,28 @@ import onnxruntime as ort
 import json  
 import os  
 
+
+# Gemm
+# Sub
+# Div
+# Add
+# Concat
+# Conv
+# Div
+# Gather
+# MatMul
+# MaxPool
+# Relu
+# Reshape
+# Sigmoid
+# Slice
+# Transpose
+# Ceil
+# Identity
+# LeakyRelu
+# Mul
+# Split
+
 def random_shape(rank, min_dim=1, max_dim=10):
     """Generates a random shape of length 'rank'."""
     return [random.randint(min_dim, max_dim) for _ in range(rank)]
