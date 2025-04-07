@@ -40,7 +40,7 @@ pub fn concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensor
             max_rank = @max(max_rank, tensor.shape.len);
         }
     }
-
+    // ---- CHECKS
     // Update working rank to the potentially new maximum rank
     const working_rank = max_rank;
 
@@ -53,84 +53,22 @@ pub fn concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensor
         return TensorError.AxisOutOfBounds;
     }
 
-    const concat_axis_usize = @as(usize, @intCast(concat_axis));
-
-    // Calculate the new shape after concatenation
-    var new_shape: []usize = undefined;
-    var output_data: []T = undefined;
-    var shape_allocated = false;
-    var data_allocated = false;
-
-    // Allocate the shape
-    new_shape = allocator.alloc(usize, working_rank) catch |err| {
-        return err;
-    };
-    shape_allocated = true;
-    errdefer {
-        if (shape_allocated) {
-            allocator.free(new_shape);
+    // ---- COMPUTE
+    var input_shapes = try allocator.alloc([]const usize, tensors.len);
+    for (tensors, 0..) |input, i| {
+        // Handle negative values by using 1 as a placeholder
+        var shape = try allocator.alloc(usize, input.shape.len);
+        for (input.shape, 0..) |dim, j| {
+            shape[j] = if (dim < 0) 1 else @intCast(dim);
         }
+        input_shapes[i] = shape;
     }
 
-    // Initialize with the shape of the first tensor (potentially reshaped)
-    if (tensors[0].shape.len < working_rank) {
-        // Fill with 1s first
-        @memset(new_shape, 1);
-
-        // Copy original dimensions
-        const offset = working_rank - tensors[0].shape.len;
-        for (tensors[0].shape, 0..) |dim, j| {
-            new_shape[offset + j] = dim;
-        }
-    } else {
-        for (0..working_rank) |d| {
-            new_shape[d] = tensors[0].shape[d];
-        }
-    }
-
-    // Calculate the sum along the concatenation axis
-    var sum: usize = 0;
-    for (tensors) |tensor| {
-        if (tensor.shape.len < working_rank) {
-            // For tensors with lower rank, we need to calculate the effective dimension
-            const offset = working_rank - tensor.shape.len;
-            if (concat_axis_usize >= offset) {
-                sum += tensor.shape[concat_axis_usize - offset];
-            } else {
-                sum += 1; // Implicit dimension size is 1
-            }
-        } else {
-            sum += tensor.shape[concat_axis_usize];
-        }
-    }
-    new_shape[concat_axis_usize] = sum;
-
-    // Calculate the total number of elements in the new tensor
-    var total_size: usize = 1;
-    for (new_shape) |dim| {
-        total_size *= dim;
-    }
-
-    // Allocate memory for the output tensor's data
-    output_data = allocator.alloc(T, total_size) catch |err| {
-        allocator.free(new_shape);
-        return err;
-    };
-    data_allocated = true;
-    errdefer {
-        if (data_allocated) {
-            allocator.free(output_data);
-        }
-    }
+    // Get output shape using the existing function
+    const output_shape = try get_concatenate_output_shape(input_shapes, axis);
 
     // Create the output tensor
-    var output_tensor = Tensor(T){
-        .data = output_data,
-        .size = total_size,
-        .shape = new_shape,
-        .allocator = allocator,
-        .owns_memory = true,
-    };
+    var output_tensor = try Tensor(T).fromShape(allocator, output_shape);
 
     // Use the lean version to perform the actual concatenation
     lean_concatenate(T, allocator, tensors, axis, &output_tensor) catch |err| {
