@@ -77,7 +77,7 @@ pub fn concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensor
     var output_tensor = try Tensor(T).fromShape(allocator, output_shape);
 
     // Use the lean version to perform the actual concatenation
-    lean_concatenate(T, allocator, tensors, axis, &output_tensor) catch |err| {
+    concatenate_lean(T, allocator, tensors, axis, &output_tensor) catch |err| {
         // Since output_tensor owns the memory, we don't need to manually free it
         // The caller will handle the error and the memory will be properly freed
         return err;
@@ -86,7 +86,7 @@ pub fn concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensor
     return output_tensor;
 }
 
-pub fn lean_concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensors: []const Tensor(T), axis: isize, output: *Tensor(T)) !void {
+pub fn concatenate_lean(comptime T: type, allocator: *const std.mem.Allocator, tensors: []const Tensor(T), axis: isize, output: *Tensor(T)) !void {
     if (tensors.len == 0) return TensorMathError.EmptyTensorList;
 
     // Determine the rank (number of dimensions) from the first tensor
