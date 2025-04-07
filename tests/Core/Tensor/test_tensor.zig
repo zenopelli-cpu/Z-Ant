@@ -110,61 +110,6 @@ test "Get_at Set_at Test" {
     try std.testing.expect(value == 1.0);
 }
 
-test "init than fill " {
-    std.debug.print("\n     test:init than fill ", .{});
-    const allocator = pkgAllocator.allocator;
-
-    var tensor = try Tensor(u8).init(&allocator);
-    defer tensor.deinit();
-
-    var inputArray: [2][3]u8 = [_][3]u8{
-        [_]u8{ 1, 2, 3 },
-        [_]u8{ 4, 5, 6 },
-    };
-    var shape: [2]usize = [_]usize{ 2, 3 };
-
-    try tensor.fill(&inputArray, &shape);
-
-    try std.testing.expect(tensor.data[0] == 1);
-    try std.testing.expect(tensor.data[1] == 2);
-    try std.testing.expect(tensor.data[2] == 3);
-    try std.testing.expect(tensor.data[3] == 4);
-    try std.testing.expect(tensor.data[4] == 5);
-    try std.testing.expect(tensor.data[5] == 6);
-}
-
-test "fromArray than fill " {
-    std.debug.print("\n     test:fromArray than fill ", .{});
-    const allocator = pkgAllocator.allocator;
-
-    var inputArray: [2][3]u8 = [_][3]u8{
-        [_]u8{ 10, 20, 30 },
-        [_]u8{ 40, 50, 60 },
-    };
-    var shape: [2]usize = [_]usize{ 2, 3 };
-    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
-    defer tensor.deinit();
-
-    var inputArray2: [3][3]u8 = [_][3]u8{
-        [_]u8{ 1, 2, 3 },
-        [_]u8{ 4, 5, 6 },
-        [_]u8{ 7, 8, 9 },
-    };
-    var shape2: [2]usize = [_]usize{ 3, 3 };
-
-    try tensor.fill(&inputArray2, &shape2);
-
-    try std.testing.expect(tensor.data[0] == 1);
-    try std.testing.expect(tensor.data[1] == 2);
-    try std.testing.expect(tensor.data[2] == 3);
-    try std.testing.expect(tensor.data[3] == 4);
-    try std.testing.expect(tensor.data[4] == 5);
-    try std.testing.expect(tensor.data[5] == 6);
-    try std.testing.expect(tensor.data[6] == 7);
-    try std.testing.expect(tensor.data[7] == 8);
-    try std.testing.expect(tensor.data[8] == 9);
-}
-
 test " copy() method" {
     std.debug.print("\n     test:copy() method ", .{});
     const allocator = pkgAllocator.allocator;

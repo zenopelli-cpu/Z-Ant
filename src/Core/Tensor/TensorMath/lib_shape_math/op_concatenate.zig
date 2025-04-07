@@ -197,9 +197,7 @@ pub fn lean_concatenate(comptime T: type, allocator: *const std.mem.Allocator, t
                 }
 
                 // Create a new tensor with the reshaped dimensions
-                var reshaped_tensor = try Tensor(T).init(allocator);
-                errdefer reshaped_tensor.deinit();
-                try reshaped_tensor.fill(tensor.data, new_shape);
+                var reshaped_tensor = try Tensor(T).fromArray(allocator, tensor.data, new_shape);
                 reshaped_tensor.owns_memory = true;
 
                 // Replace the original tensor in our working copy
