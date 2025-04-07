@@ -32,8 +32,5 @@ massif.*
 # Zant generated code
 /generated/*
 
-# Onnx models
-/datasets/*
-
-/datasets/oneOpModels/results.json
-datasets/oneOpModels/results.json
+# models
+datasets/
