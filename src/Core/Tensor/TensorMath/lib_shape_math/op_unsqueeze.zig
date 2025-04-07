@@ -31,6 +31,8 @@ pub fn unsqueeze(comptime T: type, data: *Tensor(T), axes: *Tensor(i64)) !Tensor
     }
 
     const output_shape = try get_unsqueeze_output_shape(data.shape, axes.data);
+    defer pkg_allocator.free(output_shape);
+
     var output = try Tensor(T).fromShape(data.allocator, output_shape);
 
     try unsqueeze_lean(T, data, axes, &output);
@@ -74,7 +76,6 @@ pub fn get_unsqueeze_output_shape(input_shape: []const usize, axes: []const i64)
 
     // Create output shape array
     var output_shape = try pkg_allocator.alloc(usize, out_rank);
-    errdefer pkg_allocator.free(output_shape);
 
     // Create and initialize support array to track unsqueezed dimensions
     var is_unsqueezed = try pkg_allocator.alloc(bool, out_rank);

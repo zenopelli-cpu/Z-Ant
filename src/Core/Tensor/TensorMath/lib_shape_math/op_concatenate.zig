@@ -55,6 +55,11 @@ pub fn concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensor
 
     // ---- COMPUTE
     var input_shapes = try allocator.alloc([]const usize, tensors.len);
+    defer {
+        for (input_shapes) |i| allocator.free(i);
+        allocator.free(input_shapes);
+    }
+
     for (tensors, 0..) |input, i| {
         // Handle negative values by using 1 as a placeholder
         var shape = try allocator.alloc(usize, input.shape.len);
@@ -66,6 +71,7 @@ pub fn concatenate(comptime T: type, allocator: *const std.mem.Allocator, tensor
 
     // Get output shape using the existing function
     const output_shape = try get_concatenate_output_shape(input_shapes, axis);
+    defer allocator.free(output_shape);
 
     // Create the output tensor
     var output_tensor = try Tensor(T).fromShape(allocator, output_shape);
