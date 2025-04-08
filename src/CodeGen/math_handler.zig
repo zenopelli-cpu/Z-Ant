@@ -2142,18 +2142,15 @@ inline fn write_mean(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     }
     try inputs_array_str.writer().writeAll(" }");
 
-    // Scrivi la chiamata a tensMath.mean_standard
+    // Scrivi la chiamata a tensMath.mean_lean
     const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
-    try writer.print(
+    _ = try writer.print(
         \\
         \\
         \\    var inputs_{s} = {s};
-        \\    tensor_{s} = tensMath.mean_standard(f32, &inputs_{s}) catch |err| {{
-        \\        std.debug.print("Mean computation failed: {{any}}\\n", .{{err}});
-        \\        return;
-        \\    }};
+        \\    tensMath.mean_lean(f32, &inputs_{s}, &tensor_{s})
     , .{
-        output_name, // Nome dell’output usato per la variabile temporanea degli input
+        output_name, // Nome della variabile temporanea degli input
         inputs_array_str.items, // Array dei puntatori ai tensori di input
         output_name, // Nome del tensore di output
         output_name, // Nome della variabile temporanea per il riferimento all’array

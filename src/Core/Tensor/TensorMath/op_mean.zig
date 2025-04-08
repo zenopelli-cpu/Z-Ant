@@ -50,7 +50,7 @@ pub fn mean_standard(comptime T: anytype, inputs: []*Tensor(T)) !Tensor(T) {
     return output;
 }
 
-pub inline fn mean_lean(comptime T: anytype, inputs: []*Tensor(T), output: *Tensor(T)) void {
+pub inline fn mean_lean(comptime T: anytype, inputs: []*Tensor(T), output: *Tensor(T)) !void {
     // Itera su ogni posizione nell'output
     for (0..output.size) |idx| {
         // Converte l'indice lineare in coordinate multidimensionali
