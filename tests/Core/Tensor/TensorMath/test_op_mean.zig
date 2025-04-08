@@ -49,7 +49,7 @@ test "mean_lean - basic case" {
     defer output.deinit();
 
     var inputs = [_]*Tensor(f32){ &t1, &t2 };
-    TensMath.mean_lean(f32, &inputs, &output);
+    try TensMath.mean_lean(f32, &inputs, &output);
 
     const expected = [_]f32{ 3, 4, 5, 6 };
     try std.testing.expectEqualSlices(f32, &expected, output.data);

@@ -45,7 +45,7 @@ pub fn mean_standard(comptime T: anytype, inputs: []*Tensor(T)) !Tensor(T) {
     var output = try Tensor(T).fromShape(&pkg_allocator, output_shape);
     errdefer output.deinit();
 
-    mean_lean(T, inputs, &output);
+    try mean_lean(T, inputs, &output);
 
     return output;
 }
