@@ -79,6 +79,7 @@ pub const gemm_lean = op_gemm.lean_gemm;
 const op_mean = @import("op_mean.zig");
 pub const mean_standard = op_mean.mean_standard;
 pub const mean_lean = op_mean.mean_lean;
+pub const get_mean_output_shape = op_mean.get_mean_output_shape;
 
 // ---------- importing standard Convolution methods ----------
 const convolution_math_lib = @import("op_convolution.zig");

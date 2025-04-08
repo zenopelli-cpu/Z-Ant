@@ -107,6 +107,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_shape(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Unsqueeze")) {
         try write_unsqueeze(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Mean")) {
+        try write_mean(writer, node);
     } else {
         return error.OperationNotSupported;
     }
@@ -2090,5 +2092,70 @@ inline fn write_neg(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     , .{
         input_tensor_string,
         try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_mean(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Mean.html
+    // INPUTS:
+    //      - Variadic input tensors (data_0, data_1, ...). All inputs must have the same data type.
+    // OUTPUTS:
+    //      - Output tensor with shape determined by broadcasting the input shapes.
+    // ATTRIBUTES:
+    //      - None
+
+    if (node.inputs.items.len == 0) {
+        return error.EmptyInputList;
+    }
+
+    // Costruisci l'array degli input
+    var input_strings = std.ArrayList([]u8).init(allocator);
+    defer {
+        for (input_strings.items) |str| allocator.free(str);
+        input_strings.deinit();
+    }
+
+    for (node.inputs.items) |input| {
+        var input_str: []u8 = undefined;
+        if (input.tag == globals.TensorTag.INITIALIZER) {
+            input_str = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(input.name),
+                ")",
+            });
+        } else {
+            input_str = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "&tensor_",
+                try utils.getSanitizedName(input.name),
+            });
+        }
+        try input_strings.append(input_str);
+    }
+
+    // Costruisci la stringa dell'array degli input
+    var inputs_array_str = std.ArrayList(u8).init(allocator);
+    defer inputs_array_str.deinit();
+    try inputs_array_str.writer().writeAll("[_]*Tensor(f32){ ");
+    for (input_strings.items, 0..) |input_str, i| {
+        if (i > 0) try inputs_array_str.writer().writeAll(", ");
+        try inputs_array_str.writer().writeAll(input_str);
+    }
+    try inputs_array_str.writer().writeAll(" }");
+
+    // Scrivi la chiamata a tensMath.mean_standard
+    const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
+    try writer.print(
+        \\
+        \\
+        \\    var inputs_{s} = {s};
+        \\    tensor_{s} = tensMath.mean_standard(f32, &inputs_{s}) catch |err| {{
+        \\        std.debug.print("Mean computation failed: {{any}}\\n", .{{err}});
+        \\        return;
+        \\    }};
+    , .{
+        output_name, // Nome dell’output usato per la variabile temporanea degli input
+        inputs_array_str.items, // Array dei puntatori ai tensori di input
+        output_name, // Nome del tensore di output
+        output_name, // Nome della variabile temporanea per il riferimento all’array
     });
 }

@@ -19,35 +19,34 @@ const op_mat_mul = @import("op_mat_mul.zig");
 //con una forma dedotta come il massimo delle dimensioni compatibili."
 
 pub fn mean_standard(comptime T: anytype, inputs: []*Tensor(T)) !Tensor(T) {
-    // 1. Validazione degli input
     if (inputs.len == 0) {
         return TensorMathError.EmptyTensorList;
     }
 
-    // Verifica che T sia un tipo float supportato da ONNX
     const type_info = @typeInfo(T);
     if (type_info != .float or (T != f32 and T != f64 and T != f16)) {
-        //TODO aggiungere supporto per bfloat16
         return TensorMathError.InvalidDataType;
     }
-    // Verifica che tutti i tensori abbiano lo stesso tipo
     for (inputs) |tensor| {
         if (@TypeOf(tensor.data) != @TypeOf(inputs[0].data)) {
             return TensorMathError.MismatchedDataTypes;
         }
     }
-    // 2. Calcola la forma dell'output con broadcasting
-    const output_shape = try get_mean_output_shape(T, inputs);
+
+    var input_shapes = try pkg_allocator.alloc([]usize, inputs.len);
+    defer pkg_allocator.free(input_shapes);
+    for (inputs, 0..) |tensor, i| {
+        input_shapes[i] = tensor.shape;
+    }
+
+    const output_shape = try get_mean_output_shape(input_shapes);
     defer pkg_allocator.free(output_shape);
 
-    // 3. Crea il tensore di output
     var output = try Tensor(T).fromShape(&pkg_allocator, output_shape);
     errdefer output.deinit();
 
-    // 4. Esegue il calcolo della media usando la versione lean
     mean_lean(T, inputs, &output);
 
-    // 5. Restituisce il risultato
     return output;
 }
 
@@ -70,15 +69,15 @@ pub inline fn mean_lean(comptime T: anytype, inputs: []*Tensor(T), output: *Tens
     }
 }
 
-pub fn get_mean_output_shape(comptime T: anytype, inputs: []*Tensor(T)) ![]usize {
+pub fn get_mean_output_shape(inputs: []const []usize) ![]usize {
     if (inputs.len == 0) {
         return TensorMathError.EmptyTensorList;
     }
 
     var max_rank: usize = 0;
-    for (inputs) |tensor| {
-        if (tensor.shape.len > max_rank) {
-            max_rank = tensor.shape.len;
+    for (inputs) |shape| {
+        if (shape.len > max_rank) {
+            max_rank = shape.len;
         }
     }
 
@@ -86,16 +85,15 @@ pub fn get_mean_output_shape(comptime T: anytype, inputs: []*Tensor(T)) ![]usize
     errdefer pkg_allocator.free(output_shape);
     @memset(output_shape, 1);
 
-    // Confronta le forme di tutti i tensori e calcola la forma dell'output
-    for (inputs) |tensor| {
-        const rank_diff = max_rank - tensor.shape.len; // Offset per allineare a destra
-        for (tensor.shape, 0..) |dim, i| {
-            const out_idx = rank_diff + i; // Indice nella forma dell'output
+    for (inputs) |shape| {
+        const rank_diff = max_rank - shape.len;
+        for (shape, 0..) |dim, i| {
+            const out_idx = rank_diff + i;
             const current_out_dim = output_shape[out_idx];
 
             if (dim != current_out_dim) {
                 if (current_out_dim == 1) {
-                    output_shape[out_idx] = dim; // Aggiorna al valore più grande
+                    output_shape[out_idx] = dim;
                 } else if (dim != 1) {
                     pkg_allocator.free(output_shape);
                     return TensorMathError.IncompatibleBroadcastShapes;
