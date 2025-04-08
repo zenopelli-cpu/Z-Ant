@@ -6,6 +6,7 @@ const allocator = pkgAllocator.allocator;
 const TensMath = zant.core.tensor.math_standard;
 const std = @import("std");
 
+const macs_mat_mul = @import("matmul/macs_matmul.zig").lean_mat_mul;
 const simple_mat_mul = @import("matmul/simple_matmul.zig").lean_mat_mul;
 const blocked_matmul = @import("matmul/blocked_matmul.zig").lean_mat_mul;
 
@@ -76,7 +77,7 @@ inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T),
     // std.debug.print("\n", .{});
 
     @memset(Y.data, 0);
-
+    
     try lean_mat_mul(T, A, B, &Y);
 
     return Y;
@@ -97,15 +98,15 @@ fn run_mat_mul_benchmark(comptime T: anytype, comptime N: u8, comptime square_on
 
     var rnd_a_rows: usize = 0;
     var rnd_a_cols: usize = 0;
-    const rnd_b_cols: usize = 0;
+    var rnd_b_cols: usize = 0;
 
-    var shape_1: [2]usize = [_]usize{ twoN + rnd_a_rows, twoN + rnd_a_cols }; // 2^N x 2^N matrix
-    var shape_2: [2]usize = [_]usize{ twoN + rnd_a_cols, twoN + rnd_b_cols }; // 2^N x 2^N matrix
+    var shape_1: [2]usize = [_]usize{ twoN, twoN }; // 2^N x 2^N matrix
+    var shape_2: [2]usize = [_]usize{ twoN , twoN }; // 2^N x 2^N matrix
 
     if (!square_only) {
         rnd_a_rows = rand.intRangeLessThan(u8, 1, cache_block_size);
         rnd_a_cols = rand.intRangeLessThan(u8, 1, cache_block_size);
-        //rnd_b_cols = rand.intRangeLessThan(u8, 1, cache_block_size);
+        rnd_b_cols = rand.intRangeLessThan(u8, 1, cache_block_size);
 
         shape_1[0] += rnd_a_rows;
         shape_1[1] += rnd_a_cols;
@@ -237,7 +238,7 @@ pub fn main() !void {
             }
         }
     } else {
-        const N = 8; // Change this value to test different sizes
+        const N = 10; // Change this value to test different sizes
         const data_type = u8;
         try run_mat_mul_benchmark(data_type, N, false);
     }
