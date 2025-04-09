@@ -29,7 +29,7 @@ pub const get_unsqueeze_output_shape = op_unsqueeze.get_unsqueeze_output_shape;
 const op_concat = @import("lib_shape_math/op_concatenate.zig");
 
 pub const concatenate = op_concat.concatenate;
-pub const concatenate_lean = op_concat.lean_concatenate;
+pub const concatenate_lean = op_concat.concatenate_lean;
 pub const get_concatenate_output_shape = op_concat.get_concatenate_output_shape;
 //---identity
 const op_identity = @import("lib_shape_math/op_identity.zig");

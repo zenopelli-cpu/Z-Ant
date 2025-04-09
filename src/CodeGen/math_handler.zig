@@ -284,7 +284,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             ")",
         });
     } else {
-        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name) });
+        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name), ")" });
     }
 
     //----create tensor_W_string
@@ -297,7 +297,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             ")",
         });
     } else {
-        tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name) });
+        tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name), ")" });
     }
 
     //----create ?bias string
@@ -643,7 +643,7 @@ inline fn write_div(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             ")",
         });
     } else {
-        tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name) });
+        tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name), ")" });
     }
 
     //----create tensor_B_string
@@ -1185,60 +1185,99 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
 inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // https://onnx.ai/onnx/operators/onnx__Reshape.html
-    // INPUTS:
-    //      - data (heterogeneous) - T: An input tensor.
-    //      - shape (heterogeneous) - tensor(int64): Specified shape for output.
-    // OUTPUTS:
-    //      - reshaped (heterogeneous) - T: Reshaped data.
-    // ATTRIBUTES:
-    //      - allowzero - INT (default is '0'): Whether to allow zeros in shape tensor
+    // Inputs:
+    //      - data (T): An input tensor.
+    //      - shape (tensor(int64)): Specifies the output shape.
+    // Attributes:
+    //      - allowzero (int, default 0): DEPRECATED. If true (non-zero), the output shape can contain 0.
+    //      - shape (ints): Alternative way to provide shape (used if input 'shape' is not provided).
+    // REMOVED: const T = node.outputs.items[0].tensorProto.?.dataType; // T is not needed by reshape_lean
 
+    // Find allowzero attribute (deprecated but might exist)
     var allowzer0: bool = false;
+    var shape_attribute: ?[]const i64 = null;
+
     for (node.nodeProto.attribute) |attr| {
-        if (std.mem.indexOf(u8, attr.name, "allowzero")) |_| {
+        if (std.mem.eql(u8, attr.name, "allowzero")) {
             if (attr.type == AttributeType.INT) allowzer0 = attr.i != 0;
+        } else if (std.mem.eql(u8, attr.name, "shape")) {
+            if (attr.type == AttributeType.INTS) shape_attribute = attr.ints;
         }
     }
 
-    //input string creation
-    var input_string: []u8 = undefined;
+    // Input tensor string creation
     const sanitized_input_name = try utils.getSanitizedName(node.inputs.items[0].?.name);
-    input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+    const input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
         if (globals.tensorHashMap.getPtr(node.inputs.items[0].?.name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
         "tensor_",
         sanitized_input_name,
     });
+    defer allocator.free(input_string);
 
-    //shape string creation
-    const sanitized_shape_name = try utils.getSanitizedName(node.inputs.items[1].?.name);
-    const shape_tensor_name = try std.mem.concat(allocator, u8, &[_][]const u8{
-        if (globals.tensorHashMap.getPtr(node.inputs.items[1].?.name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
-        "tensor_",
-        sanitized_shape_name,
-    });
-    defer allocator.free(shape_tensor_name);
+    // Shape slice generation logic
+    var shape_slice_code = std.ArrayList(u8).init(allocator);
+    defer shape_slice_code.deinit();
+    const output_sanitized_name = try utils.getSanitizedName(node.outputs.items[0].name);
+    var shape_from_attr = false; // Track source of shape
 
+    if (shape_attribute) |attr_shape| {
+        shape_from_attr = true;
+        // Shape from attribute
+        // Generate code like: const shape_slice_<output_name> = [_]isize{ val1, val2, ... };
+        try shape_slice_code.writer().print("const shape_slice_{s} = [_]isize{{", .{output_sanitized_name});
+        for (attr_shape, 0..) |val, i| {
+            try shape_slice_code.writer().print("{s}{}", .{ if (i > 0) ", " else "", val });
+        }
+        try shape_slice_code.writer().print("}};", .{});
+    } else {
+        // Shape from input tensor
+        if (node.inputs.items.len < 2) {
+            std.debug.print("ERROR: Reshape node '{s}' requires a 'shape' attribute or a second input tensor, but neither was found during code generation.", .{node.nodeProto.name orelse "-"});
+            return error.ShapeNotFound;
+        }
+        const shape_input_tensor = node.inputs.items[1].?;
+        const sanitized_shape_name = try utils.getSanitizedName(shape_input_tensor.name);
+        const shape_tensor_name = try std.mem.concat(allocator, u8, &[_][]const u8{
+            if (globals.tensorHashMap.getPtr(shape_input_tensor.name).?.tag == globals.TensorTag.INITIALIZER) "param_lib." else "",
+            "tensor_",
+            sanitized_shape_name,
+        });
+        defer allocator.free(shape_tensor_name);
+
+        // Generate code to convert tensor data to isize slice at runtime
+        try shape_slice_code.writer().print(
+            \\    // Convert shape tensor data to isize slice
+            \\    const shape_slice_{s} = utils.sliceToIsizeSlice({s}.data); // Removed catch return
+            \\    defer allocator.free(shape_slice_{s}); // Free the runtime allocated slice
+        , .{
+            output_sanitized_name, // Use output name for uniqueness
+            shape_tensor_name,
+            output_sanitized_name,
+        });
+    }
+
+    // Generate the final call, adding '&' conditionally
     _ = try writer.print(
         \\
-        \\    // Convert shape tensor data to isize slice
-        \\    const shape_slice_{s} = utils.sliceToIsizeSlice({s}.data);
-        \\    defer allocator.free(shape_slice_{s});
+        \\
+        \\    // Reshape Operation for {s}
+        \\    {s} // Generated shape slice code
         \\
         \\    tensMath.reshape_lean(
-        \\        T, //type
-        \\        @constCast(&{s}), //Input tensor
-        \\        shape_slice_{s}, //New shape (converted to isize)
-        \\        {s}, //allowzero
-        \\        &tensor_{s}, //Output tensor
+        \\        T,
+        \\        @constCast(&{s}),
+        \\        {s}shape_slice_{s}, // Conditionally add '&'
+        \\        {},
+        \\        &tensor_{s}
         \\    )
     , .{
-        sanitized_shape_name, // For the temporary slice name
-        shape_tensor_name, // Shape tensor
-        sanitized_shape_name, // For freeing the slice
-        input_string, // Input tensor
-        sanitized_shape_name, // The converted shape slice
-        if (allowzer0) "true" else "false", //allowzer0
-        try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
+        node.nodeProto.name orelse "-",
+        shape_slice_code.items,
+        input_string,
+        if (shape_from_attr) "&" else "", // Add '&' if shape came from attribute
+        output_sanitized_name, // Name for shape_slice_ variable
+        allowzer0,
+        output_sanitized_name, // Name for tensor_ variable
     });
 }
 

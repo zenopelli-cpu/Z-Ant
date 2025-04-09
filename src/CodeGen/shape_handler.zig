@@ -232,18 +232,54 @@ inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n====== compute_reshape_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     // std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].?.shape});
 
-    // Get the new shape from either tensorProto or input shape
     var new_shape: []i64 = undefined;
-    if (readyNode.inputs.items[1].?.tensorProto != null and
-        readyNode.inputs.items[1].?.tensorProto.?.int64_data != null)
-    {
-        new_shape = try allocator.dupe(i64, readyNode.inputs.items[1].?.tensorProto.?.int64_data.?);
-        std.debug.print("\n new shape from tensorProto: []i64 = {any}", .{new_shape});
-    } else {
-        new_shape = try allocator.dupe(i64, readyNode.inputs.items[1].?.shape);
-        std.debug.print("\n new shape from input shape: []i64 = {any}", .{new_shape});
+    var shape_source_is_attribute = false;
+    var new_shape_allocated_by_dupe = false; // Flag to track allocation
+
+    // Try to get shape from attribute first
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "shape")) {
+            if (attr.type == AttributeType.INTS) {
+                new_shape = try allocator.dupe(i64, attr.ints);
+                shape_source_is_attribute = true;
+                new_shape_allocated_by_dupe = true; // Mark as allocated
+                std.debug.print("\n new shape from attribute: []i64 = {any}", .{new_shape});
+                break;
+            } else {
+                std.debug.print("ERROR: Reshape 'shape' attribute has unexpected type {}", .{attr.type});
+                return error.InvalidAttributeType;
+            }
+        }
     }
-    errdefer allocator.free(new_shape);
+
+    // If not found in attribute, try getting shape from the second input
+    if (!shape_source_is_attribute) {
+        if (readyNode.inputs.items.len < 2) {
+            std.debug.print("ERROR: Reshape requires a 'shape' attribute or a second input for the shape, but neither was found.", .{});
+            return error.ShapeNotFound; // Or a more specific error
+        }
+
+        const shape_input = readyNode.inputs.items[1].?;
+        if (shape_input.tensorProto != null and
+            shape_input.tensorProto.?.int64_data != null)
+        {
+            new_shape = try allocator.dupe(i64, shape_input.tensorProto.?.int64_data.?);
+            new_shape_allocated_by_dupe = true; // Mark as allocated
+            std.debug.print("\n new shape from input tensorProto: []i64 = {any}", .{new_shape});
+        } else {
+            // Assuming the shape is directly available in the input's shape field if tensorProto is missing
+            // This might need adjustment based on how ONNX initializers/constants are handled
+            if (shape_input.shape.len == 0) {
+                std.debug.print("ERROR: Reshape shape input has no tensorProto and an empty shape.", .{});
+                return error.ShapeNotFound;
+            }
+            new_shape = try allocator.dupe(i64, shape_input.shape);
+            new_shape_allocated_by_dupe = true; // Mark as allocated
+            std.debug.print("\n new shape from input shape: []i64 = {any}", .{new_shape});
+        }
+    }
+
+    errdefer if (new_shape_allocated_by_dupe) allocator.free(new_shape); // Use flag in errdefer
 
     // Calculate total elements in input shape
     var total_elements: i64 = 1;
@@ -280,7 +316,9 @@ inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
 
     // Allocate output shape and copy the new shape
     const output_shape = try allocator.dupe(i64, new_shape);
-    allocator.free(new_shape); // Free the temporary shape
+    if (new_shape_allocated_by_dupe) { // Free manually only if allocated by dupe here
+        allocator.free(new_shape); // Free the temporary shape
+    }
 
     readyNode.outputs.items[0].shape = output_shape;
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
