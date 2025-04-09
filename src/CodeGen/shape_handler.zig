@@ -55,8 +55,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LeakyRelu")) {
         try compute_leaky_relu_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LogSoftmax")) {
-        // TODO
-        return error.OperationWIP;
+        try compute_longsoftmax_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MatMul")) {
         try compute_matmul_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MaxPool")) {
@@ -516,7 +515,7 @@ inline fn compute_unsqueeze_output_shape(readyNode: *ReadyNode) !void {
     // Calculate output shape
     const output_shape = try tensorMath.get_unsqueeze_output_shape(
         try utils.i64SliceToUsizeSlice(input_shape),
-        try utils.i64SliceToUsizeSlice(axes.?),
+        axes.?,
     );
 
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
@@ -596,6 +595,17 @@ inline fn compute_leaky_relu_output_shape(readyNode: *ReadyNode) !void {
 
     const output_shape = try tensorMath.get_leaky_relu_output_shape(try utils.i64SliceToUsizeSlice(input_shape));
     // LeakyReLU is an element-wise operation, output shape is identical to input shape
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_longsoftmax_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_longsoftmax_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    const output_shape = try tensorMath.get_longsoftmax_output_shape(try utils.i64SliceToUsizeSlice(input_shape));
+    // LongSoftmax is an element-wise operation, output shape is identical to input shape
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }

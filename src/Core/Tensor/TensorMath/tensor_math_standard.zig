@@ -192,6 +192,7 @@ const op_softmax = @import("lib_activation_function_math/op_softmax.zig");
 pub const softmax = op_softmax.softmax;
 pub const softmax_lean = op_softmax.lean_softmax;
 pub const softmax_backward = op_softmax.softmax_backward;
+pub const get_longsoftmax_output_shape = op_softmax.get_longsoftmax_output_shape;
 
 //Transpose
 const op_Transpose = @import("lib_shape_math/op_transpose.zig");
