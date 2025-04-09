@@ -171,13 +171,12 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
 
     //setting the input
     const inputs = model.graph.?.inputs;
-    std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ inputs[0].name.?, inputs[0].type.?.tensor_type.?.shape.?.shape });
     networkInput.name = inputs[0].name.?;
     networkInput.shape = inputs[0].type.?.tensor_type.?.shape.?.shape;
 
     //setting the output
     const outputs = model.graph.?.outputs;
-    std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ outputs[0].name.?, outputs[0].type.?.tensor_type.?.shape.?.shape });
+    std.debug.print("\n SETTING networkOutput \n name = {s} \n shape={any}", .{ outputs[0].name.?, outputs[0].type.?.tensor_type.?.shape.?.shape });
     networkOutput.name = outputs[0].name.?;
     networkOutput.shape = outputs[0].type.?.tensor_type.?.shape.?.shape;
 
@@ -188,6 +187,9 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
         std.debug.print("\n\n ERROR: \n     Input shape is necessary to proceed! \n     Ensure that the onnx model has one or compile with -Dshape=''<your_shape>''", .{});
         return error.NoInputShape;
     }
+
+    // Print the final input details AFTER potentially overriding shape
+    std.debug.print("\n FINAL networkInput \n name = {s} \n shape={any}", .{ networkInput.name, networkInput.shape });
 
     //create the hashMap
     try populateReadyTensorHashMap(model);
