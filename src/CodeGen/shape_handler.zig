@@ -46,7 +46,6 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         //https://onnx.ai/onnx/operators/onnx__Div.html
         readyNode.outputs.items[0].shape = readyNode.inputs.items[1].shape;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Flatten")) {
-        // TODO
         return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
         try compute_gather_output_shape(readyNode);
@@ -77,8 +76,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         // https://onnx.ai/onnx/operators/onnx__Reshape.html
         try compute_reshape_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Resize")) {
-        // TODO
-        return error.OperationWIP;
+        try compute_resize_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Shape")) {
         try compute_shape_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sigmoid")) {
@@ -188,6 +186,17 @@ inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
     }
 
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_resize_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_resize_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].shape});
+    const input_shape = readyNode.inputs.items[0].shape;
+    const scales = readyNode.inputs.items[1].tensorProto.?.float_data.?;
+    const sizes = readyNode.inputs.items[2].tensorProto.?.int64_data.?;
+
+    const output_shape = try tensorMath.get_resize_output_shape(try utils.i64SliceToUsizeSlice(input_shape), scales, try utils.i64SliceToUsizeSlice(sizes));
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
 }
 
 inline fn compute_softmax_output_shape(readyNode: *ReadyNode) !void {
@@ -467,7 +476,12 @@ inline fn compute_transpose_output_shape(readyNode: *ReadyNode) !void {
         }
         const input_shape = try utils.i64SliceToUsizeSlice(readyNode.inputs.items[0].shape);
 
-        shape = try tensorMath.get_transpose_output_shape(input_shape, perm);
+        if (perm) |p| {
+            shape = try utils.usizeSliceToI64Slice(try tensorMath.get_transpose_output_shape(input_shape, try utils.i64SliceToUsizeSlice(p)));
+        } else {
+            const perm_usize: ?[]const usize = null;
+            shape = try utils.usizeSliceToI64Slice(try tensorMath.get_transpose_output_shape(input_shape, perm_usize));
+        }
     }
     readyNode.outputs.items[0].shape = shape;
 }
@@ -586,7 +600,7 @@ inline fn compute_leaky_relu_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
-fn compute_matmul_output_shape(readyNode: *ReadyNode) !void {
+inline fn compute_matmul_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n====== compute_matmul_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     const input_a = readyNode.inputs.items[0];
     const input_b = readyNode.inputs.items[1];
@@ -594,7 +608,7 @@ fn compute_matmul_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n input_a_shape: []i64 = {any}", .{input_a.shape});
     std.debug.print("\n input_b_shape: []i64 = {any}", .{input_b.shape});
 
-    const output_shape = try tensorMath.get_matmul_output_shape(
+    const output_shape = try tensorMath.get_mat_mul_output_shape(
         try utils.i64SliceToUsizeSlice(input_a.shape),
         try utils.i64SliceToUsizeSlice(input_b.shape),
     );

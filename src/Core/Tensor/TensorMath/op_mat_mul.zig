@@ -191,20 +191,20 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
 }
 
 pub fn get_mat_mul_output_shape(shape_a: []const usize, shape_b: []const usize) ![]usize {
-    if (shape_a < 2 or shape_b < 2) {
+    if (shape_a.len < 2 or shape_b.len < 2) {
         return error.InvalidShape;
     }
 
     const a_rows = shape_a[shape_a.len - 2];
     const a_cols = shape_a[shape_a.len - 1];
     const b_rows = shape_b[shape_b.len - 2];
-    const b_cols = shape_b[shape_b.shape.len - 1];
+    const b_cols = shape_b[shape_b.len - 1];
 
     if (a_cols != b_rows) {
         return error.ShapeMismatch;
     }
 
-    var output_shape = try pkg_allocator.alloc(i64, shape_a.len);
+    var output_shape = try pkg_allocator.alloc(usize, shape_a.len);
     errdefer pkg_allocator.free(output_shape);
 
     // Copy batch dimensions from input_a
