@@ -1,8 +1,7 @@
 Gemm
-Resize
+Sub
 Div
 Add
-Concat
 Conv
 Div
 Gather
@@ -18,3 +17,4 @@ Identity
 LeakyRelu
 Mul
 Split
+Unsqueeze

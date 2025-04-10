@@ -76,12 +76,12 @@ pub const ReadyTensor = struct {
         };
     }
 
-    pub fn createConstant(name: []const u8) !ReadyTensor {
+    pub fn createConstant(name: []const u8, tensorProto: *TensorProto) !ReadyTensor {
         return ReadyTensor{
             .name = name,
             .ready = true,
             .shape = networkInput.shape,
-            .tensorProto = null,
+            .tensorProto = tensorProto,
             .tag = TensorTag.CONSTANT,
         };
     }
@@ -108,7 +108,7 @@ pub const ReadyTensor = struct {
 // Struct representing a computational node in the ONNX model
 pub const ReadyNode = struct {
     nodeProto: *NodeProto,
-    inputs: std.ArrayList(*ReadyTensor),
+    inputs: std.ArrayList(?*ReadyTensor),
     outputs: std.ArrayList(*ReadyTensor),
     ready: bool,
 
@@ -117,7 +117,7 @@ pub const ReadyNode = struct {
         // std.debug.print("\n\nReadyNode.create() --> {s}", .{nodeProto.name.?});
         var newReadyNode = ReadyNode{
             .nodeProto = nodeProto,
-            .inputs = std.ArrayList(*ReadyTensor).init(allocator),
+            .inputs = std.ArrayList(?*ReadyTensor).init(allocator),
             .outputs = std.ArrayList(*ReadyTensor).init(allocator),
             .ready = false,
         };
@@ -125,9 +125,11 @@ pub const ReadyNode = struct {
         for (nodeProto.input) |input_name| { //for each input tensor in NodeProto
 
             //adding the readyTensor to the model
-            try newReadyNode.inputs.append(if (tensorHashMap.getPtr(input_name)) |V_ptr| V_ptr else return error.keyNotAvailable);
-            // std.debug.print("\n   added input {s} to node {s} ", .{ input_name, nodeProto.name.? });
-
+            if (std.mem.eql(u8, input_name, "")) {
+                try newReadyNode.inputs.append(null);
+            } else {
+                try newReadyNode.inputs.append(if (tensorHashMap.getPtr(input_name)) |V_ptr| V_ptr else return error.keyNotAvailable);
+            }
         }
         for (nodeProto.output) |output_name| { //for each output tensor
 
@@ -146,7 +148,7 @@ pub const ReadyNode = struct {
         std.debug.print("\n ------ READY NODE : ", .{});
         if (detailed) node.nodeProto.print("  ") else std.debug.print("\n {s} ", .{node.nodeProto.name.?});
         std.debug.print("\n  ---inputs : ", .{});
-        for (node.inputs.items) |in| in.print(detailed);
+        for (node.inputs.items) |in| if (in) |i| i.print(detailed) else std.debug.print("\n      NULL INPUT", .{});
         std.debug.print("\n  ---outputs : ", .{});
         for (node.outputs.items) |out| out.print(detailed);
     }
@@ -169,13 +171,12 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
 
     //setting the input
     const inputs = model.graph.?.inputs;
-    std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ inputs[0].name.?, inputs[0].type.?.tensor_type.?.shape.?.shape });
     networkInput.name = inputs[0].name.?;
     networkInput.shape = inputs[0].type.?.tensor_type.?.shape.?.shape;
 
     //setting the output
     const outputs = model.graph.?.outputs;
-    std.debug.print("\n SETTING networkInput \n name = {s} \n shape={any}", .{ outputs[0].name.?, outputs[0].type.?.tensor_type.?.shape.?.shape });
+    std.debug.print("\n SETTING networkOutput \n name = {s} \n shape={any}", .{ outputs[0].name.?, outputs[0].type.?.tensor_type.?.shape.?.shape });
     networkOutput.name = outputs[0].name.?;
     networkOutput.shape = outputs[0].type.?.tensor_type.?.shape.?.shape;
 
@@ -186,6 +187,9 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
         std.debug.print("\n\n ERROR: \n     Input shape is necessary to proceed! \n     Ensure that the onnx model has one or compile with -Dshape=''<your_shape>''", .{});
         return error.NoInputShape;
     }
+
+    // Print the final input details AFTER potentially overriding shape
+    std.debug.print("\n FINAL networkInput \n name = {s} \n shape={any}", .{ networkInput.name, networkInput.shape });
 
     //create the hashMap
     try populateReadyTensorHashMap(model);
@@ -212,34 +216,32 @@ fn populateReadyTensorHashMap(model: ModelOnnx) !void {
     //adding all the nodes inputs and outputs
     for (protoGraph.nodes) |node| { //for each NodeProto in the GraphProto
         for (node.input) |input_name| {
-            try addToTensorHashMap(input_name);
+            try addToTensorHashMap(input_name, node);
         }
         for (node.output) |output_name| {
-            try addToTensorHashMap(output_name);
+            try addToTensorHashMap(output_name, node);
         }
     }
 }
 
-pub fn addToTensorHashMap(name: []const u8) !void {
-    if (tensorHashMap.get(name)) |_| {
+pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto) !void {
+    if (tensorHashMap.get(name) != null or std.mem.eql(u8, name, "")) {
         return;
     } else {
-
         //if input
-        if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "input") != null) {
+        if (utils.isInput(name)) {
             //add the readyTensor to the HashMap
             try tensorHashMap.put(name, try ReadyTensor.createInput(name));
             return;
         }
-        //if input
-        if (std.mem.indexOf(u8, try utils.getSanitizedName(name), "constant") != null) {
+        //if constant, pay attention, we add the Constatant only if it is a TENSOR (aka AttributeProto.t)
+        if (std.mem.eql(u8, nodeProto.op_type, "Constant")) {
             //add the readyTensor to the HashMap
-            try tensorHashMap.put(name, try ReadyTensor.createConstant(name));
+            if (nodeProto.attribute[0].type == onnx.AttributeType.TENSOR) try tensorHashMap.put(name, try ReadyTensor.createConstant(name, nodeProto.attribute[0].t.?));
             return;
         }
 
         //else default
-
         //add the readyTensor to the HashMap
         try tensorHashMap.put(name, try ReadyTensor.createLink(name));
     }

@@ -149,53 +149,6 @@ pub fn Tensor(comptime T: type) type {
             };
         }
 
-        /// Given any array and its shape it reshape the tensor and update .data
-        pub fn fill(self: *@This(), inputArray: anytype, shape: []usize) !void {
-            //const adjusted_shape = try ensure_4D_shape(shape);
-
-            // Allocate new memory first
-            var total_size: usize = 1;
-            for (shape) |dim| {
-                total_size *= dim;
-            }
-            const tensorShape = try self.allocator.alloc(usize, shape.len);
-            errdefer self.allocator.free(tensorShape);
-            @memcpy(tensorShape, shape);
-
-            // Create a copy of the input data to avoid issues if inputArray is part of self.data
-            const tensorData = try self.allocator.alloc(T, total_size);
-            errdefer self.allocator.free(tensorData);
-
-            // Handle different input array types
-            const InputType = @TypeOf(inputArray);
-            if (@typeInfo(InputType) == .pointer and @typeInfo(@typeInfo(InputType).pointer.child) == .array) {
-                // Handle multi-dimensional arrays
-                _ = flattenArray(T, inputArray, tensorData, 0);
-            } else {
-                // Handle slices (like data from another tensor)
-                if (inputArray.len != total_size) {
-                    return error.InvalidInputArraySize;
-                }
-                @memcpy(tensorData, inputArray);
-            }
-
-            // Free old memory only if we own it
-            if (self.owns_memory) {
-                if (self.data.len > 0) {
-                    self.allocator.free(self.data);
-                }
-                if (self.shape.len > 0) {
-                    self.allocator.free(self.shape);
-                }
-            }
-
-            // Update tensor with new data
-            self.data = tensorData;
-            self.size = total_size;
-            self.shape = tensorShape;
-            self.owns_memory = true;
-        }
-
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------
         ///--------------------------------------------------------------------------getters and setters---------------------------------------------------------------
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------

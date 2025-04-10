@@ -30,8 +30,10 @@ pub fn unsqueeze(comptime T: type, data: *Tensor(T), axes: *Tensor(i64)) !Tensor
         }
     }
 
-    // Create, fill and return output tensor
-    var output = try Tensor(T).init(data.allocator);
+    const output_shape = try get_unsqueeze_output_shape(data.shape, axes.data);
+    defer pkg_allocator.free(output_shape);
+
+    var output = try Tensor(T).fromShape(data.allocator, output_shape);
 
     try unsqueeze_lean(T, data, axes, &output);
 
@@ -39,53 +41,9 @@ pub fn unsqueeze(comptime T: type, data: *Tensor(T), axes: *Tensor(i64)) !Tensor
 }
 
 /// Lean version of unsqueeze, note that previous information stored in output tensor is lost
-pub fn unsqueeze_lean(comptime T: type, data: *Tensor(T), axes: *Tensor(i64), output: *Tensor(T)) !void {
-    //std.debug.print("\n[UNSQUEEZE] Input shape: {any}", .{data.shape});
-    //std.debug.print("\n[UNSQUEEZE] Axes: {any}", .{axes.data});
-
-    // Output rank
-    const out_rank = data.shape.len + axes.size;
-
-    // Convert negative axis
-    var actual_axes = try data.allocator.alloc(usize, axes.size);
-    defer data.allocator.free(actual_axes);
-
-    for (0..axes.size) |i| {
-        var conv: i64 = axes.data[i];
-        if (conv < 0) {
-            conv += @intCast(out_rank);
-        }
-        const new_axis: usize = @intCast(conv);
-        actual_axes[i] = new_axis;
-    }
-
-    // Preparing the output shape
-    var new_shape = try data.allocator.alloc(usize, out_rank);
-    var is_unsqueezed = try data.allocator.alloc(bool, out_rank);
-    defer data.allocator.free(new_shape);
-    defer data.allocator.free(is_unsqueezed);
-
-    // Initialize support array
-    @memset(is_unsqueezed, false);
-
-    // Adding new mono dimentions and setting support array.
-    for (0..actual_axes.len) |i| {
-        new_shape[actual_axes[i]] = 1;
-        is_unsqueezed[actual_axes[i]] = true;
-    }
-
-    // Setting positions not marked using data shape
-    var data_index: usize = 0;
-    for (0..out_rank) |i| {
-        if (!is_unsqueezed[i]) {
-            new_shape[i] = data.shape[data_index];
-            data_index += 1;
-        }
-    }
-
-    // Modify output tensor
-    try output.fill(data.data, new_shape);
-    //std.debug.print("\n[UNSQUEEZE] Output shape: {any}\n", .{new_shape});
+pub fn unsqueeze_lean(comptime T: type, input: *Tensor(T), axes: *Tensor(i64), output: *Tensor(T)) !void {
+    _ = axes;
+    @memcpy(output.data, input.data);
 }
 
 /// Calculate the output shape for an ONNX Unsqueeze operation without performing the operation
@@ -118,7 +76,6 @@ pub fn get_unsqueeze_output_shape(input_shape: []const usize, axes: []const i64)
 
     // Create output shape array
     var output_shape = try pkg_allocator.alloc(usize, out_rank);
-    errdefer pkg_allocator.free(output_shape);
 
     // Create and initialize support array to track unsqueezed dimensions
     var is_unsqueezed = try pkg_allocator.alloc(bool, out_rank);

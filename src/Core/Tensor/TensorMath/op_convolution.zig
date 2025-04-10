@@ -218,6 +218,7 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
 
     // Validate output dimensions and copy result
     if (!std.mem.eql(usize, result.shape[0..4], output.shape[0..4])) {
+        //std.debug.print("\n[DEBUG] OnnxConvLean: Result shape: {any}", .{result.shape});
         return TensorMathError.InvalidDimensions;
     }
     if (result.data.len != output.data.len) {
@@ -422,44 +423,338 @@ pub fn convolve_tensor_with_bias(
     return output;
 }
 
-pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []const usize, stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, auto_pad: ?[]const u8) ![4]usize {
-    if (input_shape.len != kernel_shape.len) {
+/// Memory-efficient convolution implementation without using im2col.
+/// Optimized for speed using pointer arithmetic and SIMD.
+pub fn convolve_tensor_with_bias_memory_efficient(
+    comptime T: type,
+    input: *Tensor(T),
+    kernel: *const Tensor(T),
+    bias: ?*const Tensor(T),
+    stride: []const usize,
+    dilations: ?[]const usize,
+) !Tensor(T) {
+    const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
+    const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else 1 else 1;
+    const dilated_kernel_h = (kernel.shape[2] - 1) * dilation_h + 1;
+    const dilated_kernel_w = (kernel.shape[3] - 1) * dilation_w + 1;
+
+    const batch_size = input.shape[0];
+    const in_channels = input.shape[1];
+    const in_height = input.shape[2];
+    const in_width = input.shape[3];
+
+    const num_filters = kernel.shape[0];
+    const kernel_channels = kernel.shape[1]; // C/g, group=1 assumed
+    const kernel_height = kernel.shape[2];
+    const kernel_width = kernel.shape[3];
+
+    if (in_channels != kernel_channels) {
         return TensorMathError.InvalidDimensions;
     }
 
-    // Create dummy input tensor filled with zeros
-    var input = Tensor(f32).fromShape(&pkg_allocator, @constCast(input_shape)) catch {
-        if (log_functionC) |log_func| {
-            log_func(@constCast(@ptrCast("get_convolution_output_shape: Failed to allocate input tensor")));
-        }
-        @panic("Memory allocation failed for input tensor in get_convolution_output_shape");
-    };
-    defer input.deinit();
-    try input.set(0, 0);
+    // --- Special case handling for tiny inputs ---
+    if ((in_height <= dilated_kernel_h or in_width <= dilated_kernel_w) or
+        (stride.len > 0 and stride[0] > 1 and in_height == dilated_kernel_h) or
+        (stride.len > 1 and stride[1] > 1 and in_width == dilated_kernel_w) or
+        (in_height == 1 and in_width == 1))
+    {
+        var output_shape = [_]usize{ batch_size, num_filters, 1, 1 };
+        var output = Tensor(T).fromShape(&pkg_allocator, &output_shape) catch {
+            if (log_functionC) |log_func| {
+                log_func(@constCast(@ptrCast("convolve_mem_eff: Failed allocate output special case")));
+            }
+            @panic("Memory allocation failed for output tensor (special case)");
+        };
+        errdefer output.deinit();
 
-    // Create dummy kernel tensor filled with zeros
-    var kernel = Tensor(f32).fromShape(&pkg_allocator, @constCast(kernel_shape)) catch {
-        if (log_functionC) |log_func| {
-            log_func(@constCast(@ptrCast("get_convolution_output_shape: Failed to allocate kernel tensor")));
+        for (0..batch_size) |b| {
+            for (0..num_filters) |f| {
+                var sum: T = 0;
+                if (kernel_channels >= 1 and kernel_height >= 1 and kernel_width >= 1) {
+                    const center_h = kernel_height / 2;
+                    const center_w = kernel_width / 2;
+                    const channels_to_sum = @min(in_channels, kernel_channels);
+                    for (0..channels_to_sum) |c| {
+                        // Assuming input is at least 1x1 for this special case
+                        const input_val = input.data[b * in_channels * in_height * in_width + c * in_height * in_width]; // Simplified indexing for 1x1 input
+                        const kernel_val = kernel.data[f * kernel_channels * kernel_height * kernel_width + c * kernel_height * kernel_width + center_h * kernel_width + center_w];
+                        sum += input_val * kernel_val;
+                    }
+                }
+                const bias_val = if (bias) |b_tensor| b_tensor.data[f] else 0;
+                try output.set_at(&[_]usize{ b, f, 0, 0 }, sum + bias_val);
+            }
         }
-        @panic("Memory allocation failed for kernel tensor in get_convolution_output_shape");
-    };
-    defer kernel.deinit();
-    try kernel.set(0, 0);
+        return output;
+    }
+    // --- End Special case ---
 
-    // Run convolution to get output shape
-    var output = OnnxConv(f32, &input, &kernel, null, stride, pads, dilations, 1, auto_pad) catch {
+    // --- Standard Convolution Calculation ---
+    const stride_h = if (stride.len > 0) stride[0] else 1;
+    const stride_w = if (stride.len > 1) stride[1] else stride_h;
+
+    // Calculate output dimensions
+    const out_height: usize = @divFloor(in_height - dilated_kernel_h, stride_h) + 1;
+    const out_width: usize = @divFloor(in_width - dilated_kernel_w, stride_w) + 1;
+
+    if (out_height <= 0 or out_width <= 0) {
+        // Return empty tensor or handle error? For now, error.
+        return TensorMathError.InvalidDimensions;
+    }
+
+    var output_shape = [_]usize{ batch_size, num_filters, out_height, out_width };
+    var output = Tensor(T).fromShape(&pkg_allocator, &output_shape) catch {
         if (log_functionC) |log_func| {
-            log_func(@constCast(@ptrCast("get_convolution_output_shape: Failed in OnnxConv")));
+            log_func(@constCast(@ptrCast("convolve_mem_eff: Failed to allocate output tensor")));
         }
-        @panic("Failed in OnnxConv in get_convolution_output_shape");
+        @panic("Memory allocation failed for output tensor");
     };
-    defer output.deinit();
+    errdefer output.deinit();
 
-    // Convert slice to fixed-size array
-    var result: [4]usize = undefined;
-    @memcpy(&result, output.shape);
-    return result;
+    // Pre-calculate strides for direct pointer access
+    const input_channel_stride = in_height * in_width;
+    const input_batch_stride = in_channels * input_channel_stride;
+    const kernel_channel_stride = kernel_height * kernel_width;
+    const kernel_filter_stride = kernel_channels * kernel_channel_stride;
+    const output_channel_stride = out_height * out_width;
+    const output_batch_stride = num_filters * output_channel_stride;
+
+    const Vector = @Vector(4, T);
+    const can_use_simd = @typeInfo(T) == .float and kernel_width >= 4; // SIMD for floats >= 4 wide
+
+    // --- Tiling Parameters --- (Can be tuned)
+    const TILE_H: usize = 8;
+    const TILE_W: usize = 8;
+    const UNROLL_FACTOR: usize = 2; // For scalar remainder loop
+
+    // Pointers to data start
+    const input_ptr = input.data.ptr;
+    const kernel_ptr = kernel.data.ptr;
+    const output_ptr = output.data.ptr;
+    const bias_ptr = if (bias) |b_tensor| b_tensor.data.ptr else null;
+
+    // Perform convolution using nested loops and pointer arithmetic
+    var b: usize = 0;
+    while (b < batch_size) : (b += 1) {
+        const input_batch_offset = b * input_batch_stride;
+        const output_batch_offset = b * output_batch_stride;
+
+        var f: usize = 0;
+        while (f < num_filters) : (f += 1) {
+            const kernel_filter_offset = f * kernel_filter_stride;
+            const output_filter_offset = output_batch_offset + f * output_channel_stride;
+            const bias_val: T = if (bias_ptr) |bp| bp[f] else 0;
+
+            var oh_tile: usize = 0;
+            while (oh_tile < out_height) : (oh_tile += TILE_H) {
+                var ow_tile: usize = 0;
+                while (ow_tile < out_width) : (ow_tile += TILE_W) {
+                    // Calculate bounds for the current tile
+                    const oh_end = @min(oh_tile + TILE_H, out_height);
+                    const ow_end = @min(ow_tile + TILE_W, out_width);
+
+                    // Innermost loops iterate within the tile
+                    var oh = oh_tile;
+                    while (oh < oh_end) : (oh += 1) {
+                        const h_start = oh * stride_h; // Input h start for this output row
+
+                        var ow = ow_tile;
+                        while (ow < ow_end) : (ow += 1) {
+                            const w_start = ow * stride_w; // Input w start for this output col
+                            var sum_vec: Vector = @splat(0.0);
+                            var sum_scalar: T = 0;
+
+                            var c: usize = 0;
+                            while (c < in_channels) : (c += 1) {
+                                const input_channel_offset = input_batch_offset + c * input_channel_stride;
+                                const kernel_channel_offset = kernel_filter_offset + c * kernel_channel_stride;
+
+                                var kh: usize = 0;
+                                while (kh < kernel_height) : (kh += 1) {
+                                    const ih: usize = h_start + kh * dilation_h;
+                                    if (ih >= in_height) continue;
+
+                                    const input_row_offset = input_channel_offset + ih * in_width;
+                                    const kernel_row_offset = kernel_channel_offset + kh * kernel_width;
+
+                                    if (can_use_simd) {
+                                        var kw: usize = 0;
+                                        while (kw + 4 <= kernel_width) : (kw += 4) {
+                                            const iw0: usize = w_start + kw * dilation_w;
+                                            const iw1: usize = w_start + (kw + 1) * dilation_w;
+                                            const iw2: usize = w_start + (kw + 2) * dilation_w;
+                                            const iw3: usize = w_start + (kw + 3) * dilation_w;
+
+                                            if (iw3 < in_width) {
+                                                const k_idx = kernel_row_offset + kw;
+                                                const k_ptr_offset = kernel_ptr + k_idx;
+                                                const k_vec = Vector{ k_ptr_offset[0], k_ptr_offset[1], k_ptr_offset[2], k_ptr_offset[3] };
+                                                const i_vec = Vector{ input_ptr[input_row_offset + iw0], input_ptr[input_row_offset + iw1], input_ptr[input_row_offset + iw2], input_ptr[input_row_offset + iw3] };
+                                                sum_vec = (i_vec * k_vec) + sum_vec;
+                                            } else {
+                                                break; // Vector goes out of bounds, handle remainder below
+                                            }
+                                        }
+
+                                        // Unrolled scalar part for the remainder
+                                        var kw_rem = kw;
+                                        while (kw_rem + UNROLL_FACTOR <= kernel_width) : (kw_rem += UNROLL_FACTOR) {
+                                            // Unrolled iteration 1
+                                            const iw0: usize = w_start + kw_rem * dilation_w;
+                                            if (iw0 < in_width) {
+                                                const input_val0 = input_ptr[input_row_offset + iw0];
+                                                const kernel_val0 = kernel_ptr[kernel_row_offset + kw_rem];
+                                                sum_scalar += input_val0 * kernel_val0;
+                                            }
+                                            // Unrolled iteration 2
+                                            const iw1: usize = w_start + (kw_rem + 1) * dilation_w;
+                                            if (iw1 < in_width) {
+                                                const input_val1 = input_ptr[input_row_offset + iw1];
+                                                const kernel_val1 = kernel_ptr[kernel_row_offset + kw_rem + 1];
+                                                sum_scalar += input_val1 * kernel_val1;
+                                            }
+                                            // Add more iterations here if UNROLL_FACTOR > 2
+                                        }
+                                        // Handle any remaining elements after unrolling
+                                        while (kw_rem < kernel_width) : (kw_rem += 1) {
+                                            const iw: usize = w_start + kw_rem * dilation_w;
+                                            if (iw < in_width) {
+                                                const input_val = input_ptr[input_row_offset + iw];
+                                                const kernel_val = kernel_ptr[kernel_row_offset + kw_rem];
+                                                sum_scalar += input_val * kernel_val;
+                                            }
+                                        }
+                                    } else { // Scalar only path (Unroll this too? For now, keep simple)
+                                        var kw: usize = 0;
+                                        while (kw < kernel_width) : (kw += 1) {
+                                            const iw: usize = w_start + kw * dilation_w;
+                                            if (iw < in_width) {
+                                                const input_val = input_ptr[input_row_offset + iw];
+                                                const kernel_val = kernel_ptr[kernel_row_offset + kw];
+                                                sum_scalar += input_val * kernel_val;
+                                            }
+                                        }
+                                    }
+                                } // end kh
+                            } // end c
+
+                            // Combine SIMD and scalar results
+                            var final_sum: T = sum_scalar;
+                            if (can_use_simd) {
+                                // Horizontal sum of the vector accumulator
+                                final_sum += sum_vec[0] + sum_vec[1] + sum_vec[2] + sum_vec[3];
+                            }
+
+                            // Add bias and store result
+                            const output_idx = output_filter_offset + oh * out_width + ow;
+                            output_ptr[output_idx] = final_sum + bias_val;
+                        } // end ow
+                    } // end oh
+                } // end ow_tile
+            } // end oh_tile
+        } // end filter loop
+    } // end batch loop
+
+    return output;
+}
+
+pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []const usize, stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, auto_pad: ?[]const u8) ![4]usize {
+    if (input_shape.len != 4 or kernel_shape.len != 4) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    const in_height = input_shape[2];
+    const in_width = input_shape[3];
+    const out_channels = kernel_shape[0];
+    const kernel_height = kernel_shape[2];
+    const kernel_width = kernel_shape[3];
+
+    // Set default values for stride and dilation
+    const stride_h = if (stride.len > 0) stride[0] else 1;
+    const stride_w = if (stride.len > 1) stride[1] else stride[0];
+    const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
+    const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else d[0] else 1;
+
+    // Calculate dilated kernel dimensions
+    const dilated_kernel_h = (kernel_height - 1) * dilation_h + 1;
+    const dilated_kernel_w = (kernel_width - 1) * dilation_w + 1;
+
+    // Calculate padding and output dimensions
+    var pad_h_begin: usize = 0;
+    var pad_h_end: usize = 0;
+    var pad_w_begin: usize = 0;
+    var pad_w_end: usize = 0;
+    var expected_out_height: usize = undefined;
+    var expected_out_width: usize = undefined;
+
+    if (auto_pad) |pad_mode| {
+        if (std.mem.eql(u8, pad_mode, "VALID")) {
+            expected_out_height = @divFloor(in_height - dilated_kernel_h, stride_h) + 1;
+            expected_out_width = @divFloor(in_width - dilated_kernel_w, stride_w) + 1;
+        } else if (std.mem.eql(u8, pad_mode, "SAME_UPPER") or std.mem.eql(u8, pad_mode, "SAME_LOWER")) {
+            expected_out_height = ceilDiv(in_height, stride_h);
+            expected_out_width = ceilDiv(in_width, stride_w);
+
+            const total_pad_h = @max((expected_out_height - 1) * stride_h + dilated_kernel_h - in_height, 0);
+            const total_pad_w = @max((expected_out_width - 1) * stride_w + dilated_kernel_w - in_width, 0);
+
+            if (std.mem.eql(u8, pad_mode, "SAME_UPPER")) {
+                pad_h_begin = total_pad_h / 2;
+                pad_h_end = total_pad_h - pad_h_begin;
+                pad_w_begin = total_pad_w / 2;
+                pad_w_end = total_pad_w - pad_w_begin;
+            } else {
+                pad_h_end = total_pad_h / 2;
+                pad_h_begin = total_pad_h - pad_h_end;
+                pad_w_end = total_pad_w / 2;
+                pad_w_begin = total_pad_w - pad_w_end;
+            }
+        } else if (std.mem.eql(u8, pad_mode, "NOTSET")) {
+            if (pads) |p| {
+                if (p.len >= 4) {
+                    pad_h_begin = p[0];
+                    pad_w_begin = p[1];
+                    pad_h_end = p[2];
+                    pad_w_end = p[3];
+                    expected_out_height = @divFloor(in_height + pad_h_begin + pad_h_end - dilated_kernel_h, stride_h) + 1;
+                    expected_out_width = @divFloor(in_width + pad_w_begin + pad_w_end - dilated_kernel_w, stride_w) + 1;
+                } else {
+                    return TensorMathError.InvalidPadding;
+                }
+            } else {
+                // Default to VALID padding if pads not provided and NOTSET
+                expected_out_height = @divFloor(in_height - dilated_kernel_h, stride_h) + 1;
+                expected_out_width = @divFloor(in_width - dilated_kernel_w, stride_w) + 1;
+            }
+        } else {
+            return TensorMathError.InvalidPadding;
+        }
+    } else {
+        // No auto_pad, use explicit padding if provided, otherwise assume zero padding
+        if (pads) |p| {
+            if (p.len >= 4) {
+                pad_h_begin = p[0];
+                pad_w_begin = p[1];
+                pad_h_end = p[2];
+                pad_w_end = p[3];
+            } else {
+                // Assume padding is [0,0,0,0] if pads is non-null but length < 4
+                pad_h_begin = 0;
+                pad_w_begin = 0;
+                pad_h_end = 0;
+                pad_w_end = 0;
+            }
+        }
+        // Calculate output shape with potentially zero padding
+        expected_out_height = @divFloor(in_height + pad_h_begin + pad_h_end - dilated_kernel_h, stride_h) + 1;
+        expected_out_width = @divFloor(in_width + pad_w_begin + pad_w_end - dilated_kernel_w, stride_w) + 1;
+    }
+
+    if (expected_out_height <= 0 or expected_out_width <= 0) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    return [4]usize{ input_shape[0], out_channels, expected_out_height, expected_out_width };
 }
 
 // --------------------------------------------------
@@ -619,9 +914,9 @@ pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize,
 /// Input shape: [batch_size * out_height * out_width, channels * kernel_height * kernel_width]
 /// Output shape: [batch_size, channels, height, width]
 pub fn col2im(comptime T: type, col_matrix: *Tensor(T), output_shape: []const usize, kernel: [2]usize, stride: [2]usize) !Tensor(T) {
-    std.debug.print("\n[DEBUG] col2im - Starting transformation", .{});
-    std.debug.print("\n[DEBUG] Col matrix shape: {any}", .{col_matrix.shape});
-    std.debug.print("\n[DEBUG] Target output shape: {any}", .{output_shape});
+    // std.debug.print("\n[DEBUG] col2im - Starting transformation", .{});
+    // std.debug.print("\n[DEBUG] Col matrix shape: {any}", .{col_matrix.shape});
+    // std.debug.print("\n[DEBUG] Target output shape: {any}", .{output_shape});
 
     if (output_shape.len != 4) {
         return TensorMathError.InvalidDimensions;
@@ -769,7 +1064,7 @@ pub fn OnnxConv(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), bias: ?
 
     // Set default values for stride and dilation
     const stride_h = if (stride.len > 0) stride[0] else 1;
-    const stride_w = if (stride.len > 1) stride[1] else stride[0];
+    const stride_w = if (stride.len > 1) stride[1] else stride_h;
     const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
     const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else d[0] else 1;
 
@@ -1134,11 +1429,12 @@ pub fn debug_print_max_pool(input_shape: []const usize, kernel_shape: []const us
 }
 
 pub fn get_max_pool_output_shape(input_shape: []const usize, kernel_shape: []const usize, stride: []const usize, padding: ?[]const usize) ![]usize {
-    debug_print_max_pool(input_shape, kernel_shape, stride, padding);
-
+    //debug_print_max_pool(input_shape, kernel_shape, stride, padding);
+    _ = stride;
+    _ = padding;
     // Special case handling for MaxPool when kernel is larger than input
     if (input_shape.len > 2 and input_shape[2] < kernel_shape[0]) {
-        std.debug.print("\n[DEBUG] MaxPool - Using special case for small input", .{});
+        // std.debug.print("\n[DEBUG] MaxPool - Using special case for small input", .{});
 
         // Return a shape with 1x1 spatial dimensions
         var result = try pkg_allocator.alloc(usize, 4);

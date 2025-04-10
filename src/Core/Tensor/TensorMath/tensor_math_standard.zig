@@ -13,7 +13,9 @@ pub const reshape = op_reshape.reshape;
 pub const reshape_lean = op_reshape.reshape_lean;
 pub const reshape_lean_f32 = op_reshape.reshape_lean_f32;
 pub const reshape_lean_common = op_reshape.reshape_lean_common;
+pub const get_reshape_output_shape = op_reshape.get_reshape_output_shape;
 //---gather
+
 const op_gather = @import("lib_shape_math/op_gather.zig");
 
 pub const gather = op_gather.gather;
@@ -30,7 +32,7 @@ pub const get_unsqueeze_output_shape = op_unsqueeze.get_unsqueeze_output_shape;
 const op_concat = @import("lib_shape_math/op_concatenate.zig");
 
 pub const concatenate = op_concat.concatenate;
-pub const concatenate_lean = op_concat.lean_concatenate;
+pub const concatenate_lean = op_concat.concatenate_lean;
 pub const get_concatenate_output_shape = op_concat.get_concatenate_output_shape;
 //---identity
 const op_identity = @import("lib_shape_math/op_identity.zig");
@@ -54,10 +56,12 @@ pub const addPaddingAndDilation = op_padding.addPaddingAndDilation;
 pub const neg = op_neg.neg;
 pub const neg_lean = op_neg.neg_lean;
 pub const get_neg_output_shape = op_neg.get_neg_output_shape;
+pub const flip = op_neg.flip_matrix;
+pub const flip_lean = op_neg.flip_matrix_lean;
 
 pub const resize = op_resize.resize;
 pub const get_resize_output_shape = op_resize.get_resize_output_shape;
-
+pub const resize_lean = op_resize.rezise_lean;
 pub const split = op_split.split;
 pub const get_split_output_shapes = op_split.get_split_output_shapes;
 pub const split_lean = op_split.split_lean;
@@ -120,6 +124,7 @@ pub const sum_tensor_list_lean = add.lean_sum_tensor_list;
 const sub = @import("lib_elementWise_math/op_subtraction.zig");
 
 pub const sub_tensors = sub.sub_tensors;
+pub const sub_tensors_lean = sub.lean_sub_tensors;
 
 //--shape
 const op_shape = @import("lib_shape_math/op_shape.zig");

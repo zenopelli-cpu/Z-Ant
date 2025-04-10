@@ -75,8 +75,10 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
     var lastNode: *ReadyNode = undefined;
     while (true) {
         const computableNodes: std.ArrayList(*ReadyNode) = try utils.getComputableNodes(&globals.readyGraph);
+
         //DEBUG
-        //try utils.printComputableNodes(computableNodes);
+        // for (globals.readyGraph.items) |*readyNode| readyNode.print(false);
+        try utils.printComputableNodes(computableNodes, true);
 
         if (computableNodes.items.len == 0) break;
         //else set the last node as the network output
@@ -91,7 +93,15 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
         iteration += 1;
     }
 
+    // If this is the output node, we don't need to check its outputs
+    if (std.mem.eql(u8, try utils.getSanitizedName(lastNode.nodeProto.name.?), "output")) {
+        return;
+    }
+
     //check if it is different from the one already parsed, if not present, set to lastNode
+    if (lastNode.outputs.items.len == 0) {
+        return error.NoOutputsFound;
+    }
     if (std.mem.eql(u8, globals.networkOutput.name, "")) {
         //setting te network output
         globals.networkOutput.name = lastNode.outputs.items[0].name;
@@ -99,6 +109,8 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
     } else {
         //check the output tensor name is the same
         if (!std.mem.eql(u8, globals.networkOutput.name, lastNode.outputs.items[0].name)) {
+            std.debug.print("\n\n   ERROR!!\n    DifferentOutputNames: \n      {s} vs {s}\n    LastNode:{s}\n\n", .{ globals.networkOutput.name, lastNode.outputs.items[0].name, lastNode.nodeProto.name.? });
+            lastNode.print(true);
             return error.DifferentOutputNames;
         }
     }
@@ -128,6 +140,7 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
                     mutableNode.ready = true;
                 }
             } else {
+                if (@as(?*ReadyTensor, output) == null) return error.InvalidOutput;
                 const size = try write_OutputShape(
                     writer,
                     output,
@@ -143,11 +156,9 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
 }
 
 fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !i64 {
+    if (@as(?*ReadyTensor, output) == null) return error.InvalidOutput;
     const shape = output.shape;
     var size: i64 = 1;
-
-    std.debug.print("\n ----------\n output.name:{s}", .{output.name});
-    std.debug.print("\n ----------\n try utils.getSanitizedName(output.name):{s}", .{try utils.getSanitizedName(output.name)});
 
     try writer.print(
         \\

@@ -115,20 +115,22 @@ pub inline fn getSanitizedName(name: []const u8) ![]const u8 {
 pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.ArrayList(*ReadyNode) {
     var set: std.ArrayList(*ReadyNode) = std.ArrayList(*ReadyNode).init(allocator);
     var ready_input_counter: i8 = 0;
+    var null_input_counter: i8 = 0;
 
     for (readyGraph.items) |*node| {
         if (!node.ready) {
             for (node.inputs.items) |input| {
-                if (input.ready) ready_input_counter += 1;
+                if (input == null) null_input_counter += 1 else if (input.?.ready) ready_input_counter += 1;
             }
             for (node.outputs.items) |output| {
                 if (output.ready) return error.OutputReadyTooEarly;
             }
-            if (ready_input_counter == node.inputs.items.len) {
+            if (ready_input_counter + null_input_counter == node.inputs.items.len) {
                 try set.append(node);
                 //std.debug.print("\n    --- {s} is computable", .{node.nodeProto.name.?});
             }
             ready_input_counter = 0;
+            null_input_counter = 0;
         }
     }
 
@@ -195,6 +197,21 @@ pub fn isInitializer(name: []const u8, initializers: []*TensorProto) bool {
     return false;
 }
 
+//return true if the name is an input of the nn
+pub fn isInput(name: []const u8) bool {
+    for (globals.onnxModel.graph.?.inputs) |input| {
+        if (std.mem.eql(u8, input.name.?, name)) return true;
+    }
+    return false;
+}
+
+//return true if the name is an output of the nn
+pub fn isOutput(name: []const u8) bool {
+    for (globals.onnxModel.graph.?.outputs) |output| {
+        if (std.mem.eql(u8, output.name.?, name)) return true;
+    }
+    return false;
+}
 // -------------------- PRINTERS --------------------
 
 // Prints the list of nodes in the given computation graph.
@@ -222,24 +239,13 @@ pub fn printNodeList(graph: std.ArrayList(ReadyNode)) !void {
 
 // Prints the list of nodes that are ready for computation.
 // Outputs each node's name, operation type, inputs, and outputs along with their readiness status.
-pub fn printComputableNodes(computableNodes: std.ArrayList(*ReadyNode)) !void {
+pub fn printComputableNodes(computableNodes: std.ArrayList(*ReadyNode), details: bool) !void {
     std.debug.print("\n------------------------------------------------------------", .{});
     std.debug.print("\n+                  COMPUTABLE NODES  n:{}                  +", .{computableNodes.items.len});
     std.debug.print("\n------------------------------------------------------------", .{});
 
     for (computableNodes.items) |node| {
-        std.debug.print("\n ----- node: {s}", .{node.nodeProto.name.?});
-        std.debug.print("\n          op_type: {s}", .{node.nodeProto.op_type});
-        std.debug.print("\n          inputs: {}", .{node.inputs.items.len});
-        // Write the inputs
-        for (node.inputs.items) |input| {
-            std.debug.print("\n              -> {s} {s}", .{ input.name, if (input.ready) "--->ready" else return error.ShouldBeReady });
-        }
-        std.debug.print("\n          outputs:", .{});
-        // Write the outputs
-        for (node.outputs.items) |output| {
-            std.debug.print("\n              -> {s} {s}", .{ output.name, if (output.ready) return error.OutputReadyTooEarly else "" });
-        }
+        node.print(details);
     }
 }
 
@@ -518,4 +524,38 @@ pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Pa
     const parsed_user_tests = try std.json.parseFromSlice([]tests.UserTest(T), allocator, user_tests_content, .{});
 
     return parsed_user_tests;
+}
+
+/// Parses a raw byte slice (expected to be little-endian) into an allocated slice of i64.
+pub fn parseI64RawData(raw_data: []const u8) ![]i64 {
+    const element_size = @sizeOf(i64);
+    if (raw_data.len % element_size != 0) {
+        std.debug.print("ERROR: Raw data length ({}) is not a multiple of i64 size ({})\n", .{ raw_data.len, element_size });
+        return error.InvalidRawDataSize;
+    }
+
+    const num_elements = raw_data.len / element_size;
+    if (num_elements == 0) {
+        // Return an empty slice if raw_data is empty (and length is valid multiple of 0)
+        return try allocator.alloc(i64, 0);
+    }
+
+    // Allocate the result slice.
+    const result = try allocator.alloc(i64, num_elements);
+    errdefer allocator.free(result);
+
+    // Fallback: Use pointer casting to interpret raw bytes as i64 (assumes alignment and little-endian)
+    // Ensure alignment (optional, might panic on some archs if unaligned)
+    // if (@alignOf(i64) > @alignOf(u8) and @ptrToInt(raw_data.ptr) % @alignOf(i64) != 0) {
+    //     std.debug.print("ERROR: Raw data pointer is not aligned for i64 read.\n", .{});
+    //     return error.UnalignedRawData;
+    // }
+
+    // Cast the byte slice pointer to an i64 slice pointer
+    const i64_ptr: [*]const i64 = @ptrCast(@alignCast(raw_data.ptr));
+
+    // Copy the data from the cast pointer into the result slice
+    @memcpy(result, i64_ptr[0..num_elements]);
+
+    return result;
 }

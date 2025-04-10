@@ -49,6 +49,7 @@ pub const TensorMathError = error{
     InvalidPadding,
     InvalidAxes,
     OutputTensorWrongShape,
+    Overflow,
 };
 
 /// Tensor errors

@@ -26,16 +26,16 @@ oneOp model generator: ✅ if the oneOpModel is created, remember to add the onn
 | LeakyRelu | [LeakyRelu](https://onnx.ai/onnx/operators/onnx__LeakyRelu.html) | [op_Leaky](../src/Core/Tensor/TensorMath/lib_activation_function_math/op_leaky_reLU.zig) | ✅ | ✅ | ✅ |
 | MatMul | [MatMul](https://onnx.ai/onnx/operators/onnx__MatMul.html)  | [op_matMul](../src/Core/Tensor/TensorMath/op_mat_mul.zig) | ✅ | ✅ | ✅ |
 | Mul| [Mul](https://onnx.ai/onnx/operators/onnx__Mul.html) | [op_mul](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_multiplication.zig) | ✅ | ✅ | ✅ |
-| Neg| [Neg](https://onnx.ai/onnx/operators/onnx__Neg.html) | [op_neg](../src/Core/Tensor/TensorMath/lib_logical_math.zig) | ✅ | 🔴| 🔴|No output shape in math_handler|
+| Neg| [Neg](https://onnx.ai/onnx/operators/onnx__Neg.html) | [op_neg](../src/Core/Tensor/TensorMath/lib_logical_math.zig) | ✅ | ✅ | ✅ |
 | Relu| [Relu](https://onnx.ai/onnx/operators/onnx__Relu.html) | [op_relu](../src/Core/Tensor/TensorMath/lib_activation_function_math/op_reLU.zig) | ✅ | ✅ | ✅ |
 | Reshape| [Reshape](https://onnx.ai/onnx/operators/onnx__Reshape.html) | [op_reshape](../src/Core/Tensor/TensorMath/lib_shape_math/op_reshape.zig)  | ✅ | ✅ | ✅ |
-| Resize | [Resize](https://onnx.ai/onnx/operators/onnx__Resize.html) | [op_resize](../src/Core/Tensor/TensorMath/lib_shape_math/op_resize.zig) | ✅ | 🔴| 🔴| Missing attributes, Test failing only simple math working t2cache double free|
+| Resize | [Resize](https://onnx.ai/onnx/operators/onnx__Resize.html) | [op_resize](../src/Core/Tensor/TensorMath/lib_shape_math/op_resize.zig) | ✅ | ✅ | ✅| |
 | Shape| [Shape](https://onnx.ai/onnx/operators/onnx__Shape.html) | [op_shape](../src/Core/Tensor/TensorMath/lib_shape_math/op_shape.zig)| ✅ | ✅ | ✅ | Tested but not supported by Onnx Python Generator|
 | Sigmoid| [Sigmoid](https://onnx.ai/onnx/operators/onnx__Sigmoid.html) | [op_Sigmoid](../src/Core/Tensor/TensorMath/lib_activation_function_math/op_sigmoid.zig)  | ✅ | ✅ | ✅ |
 | Slice| [Slice](https://onnx.ai/onnx/operators/onnx__Slice.html) | [op_slice](../src/Core/Tensor/TensorMath/lib_shape_math/op_slice.zig) | ✅ | ✅ | ✅ |
 | Softmax| [Softmax](https://onnx.ai/onnx/operators/onnx__Softmax.html) | [op_Softmax](../src/Core/Tensor/TensorMath/lib_activation_function_math/op_softmax.zig) | ✅ | ✅ | ✅ |
 | Split  | [Split](https://onnx.ai/onnx/operators/onnx__Split.html) | [op_split](../src/Core/Tensor/TensorMath/lib_shape_math/op_split.zig)| ✅ | ✅ | ✅ | 
-| Sub| [Sub](https://onnx.ai/onnx/operators/onnx__Sub.html) |[op_Sub](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_subtraction.zig) | ✅ | 🔴| 🔴|
+| Sub| [Sub](https://onnx.ai/onnx/operators/onnx__Sub.html) |[op_Sub](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_subtraction.zig) | ✅ | ✅| ✅|
 | Tanh | [Tanh](https://onnx.ai/onnx/operators/onnx__Tanh.html) | [op_tanh](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_tanh.zig) | ✅ | 🔴| 🔴|
 | Transpose| [Transpose](https://onnx.ai/onnx/operators/onnx__Transpose.html)| [op_Transose](../src/Core/Tensor/TensorMath/lib_shape_math/op_transpose.zig) | ✅ | ✅ | ✅ |
-| Unsqueeze| [Unsqueeze](https://onnx.ai/onnx/operators/onnx__Unsqueeze.html) | [op_unsqueeze](../src/Core/Tensor/TensorMath/lib_shape_math/op_unsqueeze.zig)| ✅ | ✅ | 🔴| Leaking|
+| Unsqueeze| [Unsqueeze](https://onnx.ai/onnx/operators/onnx__Unsqueeze.html) | [op_unsqueeze](../src/Core/Tensor/TensorMath/lib_shape_math/op_unsqueeze.zig)| ✅ | ✅ | ✅| |

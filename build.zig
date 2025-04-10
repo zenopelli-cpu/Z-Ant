@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) void {
     };
 
     const target = b.resolveTargetQuery(target_query);
-    const optimize = b.standardOptimizeOption(.{});
+    const optimize = .Debug; // Force Debug mode
 
     // -------------------- Modules creation
 
@@ -205,4 +205,31 @@ pub fn build(b: *std.Build) void {
     const run_test_onnx_parser = b.addRunArtifact(test_onnx_parser);
     const step_test_onnx_parser = b.step("onnx-parser", "Run generated library tests");
     step_test_onnx_parser.dependOn(&run_test_onnx_parser.step);
+
+    // Path to the generated model options file (moved here)
+    const model_options_path = std.fmt.allocPrint(b.allocator, "generated/{s}/model_options.zig", .{model_name_option}) catch |err| {
+        std.debug.print("Error allocating model options path: {}\n", .{err});
+        return;
+    };
+
+    // ************************************************ MAIN EXECUTABLE (for profiling) ************************************************
+
+    const main_executable = b.addExecutable(.{
+        .name = "main_profiling_target",
+        .target = target,
+        .optimize = optimize,
+    });
+
+    main_executable.linkLibC();
+    main_executable.linkLibrary(static_lib);
+    const model_opts_mod = b.createModule(.{
+        .root_source_file = b.path(model_options_path),
+    });
+    model_opts_mod.addImport("zant", zant_mod);
+    model_opts_mod.addImport("codegen", codeGen_mod);
+    main_executable.root_module.addImport("model_opts", model_opts_mod);
+    const install_main_exe_step = b.addInstallArtifact(main_executable, .{}); // Installa l'eseguibile
+
+    const build_main_step = b.step("build-main", "Build the main executable for profiling");
+    build_main_step.dependOn(&install_main_exe_step.step);
 }
