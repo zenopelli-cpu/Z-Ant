@@ -525,3 +525,37 @@ pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Pa
 
     return parsed_user_tests;
 }
+
+/// Parses a raw byte slice (expected to be little-endian) into an allocated slice of i64.
+pub fn parseI64RawData(raw_data: []const u8) ![]i64 {
+    const element_size = @sizeOf(i64);
+    if (raw_data.len % element_size != 0) {
+        std.debug.print("ERROR: Raw data length ({}) is not a multiple of i64 size ({})\n", .{ raw_data.len, element_size });
+        return error.InvalidRawDataSize;
+    }
+
+    const num_elements = raw_data.len / element_size;
+    if (num_elements == 0) {
+        // Return an empty slice if raw_data is empty (and length is valid multiple of 0)
+        return try allocator.alloc(i64, 0);
+    }
+
+    // Allocate the result slice.
+    const result = try allocator.alloc(i64, num_elements);
+    errdefer allocator.free(result);
+
+    // Fallback: Use pointer casting to interpret raw bytes as i64 (assumes alignment and little-endian)
+    // Ensure alignment (optional, might panic on some archs if unaligned)
+    // if (@alignOf(i64) > @alignOf(u8) and @ptrToInt(raw_data.ptr) % @alignOf(i64) != 0) {
+    //     std.debug.print("ERROR: Raw data pointer is not aligned for i64 read.\n", .{});
+    //     return error.UnalignedRawData;
+    // }
+
+    // Cast the byte slice pointer to an i64 slice pointer
+    const i64_ptr: [*]const i64 = @ptrCast(@alignCast(raw_data.ptr));
+
+    // Copy the data from the cast pointer into the result slice
+    @memcpy(result, i64_ptr[0..num_elements]);
+
+    return result;
+}
