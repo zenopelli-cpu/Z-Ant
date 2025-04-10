@@ -13,7 +13,9 @@ pub const reshape = op_reshape.reshape;
 pub const reshape_lean = op_reshape.reshape_lean;
 pub const reshape_lean_f32 = op_reshape.reshape_lean_f32;
 pub const reshape_lean_common = op_reshape.reshape_lean_common;
+pub const get_reshape_output_shape = op_reshape.get_reshape_output_shape;
 //---gather
+
 const op_gather = @import("lib_shape_math/op_gather.zig");
 
 pub const gather = op_gather.gather;
