@@ -106,6 +106,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Identity")) {
         //https://onnx.ai/onnx/operators/onnx__Identity.html
         try compute_identity_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mean")) {
+        // https://onnx.ai/onnx/operators/onnx__Mean.html
+        try compute_mean_output_shape(readyNode);
     } else {
         std.debug.print("\n\n ERROR! output shape computation for {s} is not available in codeGen_math_handler.compute_output_shape() \n\n", .{readyNode.nodeProto.op_type});
         return error.OperationNotSupported;
@@ -1300,4 +1303,25 @@ inline fn compute_pads_output_shape(readyNode: *ReadyNode) !void {
     // Convert result back to i64
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape_usize);
     std.debug.print("\n final output_shape: {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_mean_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_mean_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+
+    if (readyNode.inputs.items.len == 0) {
+        return error.EmptyInputList;
+    }
+
+    var input_shapes = try allocator.alloc([]usize, readyNode.inputs.items.len);
+    defer allocator.free(input_shapes);
+    for (readyNode.inputs.items, 0..) |input, i| {
+        std.debug.print("\n input_{}_shape: []i64 = {any}", .{ i, input.shape });
+        input_shapes[i] = try utils.i64SliceToUsizeSlice(input.shape);
+    }
+
+    const output_shape_usize = try tensorMath.get_mean_output_shape(input_shapes);
+    const output_shape_i64 = try utils.usizeSliceToI64Slice(@constCast(output_shape_usize));
+
+    readyNode.outputs.items[0].shape = output_shape_i64;
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
