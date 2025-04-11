@@ -19,3 +19,4 @@ Mul
 Split
 Unsqueeze
 Pad
+Mean

@@ -1315,8 +1315,8 @@ inline fn compute_mean_output_shape(readyNode: *ReadyNode) !void {
     var input_shapes = try allocator.alloc([]usize, readyNode.inputs.items.len);
     defer allocator.free(input_shapes);
     for (readyNode.inputs.items, 0..) |input, i| {
-        std.debug.print("\n input_{}_shape: []i64 = {any}", .{ i, input.shape });
-        input_shapes[i] = try utils.i64SliceToUsizeSlice(input.shape);
+        std.debug.print("\n input_{}_shape: []i64 = {any}", .{ i, input.?.shape });
+        input_shapes[i] = try utils.i64SliceToUsizeSlice(input.?.shape);
     }
 
     const output_shape_usize = try tensorMath.get_mean_output_shape(input_shapes);

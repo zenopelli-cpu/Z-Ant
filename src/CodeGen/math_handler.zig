@@ -2240,16 +2240,16 @@ inline fn write_mean(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     for (node.inputs.items) |input| {
         var input_str: []u8 = undefined;
-        if (input.tag == globals.TensorTag.INITIALIZER) {
+        if (input.?.tag == globals.TensorTag.INITIALIZER) {
             input_str = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
-                try utils.getSanitizedName(input.name),
+                try utils.getSanitizedName(input.?.name),
                 ")",
             });
         } else {
             input_str = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "&tensor_",
-                try utils.getSanitizedName(input.name),
+                try utils.getSanitizedName(input.?.name),
             });
         }
         try input_strings.append(input_str);
