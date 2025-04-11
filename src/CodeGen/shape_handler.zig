@@ -71,6 +71,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "OneHot")) {
         // TODO
         return error.OperationWIP;
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Pad")) {
+        //https://onnx.ai/onnx/operators/onnx__Pad.html
+        try compute_pads_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "ReduceMean")) {
         try compute_reducemean_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Relu")) {
@@ -229,99 +232,138 @@ inline fn compute_ReLU_output_shape(readyNode: *ReadyNode) !void {
 }
 
 inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
-    // std.debug.print("\n====== compute_reshape_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
-    // std.debug.print("\n input_shape: []i64 = {any}", .{readyNode.inputs.items[0].?.shape});
+    std.debug.print("\n====== compute_reshape_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_rt: *globals.ReadyTensor = readyNode.inputs.items[0].?;
+    const input_shape_i64 = input_rt.shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape_i64});
 
-    var new_shape: []i64 = undefined;
-    var shape_source_is_attribute = false;
-    var new_shape_allocated_by_dupe = false; // Flag to track allocation
+    var new_shape_spec: []const isize = undefined; // Use []const isize as required by get_reshape_output_shape
+    var shape_spec_found: bool = false;
+    var shape_input_needs_free = false; // Flag to track if we allocated new_shape_spec
+    var allow_zero: bool = false;
 
-    // Try to get shape from attribute first
+    // 1. Get allowzero attribute (default 0 -> false)
     for (readyNode.nodeProto.attribute) |attr| {
-        if (std.mem.eql(u8, attr.name, "shape")) {
-            if (attr.type == AttributeType.INTS) {
-                new_shape = try allocator.dupe(i64, attr.ints);
-                shape_source_is_attribute = true;
-                new_shape_allocated_by_dupe = true; // Mark as allocated
-                std.debug.print("\n new shape from attribute: []i64 = {any}", .{new_shape});
-                break;
-            } else {
-                std.debug.print("ERROR: Reshape 'shape' attribute has unexpected type {}", .{attr.type});
-                return error.InvalidAttributeType;
+        if (std.mem.eql(u8, attr.name, "allowzero")) {
+            if (attr.type == AttributeType.INT and attr.i != 0) {
+                allow_zero = true;
             }
+            break; // Found allowzero, no need to check other attributes for this
         }
     }
+    std.debug.print("\n allowzero: {}", .{allow_zero});
 
-    // If not found in attribute, try getting shape from the second input
-    if (!shape_source_is_attribute) {
-        if (readyNode.inputs.items.len < 2) {
-            std.debug.print("ERROR: Reshape requires a 'shape' attribute or a second input for the shape, but neither was found.", .{});
-            return error.ShapeNotFound; // Or a more specific error
-        }
-
+    // 2. Get the target shape spec (new_shape_spec)
+    // Try getting shape from the second input tensor first
+    if (readyNode.inputs.items.len > 1) {
         const shape_input = readyNode.inputs.items[1].?;
-        if (shape_input.tensorProto != null and
-            shape_input.tensorProto.?.int64_data != null)
-        {
-            new_shape = try allocator.dupe(i64, shape_input.tensorProto.?.int64_data.?);
-            new_shape_allocated_by_dupe = true; // Mark as allocated
-            std.debug.print("\n new shape from input tensorProto: []i64 = {any}", .{new_shape});
-        } else {
-            // Assuming the shape is directly available in the input's shape field if tensorProto is missing
-            // This might need adjustment based on how ONNX initializers/constants are handled
-            if (shape_input.shape.len == 0) {
-                std.debug.print("ERROR: Reshape shape input has no tensorProto and an empty shape.", .{});
-                return error.ShapeNotFound;
+        if (shape_input.tensorProto != null and shape_input.tensorProto.?.int64_data != null) {
+            // Shape is in the tensorProto data (preferred)
+            new_shape_spec = shape_input.tensorProto.?.int64_data.?;
+            shape_spec_found = true;
+            std.debug.print("\n new shape spec from input tensorProto: []i64 = {any}", .{new_shape_spec});
+        } else if (shape_input.tensorProto != null and shape_input.tensorProto.?.int64_data == null) {
+            const proto = shape_input.tensorProto.?;
+            // Check data type - Reshape requires INT64 shape
+            if (proto.data_type != .INT64) {
+                std.debug.print("ERROR: Reshape shape input tensorProto has incorrect data type: {any}. Expected INT64.", .{proto.data_type});
+                return error.InvalidShapeDataType;
             }
-            new_shape = try allocator.dupe(i64, shape_input.shape);
-            new_shape_allocated_by_dupe = true; // Mark as allocated
-            std.debug.print("\n new shape from input shape: []i64 = {any}", .{new_shape});
-        }
-    }
 
-    errdefer if (new_shape_allocated_by_dupe) allocator.free(new_shape); // Use flag in errdefer
-
-    // Calculate total elements in input shape
-    var total_elements: i64 = 1;
-    for (readyNode.inputs.items[0].?.shape) |dim| {
-        total_elements *= dim;
-    }
-
-    // Calculate total elements in new shape (excluding -1)
-    var new_total: i64 = 1;
-    var minus_one_index: ?usize = null;
-    for (new_shape, 0..) |dim, i| {
-        if (dim == -1) {
-            if (minus_one_index != null) {
-                allocator.free(new_shape);
-                return error.MultipleMinusOneInReshape;
+            // Try reading from raw_data if int64_data is null
+            if (proto.raw_data) |raw| {
+                std.debug.print("\n Shape input tensorProto has raw_data ({} bytes), attempting to parse as i64...", .{raw.len});
+                // Call a new utility function to parse raw_data
+                const parsed_shape = utils.parseI64RawData(raw) catch |err| {
+                    std.debug.print("\n ERROR: Failed to parse raw_data for shape tensor: {any}", .{err});
+                    return error.RawDataParseFailed; // Or specific error from parsing
+                };
+                // Important: parsed_shape is allocated by the util func and needs freeing later.
+                // Convert []i64 to []const isize for new_shape_spec
+                var temp_shape_spec = try allocator.alloc(isize, parsed_shape.len);
+                for (parsed_shape, 0..) |dim, i| {
+                    temp_shape_spec[i] = dim;
+                }
+                new_shape_spec = temp_shape_spec; // Assign the parsed shape
+                shape_spec_found = true;
+                shape_input_needs_free = true; // Mark that we allocated this spec
+                std.debug.print("\n new shape spec parsed from raw_data: []isize = {any}", .{new_shape_spec});
+                // We also need to free the intermediate parsed_shape ([]i64)
+                defer allocator.free(parsed_shape);
+            } else {
+                // Data type is INT64, but int64_data is null and raw_data is null/empty.
+                std.debug.print("ERROR: Reshape shape input tensorProto is INT64 but contains no int64_data or raw_data.", .{});
+                return error.ShapeDataMissing;
             }
-            minus_one_index = i;
         } else {
-            new_total *= dim;
+            // If tensorProto is null, this input doesn't directly provide the shape data.
+            // shape_spec_found remains false, attributes will be checked.
+            std.debug.print("\n Shape input tensorProto is null, will check attributes.", .{});
         }
+    } else {
+        // If no second input, try getting shape from the 'shape' attribute
+        // shape_spec_found remains false, attributes will be checked.
+        std.debug.print("\n No second input for shape, will check attributes.", .{});
     }
 
-    // If we have a -1, calculate its value
-    if (minus_one_index) |index| {
-        if (new_total == 0) {
-            allocator.free(new_shape);
-            return error.InvalidReshape;
+    // If new_shape_spec is still null after checking input, check attributes
+    if (!shape_spec_found) {
+        var shape_attr: ?[]const i64 = null;
+        for (readyNode.nodeProto.attribute) |attr| {
+            if (std.mem.eql(u8, attr.name, "shape")) {
+                if (attr.type == AttributeType.INTS) {
+                    shape_attr = attr.ints;
+                    break;
+                } else {
+                    std.debug.print("ERROR: Reshape 'shape' attribute has unexpected type {}", .{attr.type});
+                    return error.InvalidAttributeType;
+                }
+            }
         }
-        new_shape[index] = @divTrunc(total_elements, new_total);
-    } else if (new_total != total_elements) {
-        allocator.free(new_shape);
-        return error.InvalidReshape;
+
+        if (shape_attr) |sa| {
+            var temp_shape_spec = try allocator.alloc(isize, sa.len);
+            for (sa, 0..) |dim, i| {
+                temp_shape_spec[i] = dim;
+            }
+            new_shape_spec = temp_shape_spec;
+            shape_input_needs_free = true; // Mark that we allocated this
+            shape_spec_found = true;
+            std.debug.print("\n new shape spec from attribute: []isize = {any}", .{new_shape_spec});
+        } else {
+            std.debug.print("ERROR: Reshape requires a shape input (tensor or attribute), but none was found.", .{});
+            return error.ShapeNotFound;
+        }
+    } else {
+        // Ensure cleanup if we allocated the shape spec FROM THE INPUT PATH
+        // The defer covers the attribute path if allocation happens there.
+        // NOTE: This defer placement might be tricky. Consider simplifying allocation management.
+        defer if (shape_input_needs_free) allocator.free(new_shape_spec);
     }
 
-    // Allocate output shape and copy the new shape
-    const output_shape = try allocator.dupe(i64, new_shape);
-    if (new_shape_allocated_by_dupe) { // Free manually only if allocated by dupe here
-        allocator.free(new_shape); // Free the temporary shape
+    // If after all checks, shape_spec is still not found, something went wrong.
+    if (!shape_spec_found) {
+        std.debug.print("Critical Error: Shape spec was not found after checking inputs and attributes.", .{});
+        return error.ShapeNotFound;
     }
 
-    readyNode.outputs.items[0].shape = output_shape;
-    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+    // 3. Convert input shape to usize
+    const input_shape_usize = try utils.i64SliceToUsizeSlice(input_shape_i64);
+    defer allocator.free(input_shape_usize);
+    std.debug.print("\n input_shape_usize: []usize = {any}", .{input_shape_usize});
+
+    // 4. Call the new shape calculation function
+    const output_shape_usize = try tensorMath.get_reshape_output_shape(input_shape_usize, new_shape_spec, allow_zero);
+    defer allocator.free(output_shape_usize); // Free the result from get_reshape_output_shape
+    std.debug.print("\n calculated output_shape_usize: []usize = {any}", .{output_shape_usize});
+
+    // 5. Convert result back to i64
+    const output_shape_i64 = try utils.usizeSliceToI64Slice(output_shape_usize);
+    // NOTE: utils.usizeSliceToI64Slice allocates, so the caller (or ReadyNode deinit) should free it.
+
+    // 6. Assign the final shape
+    readyNode.outputs.items[0].shape = output_shape_i64;
+    std.debug.print("\n final output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
 inline fn compute_softmax_output_shape(readyNode: *ReadyNode) !void {
@@ -1196,4 +1238,66 @@ inline fn compute_Div_output_shape(readyNode: *ReadyNode) !void {
     }
     readyNode.outputs.items[0].shape = shape;
     // std.debug.print("\n Final output shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_pads_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_pads_output_shape node: {s}=====", .{readyNode.nodeProto.name.?});
+
+    // Input 0: data
+    if (readyNode.inputs.items[0] == null) return error.InputTensorNotFound;
+    const data_shape_i64 = readyNode.inputs.items[0].?.shape;
+    std.debug.print("\n data_shape: {any}", .{data_shape_i64});
+
+    // Input 1: pads (required, must be int64)
+    if (readyNode.inputs.items.len < 2 or readyNode.inputs.items[1] == null or readyNode.inputs.items[1].?.tensorProto == null or readyNode.inputs.items[1].?.tensorProto.?.int64_data == null) {
+        std.debug.print("\nERROR: Pads input (index 1) is missing or not a constant int64 tensor.", .{});
+        return error.PadsInputInvalid;
+    }
+    const pads_values_i64 = readyNode.inputs.items[1].?.tensorProto.?.int64_data.?;
+    std.debug.print("\n pads_values: {any}", .{pads_values_i64});
+
+    // Input 2: constant_value (optional, shape not needed for output shape calculation)
+
+    // Input 3: axes (optional, must be int64 or int32)
+    var axes_values_isize: ?[]const isize = null;
+    var axes_buffer: []isize = undefined; // Buffer for conversion
+    defer if (axes_values_isize != null) allocator.free(axes_buffer);
+
+    if (readyNode.inputs.items.len > 3 and readyNode.inputs.items[3] != null and readyNode.inputs.items[3].?.tensorProto != null) {
+        const axes_proto = readyNode.inputs.items[3].?.tensorProto.?;
+        if (axes_proto.int64_data != null) {
+            const axes_i64 = axes_proto.int64_data.?;
+            axes_buffer = try allocator.alloc(isize, axes_i64.len);
+            for (axes_i64, 0..) |val, i| {
+                axes_buffer[i] = @intCast(val);
+            }
+            axes_values_isize = axes_buffer;
+            std.debug.print("\n axes (from i64): {any}", .{axes_values_isize});
+        } else if (axes_proto.int32_data != null) {
+            const axes_i32 = axes_proto.int32_data.?;
+            axes_buffer = try allocator.alloc(isize, axes_i32.len);
+            for (axes_i32, 0..) |val, i| {
+                axes_buffer[i] = @intCast(val);
+            }
+            axes_values_isize = axes_buffer;
+            std.debug.print("\n axes (from i32): {any}", .{axes_values_isize});
+        } else {
+            std.debug.print("\nWARNING: Axes input (index 3) provided but is not int64 or int32 data.", .{});
+            // Proceed without axes if the type is wrong
+        }
+    } else {
+        std.debug.print("\n axes: not provided", .{});
+    }
+
+    // Convert data shape to usize
+    const data_shape_usize = try utils.i64SliceToUsizeSlice(data_shape_i64);
+    defer allocator.free(data_shape_usize);
+
+    // Call the shape calculation function
+    const output_shape_usize = try tensorMath.get_pads_output_shape(allocator, data_shape_usize, pads_values_i64, axes_values_isize);
+    defer allocator.free(output_shape_usize);
+
+    // Convert result back to i64
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape_usize);
+    std.debug.print("\n final output_shape: {any}", .{readyNode.outputs.items[0].shape});
 }

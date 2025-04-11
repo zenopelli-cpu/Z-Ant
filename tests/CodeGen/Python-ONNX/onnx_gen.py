@@ -232,17 +232,47 @@ def generate_fuzz_model(op_name):
         init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
         initializers.append(init_tensor)
         rank = len(shape)
+        
+        # Generate pads tensor
         pads = [random.randint(0,2) for _ in range(2*rank)]
         out_shape = [shape[i] + pads[i] + pads[i+rank] for i in range(rank)]
         pads_tensor = helper.make_tensor(input_names[1], TensorProto.INT64, [len(pads)], pads)
         initializers.append(pads_tensor)
-        constant_value = 0.0
-        constant_tensor = helper.make_tensor(input_names[2], TensorProto.FLOAT, [], [constant_value])
-        initializers.append(constant_tensor)
+        
+        # Choose a mode
+        mode = random.choice(["constant", "reflect", "edge"])
+        node_inputs = [input_names[0], input_names[1]]
+        constant_value = None # Initialize to None
+
+        if mode == "constant":
+            constant_value = round(random.uniform(-1.0, 1.0), 2) # Random constant value
+            constant_tensor = helper.make_tensor(input_names[2], TensorProto.FLOAT, [], [constant_value])
+            initializers.append(constant_tensor)
+            node_inputs.append(input_names[2]) # Add constant_value input only for 'constant' mode
+        
+        # Create the Pad node with mode as attribute
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
-        node = helper.make_node(op_name, inputs=[input_names[0], input_names[1], input_names[2]], outputs=[output_names[0]],
-                                name=f"{op_name}_node")
-        metadata = {"input_shapes": [shape], "output_shapes": [out_shape], "pads": pads, "constant_value": constant_value}
+        node = helper.make_node(
+            op_name, 
+            inputs=node_inputs, 
+            outputs=[output_names[0]],
+            mode=mode, # Pass mode as an attribute
+            name=f"{op_name}_node_mode_{mode}"
+        )
+        
+        # Define input_info before using it
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+
+        metadata = {
+            "input_shapes": [shape], 
+            "output_shapes": [out_shape], 
+            "pads": pads, 
+            "mode": mode
+        }
+        # Only add constant_value to metadata if it was used
+        if constant_value is not None:
+            metadata["constant_value"] = constant_value
+            
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "Reshape":
