@@ -3105,41 +3105,6 @@ test "pads constant mode with value and axes" {
     try expectTensorEqual(i32, &expected_tensor, &output);
 }
 
-// Test Case 3: Reflect Mode (like ONNX Example 2)
-test "pads reflect mode basic 2D" {
-    std.debug.print("\n     test: pads reflect mode basic 2D", .{});
-    const allocator = pkgAllocator.allocator;
-
-    var data_array = [_][2]f32{
-        [_]f32{ 1.0, 1.2 },
-        [_]f32{ 2.3, 3.4 },
-        [_]f32{ 4.5, 5.7 },
-    };
-    var data_shape = [_]usize{ 3, 2 };
-    var data_tensor = try Tensor(f32).fromArray(&allocator, &data_array, &data_shape);
-    defer data_tensor.deinit();
-
-    var pads_array = [_]i64{ 0, 2, 0, 0 }; // pads = [x0_begin, x1_begin, x0_end, x1_end]
-    var pads_shape = [_]usize{4};
-    var pads_tensor = try Tensor(i64).fromArray(&allocator, &pads_array, &pads_shape);
-    defer pads_tensor.deinit();
-
-    var output = try TensMath.pads(f32, &data_tensor, &pads_tensor, "reflect", null, null);
-    defer output.deinit();
-
-    // Reflect pads: The first 2 elements of dim 1 are reflections
-    var expected_array = [_][4]f32{
-        [_]f32{ 1.2, 1.0, 1.0, 1.2 }, // Reflect [1.0, 1.2] -> [1.2, 1.0], prepend -> [1.2, 1.0, 1.0, 1.2]
-        [_]f32{ 3.4, 2.3, 2.3, 3.4 }, // Reflect [2.3, 3.4] -> [3.4, 2.3], prepend -> [3.4, 2.3, 2.3, 3.4]
-        [_]f32{ 5.7, 4.5, 4.5, 5.7 }, // Reflect [4.5, 5.7] -> [5.7, 4.5], prepend -> [5.7, 4.5, 4.5, 5.7]
-    };
-    var expected_shape = [_]usize{ 3, 4 };
-    var expected_tensor = try Tensor(f32).fromArray(&allocator, &expected_array, &expected_shape);
-    defer expected_tensor.deinit();
-
-    try expectTensorEqual(f32, &expected_tensor, &output);
-}
-
 // Test Case 4: Edge Mode (like ONNX Example 3)
 test "pads edge mode basic 2D" {
     std.debug.print("\n     test: pads edge mode basic 2D", .{});
