@@ -13,4 +13,5 @@ test {
     _ = @import("test_op_gemm.zig");
     _ = @import("test_op_pooling.zig");
     _ = @import("test_op_convolution.zig");
+    _ = @import("test_op_mean.zig");
 }

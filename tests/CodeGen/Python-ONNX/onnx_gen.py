@@ -648,6 +648,50 @@ def generate_fuzz_model(op_name):
             "auto_pad": "NOTSET"
         }
         return [input_info], output_info, [node], initializers, metadata
+    
+    elif op_name == "Mean":
+        num_inputs = random.randint(1, 5)
+        
+        max_dims = 3 
+        shapes = []
+        for _ in range(num_inputs):
+            shape = [random.randint(1, 4) for _ in range(max_dims)]
+            
+            # Randomly set some dimensions to 1 for broadcasting
+            for i in range(max_dims):
+                if random.random() < 0.3:
+                    shape[i] = 1
+            shapes.append(shape)
+        
+        # calculate output shape
+        output_shape = []
+        for dim in range(max_dims):
+            output_shape.append(max(shape[dim] for shape in shapes))
+        
+        # data generation for each input tensor
+        input_tensors = []
+        for i, shape in enumerate(shapes):
+            data = np.random.randn(*shape).astype(np.float32)
+            tensor_name = input_names[i]
+            init_tensor = helper.make_tensor(tensor_name, TensorProto.FLOAT, shape, data.flatten().tolist())
+            input_tensors.append(init_tensor)
+            initializers.append(init_tensor)
+        
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, output_shape)
+        node = helper.make_node(
+            op_name,
+            inputs=[input_names[i] for i in range(num_inputs)],
+            outputs=[output_names[0]],
+            name=f"{op_name}_node_{num_inputs}_inputs"
+        )
+        
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shapes[0])
+        metadata = {
+            "input_shapes": shapes,
+            "output_shapes": [output_shape]
+        }
+        
+        return [input_info], output_info, [node], initializers, metadata
 
     else:
         # Caso di fallback per operatori non gestiti esplicitamente
