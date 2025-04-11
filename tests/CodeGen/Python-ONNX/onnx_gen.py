@@ -693,6 +693,46 @@ def generate_fuzz_model(op_name):
         
         return [input_info], output_info, [node], initializers, metadata
 
+    elif op_name == "Clip":
+        # Clip operator: clips values between min and max
+        shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
+        data = np.random.randn(*shape).astype(np.float32) * 10 # Scale data to have values outside typical clip range
+        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
+        initializers.append(init_tensor)
+
+        node_inputs = [input_names[0]]
+        min_val = None
+        max_val = None
+        clip_metadata = {}
+
+        # Randomly include min value
+        if random.choice([True, False]):
+            min_val = round(random.uniform(-5.0, 0.0), 2)
+            min_tensor = helper.make_tensor(input_names[1], TensorProto.FLOAT, [], [min_val])
+            initializers.append(min_tensor)
+            node_inputs.append(input_names[1])
+            clip_metadata["min_value"] = min_val
+            
+        # Randomly include max value
+        if random.choice([True, False]):
+            # Ensure max_val is greater than min_val if min_val exists
+            lower_bound_for_max = min_val if min_val is not None else 0.1
+            max_val = round(random.uniform(lower_bound_for_max, 5.0), 2) 
+            max_tensor_input_index = len(node_inputs) # Determine correct input index for max
+            max_tensor = helper.make_tensor(input_names[max_tensor_input_index], TensorProto.FLOAT, [], [max_val])
+            initializers.append(max_tensor)
+            node_inputs.append(input_names[max_tensor_input_index])
+            clip_metadata["max_value"] = max_val
+            
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, shape)
+        node = helper.make_node(op_name, inputs=node_inputs, outputs=[output_names[0]], 
+                                name=f"{op_name}_node")
+
+        # Define input_info before using it
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+        metadata = {"input_shapes": [shape], "output_shapes": [shape], **clip_metadata} # Merge clip specific metadata
+        return [input_info], output_info, [node], initializers, metadata
+
     else:
         # Caso di fallback per operatori non gestiti esplicitamente
         shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
@@ -812,7 +852,8 @@ def load_supported_ops(filename="tests/CodeGen/Python-ONNX/available_operations.
         return [
             "LeakyRelu", "Relu", "Sigmoid", "Softmax", "Add", "Ceil", "Div", "Mul", "Sub", "Tanh",
             "Concat", "Gather", "Identity", "Neg", "Reshape", "Resize", "Slice", 
-            "Split", "Transpose", "Unsqueeze", "ReduceMean", "Conv", "MatMul", "Gemm", "MaxPool"
+            "Split", "Transpose", "Unsqueeze", "ReduceMean", "Conv", "MatMul", "Gemm", "MaxPool",
+            "Clip"
             # "Shape" removed from the list
         ]
 

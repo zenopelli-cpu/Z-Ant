@@ -659,12 +659,38 @@ pub fn convolve_tensor_with_bias_memory_efficient(
 }
 
 pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []const usize, stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, auto_pad: ?[]const u8) ![4]usize {
-    if (input_shape.len != 4 or kernel_shape.len != 4) {
+    std.debug.print("\n =================================================", .{});
+    std.debug.print("\n[DEBUG] get_convolution_output_shape - input_shape: {any}", .{input_shape});
+    std.debug.print("\n[DEBUG] get_convolution_output_shape - kernel_shape: {any}", .{kernel_shape});
+    std.debug.print("\n[DEBUG] get_convolution_output_shape - stride: {any}", .{stride});
+    std.debug.print("\n[DEBUG] get_convolution_output_shape - pads: {any}", .{pads});
+    std.debug.print("\n[DEBUG] get_convolution_output_shape - dilations: {any}", .{dilations});
+    std.debug.print("\n[DEBUG] get_convolution_output_shape - auto_pad: {any}", .{auto_pad});
+
+    // --- Handle 3D input shape by assuming batch size = 1 ---
+    var actual_input_shape: [4]usize = undefined;
+    if (input_shape.len == 3) {
+        // Assume batch size is 1 if input is 3D (C, H, W)
+        actual_input_shape[0] = 1;
+        actual_input_shape[1] = input_shape[0]; // Channels
+        actual_input_shape[2] = input_shape[1]; // Height
+        actual_input_shape[3] = input_shape[2]; // Width
+        std.debug.print("\n[DEBUG] get_convolution_output_shape - Adjusted 3D input shape to 4D: {any}", .{actual_input_shape});
+    } else if (input_shape.len == 4) {
+        @memcpy(&actual_input_shape, input_shape[0..4]);
+    } else {
+        std.debug.print("\n[ERROR] get_convolution_output_shape - Invalid input dimensions: {}", .{input_shape.len});
+        return TensorMathError.InvalidDimensions;
+    }
+    // --- End Shape Adjustment ---
+
+    if (kernel_shape.len != 4) {
+        std.debug.print("\n[ERROR] get_convolution_output_shape - Invalid kernel dimensions: {}", .{kernel_shape.len});
         return TensorMathError.InvalidDimensions;
     }
 
-    const in_height = input_shape[2];
-    const in_width = input_shape[3];
+    const in_height = actual_input_shape[2];
+    const in_width = actual_input_shape[3];
     const out_channels = kernel_shape[0];
     const kernel_height = kernel_shape[2];
     const kernel_width = kernel_shape[3];
@@ -751,10 +777,12 @@ pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []
     }
 
     if (expected_out_height <= 0 or expected_out_width <= 0) {
+        std.debug.print("\n[ERROR] get_convolution_output_shape - Calculated output dimensions are non-positive: H={}, W={}", .{ expected_out_height, expected_out_width });
         return TensorMathError.InvalidDimensions;
     }
 
-    return [4]usize{ input_shape[0], out_channels, expected_out_height, expected_out_width };
+    // Use the batch size from the (potentially adjusted) input shape
+    return [4]usize{ actual_input_shape[0], out_channels, expected_out_height, expected_out_width };
 }
 
 // --------------------------------------------------

@@ -58,6 +58,7 @@ pub const TensorMathError = error{
     UnsupportedMode,
     InvalidPaddingSize,
     UnexpectedError,
+    InputTensorNotScalar,
 };
 
 /// Tensor errors

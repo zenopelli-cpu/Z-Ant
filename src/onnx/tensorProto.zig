@@ -45,24 +45,52 @@ pub const TensorProto = struct {
 
     pub fn deinit(self: *TensorProto, allocator: std.mem.Allocator) void {
         allocator.free(self.dims);
-        if (self.raw_data) |data| {
-            allocator.free(data);
-            self.raw_data = null;
-        } else {
-            if (self.float_data) |data| allocator.free(data);
-            if (self.int32_data) |data| allocator.free(data);
-            if (self.int64_data) |data| allocator.free(data);
-            if (self.double_data) |data| allocator.free(data);
-            if (self.uint64_data) |data| allocator.free(data);
-        }
+        if (self.name) |n| allocator.free(n);
+        if (self.doc_string) |doc_string| allocator.free(doc_string);
+
+        // Free allocated pointer fields if they exist
+        if (self.float_data) |data| allocator.free(data);
+        if (self.int32_data) |data| allocator.free(data);
+        if (self.int64_data) |data| allocator.free(data);
+        if (self.double_data) |data| allocator.free(data);
+        if (self.uint64_data) |data| allocator.free(data);
+
+        // Free string_data
         if (self.string_data) |data| {
             for (data) |str| allocator.free(str);
             allocator.free(data);
         }
-        if (self.name) |n| allocator.free(n);
-        if (self.doc_string) |doc_string| allocator.free(doc_string);
+
+        // Free pointer slices
+        for (self.external_data) |ed| {
+            ed.deinit(allocator);
+            allocator.destroy(ed);
+        }
         allocator.free(self.external_data);
+
+        for (self.metadata_props) |mp| {
+            mp.deinit(allocator);
+            allocator.destroy(mp);
+        }
         allocator.free(self.metadata_props);
+
+        // Free raw_data if it wasn't converted and freed already
+        if (self.raw_data) |data| allocator.free(data);
+
+        // Null out pointers (good practice)
+        self.float_data = null;
+        self.int32_data = null;
+        self.int64_data = null;
+        self.double_data = null;
+        self.uint64_data = null;
+        self.string_data = null;
+        self.segment = null;
+        self.name = null;
+        self.doc_string = null;
+        self.external_data = &.{};
+        self.metadata_props = &.{};
+        self.external_data = &.{}; // Use empty slice literal
+        self.metadata_props = &.{}; // Use empty slice literal
     }
 
     pub fn parse(reader: *protobuf.ProtoReader) !TensorProto {
@@ -218,7 +246,7 @@ pub const TensorProto = struct {
         }
 
         //from Raw data to Data Type
-        if (tensor.raw_data != null) try tensor.fromRawDataToDataType();
+        if (tensor.raw_data) |_| try tensor.fromRawDataToDataType(reader.allocator);
 
         tensor.dims = try dims.toOwnedSlice();
         tensor.external_data = try externalDataList.toOwnedSlice();
@@ -330,33 +358,73 @@ pub const TensorProto = struct {
         }
     }
 
-    inline fn fromRawDataToDataType(self: *TensorProto) !void {
-        // const data = self.raw_data.?;
-        const data = self.raw_data.?;
-        switch (self.data_type) {
+    inline fn fromRawDataToDataType(self: *TensorProto, allocator: std.mem.Allocator) !void {
+        if (self.raw_data == null) return; // Nothing to do if raw_data is null
+
+        const raw_data_slice = self.raw_data.?; // Keep the original optional pointer
+        const data_type = self.data_type;
+        var free_raw_data = true; // Flag to control freeing
+
+        // Defer freeing only if the flag is set and the pointer hasn't been nulled
+        // Note: The original self.raw_data points to the memory we might free.
+        // It's crucial that self.raw_data isn't used after this function if conversion fails.
+        // Consider documenting this behavior or returning an error for unsupported types.
+        const original_raw_data_ptr = self.raw_data;
+        defer if (free_raw_data and original_raw_data_ptr != null) allocator.free(original_raw_data_ptr.?);
+
+        switch (data_type) {
             .FLOAT => {
-                const values = @as([*]const f32, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 4)];
-                self.float_data = @constCast(values);
+                const num_elements = @divExact(raw_data_slice.len, @sizeOf(f32));
+                const typed_data = try allocator.alignedAlloc(f32, @alignOf(f32), num_elements);
+                errdefer allocator.free(typed_data);
+                const dest_bytes = std.mem.sliceAsBytes(typed_data);
+                @memcpy(dest_bytes, raw_data_slice);
+                self.float_data = typed_data;
             },
             .INT32 => {
-                const values = @as([*]const i32, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 4)];
-                self.int32_data = @constCast(values);
+                const num_elements = @divExact(raw_data_slice.len, @sizeOf(i32));
+                const typed_data = try allocator.alignedAlloc(i32, @alignOf(i32), num_elements);
+                errdefer allocator.free(typed_data);
+                const dest_bytes = std.mem.sliceAsBytes(typed_data);
+                @memcpy(dest_bytes, raw_data_slice);
+                self.int32_data = typed_data;
             },
             .INT64 => {
-                const values = @as([*]const i64, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 8)];
-                self.int64_data = @constCast(values);
+                const num_elements = @divExact(raw_data_slice.len, @sizeOf(i64));
+                const typed_data = try allocator.alignedAlloc(i64, @alignOf(i64), num_elements);
+                errdefer allocator.free(typed_data);
+                const dest_bytes = std.mem.sliceAsBytes(typed_data);
+                @memcpy(dest_bytes, raw_data_slice);
+                self.int64_data = typed_data;
             },
             .DOUBLE => {
-                const values = @as([*]const f64, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 8)];
-                self.double_data = @constCast(values);
+                const num_elements = @divExact(raw_data_slice.len, @sizeOf(f64));
+                const typed_data = try allocator.alignedAlloc(f64, @alignOf(f64), num_elements);
+                errdefer allocator.free(typed_data);
+                const dest_bytes = std.mem.sliceAsBytes(typed_data);
+                @memcpy(dest_bytes, raw_data_slice);
+                self.double_data = typed_data;
             },
             .UINT64 => {
-                const values = @as([*]const u64, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 8)];
-                self.uint64_data = @constCast(values);
+                const num_elements = @divExact(raw_data_slice.len, @sizeOf(u64));
+                const typed_data = try allocator.alignedAlloc(u64, @alignOf(u64), num_elements);
+                errdefer allocator.free(typed_data);
+                const dest_bytes = std.mem.sliceAsBytes(typed_data);
+                @memcpy(dest_bytes, raw_data_slice);
+                self.uint64_data = typed_data;
             },
             else => {
-                std.debug.print("\n Data type conversion not supported for {s} \n", .{@tagName(self.data_type)});
+                std.debug.print("\n Data type conversion not supported for {s}, keeping raw data \n", .{@tagName(data_type)});
+                // If conversion is not supported, we keep the raw_data.
+                // We need to prevent the deferred free.
+                free_raw_data = false;
+                // self.raw_data remains unchanged.
+                return; // Exit
             },
         }
+
+        // If conversion succeeded, null out raw_data pointer.
+        // The deferred free will handle the original raw_data_slice memory because free_raw_data is still true.
+        self.raw_data = null;
     }
 };

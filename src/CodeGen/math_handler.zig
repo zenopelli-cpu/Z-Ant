@@ -51,6 +51,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try writer.writeAll("// Handle BatchNormalization\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Ceil")) {
         try write_ceil(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Clip")) {
+        try write_clip(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Concat")) {
         try write_concat(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Constant")) {
@@ -2319,7 +2321,7 @@ inline fn write_pads(writer: std.fs.File.Writer, node: *ReadyNode) !void {
 
     // Input 0: data
     const data_name = try utils.getSanitizedName(node.inputs.items[0].?.name);
-    const data_tensor_string = try std.fmt.allocPrint(allocator, "{s}tensor_{s}{s}", .{ if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) "@constCast(&param_lib." else "&", data_name, ")" });
+    const data_tensor_string = try std.fmt.allocPrint(allocator, "{s}tensor_{s}{s}", .{ if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) "@constCast(&param_lib." else "&", data_name, if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) ")" else "" });
     defer allocator.free(data_tensor_string);
 
     // Input 1: pads (must be int64 constant)
@@ -2401,6 +2403,75 @@ inline fn write_pads(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         pad_mode_enum,
         constant_value_str,
         axes_var_name_arg, // Use the correct variable name or "null"
+        output_name,
+    });
+}
+
+inline fn write_clip(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Clip.html
+    // INPUTS:
+    //      - input (heterogeneous) - T: Input tensor whose elements to be clipped.
+    //      - min (optional, heterogeneous) - T: Minimum value, must be a scalar.
+    //      - max (optional, heterogeneous) - T: Maximum value, must be a scalar.
+    // OUTPUTS:
+    //      - output (heterogeneous) - T: Output tensor with clipped values.
+
+    // Get sanitized names
+    const input_name = try utils.getSanitizedName(node.inputs.items[0].?.name);
+    const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
+
+    // Create input tensor string
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", input_name, ")" });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", input_name });
+    }
+
+    // Create optional min tensor string
+    var min_tensor_string: []const u8 = "null";
+    var min_alloc: ?[]u8 = null;
+    if (node.inputs.items.len > 1 and node.inputs.items[1] != null) {
+        const min_name = try utils.getSanitizedName(node.inputs.items[1].?.name);
+        if (node.inputs.items[1].?.tag == globals.TensorTag.INITIALIZER) {
+            min_alloc = try std.fmt.allocPrint(allocator, "@constCast(&param_lib.tensor_{s})", .{min_name});
+        } else {
+            min_alloc = try std.fmt.allocPrint(allocator, "&tensor_{s}", .{min_name});
+        }
+        min_tensor_string = min_alloc.?;
+    }
+    defer if (min_alloc != null) allocator.free(min_alloc.?);
+
+    // Create optional max tensor string
+    var max_tensor_string: []const u8 = "null";
+    var max_alloc: ?[]u8 = null;
+    if (node.inputs.items.len > 2 and node.inputs.items[2] != null) {
+        const max_name = try utils.getSanitizedName(node.inputs.items[2].?.name);
+        if (node.inputs.items[2].?.tag == globals.TensorTag.INITIALIZER) {
+            max_alloc = try std.fmt.allocPrint(allocator, "@constCast(&param_lib.tensor_{s})", .{max_name});
+        } else {
+            max_alloc = try std.fmt.allocPrint(allocator, "&tensor_{s}", .{max_name});
+        }
+        max_tensor_string = max_alloc.?;
+    }
+    defer if (max_alloc != null) allocator.free(max_alloc.?);
+
+    // Write the lean_clip function call
+    _ = try writer.print(
+        \\
+        \\
+        \\    tensMath.clip_lean(
+        \\        T, // type
+        \\        {s}, // input tensor
+        \\        {s}, // min tensor (optional)
+        \\        {s}, // max tensor (optional)
+        \\        &tensor_{s} // output tensor
+        \\    )
+    , .{
+        input_tensor_string,
+        min_tensor_string,
+        max_tensor_string,
         output_name,
     });
 }

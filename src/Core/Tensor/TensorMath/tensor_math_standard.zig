@@ -29,6 +29,12 @@ pub const pads_lean = op_pads.pads_lean;
 pub const get_pads_output_shape = op_pads.get_pads_output_shape;
 pub const PadMode = op_pads.PadMode;
 
+//--clip
+const op_clip = @import("lib_elementWise_math/op_clip.zig");
+
+pub const clip = op_clip.clip;
+pub const clip_lean = op_clip.lean_clip;
+
 //--unsqueeze
 const op_unsqueeze = @import("lib_shape_math/op_unsqueeze.zig");
 

@@ -33,6 +33,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Ceil")) {
         //https://onnx.ai/onnx/operators/onnx__Ceil.html
         try compute_ceil_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Clip")) {
+        //https://onnx.ai/onnx/operators/onnx__Clip.html
+        try compute_clip_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Concat")) {
         //https://onnx.ai/onnx/operators/onnx__Concat.html
         try compute_concat_output_shape(readyNode);
@@ -814,11 +817,12 @@ inline fn compute_sigmoid_output_shape(readyNode: *ReadyNode) !void {
 }
 
 inline fn compute_transpose_output_shape(readyNode: *ReadyNode) !void {
-    // std.debug.print("\n====== compute_transpose_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    std.debug.print("\n====== compute_transpose_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     const input_shape = readyNode.inputs.items[0].?.shape;
+    const input_rank = input_shape.len;
 
     // Get the perm attribute if it exists
-    var perm: ?[]i64 = null;
+    var perm: ?[]const i64 = null;
     for (readyNode.nodeProto.attribute) |attr| {
         if (std.mem.eql(u8, attr.name, "perm")) {
             if (attr.type == AttributeType.INTS) {
@@ -827,32 +831,87 @@ inline fn compute_transpose_output_shape(readyNode: *ReadyNode) !void {
         }
     }
 
-    // std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
-    // std.debug.print("\n perm: []i64 = {any}", .{perm});
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+    std.debug.print("\n perm: ?[]const i64 = {any}", .{perm});
 
-    // If no perm is provided, reverse the dimensions
-    var output_shape = try allocator.alloc(i64, input_shape.len);
     if (perm) |p| {
-        // Validate perm length
-        if (p.len != input_shape.len) {
-            return error.InvalidPermutation;
-        }
-        // Apply permutation
-        for (p, 0..) |axis, i| {
-            if (axis < 0 or axis >= @as(i64, @intCast(input_shape.len))) {
-                return error.InvalidPermutation;
+        const perm_len = p.len;
+        var output_shape: []i64 = undefined; // Define outside the branches
+
+        if (perm_len == input_rank + 1) {
+            // Handle perm length being one greater than input rank (implicit leading 1)
+            std.debug.print("\nINFO: Transpose perm length ({}) is one greater than input rank ({}). Assuming implicit leading dimension of 1.", .{ perm_len, input_rank });
+
+            // Allocate output shape with the new rank
+            output_shape = try allocator.alloc(i64, perm_len);
+            errdefer allocator.free(output_shape);
+
+            // Apply permutation assuming input shape is (1, input_shape...)
+            var axis_ok = true;
+            for (p, 0..) |old_axis_perm, new_axis_idx| {
+                // Check axis validity against the *new* rank (perm_len)
+                if (old_axis_perm < 0 or old_axis_perm >= @as(i64, @intCast(perm_len))) {
+                    axis_ok = false;
+                    std.debug.print("\nERROR: Invalid axis {} found in permutation {any} for effective rank {}", .{ old_axis_perm, p, perm_len });
+                    break;
+                }
+
+                if (old_axis_perm == 0) {
+                    // The implicit leading dimension
+                    output_shape[new_axis_idx] = 1;
+                } else {
+                    // Map back to original input shape index (old_axis_perm - 1)
+                    const original_input_axis = old_axis_perm - 1;
+                    // Check if the mapped index is valid for the *original* input_shape
+                    if (original_input_axis < 0 or original_input_axis >= @as(i64, @intCast(input_rank))) {
+                        axis_ok = false;
+                        std.debug.print("\nERROR: Permutation axis {} maps to invalid original input axis {} for input rank {}", .{ old_axis_perm, original_input_axis, input_rank });
+                        break;
+                    }
+                    output_shape[new_axis_idx] = input_shape[@intCast(original_input_axis)];
+                }
             }
-            output_shape[i] = input_shape[@intCast(axis)];
+
+            if (!axis_ok) return error.InvalidPermutation;
+        } else if (perm_len == input_rank) {
+            // Standard case: perm length matches input rank
+            output_shape = try allocator.alloc(i64, input_rank);
+            errdefer allocator.free(output_shape);
+
+            var axis_ok = true;
+            for (p, 0..) |old_axis_perm, new_axis_idx| {
+                // Check axis validity against input_rank
+                if (old_axis_perm < 0 or old_axis_perm >= @as(i64, @intCast(input_rank))) {
+                    axis_ok = false;
+                    std.debug.print("\nERROR: Invalid axis {} found in permutation {any} for input rank {}", .{ old_axis_perm, p, input_rank });
+                    break;
+                }
+                output_shape[new_axis_idx] = input_shape[@intCast(old_axis_perm)];
+            }
+            if (!axis_ok) return error.InvalidPermutation;
+        } else {
+            // Fallback for other mismatches: reverse dimensions and warn
+            std.debug.print("\nWARNING: Transpose perm length ({}) mismatches input rank ({}). Falling back to reversing dimensions.", .{ perm_len, input_rank });
+            output_shape = try allocator.alloc(i64, input_rank);
+            errdefer allocator.free(output_shape);
+            for (input_shape, 0..) |_, i| {
+                output_shape[i] = input_shape[input_rank - 1 - i];
+            }
         }
+        // Assign the calculated shape
+        readyNode.outputs.items[0].shape = output_shape;
     } else {
-        // Reverse dimensions
+        // Default behavior when no perm is provided: reverse dimensions
+        const output_rank = input_rank;
+        var output_shape = try allocator.alloc(i64, output_rank);
+        errdefer allocator.free(output_shape); // Ensure cleanup
         for (input_shape, 0..) |_, i| {
-            output_shape[i] = input_shape[input_shape.len - 1 - i];
+            output_shape[i] = input_shape[output_rank - 1 - i];
         }
+        readyNode.outputs.items[0].shape = output_shape;
     }
 
-    readyNode.outputs.items[0].shape = output_shape;
-    // std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
 inline fn compute_unsqueeze_output_shape(readyNode: *ReadyNode) !void {
@@ -979,6 +1038,16 @@ inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
     // std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
 
     // Ceil is an element-wise operation, output shape is identical to input shape
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
+    // std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_clip_output_shape(readyNode: *ReadyNode) !void {
+    // std.debug.print("\n====== compute_clip_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].?.shape;
+    // std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // Clip is an element-wise operation, output shape is identical to input shape
     readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
     // std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
