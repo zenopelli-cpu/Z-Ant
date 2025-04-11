@@ -226,23 +226,97 @@ def generate_fuzz_model(op_name):
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "Pad":
-        # Operatore Pad: genera dati, pads e constant_value come initializer
-        shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
+        # https://onnx.ai/onnx/operators/onnx__Pad.html
+        shape = random_shape(rank=4, min_dim=2, max_dim=5) # Keep dims small for easier verification
+        rank = len(shape)
         data = np.random.randn(*shape).astype(np.float32)
         init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
         initializers.append(init_tensor)
-        rank = len(shape)
-        pads = [random.randint(0,2) for _ in range(2*rank)]
-        out_shape = [shape[i] + pads[i] + pads[i+rank] for i in range(rank)]
-        pads_tensor = helper.make_tensor(input_names[1], TensorProto.INT64, [len(pads)], pads)
+
+        # Decide if using axes (50% chance)
+        use_axes = random.choice([True, False])
+        num_axes = rank
+        axes = None
+        axes_tensor = None
+        axes_name = None
+
+        if use_axes:
+            num_axes_to_pad = random.randint(1, rank)
+            axes = sorted(random.sample(range(rank), num_axes_to_pad))
+            axes_name = input_names[3]
+            axes_tensor = helper.make_tensor(axes_name, TensorProto.INT64, [len(axes)], axes)
+            initializers.append(axes_tensor)
+            num_axes = len(axes)
+            print(f"Pad using axes: {axes}")
+        else:
+            print(f"Pad using all axes (rank {rank})")
+
+        # Generate pads based on num_axes
+        # Format: [x1_begin, x2_begin, ..., xN_begin, x1_end, x2_end, ..., xN_end]
+        pads_len = 2 * num_axes
+        pads = [random.randint(0, 2) for _ in range(pads_len)]
+        pads_name = input_names[1]
+        pads_tensor = helper.make_tensor(pads_name, TensorProto.INT64, [len(pads)], pads)
         initializers.append(pads_tensor)
-        constant_value = 0.0
-        constant_tensor = helper.make_tensor(input_names[2], TensorProto.FLOAT, [], [constant_value])
-        initializers.append(constant_tensor)
+
+        # Choose mode
+        mode = random.choice(['constant', 'reflect', 'edge', 'wrap'])
+
+        # Handle constant_value (only needed for constant mode)
+        constant_value = 0.0 # Default
+        constant_tensor = None
+        constant_name = None
+        node_inputs = [input_names[0], pads_name]
+
+        if mode == 'constant':
+            constant_value = round(random.uniform(-1.0, 1.0), 2)
+            constant_name = input_names[2]
+            constant_tensor = helper.make_tensor(constant_name, TensorProto.FLOAT, [], [constant_value])
+            initializers.append(constant_tensor)
+            node_inputs.append(constant_name)
+            print(f"Pad mode: constant, value: {constant_value}")
+        else:
+            print(f"Pad mode: {mode}")
+
+        # Add axes tensor to node inputs if used
+        if axes_tensor:
+            # Ensure the order is data, pads, constant_value (if present), axes
+            if constant_tensor is None and len(node_inputs) == 2:
+                node_inputs.append("") # Placeholder for skipped constant_value
+            elif constant_tensor is None and len(node_inputs) > 2:
+                 # This case shouldn't happen with current logic, but safety check
+                 print("Warning: Unexpected node_inputs state when adding axes without constant_value")
+                 node_inputs.insert(2, "") # Insert placeholder
+
+            if len(node_inputs) < 4:
+                 node_inputs.extend([""] * (4 - len(node_inputs))) # Pad with placeholders up to index 3
+            node_inputs[3] = axes_name
+
+        # Calculate output shape
+        out_shape = list(shape)
+        if use_axes:
+            for i, axis_idx in enumerate(axes):
+                out_shape[axis_idx] += pads[i] + pads[num_axes + i]
+        else:
+            for i in range(rank):
+                out_shape[i] += pads[i] + pads[rank + i]
+
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
-        node = helper.make_node(op_name, inputs=[input_names[0], input_names[1], input_names[2]], outputs=[output_names[0]],
-                                name=f"{op_name}_node")
-        metadata = {"input_shapes": [shape], "output_shapes": [out_shape], "pads": pads, "constant_value": constant_value}
+
+        node = helper.make_node(op_name, inputs=node_inputs,
+                                outputs=[output_names[0]],
+                                mode=mode,
+                                name=f"{op_name}_node_mode_{mode}")
+
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+        metadata = {
+            "input_shapes": [shape],
+            "output_shapes": [out_shape],
+            "mode": mode,
+            "pads": pads,
+            "constant_value": constant_value if mode == 'constant' else None,
+            "axes": axes
+        }
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "Reshape":

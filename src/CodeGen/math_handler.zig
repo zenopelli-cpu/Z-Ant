@@ -81,6 +81,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_neg(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "OneHot")) {
         try writer.writeAll("// Handle OneHot\n");
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Pad")) {
+        try write_pads(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "ReduceMean")) {
         try write_reduceMean(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Relu")) {
@@ -2211,5 +2213,130 @@ inline fn write_neg(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     , .{
         input_tensor_string,
         try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_pads(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Pad.html
+    // INPUTS:
+    //      - data (T): Input tensor.
+    //      - pads (tensor(int64)): Tensor of integers indicating the number of padding elements.
+    //          Shape [2 * num_axes], format [x1_begin, x2_begin, ..., x1_end, x2_end,...]
+    //      - constant_value (optional, T): Scalar constant value to use for constant mode. Defaults to 0.
+    //      - axes (optional, tensor(int64)): Axes to pad. If not provided, all axes are padded.
+    // OUTPUTS:
+    //      - output (T): Tensor after padding.
+    // ATTRIBUTES:
+    //      - mode (STRING, default is 'constant'): Supported modes: constant, reflect, edge, wrap.
+
+    // Get mode attribute
+    var mode_str: []const u8 = "constant"; // Default
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "mode")) {
+            if (attr.type == AttributeType.STRING) mode_str = attr.s;
+            break;
+        }
+    }
+    // Convert mode string to PadMode enum
+    var pad_mode_enum: []const u8 = undefined;
+    if (std.ascii.eqlIgnoreCase(mode_str, "constant")) {
+        pad_mode_enum = "tensMath.PadMode.constant";
+    } else if (std.ascii.eqlIgnoreCase(mode_str, "reflect")) {
+        pad_mode_enum = "tensMath.PadMode.reflect";
+    } else if (std.ascii.eqlIgnoreCase(mode_str, "edge")) {
+        pad_mode_enum = "tensMath.PadMode.edge";
+    } else if (std.ascii.eqlIgnoreCase(mode_str, "wrap")) {
+        pad_mode_enum = "tensMath.PadMode.wrap";
+    } else {
+        return error.UnsupportedMode;
+    }
+
+    // --- Get Input Strings ---
+
+    // Input 0: data
+    const data_name = try utils.getSanitizedName(node.inputs.items[0].?.name);
+    const data_tensor_string = try std.fmt.allocPrint(allocator, "{s}tensor_{s}{s}", .{ if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) "@constCast(&param_lib." else "&", data_name, ")" });
+    defer allocator.free(data_tensor_string);
+
+    // Input 1: pads (must be int64 constant)
+    if (node.inputs.items.len < 2 or node.inputs.items[1] == null or node.inputs.items[1].?.tag != globals.TensorTag.INITIALIZER) {
+        return error.PadsInputInvalid;
+    }
+    const pads_name = try utils.getSanitizedName(node.inputs.items[1].?.name);
+    const pads_data_string = try std.fmt.allocPrint(allocator, "param_lib.tensor_{s}.data", .{pads_name});
+    defer allocator.free(pads_data_string);
+
+    // Input 2: constant_value (optional)
+    var constant_value_str: []const u8 = "null";
+    var constant_value_alloc: ?[]u8 = null;
+    if (node.inputs.items.len > 2 and node.inputs.items[2] != null) {
+        const const_val_name = try utils.getSanitizedName(node.inputs.items[2].?.name);
+        // Constant value should be a scalar, access data[0]
+        if (node.inputs.items[2].?.tag == globals.TensorTag.INITIALIZER) {
+            constant_value_alloc = try std.fmt.allocPrint(allocator, "param_lib.tensor_{s}.data[0]", .{const_val_name});
+        } else {
+            constant_value_alloc = try std.fmt.allocPrint(allocator, "tensor_{s}.data[0]", .{const_val_name});
+        }
+        constant_value_str = constant_value_alloc.?;
+    }
+    defer if (constant_value_alloc != null) allocator.free(constant_value_alloc.?);
+
+    // Input 3: axes (optional, int64 or int32)
+    var axes_data_str: []const u8 = "null";
+    var axes_alloc: ?[]u8 = null;
+    var axes_code_to_generate: ?[]u8 = null; // Holds the "utils.sliceToIsizeSlice(...)" string
+    var axes_var_name_arg: []const u8 = "null"; // Holds the argument for pads_lean ("null" or "axes_isize_...")
+    var axes_var_name_allocated = false;
+    var axes_code_allocated = false;
+
+    if (node.inputs.items.len > 3 and node.inputs.items[3] != null) {
+        const axes_name = try utils.getSanitizedName(node.inputs.items[3].?.name);
+        const output_name_tmp = try utils.getSanitizedName(node.outputs.items[0].name); // Needed for var name
+
+        if (node.inputs.items[3].?.tag == globals.TensorTag.INITIALIZER) {
+            axes_alloc = try std.fmt.allocPrint(allocator, "param_lib.tensor_{s}.data", .{axes_name});
+        } else {
+            axes_alloc = try std.fmt.allocPrint(allocator, "tensor_{s}.data", .{axes_name});
+        }
+        axes_data_str = axes_alloc.?;
+        // Generate code to convert axes data to isize slice
+        axes_code_to_generate = try std.fmt.allocPrint(allocator, "utils.sliceToIsizeSlice({s})", .{axes_data_str});
+        axes_code_allocated = true;
+        axes_var_name_arg = try std.fmt.allocPrint(allocator, "axes_isize_{s}", .{output_name_tmp}); // Generate the variable name to pass
+        axes_var_name_allocated = true;
+    }
+    defer if (axes_alloc != null) allocator.free(axes_alloc.?);
+    defer if (axes_code_allocated) allocator.free(axes_code_to_generate.?);
+    defer if (axes_var_name_allocated) allocator.free(axes_var_name_arg);
+
+    // Output tensor
+    const output_name = try utils.getSanitizedName(node.outputs.items[0].name);
+
+    // Conditionally create the isize slice for axes if needed
+    if (axes_code_to_generate != null) {
+        _ = try writer.print(
+            \\    const {s} = {s};
+            \\    defer allocator.free({s});
+        , .{ axes_var_name_arg, axes_code_to_generate.?, axes_var_name_arg });
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.pads_lean(
+        \\        T, // type
+        \\        {s}, // data
+        \\        {s}, // pads (int64 slice)
+        \\        {s}, // mode
+        \\        {s}, // constant_value
+        \\        {s}, // axes (isize slice)
+        \\        &tensor_{s} // output
+        \\    )
+    , .{
+        data_tensor_string,
+        pads_data_string,
+        pad_mode_enum,
+        constant_value_str,
+        axes_var_name_arg, // Use the correct variable name or "null"
+        output_name,
     });
 }

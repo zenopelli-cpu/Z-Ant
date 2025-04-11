@@ -21,6 +21,14 @@ const op_gather = @import("lib_shape_math/op_gather.zig");
 pub const gather = op_gather.gather;
 pub const gather_lean = op_gather.lean_gather;
 
+//--pads
+const op_pads = @import("lib_shape_math/op_pads.zig");
+
+pub const pads = op_pads.pads;
+pub const pads_lean = op_pads.pads_lean;
+pub const get_pads_output_shape = op_pads.get_pads_output_shape;
+pub const PadMode = op_pads.PadMode;
+
 //--unsqueeze
 const op_unsqueeze = @import("lib_shape_math/op_unsqueeze.zig");
 

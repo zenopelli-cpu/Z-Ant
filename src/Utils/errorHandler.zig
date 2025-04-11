@@ -50,6 +50,12 @@ pub const TensorMathError = error{
     InvalidAxes,
     OutputTensorWrongShape,
     Overflow,
+    InvalidPaddingShape,
+    InvalidInput,
+    AxisOutOfRange,
+    UnsupportedMode,
+    InvalidPaddingSize,
+    UnexpectedError,
 };
 
 /// Tensor errors

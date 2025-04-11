@@ -71,6 +71,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "OneHot")) {
         // TODO
         return error.OperationWIP;
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Pad")) {
+        //https://onnx.ai/onnx/operators/onnx__Pad.html
+        try compute_pads_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "ReduceMean")) {
         try compute_reducemean_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Relu")) {
@@ -1235,4 +1238,66 @@ inline fn compute_Div_output_shape(readyNode: *ReadyNode) !void {
     }
     readyNode.outputs.items[0].shape = shape;
     // std.debug.print("\n Final output shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_pads_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_pads_output_shape node: {s}=====", .{readyNode.nodeProto.name.?});
+
+    // Input 0: data
+    if (readyNode.inputs.items[0] == null) return error.InputTensorNotFound;
+    const data_shape_i64 = readyNode.inputs.items[0].?.shape;
+    std.debug.print("\n data_shape: {any}", .{data_shape_i64});
+
+    // Input 1: pads (required, must be int64)
+    if (readyNode.inputs.items.len < 2 or readyNode.inputs.items[1] == null or readyNode.inputs.items[1].?.tensorProto == null or readyNode.inputs.items[1].?.tensorProto.?.int64_data == null) {
+        std.debug.print("\nERROR: Pads input (index 1) is missing or not a constant int64 tensor.", .{});
+        return error.PadsInputInvalid;
+    }
+    const pads_values_i64 = readyNode.inputs.items[1].?.tensorProto.?.int64_data.?;
+    std.debug.print("\n pads_values: {any}", .{pads_values_i64});
+
+    // Input 2: constant_value (optional, shape not needed for output shape calculation)
+
+    // Input 3: axes (optional, must be int64 or int32)
+    var axes_values_isize: ?[]const isize = null;
+    var axes_buffer: []isize = undefined; // Buffer for conversion
+    defer if (axes_values_isize != null) allocator.free(axes_buffer);
+
+    if (readyNode.inputs.items.len > 3 and readyNode.inputs.items[3] != null and readyNode.inputs.items[3].?.tensorProto != null) {
+        const axes_proto = readyNode.inputs.items[3].?.tensorProto.?;
+        if (axes_proto.int64_data != null) {
+            const axes_i64 = axes_proto.int64_data.?;
+            axes_buffer = try allocator.alloc(isize, axes_i64.len);
+            for (axes_i64, 0..) |val, i| {
+                axes_buffer[i] = @intCast(val);
+            }
+            axes_values_isize = axes_buffer;
+            std.debug.print("\n axes (from i64): {any}", .{axes_values_isize});
+        } else if (axes_proto.int32_data != null) {
+            const axes_i32 = axes_proto.int32_data.?;
+            axes_buffer = try allocator.alloc(isize, axes_i32.len);
+            for (axes_i32, 0..) |val, i| {
+                axes_buffer[i] = @intCast(val);
+            }
+            axes_values_isize = axes_buffer;
+            std.debug.print("\n axes (from i32): {any}", .{axes_values_isize});
+        } else {
+            std.debug.print("\nWARNING: Axes input (index 3) provided but is not int64 or int32 data.", .{});
+            // Proceed without axes if the type is wrong
+        }
+    } else {
+        std.debug.print("\n axes: not provided", .{});
+    }
+
+    // Convert data shape to usize
+    const data_shape_usize = try utils.i64SliceToUsizeSlice(data_shape_i64);
+    defer allocator.free(data_shape_usize);
+
+    // Call the shape calculation function
+    const output_shape_usize = try tensorMath.get_pads_output_shape(allocator, data_shape_usize, pads_values_i64, axes_values_isize);
+    defer allocator.free(output_shape_usize);
+
+    // Convert result back to i64
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape_usize);
+    std.debug.print("\n final output_shape: {any}", .{readyNode.outputs.items[0].shape});
 }
