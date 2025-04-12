@@ -202,36 +202,138 @@ inline fn compute_ReLU_output_shape(readyNode: *ReadyNode) !void {
 }
 
 inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
-    var shape: []const i64 = undefined;
+    std.debug.print("\n====== compute_reshape_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_rt: *globals.ReadyTensor = readyNode.inputs.items[0].?;
+    const input_shape_i64 = input_rt.shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape_i64});
 
-    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
-        shape = tensorShape;
-    } else {
-        const input_shape = readyNode.inputs.items[0].?.shape;
-        const output_shape = readyNode.inputs.items[1].?.shape;
+    var new_shape_spec: []const isize = undefined; // Use []const isize as required by get_reshape_output_shape
+    var shape_spec_found: bool = false;
+    var shape_input_needs_free = false; // Flag to track if we allocated new_shape_spec
+    var allow_zero: bool = false;
 
-        var allow_zero: bool = false;
-
-        for (readyNode.nodeProto.attribute) |attr| {
-            if (std.mem.eql(u8, attr.name, "allowzero") and attr.i != 0) {
+    // 1. Get allowzero attribute (default 0 -> false)
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "allowzero")) {
+            if (attr.type == AttributeType.INT and attr.i != 0) {
                 allow_zero = true;
-                break;
+            }
+            break; // Found allowzero, no need to check other attributes for this
+        }
+    }
+    std.debug.print("\n allowzero: {}", .{allow_zero});
+
+    // 2. Get the target shape spec (new_shape_spec)
+    // Try getting shape from the second input tensor first
+    if (readyNode.inputs.items.len > 1) {
+        const shape_input = readyNode.inputs.items[1].?;
+        if (shape_input.tensorProto != null and shape_input.tensorProto.?.int64_data != null) {
+            // Shape is in the tensorProto data (preferred)
+            new_shape_spec = shape_input.tensorProto.?.int64_data.?;
+            shape_spec_found = true;
+            std.debug.print("\n new shape spec from input tensorProto: []i64 = {any}", .{new_shape_spec});
+        } else if (shape_input.tensorProto != null and shape_input.tensorProto.?.int64_data == null) {
+            const proto = shape_input.tensorProto.?;
+            // Check data type - Reshape requires INT64 shape
+            if (proto.data_type != .INT64) {
+                std.debug.print("ERROR: Reshape shape input tensorProto has incorrect data type: {any}. Expected INT64.", .{proto.data_type});
+                return error.InvalidShapeDataType;
+            }
+
+            // Try reading from raw_data if int64_data is null
+            if (proto.raw_data) |raw| {
+                std.debug.print("\n Shape input tensorProto has raw_data ({} bytes), attempting to parse as i64...", .{raw.len});
+                // Call a new utility function to parse raw_data
+                const parsed_shape = utils.parseI64RawData(raw) catch |err| {
+                    std.debug.print("\n ERROR: Failed to parse raw_data for shape tensor: {any}", .{err});
+                    return error.RawDataParseFailed; // Or specific error from parsing
+                };
+                // Important: parsed_shape is allocated by the util func and needs freeing later.
+                // Convert []i64 to []const isize for new_shape_spec
+                var temp_shape_spec = try allocator.alloc(isize, parsed_shape.len);
+                for (parsed_shape, 0..) |dim, i| {
+                    temp_shape_spec[i] = dim;
+                }
+                new_shape_spec = temp_shape_spec; // Assign the parsed shape
+                shape_spec_found = true;
+                shape_input_needs_free = true; // Mark that we allocated this spec
+                std.debug.print("\n new shape spec parsed from raw_data: []isize = {any}", .{new_shape_spec});
+                // We also need to free the intermediate parsed_shape ([]i64)
+                defer allocator.free(parsed_shape);
+            } else {
+                // Data type is INT64, but int64_data is null and raw_data is null/empty.
+                std.debug.print("ERROR: Reshape shape input tensorProto is INT64 but contains no int64_data or raw_data.", .{});
+                return error.ShapeDataMissing;
+            }
+        } else {
+            // If tensorProto is null, this input doesn't directly provide the shape data.
+            // shape_spec_found remains false, attributes will be checked.
+            std.debug.print("\n Shape input tensorProto is null, will check attributes.", .{});
+        }
+    } else {
+        // If no second input, try getting shape from the 'shape' attribute
+        // shape_spec_found remains false, attributes will be checked.
+        std.debug.print("\n No second input for shape, will check attributes.", .{});
+    }
+
+    // If new_shape_spec is still null after checking input, check attributes
+    if (!shape_spec_found) {
+        var shape_attr: ?[]const i64 = null;
+        for (readyNode.nodeProto.attribute) |attr| {
+            if (std.mem.eql(u8, attr.name, "shape")) {
+                if (attr.type == AttributeType.INTS) {
+                    shape_attr = attr.ints;
+                    break;
+                } else {
+                    std.debug.print("ERROR: Reshape 'shape' attribute has unexpected type {}", .{attr.type});
+                    return error.InvalidAttributeType;
+                }
             }
         }
 
-        std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
-        std.debug.print("\n output_shape: []i64 = {any}", .{output_shape});
-
-        // Use TensorMath to compute the output shape for reshape
-
-        const shape_usize = try tensorMath.get_reshape_output_shape(
-            try utils.i64SliceToUsizeSlice(input_shape),
-            output_shape,
-            allow_zero,
-        );
-        shape = try utils.usizeSliceToI64Slice(@constCast(shape_usize));
+        if (shape_attr) |sa| {
+            var temp_shape_spec = try allocator.alloc(isize, sa.len);
+            for (sa, 0..) |dim, i| {
+                temp_shape_spec[i] = dim;
+            }
+            new_shape_spec = temp_shape_spec;
+            shape_input_needs_free = true; // Mark that we allocated this
+            shape_spec_found = true;
+            std.debug.print("\n new shape spec from attribute: []isize = {any}", .{new_shape_spec});
+        } else {
+            std.debug.print("ERROR: Reshape requires a shape input (tensor or attribute), but none was found.", .{});
+            return error.ShapeNotFound;
+        }
+    } else {
+        // Ensure cleanup if we allocated the shape spec FROM THE INPUT PATH
+        // The defer covers the attribute path if allocation happens there.
+        // NOTE: This defer placement might be tricky. Consider simplifying allocation management.
+        defer if (shape_input_needs_free) allocator.free(new_shape_spec);
     }
-    readyNode.outputs.items[0].shape = shape;
+
+    // If after all checks, shape_spec is still not found, something went wrong.
+    if (!shape_spec_found) {
+        std.debug.print("Critical Error: Shape spec was not found after checking inputs and attributes.", .{});
+        return error.ShapeNotFound;
+    }
+
+    // 3. Convert input shape to usize
+    const input_shape_usize = try utils.i64SliceToUsizeSlice(input_shape_i64);
+    defer allocator.free(input_shape_usize);
+    std.debug.print("\n input_shape_usize: []usize = {any}", .{input_shape_usize});
+
+    // 4. Call the new shape calculation function
+    const output_shape_usize = try tensorMath.get_reshape_output_shape(input_shape_usize, new_shape_spec, allow_zero);
+    defer allocator.free(output_shape_usize); // Free the result from get_reshape_output_shape
+    std.debug.print("\n calculated output_shape_usize: []usize = {any}", .{output_shape_usize});
+
+    // 5. Convert result back to i64
+    const output_shape_i64 = try utils.usizeSliceToI64Slice(output_shape_usize);
+    // NOTE: utils.usizeSliceToI64Slice allocates, so the caller (or ReadyNode deinit) should free it.
+
+    // 6. Assign the final shape
+    readyNode.outputs.items[0].shape = output_shape_i64;
+    std.debug.print("\n final output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
 inline fn compute_softmax_output_shape(readyNode: *ReadyNode) !void {
@@ -390,29 +492,76 @@ inline fn compute_reducemean_output_shape(readyNode: *ReadyNode) !void {
 }
 
 inline fn compute_slice_output_shape(readyNode: *ReadyNode) !void {
-    std.debug.print("\n====== compute_slice_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    // std.debug.print("\n====== compute_slice_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    // std.debug.print("\nNumber of inputs: {}", .{readyNode.inputs.items.len});
+
+    // Print all input details
+    for (readyNode.inputs.items) |input| {
+        // std.debug.print("\nInput[{}]:", .{i});
+        // std.debug.print("\n  shape: {any}", .{input.shape});
+        // std.debug.print("\n  tensorProto: {}", .{input.tensorProto != null});
+        if (input.?.tensorProto != null) {
+            std.debug.print("\n  int64_data: {}", .{input.?.tensorProto.?.int64_data != null});
+            if (input.?.tensorProto.?.int64_data != null) {
+                std.debug.print("\n  int64_data values: {any}", .{input.?.tensorProto.?.int64_data.?});
+            }
+        }
+    }
+
     const input_shape = readyNode.inputs.items[0].?.shape;
-    const starts = readyNode.inputs.items[1].?.tensorProto.?.int64_data.?;
-    const ends = readyNode.inputs.items[2].?.tensorProto.?.int64_data.?;
+    // std.debug.print("\nInput shape: {any}", .{input_shape});
+
+    // Check if we have enough inputs
+    if (readyNode.inputs.items.len < 3) {
+        std.debug.print("\nERROR: Not enough inputs. Got {}, need at least 3", .{readyNode.inputs.items.len});
+        return error.InvalidSliceInputs;
+    }
+
+    // Get starts and ends from shape if tensorProto is not available
+    var starts: []i64 = undefined;
+    var ends: []i64 = undefined;
+
+    // Handle starts
+    if (readyNode.inputs.items[1].?.tensorProto != null and readyNode.inputs.items[1].?.tensorProto.?.int64_data != null) {
+        starts = readyNode.inputs.items[1].?.tensorProto.?.int64_data.?;
+    } else {
+        starts = try allocator.dupe(i64, readyNode.inputs.items[1].?.shape);
+    }
+
+    // Handle ends
+    if (readyNode.inputs.items[2].?.tensorProto != null and readyNode.inputs.items[2].?.tensorProto.?.int64_data != null) {
+        ends = readyNode.inputs.items[2].?.tensorProto.?.int64_data.?;
+    } else {
+        ends = try allocator.dupe(i64, readyNode.inputs.items[2].?.shape);
+    }
+
+    // std.debug.print("\nStarts values: {any}", .{starts});
+    // std.debug.print("\nEnds values: {any}", .{ends});
 
     var axes: ?[]i64 = null;
     var steps: ?[]i64 = null;
 
     // Get axes if provided (input 3)
     if (readyNode.inputs.items.len > 3) {
-        axes = readyNode.inputs.items[3].?.tensorProto.?.int64_data.?;
+        const axes_tensor = readyNode.inputs.items[3].?.tensorProto;
+        // std.debug.print("\nAxes tensor: {}", .{axes_tensor != null});
+        if (axes_tensor != null and axes_tensor.?.int64_data != null) {
+            axes = axes_tensor.?.int64_data.?;
+            // std.debug.print("\nAxes values: {any}", .{axes.?});
+        }
     }
 
     // Get steps if provided (input 4)
     if (readyNode.inputs.items.len > 4) {
-        steps = readyNode.inputs.items[4].?.tensorProto.?.int64_data.?;
+        const steps_tensor = readyNode.inputs.items[4].?.tensorProto;
+        // std.debug.print("\nSteps tensor: {}", .{steps_tensor != null});
+        if (steps_tensor != null and steps_tensor.?.int64_data != null) {
+            steps = steps_tensor.?.int64_data.?;
+            // std.debug.print("\nSteps values: {any}", .{steps.?});
+        }
     }
 
-    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
-    std.debug.print("\n starts: []i64 = {any}", .{starts});
-    std.debug.print("\n ends: []i64 = {any}", .{ends});
-    std.debug.print("\n axes: []i64 = {any}", .{axes});
-    std.debug.print("\n steps: []i64 = {any}", .{steps});
+    // std.debug.print("\nCalling get_slice_output_shape with: input_shape: {any}, starts: {any}, ends: {any}, axes: {any}, steps: {any}", .{ input_shape, starts, ends, axes, steps });
 
     const output_shape = try tensorMath.get_slice_output_shape(
         try utils.i64SliceToUsizeSlice(input_shape),
@@ -423,7 +572,15 @@ inline fn compute_slice_output_shape(readyNode: *ReadyNode) !void {
     );
 
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
-    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+    // std.debug.print("\nFinal output shape: {any}", .{readyNode.outputs.items[0].shape});
+
+    // Clean up allocated memory
+    if (readyNode.inputs.items[1].?.tensorProto == null) {
+        allocator.free(starts);
+    }
+    if (readyNode.inputs.items[2].?.tensorProto == null) {
+        allocator.free(ends);
+    }
 }
 
 inline fn compute_shape_output_shape(readyNode: *ReadyNode) !void {
@@ -559,48 +716,84 @@ inline fn compute_unsqueeze_output_shape(readyNode: *ReadyNode) !void {
 }
 
 pub fn compute_concat_output_shape(readyNode: *ReadyNode) !void {
-    std.debug.print("\n compute_concat_output_shape for node: {s}", .{readyNode.nodeProto.name.?});
+    // std.debug.print("\n compute_concat_output_shape for node: {s}", .{readyNode.nodeProto.name.?});
 
-    var shape: []const i64 = undefined;
+    // Get the axis attribute (required)
+    var axis: i64 = 0;
+    var axis_found = false;
 
-    //shape aveliable in ONNX
-    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
-        shape = tensorShape;
-    } else {
-        readyNode.print(true);
-        var axis: i64 = 0;
-        var axis_found = false;
-
-        for (readyNode.nodeProto.attribute) |attr| {
-            if (std.mem.eql(u8, attr.name, "axis")) {
-                if (attr.type == AttributeType.INT) {
-                    axis = attr.i;
-                    axis_found = true;
-                } else {
-                    return error.ConcatAxisNotINT;
-                }
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "axis")) {
+            if (attr.type == AttributeType.INT) {
+                axis = attr.i;
+                axis_found = true;
+            } else {
+                return error.ConcatAxisNotINT;
             }
         }
-
-        const input_shapes = try allocator.alloc([]const usize, readyNode.inputs.items.len);
-        defer {
-            for (input_shapes) |sh| {
-                allocator.free(sh);
-            }
-        }
-        allocator.free(input_shapes);
-
-        for (readyNode.inputs.items, 0..) |input, i| {
-            const tensor = input orelse return error.NullTensorError;
-            input_shapes[i] = try utils.i64SliceToUsizeSlice(tensor.shape);
-        }
-
-        const output_shape = try tensorMath.get_concatenate_output_shape(input_shapes, @intCast(axis));
-
-        shape = try utils.usizeSliceToI64Slice(output_shape);
     }
 
-    readyNode.outputs.items[0].shape = shape;
+    if (!axis_found) {
+        return error.ConcatAxisNotFound;
+    }
+
+    // std.debug.print("\n   axis: {}", .{axis});
+    // std.debug.print("\n   number of inputs: {}", .{readyNode.inputs.items.len});
+
+    // Ensure there's at least one input tensor
+    if (readyNode.inputs.items.len == 0) {
+        return error.ConcatNoInputs;
+    }
+
+    // Print input shapes
+    for (readyNode.inputs.items, 0..) |input, i| {
+        if (input) |in| std.debug.print("\n   input[{}] shape: []i64 = {any}", .{ i, in.shape }) else std.debug.print("\n   input[{}] is null", .{i});
+    }
+
+    // Convert input shapes to usize for get_concatenate_output_shape
+    std.debug.print("\n   Converting input shapes to usize...", .{});
+    var input_shapes = try allocator.alloc([]const usize, readyNode.inputs.items.len);
+    errdefer {
+        std.debug.print("\n   Error occurred, cleaning up input_shapes...", .{});
+        for (input_shapes) |shape| {
+            allocator.free(shape);
+        }
+        allocator.free(input_shapes);
+    }
+
+    for (readyNode.inputs.items, 0..) |input, i| {
+        std.debug.print("\n   Converting input[{}] shape to usize...", .{i});
+        // Handle negative values by using 1 as a placeholder
+        var shape = try allocator.alloc(usize, input.?.shape.len);
+        for (input.?.shape, 0..) |dim, j| {
+            shape[j] = if (dim < 0) 1 else @intCast(dim);
+        }
+        input_shapes[i] = shape;
+        std.debug.print("\n   Converted shape: []usize = {any}", .{input_shapes[i]});
+    }
+
+    // Get output shape using the existing function
+    std.debug.print("\n   Calling get_concatenate_output_shape...", .{});
+    const output_shape = try tensorMath.get_concatenate_output_shape(input_shapes, axis);
+    errdefer {
+        std.debug.print("\n   Error occurred, cleaning up output_shape...", .{});
+        allocator.free(output_shape);
+    }
+    std.debug.print("\n   Got output shape: []usize = {any}", .{output_shape});
+
+    // Convert back to i64 for storing in readyNode
+    std.debug.print("\n   Converting output shape back to i64...", .{});
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
+    std.debug.print("\n   Final output shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+
+    // Clean up
+    std.debug.print("\n   Cleaning up temporary allocations...", .{});
+    for (input_shapes) |shape| {
+        allocator.free(shape);
+    }
+    allocator.free(input_shapes);
+    allocator.free(output_shape);
+    // std.debug.print("\n   Cleanup complete", .{});
 }
 
 inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
@@ -753,8 +946,6 @@ pub fn compute_resize_output_shape(readyNode: *ReadyNode) !void {
     // Extract scales and sizes from inputs
     var scales: ?[]const f32 = null;
     var sizes: ?[]const i64 = null;
-
-    readyNode.print(true);
 
     // ROI is at index 1,
     // scales at index 2,
