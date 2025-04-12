@@ -651,32 +651,29 @@ def generate_fuzz_model(op_name):
     
     elif op_name == "Mean":
         num_inputs = random.randint(1, 5)
-        
         max_dims = 3 
+        
+        # 1. Generate a potential "output" shape first
+        output_shape = [random.randint(1, 4) for _ in range(max_dims)]
+
         shapes = []
-        for _ in range(num_inputs):
-            shape = [random.randint(1, 4) for _ in range(max_dims)]
-            
-            # Randomly set some dimensions to 1 for broadcasting
-            for i in range(max_dims):
-                if random.random() < 0.3:
-                    shape[i] = 1
-            shapes.append(shape)
+        initializers = [] # Ensure initializers is defined here
         
-        # calculate output shape
-        output_shape = []
-        for dim in range(max_dims):
-            output_shape.append(max(shape[dim] for shape in shapes))
-        
-        # data generation for each input tensor
-        input_tensors = []
-        for i, shape in enumerate(shapes):
-            data = np.random.randn(*shape).astype(np.float32)
+        for i in range(num_inputs):
+            # 2. Derive compatible input shape from the output shape
+            current_shape = []
+            for dim_size in output_shape:
+                # Each dimension is either the same as output_shape or 1
+                current_shape.append(random.choice([1, dim_size]))
+            shapes.append(current_shape)
+
+            # data generation for each input tensor
+            data = np.random.randn(*current_shape).astype(np.float32)
             tensor_name = input_names[i]
-            init_tensor = helper.make_tensor(tensor_name, TensorProto.FLOAT, shape, data.flatten().tolist())
-            input_tensors.append(init_tensor)
-            initializers.append(init_tensor)
+            init_tensor = helper.make_tensor(tensor_name, TensorProto.FLOAT, current_shape, data.flatten().tolist())
+            initializers.append(init_tensor) # Now append to the locally defined list
         
+        # The actual output shape is already determined by output_shape list
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, output_shape)
         node = helper.make_node(
             op_name,
