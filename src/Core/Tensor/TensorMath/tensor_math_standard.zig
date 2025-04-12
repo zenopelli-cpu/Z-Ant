@@ -20,6 +20,7 @@ const op_gather = @import("lib_shape_math/op_gather.zig");
 
 pub const gather = op_gather.gather;
 pub const gather_lean = op_gather.lean_gather;
+pub const get_gather_output_shape = op_gather.get_gather_output_shape;
 
 //--pads
 const op_pads = @import("lib_shape_math/op_pads.zig");
@@ -83,7 +84,7 @@ const op_mat_mul = @import("op_mat_mul.zig");
 //---matmul
 pub const mat_mul = op_mat_mul.mat_mul;
 pub const mat_mul_lean = op_mat_mul.lean_mat_mul;
-
+pub const get_mat_mul_output_shape = op_mat_mul.get_mat_mul_output_shape;
 pub const dot_product_tensor_flat = op_mat_mul.dot_product_tensor_flat;
 
 // ---------- importing standard gemm method ----------
@@ -164,6 +165,7 @@ const mult = @import("lib_elementWise_math/op_multiplication.zig");
 pub const lean_matmul = op_mat_mul.lean_mat_mul;
 pub const mul = mult.mul;
 pub const mul_lean = mult.mul_lean;
+pub const get_mul_output_shape = mult.get_mul_output_shape;
 
 //--div
 const division = @import("lib_elementWise_math/op_division.zig");
@@ -181,6 +183,7 @@ const Ceil = @import("lib_elementWise_math/op_ceil.zig");
 
 pub const ceil = Ceil.ceil;
 pub const ceil_lean = Ceil.ceil_lean;
+pub const get_ceil_output_shape = Ceil.get_ceil_output_shape;
 
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");
@@ -199,6 +202,7 @@ const op_leaky_relu = @import("lib_activation_function_math/op_leaky_reLU.zig");
 pub const leakyReLU = op_leaky_relu.leakyReLU;
 pub const leakyReLU_lean = op_leaky_relu.lean_leakyReLU;
 pub const leakyReLU_backward = op_leaky_relu.leakyReLU_backward;
+pub const get_leaky_relu_output_shape = op_leaky_relu.get_leaky_relu_output_shape;
 
 const op_sigmoid = @import("lib_activation_function_math/op_sigmoid.zig");
 
@@ -206,13 +210,14 @@ const op_sigmoid = @import("lib_activation_function_math/op_sigmoid.zig");
 pub const sigmoid = op_sigmoid.sigmoid;
 pub const sigmoid_lean = op_sigmoid.sigmoid_lean;
 pub const sigmoid_backward = op_sigmoid.sigmoid_backward;
-
+pub const get_sigmoid_output_shape = op_sigmoid.get_sigmoid_output_shape;
 //Softmax
 const op_softmax = @import("lib_activation_function_math/op_softmax.zig");
 
 pub const softmax = op_softmax.softmax;
 pub const softmax_lean = op_softmax.lean_softmax;
 pub const softmax_backward = op_softmax.softmax_backward;
+pub const get_longsoftmax_output_shape = op_softmax.get_longsoftmax_output_shape;
 
 //Transpose
 const op_Transpose = @import("lib_shape_math/op_transpose.zig");
