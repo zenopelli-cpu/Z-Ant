@@ -743,3 +743,249 @@ pub fn onnx_maxpool(
 
     return .{ .output = output, .used_input = used_input };
 }
+
+pub fn lean_onnx_averagepool(
+    comptime T: type,
+    input: *Tensor(T),
+    output: *Tensor(T),
+    kernel_shape: []const usize,
+    strides: []const usize,
+    dilations: []const usize,
+    pads: []const usize,
+    auto_pad: AutoPadType,
+    count_include_pad: bool,
+) !void {
+    const batch_size = input.shape[0];
+    const channels = input.shape[1];
+    const input_height = input.shape[2];
+    const input_width = input.shape[3];
+    const out_height = output.shape[2];
+    const out_width = output.shape[3];
+
+    // Calculate padding based on auto_pad mode
+    var pad_top: usize = 0;
+    var pad_left: usize = 0;
+    var pad_bottom: usize = 0;
+    var pad_right: usize = 0;
+
+    switch (auto_pad) {
+        .NOTSET => {
+            if (pads.len >= 4) {
+                pad_top = pads[0];
+                pad_left = pads[1];
+                pad_bottom = pads[2];
+                pad_right = pads[3];
+            }
+        },
+        .VALID => {},
+        .SAME_UPPER, .SAME_LOWER => {
+            const total_pad_height = (out_height - 1) * strides[0] + kernel_shape[0] - input_height;
+            const total_pad_width = (out_width - 1) * strides[1] + kernel_shape[1] - input_width;
+            if (auto_pad == .SAME_UPPER) {
+                pad_top = total_pad_height / 2;
+                pad_left = total_pad_width / 2;
+                pad_bottom = total_pad_height - pad_top;
+                pad_right = total_pad_width - pad_left;
+            } else {
+                pad_bottom = total_pad_height / 2;
+                pad_right = total_pad_width / 2;
+                pad_top = total_pad_height - pad_bottom;
+                pad_left = total_pad_width - pad_right;
+            }
+        },
+    }
+
+    // Process each batch and channel
+    var b: usize = 0;
+    while (b < batch_size) : (b += 1) {
+        var c: usize = 0;
+        while (c < channels) : (c += 1) {
+            const input_offset = b * channels * input_height * input_width + c * input_height * input_width;
+            const output_offset = b * channels * out_height * out_width + c * out_height * out_width;
+
+            // Process each output pixel
+            var oh: usize = 0;
+            while (oh < out_height) : (oh += 1) {
+                var ow: usize = 0;
+                while (ow < out_width) : (ow += 1) {
+                    // Calculate starting input position
+                    const ih_start = @as(isize, @intCast(oh * strides[0])) - @as(isize, @intCast(pad_top));
+                    const iw_start = @as(isize, @intCast(ow * strides[1])) - @as(isize, @intCast(pad_left));
+
+                    // Find average value in the window
+                    var sum: T = 0;
+                    var count: usize = 0;
+                    var kh: usize = 0;
+                    while (kh < kernel_shape[0]) : (kh += 1) {
+                        var kw: usize = 0;
+                        while (kw < kernel_shape[1]) : (kw += 1) {
+                            const ih = ih_start + @as(isize, @intCast(kh * dilations[0]));
+                            const iw = iw_start + @as(isize, @intCast(kw * dilations[1]));
+                            if (ih >= 0 and ih < @as(isize, @intCast(input_height)) and
+                                iw >= 0 and iw < @as(isize, @intCast(input_width)))
+                            {
+                                const idx = input_offset + @as(usize, @intCast(ih)) * input_width + @as(usize, @intCast(iw));
+                                const val = input.data[idx];
+                                sum += val;
+                                count += 1;
+                            } else if (count_include_pad) {
+                                count += 1; // Pad as 0 so sum doesn't change
+                            }
+                        }
+                    }
+                    if (count == 0) {
+                        std.debug.print("Warning: count == 0 at oh={}, ow={}, ih_start={}, iw_start={}, pad_top={}, pad_left={}\n", .{ oh, ow, ih_start, iw_start, pad_top, pad_left });
+                    }
+                    // Store result
+                    output.data[output_offset + oh * out_width + ow] = if (count > 0) sum / @as(T, @floatFromInt(count)) else 0;
+                }
+            }
+        }
+    }
+}
+
+pub fn onnx_averagepool(
+    comptime T: type,
+    input: *Tensor(T),
+    kernel_shape: []const usize,
+    strides: []const usize,
+    dilations: []const usize,
+    pads: []const usize,
+    auto_pad: AutoPadType,
+    ceil_mode: bool,
+    count_include_pad: bool,
+) !Tensor(T) {
+    // Calculate output shape
+    const output_shape = try get_onnx_averagepool_output_shape(
+        input.shape,
+        kernel_shape,
+        strides,
+        dilations,
+        pads,
+        auto_pad,
+        ceil_mode,
+    );
+    defer pkg_allocator.free(output_shape);
+
+    // Allocate output tensor
+    var output = try Tensor(T).fromShape(&pkg_allocator, output_shape);
+    errdefer output.deinit();
+
+    // Call lean version
+    try lean_onnx_averagepool(
+        T,
+        input,
+        &output,
+        kernel_shape,
+        strides,
+        dilations,
+        pads,
+        auto_pad,
+        count_include_pad,
+    );
+
+    return output;
+}
+
+pub fn get_onnx_averagepool_output_shape(
+    input_shape: []const usize,
+    kernel_shape: []const usize,
+    strides: []const usize,
+    dilations: []const usize,
+    pads: []const usize,
+    auto_pad: AutoPadType,
+    ceil_mode: bool,
+) ![]usize {
+    if (input_shape.len != 4) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    const batch_size = input_shape[0];
+    const channels = input_shape[1];
+    const input_height = input_shape[2];
+    const input_width = input_shape[3];
+
+    // if (kernel_shape[0] > input_height or kernel_shape[1] > input_width) {
+    //     var output_shape = try pkg_allocator.alloc(usize, 4);
+    //     output_shape[0] = batch_size;
+    //     output_shape[1] = channels;
+    //     output_shape[2] = 1;
+    //     output_shape[3] = 1;
+    //     return output_shape;
+    // }
+
+    var output_shape = try pkg_allocator.alloc(usize, 4);
+    errdefer pkg_allocator.free(output_shape);
+
+    output_shape[0] = batch_size;
+    output_shape[1] = channels;
+
+    var pad_h: usize = 0;
+    var pad_w: usize = 0;
+    var pad_top: usize = 0;
+    var pad_left: usize = 0;
+    var pad_bottom: usize = 0;
+    var pad_right: usize = 0;
+
+    const effective_kernel_h = (kernel_shape[0] - 1) * dilations[0] + 1;
+    const effective_kernel_w = (kernel_shape[1] - 1) * dilations[1] + 1;
+
+    var out_height: usize = undefined;
+    var out_width: usize = undefined;
+
+    switch (auto_pad) {
+        .NOTSET => {
+            pad_top = pads[0];
+            pad_left = pads[1];
+            pad_bottom = pads[2];
+            pad_right = pads[3];
+            pad_h = pad_top + pad_bottom;
+            pad_w = pad_left + pad_right;
+
+            if (ceil_mode) {
+                out_height = @as(usize, @intFromFloat(std.math.ceil(@as(f64, @floatFromInt(input_height + pad_h - effective_kernel_h)) / @as(f64, @floatFromInt(strides[0]))))) + 1;
+                out_width = @as(usize, @intFromFloat(std.math.ceil(@as(f64, @floatFromInt(input_width + pad_w - effective_kernel_w)) / @as(f64, @floatFromInt(strides[1]))))) + 1;
+            } else {
+                out_height = @as(usize, @intFromFloat(std.math.floor(@as(f64, @floatFromInt(input_height + pad_h - effective_kernel_h)) / @as(f64, @floatFromInt(strides[0]))))) + 1;
+                out_width = @as(usize, @intFromFloat(std.math.floor(@as(f64, @floatFromInt(input_width + pad_w - effective_kernel_w)) / @as(f64, @floatFromInt(strides[1]))))) + 1;
+            }
+        },
+        .VALID => {
+            if (ceil_mode) {
+                out_height = @as(usize, @intFromFloat(std.math.ceil(@as(f64, @floatFromInt(input_height - effective_kernel_h + 1)) / @as(f64, @floatFromInt(strides[0])))));
+                out_width = @as(usize, @intFromFloat(std.math.ceil(@as(f64, @floatFromInt(input_width - effective_kernel_w + 1)) / @as(f64, @floatFromInt(strides[1])))));
+            } else {
+                out_height = @as(usize, @intFromFloat(std.math.floor(@as(f64, @floatFromInt(input_height - effective_kernel_h)) / @as(f64, @floatFromInt(strides[0]))))) + 1;
+                out_width = @as(usize, @intFromFloat(std.math.floor(@as(f64, @floatFromInt(input_width - effective_kernel_w)) / @as(f64, @floatFromInt(strides[1]))))) + 1;
+            }
+        },
+        .SAME_UPPER, .SAME_LOWER => {
+            if (ceil_mode) {
+                out_height = @as(usize, @intFromFloat(std.math.ceil(@as(f64, @floatFromInt(input_height)) / @as(f64, @floatFromInt(strides[0])))));
+                out_width = @as(usize, @intFromFloat(std.math.ceil(@as(f64, @floatFromInt(input_width)) / @as(f64, @floatFromInt(strides[1])))));
+            } else {
+                out_height = @as(usize, @intFromFloat(std.math.floor(@as(f64, @floatFromInt(input_height - 1)) / @as(f64, @floatFromInt(strides[0]))))) + 1;
+                out_width = @as(usize, @intFromFloat(std.math.floor(@as(f64, @floatFromInt(input_width - 1)) / @as(f64, @floatFromInt(strides[1]))))) + 1;
+            }
+            pad_h = (out_height - 1) * strides[0] + effective_kernel_h - input_height;
+            pad_w = (out_width - 1) * strides[1] + effective_kernel_w - input_width;
+
+            if (auto_pad == .SAME_UPPER) {
+                pad_top = pad_h / 2;
+                pad_bottom = pad_h - pad_top;
+                pad_left = pad_w / 2;
+                pad_right = pad_w - pad_left;
+            } else {
+                pad_bottom = pad_h / 2;
+                pad_top = pad_h - pad_bottom;
+                pad_right = pad_w / 2;
+                pad_left = pad_w - pad_right;
+            }
+        },
+    }
+
+    output_shape[2] = out_height;
+    output_shape[3] = out_width;
+
+    return output_shape;
+}

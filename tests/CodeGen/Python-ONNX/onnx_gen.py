@@ -649,6 +649,106 @@ def generate_fuzz_model(op_name):
         }
         return [input_info], output_info, [node], initializers, metadata
     
+    # elif op_name == "AveragePool":
+    #     # Impostazioni base
+    #     N, C = 1, 1
+    #     H = 4
+    #     W = 4
+    #     input_shape = [N, C, H, W]
+
+    #     # Dati di input prevedibili
+    #     data = np.zeros(input_shape, dtype=np.float32)
+    #     for i in range(H):
+    #         for j in range(W):
+    #             data[0, 0, i, j] = float(i * W + j + 1)
+
+    #     init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, input_shape, data.flatten().tolist())
+    #     initializers.append(init_tensor)
+
+    #     # Parametri randomizzati
+    #     kernel_shape = [random.randint(2, 3), random.randint(2, 3)]
+    #     strides = [random.randint(1, 2), random.randint(1, 2)]
+    #     pads = [random.randint(0, 1) for _ in range(4)]  # [top, left, bottom, right]
+    #     count_include_pad = random.choice([0, 1])  # 0 = False, 1 = True
+
+    #     # Output dimensions calculation
+    #     H_out = ((H + pads[0] + pads[2] - kernel_shape[0]) // strides[0]) + 1
+    #     W_out = ((W + pads[1] + pads[3] - kernel_shape[1]) // strides[1]) + 1
+    #     output_shape = [N, C, H_out, W_out]
+
+    #     output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, output_shape)
+    #     input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, input_shape)
+
+    #     node = helper.make_node(op_name, inputs=[input_names[0]], outputs=[output_names[0]],
+    #                             kernel_shape=kernel_shape,
+    #                             strides=strides,
+    #                             pads=pads,
+    #                             count_include_pad=count_include_pad,
+    #                             auto_pad="NOTSET",
+    #                             name=f"{op_name}node_k{kernel_shape}_s{strides}_p{pads}_c{count_include_pad}")
+
+    #     metadata = {
+    #         "input_shapes": [input_shape],
+    #         "output_shapes": [output_shape],
+    #         "kernel_shape": kernel_shape,
+    #         "strides": strides,
+    #         "pads": pads,
+    #         "auto_pad": "NOTSET",
+    #         "count_include_pad": count_include_pad
+    #     }
+
+    #     return [input_info], output_info, [node], initializers, metadata
+
+    
+    elif op_name == "AveragePool":
+        # Impostazioni base
+        N, C = 1, 1
+        H = 4
+        W = 4
+        input_shape = [N, C, H, W]
+
+        # Create input data with predictable values
+        data = np.zeros(input_shape, dtype=np.float32)
+        for i in range(H):
+            for j in range(W):
+                data[0, 0, i, j] = float(i * W + j + 1)
+
+        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, input_shape, data.flatten().tolist())
+        initializers.append(init_tensor)
+
+        count_include_pad = False  # set to False for the test
+        kernel_shape = [2, 2]  # Fixed for the test
+        strides = [1, 1]  # Fixed for the test
+        pads = [0, 0, 0, 0]  # No padding
+
+        # Output dimensions calculation
+        H_out = ((H + pads[0] + pads[2] - kernel_shape[0]) // strides[0]) + 1
+        W_out = ((W + pads[1] + pads[3] - kernel_shape[1]) // strides[1]) + 1
+        
+        output_shape = [N, C, H_out, W_out]
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, output_shape)
+        
+        node = helper.make_node(op_name, inputs=[input_names[0]], outputs=[output_names[0]],
+                                kernel_shape=kernel_shape,
+                                strides=strides,
+                                pads=pads,
+                                count_include_pad=count_include_pad,
+                                auto_pad="NOTSET",
+                                name=f"{op_name}node_k{kernel_shape}_s{strides}_p{pads}_c{count_include_pad}")
+
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, input_shape)
+        metadata = {
+            "input_shapes": [input_shape],
+            "output_shapes": [output_shape],
+            "kernel_shape": kernel_shape,
+            "strides": strides,
+            "pads": pads,
+            "auto_pad": "NOTSET",
+            "count_include_pad": count_include_pad
+        }
+
+        return [input_info], output_info, [node], initializers, metadata
+    
     elif op_name == "Mean":
         num_inputs = random.randint(1, 5)
         

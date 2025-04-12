@@ -62,6 +62,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         try compute_matmul_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MaxPool")) {
         try compute_maxPool_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "AveragePool")) {
+        try compute_averagePool_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mul")) {
         //https://onnx.ai/onnx/operators/onnx__Mul.html
         try compute_mul_output_shape(readyNode);
@@ -580,6 +582,113 @@ inline fn compute_maxPool_output_shape(readyNode: *ReadyNode) !void {
 
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_averagePool_output_shape(readyNode: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__AveragePool.html
+    // Computes the output shape for an AveragePool node based on input shape and attributes.
+    const input_shape: []const i64 = readyNode.inputs.items[0].?.shape;
+
+    var kernel_shape: ?[]i64 = null;
+    var stride: ?[]i64 = null;
+    var dilation: ?[]i64 = null;
+    var auto_pad: []const u8 = "NOTSET";
+    var pads: ?[]i64 = null;
+    var ceil_mode: bool = false;
+    var count_include_pad: bool = false;
+
+    // Extract attributes from node
+    for (readyNode.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "kernel_shape")) {
+            if (attr.type == AttributeType.INTS) kernel_shape = attr.ints;
+        } else if (std.mem.eql(u8, attr.name, "strides")) {
+            if (attr.type == AttributeType.INTS) stride = attr.ints;
+        } else if (std.mem.eql(u8, attr.name, "dilations")) {
+            if (attr.type == AttributeType.INTS) dilation = attr.ints;
+        } else if (std.mem.eql(u8, attr.name, "auto_pad")) {
+            if (attr.type == AttributeType.STRING) auto_pad = attr.s;
+        } else if (std.mem.eql(u8, attr.name, "pads")) {
+            if (attr.type == AttributeType.INTS) pads = attr.ints;
+        } else if (std.mem.eql(u8, attr.name, "ceil_mode")) {
+            if (attr.type == AttributeType.INT) ceil_mode = attr.i != 0;
+        } else if (std.mem.eql(u8, attr.name, "count_include_pad")) {
+            if (attr.type == AttributeType.INT) count_include_pad = attr.i != 0;
+        }
+    }
+
+    // Check mandatory attributes
+    if (kernel_shape == null) return error.KernelShapeNotFound;
+
+    // Create proper allocated slices for default values
+    var default_stride: []i64 = undefined;
+    var default_dilation: []i64 = undefined;
+    var default_pads: []i64 = undefined;
+    var should_free_stride = false;
+    var should_free_dilation = false;
+    var should_free_pads = false;
+
+    if (stride == null) {
+        default_stride = try allocator.alloc(i64, 2);
+        default_stride[0] = 1;
+        default_stride[1] = 1;
+        stride = default_stride;
+        should_free_stride = true;
+    }
+
+    if (dilation == null) {
+        default_dilation = try allocator.alloc(i64, 2);
+        default_dilation[0] = 1;
+        default_dilation[1] = 1;
+        dilation = default_dilation;
+        should_free_dilation = true;
+    }
+
+    if (pads == null) {
+        default_pads = try allocator.alloc(i64, 4);
+        @memset(default_pads, 0);
+        pads = default_pads;
+        should_free_pads = true;
+    }
+
+    defer {
+        if (should_free_stride) allocator.free(default_stride);
+        if (should_free_dilation) allocator.free(default_dilation);
+        if (should_free_pads) allocator.free(default_pads);
+    }
+
+    // Convert AutoPadType from string
+    var auto_pad_type: tensorMath.AutoPadType = .NOTSET;
+    if (std.mem.eql(u8, auto_pad, "VALID")) {
+        auto_pad_type = .VALID;
+    } else if (std.mem.eql(u8, auto_pad, "SAME_UPPER")) {
+        auto_pad_type = .SAME_UPPER;
+    } else if (std.mem.eql(u8, auto_pad, "SAME_LOWER")) {
+        auto_pad_type = .SAME_LOWER;
+    }
+
+    // Convert parameters to usize
+    const usize_input_shape = try utils.i64SliceToUsizeSlice(input_shape);
+    defer allocator.free(usize_input_shape);
+
+    const usize_kernel_shape = try utils.i64SliceToUsizeSlice(kernel_shape.?);
+    defer allocator.free(usize_kernel_shape);
+
+    const usize_stride = try utils.i64SliceToUsizeSlice(stride.?);
+    defer allocator.free(usize_stride);
+
+    const usize_dilation = try utils.i64SliceToUsizeSlice(dilation.?);
+    defer allocator.free(usize_dilation);
+
+    const usize_pads = try utils.i64SliceToUsizeSlice(pads.?);
+    defer allocator.free(usize_pads);
+
+    // Call the AveragePool shape function
+    const output_shape = try tensorMath.get_onnx_averagepool_output_shape(usize_input_shape, usize_kernel_shape, usize_stride, usize_dilation, usize_pads, auto_pad_type, ceil_mode);
+    defer allocator.free(output_shape);
+
+    // Assign the output shape to the node
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape);
+    // std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
 inline fn compute_reducemean_output_shape(readyNode: *ReadyNode) !void {

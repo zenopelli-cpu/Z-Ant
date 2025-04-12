@@ -116,6 +116,10 @@ pub const get_onnx_maxpool_output_shape = pooling_math_lib.get_onnx_maxpool_outp
 pub const get_pooling_output_shape = pooling_math_lib.get_pooling_output_shape;
 pub const PoolingType = pooling_math_lib.PoolingType;
 
+pub const onnx_averagepool = pooling_math_lib.onnx_averagepool;
+pub const onnx_averagepool_lean = pooling_math_lib.lean_onnx_averagepool;
+pub const get_onnx_averagepool_output_shape = pooling_math_lib.get_onnx_averagepool_output_shape;
+
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 const reduction_math_lib = @import("lib_reduction_math.zig");
