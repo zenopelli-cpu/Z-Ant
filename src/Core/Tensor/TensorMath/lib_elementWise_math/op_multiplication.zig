@@ -163,3 +163,10 @@ pub inline fn mul_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), re
         result.data[i] = lhs.data[idx1] * rhs.data[idx2];
     }
 }
+
+pub inline fn get_mul_output_shape(lhs: []const usize, rhs: []const usize) ![]const usize {
+    if (lhs.len != rhs.len) {
+        return TensorError.MismatchedShape;
+    }
+    return lhs;
+}

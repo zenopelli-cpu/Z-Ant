@@ -97,3 +97,13 @@ pub fn softmax_backward(comptime T: anytype, dL_dX: *Tensor(T), softmax_output: 
         }
     }
 }
+
+pub fn get_longsoftmax_output_shape(input_shape: []const usize) ![]usize {
+    // Allocate and copy the input shape
+    const output_shape = try pkg_allocator.alloc(usize, input_shape.len);
+    errdefer pkg_allocator.free(output_shape);
+
+    @memcpy(output_shape, input_shape);
+
+    return output_shape;
+}
