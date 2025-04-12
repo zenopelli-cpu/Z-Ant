@@ -10,12 +10,7 @@ const CACHE_BLOCK_SIZE_BYTES: usize = std.atomic.cache_line;
 //Easy to implement, works, loses some efficiency on non-square matrices or really large B matrices
 pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T), C: *const Tensor(T)) !void {
     
-    const VEC_WIDTH: usize = comptime (std.simd.suggestVectorLength(T) orelse 4);
-
-    std.debug.print("Suggested vector length is {any}\n", .{VEC_WIDTH});
     const cache_block_size = comptime (CACHE_BLOCK_SIZE_BYTES / @sizeOf(T));
-    std.debug.print("Cache block size in bytes is {d}\n", .{CACHE_BLOCK_SIZE_BYTES});
-    std.debug.print("Cache block size for type is {d}\n", .{cache_block_size});
 
     const a_rows = A.shape[A.shape.len - 2];
     const a_cols = A.shape[A.shape.len - 1];
@@ -35,6 +30,11 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     const nearest_b_rows = cache_block_size * (b_rows / cache_block_size);
     const remaining_b_rows = b_rows - nearest_b_rows;
     
+    const VEC_WIDTH: usize = comptime (std.simd.suggestVectorLength(T) orelse 4);
+    var a_vec: @Vector(VEC_WIDTH, T) = undefined;
+    var b_vec: @Vector(VEC_WIDTH, T) = undefined;
+    var c_vec: @Vector(VEC_WIDTH, T) = undefined;
+    
     var c_chunk_column: usize = 0;
     
     while (c_chunk_column + cache_block_size <= nearest_c_cols) : (c_chunk_column += cache_block_size) {
@@ -43,14 +43,13 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
             var tile: usize = 0;
             while (tile < nearest_b_rows) : (tile += cache_block_size) {
                 for (0..cache_block_size) |t_row| {
-                    simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row);
+                    simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
                 }
             }
- 
             //Handle rows that are not a multiple of cache_block_size
             var last_tile: usize = 0;
             while (last_tile < remaining_b_rows) : (last_tile += 1) {
-                simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row);
+                simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
             }
         }
     }
@@ -60,14 +59,14 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
         var tile: usize = 0;
         while (tile < nearest_b_rows) : (tile += cache_block_size) {
             for (0..cache_block_size) |t_row| {
-                simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row);
+                simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
             }
         }
 
         //Handle rows that are not a multiple of cache_block_size
         var last_tile: usize = 0;
         while (last_tile < remaining_b_rows) : (last_tile += 1) {
-            simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row);
+            simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
         }
     }
     
@@ -109,6 +108,9 @@ inline fn simd_tile_mul(
     t_row: usize,
     c_chunk_column: usize,
     c_chunk_row: usize,
+    a_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, T)),
+    b_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, T)),
+    c_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, T)),
 ) void {
     const CACHE_BLOCK_SIZE = comptime (CACHE_BLOCK_SIZE_BYTES / @sizeOf(T));
 
@@ -121,9 +123,9 @@ inline fn simd_tile_mul(
     const a_val = A_ptr[c_chunk_row * a_cols + tile + t_row];
 
     // Create a vector filled with the same value of A
-    const a_vec: @Vector(VEC_WIDTH, T) = @splat(a_val);
-    var b_vec: @Vector(VEC_WIDTH, T) = undefined;
-    var c_vec: @Vector(VEC_WIDTH, T) = undefined;
+    a_vec.* = @splat(a_val);
+    // var b_vec: @Vector(VEC_WIDTH, T) = undefined;
+    // var c_vec: @Vector(VEC_WIDTH, T) = undefined;
 
     // Iteration on columns in blocks of simd_lanes
     var t_col: usize = 0;
@@ -140,7 +142,7 @@ inline fn simd_tile_mul(
         }
 
         // Multiply and accumulate
-        c_vec += a_vec * b_vec;
+        c_vec.* += a_vec.* * b_vec.*;
 
         // Write the result in C
         for (0..VEC_WIDTH) |i| {

@@ -26,10 +26,8 @@ const test_data_types = [_]type{
     u8,
     u16,
     u32,
-    u64,
     f16,
     f32,
-    f64,
 };
 
 const test_data_n = [_]usize{ 8, 9, 10 };
