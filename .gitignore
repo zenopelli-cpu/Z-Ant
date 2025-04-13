@@ -38,4 +38,4 @@ massif.*
 
 /datasets/oneOpModels/results.json
 
-latest_benchmark.txt
+/benchmarks/output
