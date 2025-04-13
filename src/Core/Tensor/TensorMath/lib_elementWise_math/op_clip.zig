@@ -42,7 +42,8 @@ pub inline fn lean_clip(
 
     // Handle the case where min > max: set all values to max
     if (min_val > max_val) {
-        @memset(outputTensor.data, max_val);
+        // According to ONNX spec, if min > max, fill with min value.
+        @memset(outputTensor.data, min_val);
         return;
     }
 
