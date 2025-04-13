@@ -831,25 +831,34 @@ inline fn write_matmul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[1].name) });
     }
     
-    const b_numdims = node.inputs.items[0].?.shape.len;
-    const b_width_bytes = node.inputs.items[0].?.shape[b_numdims-1] * @sizeOf(node.inputs.items[0].?.);
-        if (b_width_bytes >= std.atomic.cache_line){ //B is large enough for the new mat mul to work;
-            _ = try writer.print( 
-            \\
-            \\    tensMath.blocked_mat_mul_lean(T, {s}, {s}, &tensor_{s})
-        , .{
-            tensor_A_string, // Input tensor A
-            tensor_B_string, // Input tensor B
-            try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
-        });} else { //B is not large enough, so we keep the old but improved mat_mul
-            _ = try writer.print(
+    _ = try writer.print(
             \\
             \\    tensMath.mat_mul_lean(T, {s}, {s}, &tensor_{s})
         , .{
             tensor_A_string, // Input tensor A
             tensor_B_string, // Input tensor B
             try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
-        });}
+        });
+    
+    // const b_numdims = node.inputs.items[0].?.shape.len;
+    // const b_width_bytes = node.inputs.items[0].?.shape[b_numdims-1] * @sizeOf(node.inputs.items[0].?.);
+    //     if (b_width_bytes >= std.atomic.cache_line){ //B is large enough for the new mat mul to work;
+    //         _ = try writer.print( 
+    //         \\
+    //         \\    tensMath.blocked_mat_mul_lean(T, {s}, {s}, &tensor_{s})
+    //     , .{
+    //         tensor_A_string, // Input tensor A
+    //         tensor_B_string, // Input tensor B
+    //         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
+    //     });} else { //B is not large enough, so we keep the old but improved mat_mul
+    //         _ = try writer.print(
+    //         \\
+    //         \\    tensMath.mat_mul_lean(T, {s}, {s}, &tensor_{s})
+    //     , .{
+    //         tensor_A_string, // Input tensor A
+    //         tensor_B_string, // Input tensor B
+    //         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
+    //     });}
 }
 
 inline fn write_maxPool(writer: std.fs.File.Writer, node: *ReadyNode) !void {
