@@ -46,7 +46,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     if (std.mem.eql(u8, node.nodeProto.op_type, "Add")) {
         try write_add(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "AveragePool")) {
-        try writer.writeAll("// Handle AveragePool\n");
+        try write_averagePool(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "BatchNormalization")) {
         try writer.writeAll("// Handle BatchNormalization\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Ceil")) {
@@ -75,8 +75,6 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_matmul(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "MaxPool")) {
         try write_maxPool(writer, node);
-    } else if (std.mem.eql(u8, node.nodeProto.op_type, "AveragePool")) {
-        try write_averagePool(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Mul")) {
         try write_mul(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Neg")) {
@@ -1027,6 +1025,8 @@ inline fn write_averagePool(writer: std.fs.File.Writer, node: *ReadyNode) !void 
     //      - kernel_shape - INTS (required): Kernel size along each axis
     //      - pads - INTS: Padding for each spatial axis
     //      - strides - INTS: Stride along each spatial axis (default 1)
+
+    std.debug.print("DEBUG: write_averagePool called for node: {s}\n", .{node.nodeProto.name orelse "unnamed"});
 
     var auto_pad: []const u8 = "NOTSET";
     var ceil_mode: i64 = 0;
