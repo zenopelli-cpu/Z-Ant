@@ -571,8 +571,8 @@ test "clip f32 min > max" {
     var output = try TensMath.clip(f32, allocator, &input, &min_tensor, &max_tensor);
     defer output.deinit();
 
-    // When min > max, all output values should be max_val
-    const expected = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
+    // When min > max, all output values should be min_val (ONNX spec)
+    const expected = [_]f32{ 10.0, 10.0, 10.0, 10.0 };
     try std.testing.expectEqualSlices(f32, &expected, output.data);
 }
 
