@@ -30,6 +30,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Add")) {
         //https://onnx.ai/onnx/operators/onnx__Add.html
         try compute_Add_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "BatchNormalization")) {
+        //https://onnx.ai/onnx/operators/onnx__BatchNormalization.html
+        try compute_batchNormalization_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Ceil")) {
         //https://onnx.ai/onnx/operators/onnx__Ceil.html
         try compute_ceil_output_shape(readyNode);
@@ -124,6 +127,17 @@ inline fn compute_Add_output_shape(readyNode: *ReadyNode) !void {
         shape = tensorShape;
     } else {
         shape = readyNode.inputs.items[0].?.shape;
+    }
+    readyNode.outputs.items[0].shape = shape;
+}
+
+inline fn compute_batchNormalization_output_shape(readyNode: *ReadyNode) !void {
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        shape = try utils.usizeSliceToI64Slice(try tensorMath.get_batchNormalization_output_shape(try utils.i64SliceToUsizeSlice(readyNode.inputs.items[0].?.shape)));
     }
     readyNode.outputs.items[0].shape = shape;
 }

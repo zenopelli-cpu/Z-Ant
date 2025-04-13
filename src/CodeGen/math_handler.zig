@@ -48,7 +48,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "AveragePool")) {
         try writer.writeAll("// Handle AveragePool\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "BatchNormalization")) {
-        try writer.writeAll("// Handle BatchNormalization\n");
+        try write_BatchNormalization(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Ceil")) {
         try write_ceil(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Clip")) {
@@ -192,6 +192,138 @@ inline fn write_add(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         tensor_A_string, // Input tensor A
         tensor_B_string, // Input tensor B
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor C
+    });
+}
+
+inline fn write_BatchNormalization(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__BatchNormalization.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input data tensor from the previous operator; dimensions are in the form of (N x C x D1 x D2 … Dn), where N is the batch size, C is the number of channels. Statistics are computed for every channel of C over N and D1 to Dn dimensions. For image data, input dimensions become (N x C x H x W). The op also accepts single dimension input of size N in which case C is assumed to be 1
+    //      - scale (heterogeneous) - T1: Scale tensor of shape ©.
+    //      - B (heterogeneous) - T1: Bias tensor of shape ©.
+    //      - input_mean (heterogeneous) - T2: running (training) or estimated (testing) mean tensor of shape ©.
+    //      - input_var (heterogeneous) - T2: running (training) or estimated (testing) variance tensor of shape ©.
+    // OUTPUT:
+    //      - Y (heterogeneous) - T: The output tensor of the same shape as X
+    // ATTRIBUTES:
+    //      - epsilon - FLOAT (default is '1e-05'): The epsilon value to use to avoid division by zero.
+    //      - momentum - FLOAT (default is '0.9'): Factor used in computing the running mean and variance.e.g., running_mean = running_mean * momentum + mean * (1 - momentum).
+    //      - training_mode - INT (default is '0'): If set to true, it indicates BatchNormalization is being used for training, and outputs 1 and 2 are to be computed.
+
+    var epsilon: f32 = 1e-05;
+    var momentum: f32 = 0.9;
+    // var training_mode: bool = false; -> NOT USED, ALWAYS FALSE for Zant
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.indexOf(u8, attr.name, "epsilon")) |_| {
+            if (attr.type == AttributeType.FLOAT) epsilon = attr.f else return error.BatchNorm_epsilon_NotFloat;
+        } else if (std.mem.indexOf(u8, attr.name, "momentum")) |_| {
+            if (attr.type == AttributeType.FLOAT) momentum = attr.f else return error.BatchNorm_momentum_NotFloat;
+        } else if (std.mem.indexOf(u8, attr.name, "training_mode")) |_| {
+            if (attr.type == AttributeType.INT) if (attr.i != 0) return error.BatchNorm_training_NotAvailable;
+        }
+    }
+
+    //----create tensor_X_string
+    var tensor_X_string: []u8 = undefined;
+    defer allocator.free(tensor_X_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name), ")" });
+    }
+
+    //----create tensor_scale_string
+    var tensor_scale_string: []u8 = undefined;
+    defer allocator.free(tensor_scale_string);
+
+    if (node.inputs.items[1].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_scale_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[1].?.name),
+            ")",
+        });
+    } else {
+        tensor_scale_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name), ")" });
+    }
+
+    //----create tensor_scale_string
+    var tensor_B_string: []u8 = undefined;
+    defer allocator.free(tensor_B_string);
+
+    if (node.inputs.items[2].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[2].?.name),
+            ")",
+        });
+    } else {
+        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[2].?.name), ")" });
+    }
+
+    //----create tensor_input_mean_string
+    var tensor_input_mean_string: []u8 = undefined;
+    defer allocator.free(tensor_input_mean_string);
+
+    if (node.inputs.items[3].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_input_mean_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[3].?.name),
+            ")",
+        });
+    } else {
+        tensor_input_mean_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[3].?.name), ")" });
+    }
+
+    //----create tensor_input_var_string
+    var tensor_input_var_string: []u8 = undefined;
+    defer allocator.free(tensor_input_var_string);
+
+    if (node.inputs.items[4].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_input_var_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[4].?.name),
+            ")",
+        });
+    } else {
+        tensor_input_var_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[4].?.name), ")" });
+    }
+
+    // pub inline fn batchNormalization_lean( comptime T: anytype, comptime T1: anytype, comptime T2: anytype, input: *Tensor(T), scales: *Tensor(T1), B: *Tensor(T1), input_mean: Tensor(T2), input_var: Tensor(T2), epsilon: f32, momentum: f32, training_mode: bool, output: *Tensor(T))
+    _ = try writer.print(
+        \\    
+        \\
+        \\    tensMath.batchNormalization_lean(
+        \\        {s}, //type 0
+        \\        {s}, //type 1
+        \\        {s}, //type 2
+        \\        {s}, //input
+        \\        {s}, //scales
+        \\        {s}, //B
+        \\        {s}, //input_mean
+        \\        {s}, //input_var
+        \\        {}, //epsilon
+        \\        {}, //momentum
+        \\        false, //training_mode
+        \\        &tensor_{s}, //output
+        \\    )
+    , .{
+        try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[0].?.name).?.tensorProto.?.data_type),
+        try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[1].?.name).?.tensorProto.?.data_type),
+        try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[3].?.name).?.tensorProto.?.data_type),
+        tensor_X_string,
+        tensor_scale_string,
+        tensor_B_string,
+        tensor_input_mean_string,
+        tensor_input_var_string,
+        epsilon,
+        momentum,
+        try utils.getSanitizedName(node.outputs.items[0].name),
     });
 }
 

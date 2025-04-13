@@ -14,8 +14,8 @@ pub fn batchNormalization(
     input: *Tensor(T),
     scales: *Tensor(T1),
     B: *Tensor(T1),
-    input_mean: Tensor(T2),
-    input_var: Tensor(T2),
+    input_mean: *Tensor(T2),
+    input_var: *Tensor(T2),
     epsilon: f32,
     momentum: f32,
     training_mode: bool,
@@ -24,9 +24,7 @@ pub fn batchNormalization(
     //checks on the shapes
     if (input.size % scales.size != 0) return error.SizesDontMatch;
 
-    // size(input) % size(shape ©)  == 0
-
-    const output_shape = try get_batchNormalization_output_shape(input);
+    const output_shape = try get_batchNormalization_output_shape(input.shape);
     var output = Tensor(T).fromShape(&pkg_allocator, output_shape);
     errdefer output.deint();
 
@@ -40,8 +38,8 @@ pub inline fn batchNormalization_lean(
     input: *Tensor(T), // X
     scales: *Tensor(T1), //tensor of shape ©.
     B: *Tensor(T1), // tensor of shape ©.
-    input_mean: Tensor(T2), // tensor of shape ©.
-    input_var: Tensor(T2), // tensor of shape ©.
+    input_mean: *Tensor(T2), // tensor of shape ©.
+    input_var: *Tensor(T2), // tensor of shape ©.
     epsilon: f32,
     momentum: f32,
     training_mode: bool,
@@ -65,11 +63,11 @@ pub inline fn batchNormalization_lean(
         const stride = i * c_size;
 
         for (0..c_size) |j| {
-            output.data[stride + j] = ((input.data[stride + j] - input_mean.data[j]) / @sqrt(input_var.data[i] + epsilon)) * scales.data[j] + B.data[j];
+            output.data[stride + j] = ((input.data[stride + j] - input_mean.data[j]) / @sqrt(input_var.data[j] + epsilon)) * scales.data[j] + B.data[j];
         }
     }
 }
 
-pub inline fn get_batchNormalization_output_shape(comptime T: anytype, input: *Tensor(T)) ![]usize {
-    return input.shape;
+pub inline fn get_batchNormalization_output_shape(input_shape: []usize) ![]usize {
+    return input_shape;
 }

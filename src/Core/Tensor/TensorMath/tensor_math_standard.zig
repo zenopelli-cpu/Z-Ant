@@ -98,6 +98,12 @@ pub const mean_standard = op_mean.mean_standard;
 pub const mean_lean = op_mean.mean_lean;
 pub const get_mean_output_shape = op_mean.get_mean_output_shape;
 
+// ---------- importing standard Batch Normalization ----------
+const op_bachNorm = @import("op_batchNormalization.zig");
+pub const batchNormalization = op_bachNorm.batchNormalization;
+pub const batchNormalization_lean = op_bachNorm.batchNormalization_lean;
+pub const get_batchNormalization_output_shape = op_bachNorm.get_batchNormalization_output_shape;
+
 // ---------- importing standard Convolution methods ----------
 const convolution_math_lib = @import("op_convolution.zig");
 pub const multidim_convolution_with_bias = convolution_math_lib.multidim_convolution_with_bias;
