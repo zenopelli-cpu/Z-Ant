@@ -12,10 +12,11 @@ oneOp model generator: ✅ if the oneOpModel is created, remember to add the onn
 
 | math op name | onnx reference | tensor math | tensor math tests | codegen | oneOp model generator (.py) | notes |
 | :------------: | :------------: | :---------: | :-----------: | :-------: | :--------: | :------------- |
+|Add| [Add](https://onnx.ai/onnx/operators/onnx__Add.html) | [op_add](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_addition.zig) | ✅ | ✅ | ✅ |
+|BatchNormalization| [BatchNormalization](https://onnx.ai/onnx/operators/onnx__BatchNormalization.html) | [op_add](../src/Core/Tensor/TensorMath/op_batchNormalization.zig) | 🔶 | ✅ | ✅ |
 | convolution | [Conv](https://onnx.ai/onnx/operators/onnx__Conv.html) | [op_convolution.zig](../src/Core/Tensor/TensorMath/op_convolution.zig) | ✅ | ✅ | ✅ |
 | gemm | [Gemm](https://onnx.ai/onnx/operators/onnx__Gemm.html) | [op_gemm](../src/Core/Tensor/TensorMath/op_gemm.zig) | ✅ | ✅ | ✅ |
 |Div| [Div](https://onnx.ai/onnx/operators/onnx__Div.html) |[op_div](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_division.zig) | ✅ | ✅ | ✅ |
-|Add| [Add](https://onnx.ai/onnx/operators/onnx__Add.html) | [op_add](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_addition.zig) | ✅ | ✅ | ✅ |
 |Concat| [Concat](https://onnx.ai/onnx/operators/onnx__Concat.html)| [op_concat](../src/Core/Tensor/TensorMath/lib_shape_math/op_concatenate.zig) | ✅ | ✅ | ✅ |
 |ReduceMean| [ReduceMen](https://onnx.ai/onnx/operators/onnx__ReduceMean.html) | [op_ReduceMEan](../src/Core/Tensor/TensorMath/lib_reduction_math.zig) | ✅ | ✅ | ✅ |
 |Ceil| [Ceil](https://onnx.ai/onnx/operators/onnx__Ceil.html) | [op_Ceil](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_ceil.zig) | ✅ | ✅ | ✅ |
