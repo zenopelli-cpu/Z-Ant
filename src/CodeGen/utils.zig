@@ -500,17 +500,20 @@ pub fn i64SliceToUsizeArrayString(values: []const i64) ![]const u8 {
 
 // ----------------- FILE MANAGEMENT -----------------
 // Copy file from src to dst
-pub fn copyFile(src: []const u8, dst: []const u8) !void {
-    const src_file = try std.fs.cwd().openFile(src, .{});
+pub fn copyFile(src_path: []const u8, dst_path: []const u8) !void {
+    var src_file = try std.fs.cwd().openFile(src_path, .{});
     defer src_file.close();
 
-    const dst_file = try std.fs.cwd().createFile(dst, .{});
+    var dst_file = try std.fs.cwd().createFile(dst_path, .{});
     defer dst_file.close();
 
-    const src_content: []const u8 = try src_file.readToEndAlloc(allocator, 1024 * 1024);
-    defer allocator.free(src_content);
-
-    try dst_file.writeAll(src_content);
+    // Use a buffer to copy in chunks
+    var buf: [4096]u8 = undefined;
+    while (true) {
+        const bytes_read = try src_file.read(&buf);
+        if (bytes_read == 0) break;
+        _ = try dst_file.write(buf[0..bytes_read]);
+    }
 }
 
 // Read the user_tests json file and return a list of test cases
