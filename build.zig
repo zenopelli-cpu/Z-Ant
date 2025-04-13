@@ -197,6 +197,7 @@ pub fn build(b: *std.Build) void {
 
     benchmark.root_module.addImport("zant", zant_mod);
     benchmark.root_module.addOptions("bench_options", bench_options);
+    benchmark.linkLibC();
 
     const run_benchmark = b.addRunArtifact(benchmark);
     const benchmark_step = b.step("benchmark", "Run benchmarks");
