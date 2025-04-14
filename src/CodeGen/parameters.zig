@@ -128,11 +128,51 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
         writeArrayData(writer, f64, d) catch return error.f64DataUnavailable;
     } else if (t.uint64_data) |d| {
         writeArrayData(writer, u64, d) catch return error.u64DataUnavailable;
+    } else if (t.raw_data) |raw| {
+        // Handle raw data based on data_type
+        switch (t.data_type) {
+            .FLOAT => try writeRawData(writer, f32, raw),
+            .FLOAT16 => try writeRawData(writer, f16, raw),
+            .INT32 => try writeRawData(writer, i32, raw),
+            .INT64 => try writeRawData(writer, i64, raw),
+            .DOUBLE => try writeRawData(writer, f64, raw),
+            .UINT64 => try writeRawData(writer, u64, raw),
+            // TODO: Add other types as needed (e.g., FLOAT16, INT8, etc.)
+            else => {
+                std.log.err("Unsupported raw data type: {any}", .{t.data_type});
+                return error.DataTypeNotAvailable;
+            },
+        }
     } else return error.DataTypeNotAvailable;
 
     try writer.print(
         \\}} ;
     , .{});
+}
+
+/// Writes an array of tensor data from a raw byte slice.
+/// Reads values one by one respecting alignment.
+fn writeRawData(writer: std.fs.File.Writer, comptime T: type, raw_data: []const u8) !void {
+    const elem_size = @sizeOf(T);
+    const num_elements = raw_data.len / elem_size;
+
+    // Ensure raw_data length is a multiple of element size
+    if (raw_data.len % elem_size != 0) {
+        std.log.err("Raw data length {d} is not a multiple of element size {d} for type {any}", .{ raw_data.len, elem_size, T });
+        return error.InvalidRawDataLength;
+    }
+
+    for (0..num_elements) |i| {
+        const offset = i * elem_size;
+        const value = std.mem.bytesToValue(T, raw_data[offset .. offset + elem_size]);
+
+        if (i > 0) try writer.print(
+            \\,
+        , .{});
+        try writer.print(
+            \\ {}
+        , .{value});
+    }
 }
 
 /// Writes an array of tensor data.

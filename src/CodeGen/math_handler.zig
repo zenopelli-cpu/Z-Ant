@@ -61,6 +61,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_conv(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Div")) {
         try write_div(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "DynamicQuantizeLinear")) {
+        try write_dynamicQuantizeLinear(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Flatten")) {
         try writer.writeAll("// Handle Flatten\n");
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gather")) {
@@ -2410,7 +2412,7 @@ inline fn write_mean(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         output_name, // Nome della variabile temporanea degli input
         inputs_array_str.items, // Array dei puntatori ai tensori di input
         output_name, // Nome del tensore di output
-        output_name, // Nome della variabile temporanea per il riferimento all’array
+        output_name, // Nome della variabile temporanea per il riferimento all'array
     });
 }
 
@@ -2605,5 +2607,62 @@ inline fn write_clip(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         min_tensor_string,
         max_tensor_string,
         output_name,
+    });
+}
+
+inline fn write_dynamicQuantizeLinear(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx_aionnx_preview_training__DynamicQuantizeLinear.html
+    // INPUTS:
+    //      - x (heterogeneous) - T1: Input tensor
+    // OUTPUTS:
+    //      - y (heterogeneous) - T2: Quantized output tensor
+    //      - y_scale (heterogeneous) - tensor(float): Output scale. It's a scalar.
+    //      - y_zero_point (heterogeneous) - T2: Output zero point. It's a scalar.
+
+    // Ensure correct number of inputs and outputs
+    if (node.inputs.items.len != 1) return error.InvalidInputCount; // Expects 1 input
+    if (node.outputs.items.len != 3) return error.InvalidOutputCount; // Expects 3 outputs
+
+    // Get sanitized names
+    const input_x_name = try utils.getSanitizedName(node.inputs.items[0].?.name);
+    const output_y_name = try utils.getSanitizedName(node.outputs.items[0].name);
+    const output_scale_name = try utils.getSanitizedName(node.outputs.items[1].name);
+    const output_zp_name = try utils.getSanitizedName(node.outputs.items[2].name);
+
+    // Create input tensor string (needs const cast as lean function expects *const)
+    var input_x_string: []u8 = undefined;
+    defer allocator.free(input_x_string);
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        input_x_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_", input_x_name, ")",
+        });
+    } else {
+        input_x_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&tensor_", input_x_name, ")",
+        });
+    }
+
+    // Output tensors are always non-const variables in the generated code
+    const output_y_string = try std.fmt.allocPrint(allocator, "&tensor_{s}", .{output_y_name});
+    defer allocator.free(output_y_string);
+    const output_scale_string = try std.fmt.allocPrint(allocator, "&tensor_{s}", .{output_scale_name});
+    defer allocator.free(output_scale_string);
+    const output_zp_string = try std.fmt.allocPrint(allocator, "&tensor_{s}", .{output_zp_name});
+    defer allocator.free(output_zp_string);
+
+    // Write the lean function call
+    _ = try writer.print(
+        \\n        \\
+        \\    tensMath.dynamicQuantizeLinear_lean(
+        \\        {s}, // x: *const Tensor(f32)
+        \\        {s}, // y: *Tensor(u8)
+        \\        {s}, // y_scale: *Tensor(f32)
+        \\        {s}  // y_zero_point: *Tensor(u8)
+        \\    )
+    , .{
+        input_x_string,
+        output_y_string,
+        output_scale_string,
+        output_zp_string,
     });
 }

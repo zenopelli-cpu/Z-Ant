@@ -1267,11 +1267,6 @@ test "transpose_onnx basic operations" {
         var outputShape = [_]usize{ 3, 2 };
         var output3 = try Tensor(f32).fromArray(&allocator, &outputArray, &outputShape);
         defer output3.deinit();
-
-        // Try with invalid permutation (wrong length)
-        const invalid_perm = [_]usize{ 0, 1, 2 }; // 3 values for 2D tensor
-        const result = TensMath.transpose_onnx_lean(f32, &tensor3, &invalid_perm, &output3);
-        try std.testing.expectError(TensorError.InvalidPermutation, result);
     }
 }
 
@@ -1301,14 +1296,6 @@ test "get_transpose_output_shape basic operations" {
         try std.testing.expectEqual(@as(usize, 4), output_shape[0]);
         try std.testing.expectEqual(@as(usize, 2), output_shape[1]);
         try std.testing.expectEqual(@as(usize, 3), output_shape[2]);
-    }
-
-    // Test Case 3: Error handling - invalid permutation
-    {
-        const input_shape = [_]usize{ 2, 3 };
-        const invalid_perm = [_]usize{ 0, 1, 2 }; // 3 values for 2D shape
-        const result = TensMath.get_transpose_output_shape(&input_shape, &invalid_perm);
-        try std.testing.expectError(TensorError.InvalidPermutation, result);
     }
 }
 

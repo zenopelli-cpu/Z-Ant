@@ -46,25 +46,80 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     // std.debug.print("\n[DEBUG] OnnxConvLean - Stride: {any}", .{stride});
 
     // Input validation: Ensure 4D tensors for input (N,C,H,W) and kernel (M,C/g,H,W)
-    if (input.shape.len != 4 or kernel.shape.len != 4) {
+
+    // --- Handle 3D input shape by assuming batch size = 1 ---
+    var actual_input_shape: [4]usize = undefined;
+    var input_ptr = input; // Use original pointer unless adjusted
+    var temp_input_tensor: ?Tensor(T) = null; // Optional tensor for adjusted shape
+
+    if (input.shape.len == 3) {
+        // Assume batch size is 1 if input is 3D (C, H, W)
+        actual_input_shape[0] = 1;
+        actual_input_shape[1] = input.shape[0]; // Channels
+        actual_input_shape[2] = input.shape[1]; // Height
+        actual_input_shape[3] = input.shape[2]; // Width
+
+        // Create a temporary tensor using fromArray - this allocates and copies
+        const temp_tensor = try Tensor(T).fromArray(&pkg_allocator, input.data, &actual_input_shape);
+        temp_input_tensor = temp_tensor; // Assign to the optional field
+        input_ptr = &temp_input_tensor.?; // Point to the temporary tensor
+
+    } else if (input.shape.len == 4) {
+        @memcpy(&actual_input_shape, input.shape[0..4]);
+    } else {
+        if (log_functionC) |log_func| {
+            log_func(@constCast(@ptrCast("OnnxConvLeanError: Invalid input dimensions")));
+        }
         return TensorMathError.InvalidDimensions;
     }
+    // Defer deinitialization if a temporary tensor was created
+    // Note: deinit on a fromArray tensor *will* free the copied data/shape
+    defer if (temp_input_tensor) |*t| t.deinit(); // Deinit only if temp_input_tensor is not null
+
+    if (kernel.shape.len != 4) {
+        if (log_functionC) |log_func| {
+            log_func(@constCast(@ptrCast("OnnxConvLeanError: Invalid kernel dimensions")));
+        }
+        return TensorMathError.InvalidDimensions;
+    }
+    // --- End Shape Adjustment ---
+
     if (log_functionC) |log_func| {
         log_func(@constCast(@ptrCast("OnnxConvLean1")));
     }
 
-    const in_height = input.shape[2];
-    const in_width = input.shape[3];
+    // Use actual_input_shape for calculations
+    const in_height = actual_input_shape[2];
+    const in_width = actual_input_shape[3];
     const out_channels = kernel.shape[0];
     const kernel_height = kernel.shape[2];
     const kernel_width = kernel.shape[3];
+    const kernel_channels_per_group = kernel.shape[1]; // ONNX Kernel shape [M, C/g, kH, kW]
+    const in_channels = actual_input_shape[1]; // C
     if (log_functionC) |log_func| {
         log_func(@constCast(@ptrCast("OnnxConvLean1")));
     }
-    // Group validation: Only group=1 is supported in this implementation
-    if (group != null and group.? != 1) {
+    // Group validation
+    const actual_group = group orelse 1;
+
+    if (in_channels % actual_group != 0) {
         if (log_functionC) |log_func| {
-            log_func(@constCast(@ptrCast("OnnxConvLeanError1")));
+            log_func(@constCast(@ptrCast("OnnxConvLeanError: Input channels not divisible by group")));
+        }
+        return TensorMathError.InvalidGroupParameter;
+    }
+    if (out_channels % actual_group != 0) {
+        if (log_functionC) |log_func| {
+            log_func(@constCast(@ptrCast("OnnxConvLeanError: Output channels not divisible by group")));
+        }
+        return TensorMathError.InvalidGroupParameter;
+    }
+    // Check if kernel's channel dimension (C/g) matches input channels / group
+    if (kernel_channels_per_group != in_channels / actual_group) {
+        if (log_functionC) |log_func| {
+            var buf: [256]u8 = undefined;
+            _ = std.fmt.bufPrint(&buf, "OnnxConvLeanError: Kernel channels mismatch. Kernel C/g={}, Input C/g={d}/{d}={d}", .{ kernel_channels_per_group, in_channels, actual_group, in_channels / actual_group }) catch unreachable;
+            log_func(@constCast(@ptrCast(&buf)));
         }
         return TensorMathError.InvalidDimensions;
     }
@@ -124,12 +179,29 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
                     pad_w_begin = p[1];
                     pad_h_end = p[2];
                     pad_w_end = p[3];
+                } else if (p.len == 2) { // Handle symmetric padding [h, w]
+                    pad_h_begin = p[0];
+                    pad_h_end = p[0];
+                    pad_w_begin = p[1];
+                    pad_w_end = p[1];
+                } else {
+                    // Default to zero padding if pads length is not 2 or >= 4
+                    pad_h_begin = 0;
+                    pad_w_begin = 0;
+                    pad_h_end = 0;
+                    pad_w_end = 0;
                 }
             } else {
-                if (log_functionC) |log_func| {
-                    log_func(@constCast(@ptrCast("OnnxConvLeanError2")));
-                }
-                return TensorMathError.InvalidPadding;
+                // pads is null, default to zero padding
+                pad_h_begin = 0;
+                pad_h_end = 0;
+                pad_w_begin = 0;
+                pad_w_end = 0;
+                // No error needed here anymore
+                // if (log_functionC) |log_func| {
+                //     log_func(@constCast(@ptrCast("OnnxConvLeanError2")));
+                // }
+                // return TensorMathError.InvalidPadding;
             }
         } else if (!std.mem.eql(u8, pad_mode, "NOTSET")) {} else if (!std.mem.eql(u8, pad_mode, "NOTSET")) {
             return TensorMathError.InvalidPadding;
@@ -140,10 +212,10 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     }
     // Create padded input tensor
     var padded_shape = [_]usize{
-        input.shape[0],
-        input.shape[1],
-        input.shape[2] + pad_h_begin + pad_h_end,
-        input.shape[3] + pad_w_begin + pad_w_end,
+        actual_input_shape[0], // Use adjusted batch size
+        actual_input_shape[1], // Use adjusted channels
+        actual_input_shape[2] + pad_h_begin + pad_h_end,
+        actual_input_shape[3] + pad_w_begin + pad_w_end,
     };
     if (log_functionC) |log_func| {
         log_func(@constCast(@ptrCast("OnnxConvLean1")));
@@ -160,11 +232,12 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
         log_func(@constCast(@ptrCast("OnnxConvLean1")));
     }
     // Copy input data into the padded tensor, offset by beginning padding
-    for (0..input.shape[0]) |b| {
-        for (0..input.shape[1]) |c| {
-            for (0..input.shape[2]) |h| {
-                for (0..input.shape[3]) |w| {
-                    const val = try input.get_at(&[_]usize{ b, c, h, w });
+    // Use input_ptr which points to either the original input or the temp view
+    for (0..input_ptr.shape[0]) |b| { // Iterate using the shape of the tensor pointed to by input_ptr
+        for (0..input_ptr.shape[1]) |c| {
+            for (0..input_ptr.shape[2]) |h| {
+                for (0..input_ptr.shape[3]) |w| {
+                    const val = try input_ptr.get_at(&[_]usize{ b, c, h, w }); // Get from correct tensor
                     try padded_input.set_at(&[_]usize{ b, c, h + pad_h_begin, w + pad_w_begin }, val);
                 }
             }
@@ -192,13 +265,14 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
         log_func(@constCast(@ptrCast("OnnxConvLean2")));
     }
     // Perform convolution with padded input, kernel, and bias
-    var result = convolve_tensor_with_bias(
+    var result = convolve_tensor_with_bias_memory_efficient(
         T,
         &padded_input,
         kernel,
         if (bias) |b| b else &zero_bias,
         &stride_arr,
         &dilation_arr,
+        actual_group, // Pass the group parameter
     ) catch {
         if (log_functionC) |log_func| {
             log_func(@constCast(@ptrCast("OnnxConvLean: Failed in convolve_tensor_with_bias")));
@@ -217,11 +291,21 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     //std.debug.print("\n[DEBUG] Output shape: {any}", .{output.shape});
 
     // Validate output dimensions and copy result
+    // Output shape should match the expected 4D shape based on actual_input_shape
     if (!std.mem.eql(usize, result.shape[0..4], output.shape[0..4])) {
         //std.debug.print("\n[DEBUG] OnnxConvLean: Result shape: {any}", .{result.shape});
+        // Adjust error message or logic if needed, considering the 3D input case
+        if (log_functionC) |log_func| {
+            var buf: [256]u8 = undefined;
+            _ = std.fmt.bufPrint(&buf, "OnnxConvLeanError: Output shape mismatch. Result: {any}, Expected: {any}", .{ result.shape, output.shape }) catch unreachable;
+            log_func(@constCast(@ptrCast(&buf)));
+        }
         return TensorMathError.InvalidDimensions;
     }
     if (result.data.len != output.data.len) {
+        if (log_functionC) |log_func| {
+            log_func(@constCast(@ptrCast("OnnxConvLeanError: Output data length mismatch")));
+        }
         return TensorMathError.InvalidDimensions;
     }
     @memcpy(output.data, result.data);
@@ -241,15 +325,44 @@ pub fn convolve_tensor_with_bias(
     bias: ?*const Tensor(T),
     stride: []const usize,
     dilations: ?[]const usize,
+    group: usize,
 ) !Tensor(T) {
     const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
     const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else 1 else 1;
     const dilated_kernel_h = (kernel.shape[2] - 1) * dilation_h + 1;
     const dilated_kernel_w = (kernel.shape[3] - 1) * dilation_w + 1;
 
+    const batch_size = input.shape[0];
+    const in_channels = input.shape[1];
     const in_height = input.shape[2];
     const in_width = input.shape[3];
-    const num_filters = kernel.shape[0];
+    const num_filters = kernel.shape[0]; // Total output channels (M)
+    const kernel_channels_per_group = kernel.shape[1]; // Input channels per group (C/g)
+    const kernel_height = kernel.shape[2];
+    const kernel_width = kernel.shape[3];
+
+    // --- Group Validations ---
+    if (in_channels % group != 0) {
+        if (log_functionC) |log_func| {
+            log_func(@constCast(@ptrCast("Error: Input channels not divisible by group")));
+        }
+        return TensorMathError.InvalidGroupParameter;
+    }
+    if (num_filters % group != 0) {
+        if (log_functionC) |log_func| {
+            log_func(@constCast(@ptrCast("Error: Output channels (num_filters) not divisible by group")));
+        }
+        return TensorMathError.InvalidGroupParameter;
+    }
+    if (kernel_channels_per_group != in_channels / group) {
+        if (log_functionC) |log_func| {
+            log_func(@constCast(@ptrCast("Error: Kernel channels per group mismatch")));
+        }
+        return TensorMathError.InvalidDimensions; // Kernel's channel dim should match input channels / group
+    }
+    const channels_per_group = in_channels / group; // C/g
+    const filters_per_group = num_filters / group; // M/g
+    // --- End Group Validations ---
 
     // Special case handling for tiny inputs with larger or equal-sized kernels with stride > 1
     if ((in_height <= dilated_kernel_h or in_width <= dilated_kernel_w) or
@@ -259,7 +372,7 @@ pub fn convolve_tensor_with_bias(
     {
         // For a small input with a larger kernel or equal kernel with stride>1,
         // we'll return a tensor with shape [batch_size, num_filters, 1, 1]
-        var output_shape = [_]usize{ input.shape[0], num_filters, 1, 1 };
+        var output_shape = [_]usize{ batch_size, num_filters, 1, 1 };
         var output = Tensor(T).fromShape(&pkg_allocator, &output_shape) catch {
             if (log_functionC) |log_func| {
                 log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed to allocate output for special case")));
@@ -269,30 +382,42 @@ pub fn convolve_tensor_with_bias(
         errdefer output.deinit();
 
         // For each batch and filter
-        for (0..input.shape[0]) |b| {
+        for (0..batch_size) |b| {
             for (0..num_filters) |f| {
                 var sum: T = 0;
+                const current_group = f / filters_per_group;
+                //const kernel_channel_start = 0; // Kernel channels dim is already C/g
+                //const kernel_channel_end = kernel_channels_per_group;
+                const input_channel_start = current_group * channels_per_group;
+                const input_channel_end = input_channel_start + channels_per_group;
 
                 // For a small input, we need to check if kernel dimensions are valid
-                if (kernel.shape[1] >= 1 and
-                    kernel.shape[2] >= 1 and
-                    kernel.shape[3] >= 1)
+                if (kernel_channels_per_group >= 1 and
+                    kernel_height >= 1 and
+                    kernel_width >= 1)
                 {
                     // Center of the kernel for 3x3 or other odd-sized kernels
-                    const center_h = kernel.shape[2] / 2;
-                    const center_w = kernel.shape[3] / 2;
+                    const center_h = kernel_height / 2;
+                    const center_w = kernel_width / 2;
 
                     // For each input channel (limited to match kernel.shape[1])
-                    const channels = @min(input.shape[1], kernel.shape[1]);
-                    for (0..channels) |c| {
-                        const input_val = try input.get_at(&[_]usize{ b, c, 0, 0 });
-                        const kernel_val = try kernel.get_at(&[_]usize{ f, c, center_h, center_w });
+                    // Iterate over relevant input channels for this group
+                    for (input_channel_start..input_channel_end) |in_c| {
+                        // Map input channel index 'in_c' to the kernel's channel index 'k_c' (0 to C/g - 1)
+                        const k_c = in_c - input_channel_start;
+                        // Ensure we don't go past the actual input channels if padding happened weirdly
+                        if (in_c >= input.shape[1]) continue;
+                        // Ensure kernel channel index is valid (should be due to checks, but safety)
+                        if (k_c >= kernel_channels_per_group) continue;
+
+                        const input_val = try input.get_at(&[_]usize{ b, in_c, 0, 0 });
+                        const kernel_val = try kernel.get_at(&[_]usize{ f, k_c, center_h, center_w });
                         sum += input_val * kernel_val;
                     }
                 }
 
                 // Add bias if provided
-                const bias_val = if (bias) |bias_tensor| bias_tensor.data[f] else 0;
+                const bias_val = if (bias) |bias_tensor| try bias_tensor.get_at(&[_]usize{f}) else 0;
                 try output.set_at(&[_]usize{ b, f, 0, 0 }, sum + bias_val);
             }
         }
@@ -309,7 +434,7 @@ pub fn convolve_tensor_with_bias(
         return TensorMathError.InvalidDimensions;
     }
 
-    var output_shape = [_]usize{ input.shape[0], kernel.shape[0], out_height, out_width };
+    var output_shape = [_]usize{ batch_size, num_filters, out_height, out_width };
     var output = Tensor(T).fromShape(&pkg_allocator, &output_shape) catch {
         if (log_functionC) |log_func| {
             log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed to allocate output tensor")));
@@ -320,31 +445,33 @@ pub fn convolve_tensor_with_bias(
 
     //std.debug.print("\n[DEBUG] Output shape: {any}", .{output.shape});
 
-    const kernel_size = [2]usize{ kernel.shape[2], kernel.shape[3] };
+    const kernel_size = [2]usize{ kernel_height, kernel_width };
     const stride_size = [2]usize{ stride[0], stride[1] };
 
-    var input_col = im2col(T, input, kernel_size, stride_size, dilations) catch {
+    // Pass group parameter to im2col
+    var input_col = im2col(T, input, kernel_size, stride_size, dilations, group) catch {
         if (log_functionC) |log_func| {
             log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed in im2col")));
         }
         @panic("Failed in im2col");
     };
     defer input_col.deinit();
+
     if (log_functionC) |log_func| {
         log_func(@constCast(@ptrCast("OnnxConvLean3")));
     }
-    const kernel_elements = kernel.shape[1] * kernel.shape[2] * kernel.shape[3];
+    // kernel_elements_per_filter = (C/g) * kH * kW
+    const kernel_elements_per_filter = kernel_channels_per_group * kernel_height * kernel_width;
 
     // Print dimensions to debug
     if (log_functionC) |log_func| {
         var buf: [128]u8 = undefined;
-        _ = std.fmt.bufPrint(&buf, "input_col shape: {any}, kernel elements: {}", .{ input_col.shape, kernel_elements }) catch "";
+        _ = std.fmt.bufPrint(&buf, "input_col shape: {any}, kernel elements per filter: {}", .{ input_col.shape, kernel_elements_per_filter }) catch "";
         log_func(@constCast(@ptrCast(&buf)));
     }
 
-    // We need to transpose the kernel_matrix to make dimensions compatible
-    // The kernel should be reshaped as [num_filters, kernel_elements] first
-    var kernel_matrix_shape = [_]usize{ num_filters, kernel_elements };
+    // Reshape kernel: [M, C/g, kH, kW] -> [M, K] where K = C/g * kH * kW
+    var kernel_matrix_shape = [_]usize{ num_filters, kernel_elements_per_filter };
     var kernel_matrix = Tensor(T).fromShape(&pkg_allocator, &kernel_matrix_shape) catch {
         if (log_functionC) |log_func| {
             log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed to allocate kernel_matrix tensor")));
@@ -353,69 +480,84 @@ pub fn convolve_tensor_with_bias(
     };
     defer kernel_matrix.deinit();
 
-    // Reshape kernel to [num_filters, kernel_elements]
+    // Reshape kernel data [M, C/g * kH * kW]
     for (0..num_filters) |f| {
-        for (0..kernel_elements) |i| {
-            const idx = f * kernel_elements + i;
-            try kernel_matrix.set_at(&[_]usize{ f, i }, kernel.data[idx]);
+        const kernel_filter_offset = f * kernel_elements_per_filter;
+        for (0..kernel_elements_per_filter) |k_idx| {
+            // Kernel data is already contiguous for [C/g, kH, kW] within each filter 'f'
+            try kernel_matrix.set_at(&[_]usize{ f, k_idx }, kernel.data[kernel_filter_offset + k_idx]);
         }
     }
 
-    // Then transpose it to get [kernel_elements, num_filters]
-    var kernel_transposed_shape = [_]usize{ kernel_elements, num_filters };
-    var kernel_transposed = Tensor(T).fromShape(&pkg_allocator, &kernel_transposed_shape) catch {
-        if (log_functionC) |log_func| {
-            log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed to allocate transposed kernel tensor")));
-        }
-        @panic("Memory allocation failed for transposed kernel tensor");
-    };
-    defer kernel_transposed.deinit();
+    // Perform group-wise matrix multiplication logic
+    // input_col (I) shape: [N, group * K], where N = B*OH*OW, K = C/g * kH * kW
+    // kernel_matrix (W) shape: [M, K]
+    // Output (O) shape: [N, M]
+    const N = input_col.shape[0]; // B * OH * OW
+    const M = num_filters; // Total output filters
+    const K = kernel_elements_per_filter; // C/g * kH * kW
 
-    // Transpose from [num_filters, kernel_elements] to [kernel_elements, num_filters]
-    for (0..num_filters) |f| {
-        for (0..kernel_elements) |i| {
-            const val = try kernel_matrix.get_at(&[_]usize{ f, i });
-            try kernel_transposed.set_at(&[_]usize{ i, f }, val);
-        }
-    }
-
-    // Now check dimensions before matrix multiplication
-    if (input_col.shape[1] != kernel_transposed.shape[0]) {
+    var result_shape = [_]usize{ N, M };
+    var result = Tensor(T).fromShape(&pkg_allocator, &result_shape) catch {
         if (log_functionC) |log_func| {
-            var buf: [128]u8 = undefined;
-            _ = std.fmt.bufPrint(&buf, "Matrix dimension mismatch: input_col[1]={} != kernel[0]={}", .{ input_col.shape[1], kernel_transposed.shape[0] }) catch "";
-            log_func(@constCast(@ptrCast(&buf)));
+            log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed to allocate result tensor for matmul")));
         }
-        return TensorMathError.InvalidDimensions;
-    }
-
-    var result = mat_mul(T, &input_col, &kernel_transposed) catch {
-        if (log_functionC) |log_func| {
-            log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed in mat_mul")));
-        }
-        @panic("Failed in mat_mul");
+        @panic("Memory allocation failed for result tensor");
     };
     defer result.deinit();
+    try result.set(0, 0); // Initialize result tensor
+
+    // Optimized loops for group-wise dot product calculation
+    var n: usize = 0;
+    while (n < N) : (n += 1) {
+        const input_col_row_offset = n * input_col.shape[1]; // Offset for start of row n in input_col.data
+
+        var m: usize = 0;
+        while (m < M) : (m += 1) {
+            const g = m / filters_per_group; // Determine the group for the current filter m
+            const kernel_filter_offset = m * K; // Offset for start of filter m in kernel_matrix.data
+            const input_col_group_offset = input_col_row_offset + g * K; // Offset for the relevant group's data in input_col row n
+
+            // Calculate dot product for O[n, m]
+            var dot_product: T = 0;
+
+            // TODO: Potential SIMD optimization for dot product
+            var k: usize = 0;
+            while (k < K) : (k += 1) {
+                // Accessing data directly via pointers and offsets
+                dot_product += input_col.data[input_col_group_offset + k] * kernel_matrix.data[kernel_filter_offset + k];
+            }
+            result.data[n * M + m] = dot_product;
+        }
+    }
+
     if (log_functionC) |log_func| {
         log_func(@constCast(@ptrCast("OnnxConvLean4")));
     }
     // Verify that result matches expected number of patches
-    const expected_patches = input.shape[0] * out_height * out_width;
+    const expected_patches = batch_size * out_height * out_width; // This is N
     if (result.shape[0] != expected_patches) {
         //std.debug.print("\n[DEBUG] Patch mismatch: got {}, expected {}", .{ result.shape[0], expected_patches });
         return TensorMathError.InvalidDimensions;
     }
+    if (result.shape[1] != num_filters) {
+        // Should not happen if logic is correct
+        return TensorMathError.InvalidDimensions;
+    }
 
-    var idx: usize = 0;
-    for (0..input.shape[0]) |b| {
-        for (0..out_height) |h| {
-            for (0..out_width) |w| {
-                for (0..num_filters) |f| {
-                    const val = try result.get_at(&[_]usize{ idx, f });
-                    const bias_val = if (bias) |bias_tensor| bias_tensor.data[f] else 0;
+    // Reshape result [N, M] -> [B, M, OH, OW] and add bias
+    //var idx: usize = 0;
+    for (0..batch_size) |b| {
+        for (0..num_filters) |f| { // Iterate through filters first for better cache locality potentially
+            const bias_val = if (bias) |bias_tensor| try bias_tensor.get_at(&[_]usize{f}) else 0;
+            for (0..out_height) |h| {
+                for (0..out_width) |w| {
+                    // Calculate index in the flat result tensor [N, M]
+                    const n_idx = b * (out_height * out_width) + h * out_width + w;
+                    const val = result.data[n_idx * num_filters + f]; // Access result[n_idx, f]
+                    // Set value in the final output tensor [B, M, OH, OW]
                     try output.set_at(&[_]usize{ b, f, h, w }, val + bias_val);
                 }
-                idx += 1;
             }
         }
     }
@@ -432,6 +574,7 @@ pub fn convolve_tensor_with_bias_memory_efficient(
     bias: ?*const Tensor(T),
     stride: []const usize,
     dilations: ?[]const usize,
+    group: usize, // Added group parameter
 ) !Tensor(T) {
     const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
     const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else 1 else 1;
@@ -443,14 +586,33 @@ pub fn convolve_tensor_with_bias_memory_efficient(
     const in_height = input.shape[2];
     const in_width = input.shape[3];
 
-    const num_filters = kernel.shape[0];
-    const kernel_channels = kernel.shape[1]; // C/g, group=1 assumed
+    const num_filters = kernel.shape[0]; // M (total output channels)
+    const kernel_channels_per_group = kernel.shape[1]; // C/g
     const kernel_height = kernel.shape[2];
     const kernel_width = kernel.shape[3];
 
-    if (in_channels != kernel_channels) {
-        return TensorMathError.InvalidDimensions;
+    // --- Group Validations ---
+    if (in_channels % group != 0) {
+        if (log_functionC) |log_func| {
+            log_func(@constCast(@ptrCast("convolve_mem_eff Error: Input channels not divisible by group")));
+        }
+        return TensorMathError.InvalidGroupParameter;
     }
+    if (num_filters % group != 0) {
+        if (log_functionC) |log_func| {
+            log_func(@constCast(@ptrCast("convolve_mem_eff Error: Output channels (num_filters) not divisible by group")));
+        }
+        return TensorMathError.InvalidGroupParameter;
+    }
+    if (kernel_channels_per_group != in_channels / group) {
+        if (log_functionC) |log_func| {
+            log_func(@constCast(@ptrCast("convolve_mem_eff Error: Kernel channels per group mismatch")));
+        }
+        return TensorMathError.InvalidDimensions; // Kernel's channel dim should match input channels / group
+    }
+    const channels_per_group = in_channels / group; // C/g
+    const filters_per_group = num_filters / group; // M/g
+    // --- End Group Validations ---
 
     // --- Special case handling for tiny inputs ---
     if ((in_height <= dilated_kernel_h or in_width <= dilated_kernel_w) or
@@ -470,14 +632,30 @@ pub fn convolve_tensor_with_bias_memory_efficient(
         for (0..batch_size) |b| {
             for (0..num_filters) |f| {
                 var sum: T = 0;
-                if (kernel_channels >= 1 and kernel_height >= 1 and kernel_width >= 1) {
+                const current_group = f / filters_per_group;
+                const input_channel_start = current_group * channels_per_group;
+                const input_channel_end = input_channel_start + channels_per_group;
+
+                if (kernel_channels_per_group >= 1 and kernel_height >= 1 and kernel_width >= 1) {
                     const center_h = kernel_height / 2;
                     const center_w = kernel_width / 2;
-                    const channels_to_sum = @min(in_channels, kernel_channels);
-                    for (0..channels_to_sum) |c| {
-                        // Assuming input is at least 1x1 for this special case
-                        const input_val = input.data[b * in_channels * in_height * in_width + c * in_height * in_width]; // Simplified indexing for 1x1 input
-                        const kernel_val = kernel.data[f * kernel_channels * kernel_height * kernel_width + c * kernel_height * kernel_width + center_h * kernel_width + center_w];
+
+                    // Iterate over relevant input channels for this group
+                    for (input_channel_start..input_channel_end) |in_c| {
+                        // Map input channel index 'in_c' to the kernel's channel index 'k_c' (0 to C/g - 1)
+                        const k_c = in_c - input_channel_start;
+                        // Ensure we don't go past the actual input channels
+                        if (in_c >= input.shape[1]) continue;
+                        // Ensure kernel channel index is valid (should be due to checks, but safety)
+                        if (k_c >= kernel_channels_per_group) continue;
+
+                        // Simplified indexing for 1x1 input
+                        const input_val_offset = b * input.shape[1] * input.shape[2] * input.shape[3] + in_c * input.shape[2] * input.shape[3]; // Index for input[b, in_c, 0, 0]
+                        const input_val = input.data[input_val_offset];
+
+                        // Index for kernel[f, k_c, center_h, center_w]
+                        const kernel_val_offset = f * kernel.shape[1] * kernel.shape[2] * kernel.shape[3] + k_c * kernel.shape[2] * kernel.shape[3] + center_h * kernel.shape[3] + center_w;
+                        const kernel_val = kernel.data[kernel_val_offset];
                         sum += input_val * kernel_val;
                     }
                 }
@@ -512,15 +690,23 @@ pub fn convolve_tensor_with_bias_memory_efficient(
     errdefer output.deinit();
 
     // Pre-calculate strides for direct pointer access
+    const input_h_stride = in_width;
     const input_channel_stride = in_height * in_width;
     const input_batch_stride = in_channels * input_channel_stride;
-    const kernel_channel_stride = kernel_height * kernel_width;
-    const kernel_filter_stride = kernel_channels * kernel_channel_stride;
-    const output_channel_stride = out_height * out_width;
+
+    const kernel_w_stride = 1;
+    const kernel_h_stride = kernel_width;
+    const kernel_channel_stride = kernel_height * kernel_width; // Stride for C/g dim
+    const kernel_filter_stride = kernel_channels_per_group * kernel_channel_stride; // Stride for M dim
+
+    const output_w_stride = 1;
+    const output_h_stride = out_width;
+    const output_channel_stride = out_height * out_width; // Stride for M dim
     const output_batch_stride = num_filters * output_channel_stride;
 
     const Vector = @Vector(4, T);
-    const can_use_simd = @typeInfo(T) == .float and kernel_width >= 4; // SIMD for floats >= 4 wide
+    // SIMD for floats if kernel width allows and T is float
+    const can_use_simd = @typeInfo(T) == .float and kernel_width >= 4;
 
     // --- Tiling Parameters --- (Can be tuned)
     const TILE_H: usize = 8;
@@ -541,9 +727,14 @@ pub fn convolve_tensor_with_bias_memory_efficient(
 
         var f: usize = 0;
         while (f < num_filters) : (f += 1) {
-            const kernel_filter_offset = f * kernel_filter_stride;
-            const output_filter_offset = output_batch_offset + f * output_channel_stride;
+            const current_group = f / filters_per_group;
+            const kernel_filter_offset = f * kernel_filter_stride; // Offset for filter f [f, _, _, _]
+            const output_filter_offset = output_batch_offset + f * output_channel_stride; // Offset for output [b, f, _, _]
             const bias_val: T = if (bias_ptr) |bp| bp[f] else 0;
+
+            // Calculate input channel range for this group
+            const input_channel_start = current_group * channels_per_group;
+            const input_channel_end = input_channel_start + channels_per_group;
 
             var oh_tile: usize = 0;
             while (oh_tile < out_height) : (oh_tile += TILE_H) {
@@ -564,53 +755,67 @@ pub fn convolve_tensor_with_bias_memory_efficient(
                             var sum_vec: Vector = @splat(0.0);
                             var sum_scalar: T = 0;
 
-                            var c: usize = 0;
-                            while (c < in_channels) : (c += 1) {
-                                const input_channel_offset = input_batch_offset + c * input_channel_stride;
-                                const kernel_channel_offset = kernel_filter_offset + c * kernel_channel_stride;
+                            // Iterate over the input channels relevant to the current group
+                            var c = input_channel_start;
+                            while (c < input_channel_end) : (c += 1) {
+                                const k_c = c - input_channel_start; // Kernel channel index (0 to C/g - 1)
+
+                                const input_base_channel_offset = input_batch_offset + c * input_channel_stride;
+                                const kernel_base_channel_offset = kernel_filter_offset + k_c * kernel_channel_stride;
 
                                 var kh: usize = 0;
                                 while (kh < kernel_height) : (kh += 1) {
                                     const ih: usize = h_start + kh * dilation_h;
+                                    // Skip if input row is out of bounds
                                     if (ih >= in_height) continue;
 
-                                    const input_row_offset = input_channel_offset + ih * in_width;
-                                    const kernel_row_offset = kernel_channel_offset + kh * kernel_width;
+                                    const input_row_offset = input_base_channel_offset + ih * input_h_stride;
+                                    const kernel_row_offset = kernel_base_channel_offset + kh * kernel_h_stride;
 
+                                    // --- SIMD / Scalar Kernel Width Loop ---
                                     if (can_use_simd) {
                                         var kw: usize = 0;
+                                        // SIMD part
                                         while (kw + 4 <= kernel_width) : (kw += 4) {
                                             const iw0: usize = w_start + kw * dilation_w;
                                             const iw1: usize = w_start + (kw + 1) * dilation_w;
                                             const iw2: usize = w_start + (kw + 2) * dilation_w;
                                             const iw3: usize = w_start + (kw + 3) * dilation_w;
 
+                                            // Bounds check for input width
                                             if (iw3 < in_width) {
-                                                const k_idx = kernel_row_offset + kw;
+                                                const k_idx = kernel_row_offset + kw * kernel_w_stride; // kw * 1
                                                 const k_ptr_offset = kernel_ptr + k_idx;
                                                 const k_vec = Vector{ k_ptr_offset[0], k_ptr_offset[1], k_ptr_offset[2], k_ptr_offset[3] };
-                                                const i_vec = Vector{ input_ptr[input_row_offset + iw0], input_ptr[input_row_offset + iw1], input_ptr[input_row_offset + iw2], input_ptr[input_row_offset + iw3] };
+
+                                                const i_vec = Vector{
+                                                    input_ptr[input_row_offset + iw0],
+                                                    input_ptr[input_row_offset + iw1],
+                                                    input_ptr[input_row_offset + iw2],
+                                                    input_ptr[input_row_offset + iw3],
+                                                };
                                                 sum_vec = (i_vec * k_vec) + sum_vec;
                                             } else {
-                                                break; // Vector goes out of bounds, handle remainder below
+                                                // If iw3 is out, break SIMD loop and handle rest with scalar
+                                                break;
                                             }
                                         }
 
-                                        // Unrolled scalar part for the remainder
-                                        var kw_rem = kw;
+                                        // Unrolled scalar part for the remainder after SIMD break or full SIMD loop
+                                        var kw_rem = kw; // Start where SIMD left off
                                         while (kw_rem + UNROLL_FACTOR <= kernel_width) : (kw_rem += UNROLL_FACTOR) {
                                             // Unrolled iteration 1
                                             const iw0: usize = w_start + kw_rem * dilation_w;
                                             if (iw0 < in_width) {
                                                 const input_val0 = input_ptr[input_row_offset + iw0];
-                                                const kernel_val0 = kernel_ptr[kernel_row_offset + kw_rem];
+                                                const kernel_val0 = kernel_ptr[kernel_row_offset + kw_rem * kernel_w_stride];
                                                 sum_scalar += input_val0 * kernel_val0;
                                             }
                                             // Unrolled iteration 2
                                             const iw1: usize = w_start + (kw_rem + 1) * dilation_w;
                                             if (iw1 < in_width) {
                                                 const input_val1 = input_ptr[input_row_offset + iw1];
-                                                const kernel_val1 = kernel_ptr[kernel_row_offset + kw_rem + 1];
+                                                const kernel_val1 = kernel_ptr[kernel_row_offset + (kw_rem + 1) * kernel_w_stride];
                                                 sum_scalar += input_val1 * kernel_val1;
                                             }
                                             // Add more iterations here if UNROLL_FACTOR > 2
@@ -620,23 +825,24 @@ pub fn convolve_tensor_with_bias_memory_efficient(
                                             const iw: usize = w_start + kw_rem * dilation_w;
                                             if (iw < in_width) {
                                                 const input_val = input_ptr[input_row_offset + iw];
-                                                const kernel_val = kernel_ptr[kernel_row_offset + kw_rem];
+                                                const kernel_val = kernel_ptr[kernel_row_offset + kw_rem * kernel_w_stride];
                                                 sum_scalar += input_val * kernel_val;
                                             }
                                         }
-                                    } else { // Scalar only path (Unroll this too? For now, keep simple)
+                                    } else { // Scalar only path
                                         var kw: usize = 0;
                                         while (kw < kernel_width) : (kw += 1) {
                                             const iw: usize = w_start + kw * dilation_w;
-                                            if (iw < in_width) {
+                                            if (iw < in_width) { // Check input bounds
                                                 const input_val = input_ptr[input_row_offset + iw];
-                                                const kernel_val = kernel_ptr[kernel_row_offset + kw];
+                                                const kernel_val = kernel_ptr[kernel_row_offset + kw * kernel_w_stride];
                                                 sum_scalar += input_val * kernel_val;
                                             }
                                         }
                                     }
+                                    // --- End SIMD / Scalar Kernel Width Loop ---
                                 } // end kh
-                            } // end c
+                            } // end c (channel loop for the group)
 
                             // Combine SIMD and scalar results
                             var final_sum: T = sum_scalar;
@@ -646,14 +852,14 @@ pub fn convolve_tensor_with_bias_memory_efficient(
                             }
 
                             // Add bias and store result
-                            const output_idx = output_filter_offset + oh * out_width + ow;
+                            const output_idx = output_filter_offset + oh * output_h_stride + ow * output_w_stride;
                             output_ptr[output_idx] = final_sum + bias_val;
                         } // end ow
                     } // end oh
                 } // end ow_tile
             } // end oh_tile
-        } // end filter loop
-    } // end batch loop
+        } // end filter loop f
+    } // end batch loop b
 
     return output;
 }
@@ -789,11 +995,12 @@ pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []
 // --------------------- im2col ---------------------
 // --------------------------------------------------
 // --------- standard im2col
-pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize, dilations: ?[]const usize) !Tensor(T) {
+pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize, dilations: ?[]const usize, group: usize) !Tensor(T) {
     // std.debug.print("\n[DEBUG] im2col - Starting transformation", .{});
     // std.debug.print("\n[DEBUG] Input shape: {any}", .{input.shape});
     // std.debug.print("\n[DEBUG] Kernel size: {any}", .{kernel});
     // std.debug.print("\n[DEBUG] Stride: {any}", .{stride});
+    // std.debug.print("\n[DEBUG] Group: {}", .{group});
 
     if (input.shape.len != 4) {
         return TensorMathError.InputTensorsWrongShape;
@@ -804,6 +1011,11 @@ pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]
     const height = input.shape[2];
     const width = input.shape[3];
 
+    if (channels % group != 0) {
+        return TensorMathError.InvalidGroupParameter; // Input channels must be divisible by group
+    }
+    const channels_per_group = channels / group;
+
     const kernel_h = kernel[0];
     const kernel_w = kernel[1];
     const stride_h = stride[0];
@@ -811,21 +1023,32 @@ pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]
     const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
     const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else 1 else 1;
 
-    if (height < kernel_h or width < kernel_w) {
+    // Calculate effective kernel size considering dilation
+    const dilated_kernel_h = (kernel_h - 1) * dilation_h + 1;
+    const dilated_kernel_w = (kernel_w - 1) * dilation_w + 1;
+
+    // Check for valid dimensions before calculating output size
+    if (height < dilated_kernel_h or width < dilated_kernel_w) {
+        if (log_functionC) |log_func| {
+            var buf: [256]u8 = undefined;
+            _ = std.fmt.bufPrint(&buf, "im2col: Input smaller than dilated kernel. Input HxW: {d}x{d}, Dilated Kernel HxW: {d}x{d}", .{ height, width, dilated_kernel_h, dilated_kernel_w }) catch unreachable;
+            log_func(@constCast(@ptrCast(&buf)));
+        }
+        // Handle this case gracefully, maybe return an empty tensor or a specific error?
+        // For now, let's return an error, but calculation below would yield 0 or negative.
         return TensorMathError.InvalidDimensions;
     }
 
-    const dilated_kernel_h = (kernel_h - 1) * dilation_h + 1;
-    const dilated_kernel_w = (kernel_w - 1) * dilation_w + 1;
-    // Use explicit standard formula
+    // Calculate output spatial dimensions
     const out_height = @divFloor(height - dilated_kernel_h, stride_h) + 1;
     const out_width = @divFloor(width - dilated_kernel_w, stride_w) + 1;
 
-    // Debug print to verify
-    //std.debug.print("\n[DEBUG] im2col - width: {}, dilated_kernel_w: {}, stride_w: {}, out_width: {}", .{ width, dilated_kernel_w, stride_w, out_width });
-
-    const rows = try std.math.mul(usize, batch_size, try std.math.mul(usize, out_height, out_width));
-    const cols = try std.math.mul(usize, channels, try std.math.mul(usize, kernel_h, kernel_w));
+    // Calculate the shape of the output im2col matrix
+    // Rows: Number of patches = batch_size * out_height * out_width
+    // Cols: Size of each flattened patch = channels_per_group * kernel_h * kernel_w * group
+    const rows = batch_size * out_height * out_width;
+    const cols_per_group = channels_per_group * kernel_h * kernel_w;
+    const cols = cols_per_group * group; // Total columns across all groups
 
     //std.debug.print("\n[DEBUG] im2col output shape - rows: {}, cols: {}", .{ rows, cols });
 
@@ -838,19 +1061,26 @@ pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]
     };
     errdefer col_matrix.deinit();
 
-    try lean_im2col(T, input, kernel, stride, dilations, &col_matrix);
+    // Use the lean version to populate the matrix
+    try lean_im2col(T, input, kernel, stride, dilations, group, &col_matrix);
 
     return col_matrix;
 }
 
-pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize, dilations: ?[]const usize, output: *Tensor(T)) !void {
+pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize, dilations: ?[]const usize, group: usize, output: *Tensor(T)) !void {
     // std.debug.print("\n[DEBUG] lean_im2col - Starting transformation", .{});
     // std.debug.print("\n[DEBUG] Input shape: {any}, Output shape: {any}", .{ input.shape, output.shape });
+    // std.debug.print("\n[DEBUG] lean_im2col - Group: {}", .{group});
 
     const batch_size = input.shape[0];
     const channels = input.shape[1];
     const height = input.shape[2];
     const width = input.shape[3];
+
+    if (channels % group != 0) {
+        return TensorMathError.InvalidGroupParameter; // Input channels must be divisible by group
+    }
+    const channels_per_group = channels / group;
 
     const kernel_h = kernel[0];
     const kernel_w = kernel[1];
@@ -864,14 +1094,27 @@ pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize,
     const out_height = @divFloor(height - dilated_kernel_h, stride_h) + 1;
     const out_width = @divFloor(width - dilated_kernel_w, stride_w) + 1;
 
+    // Check if output tensor shape matches expected im2col output
+    const expected_rows = batch_size * out_height * out_width;
+    const expected_cols = channels_per_group * kernel_h * kernel_w;
+    if (output.shape.len != 2 or output.shape[0] != expected_rows or output.shape[1] != expected_cols * group) {
+        if (log_functionC) |log_func| {
+            var buf: [256]u8 = undefined;
+            _ = std.fmt.bufPrint(&buf, "lean_im2col: Output shape mismatch. Got {any}, expected [{d}, {d}]", .{ output.shape, expected_rows, expected_cols * group }) catch unreachable;
+            log_func(@constCast(@ptrCast(&buf)));
+        }
+        return TensorMathError.InvalidDimensions; // Output shape mismatch
+    }
+
     // Pre-compute strides
     const input_channel_stride = height * width;
     const input_batch_stride = channels * input_channel_stride;
-    const kernel_size = kernel_h * kernel_w;
-    const output_col_stride = channels * kernel_size;
+    const kernel_patch_size = kernel_h * kernel_w; // Size of one kernel patch (h*w)
+    const output_col_stride_per_group = channels_per_group * kernel_patch_size; // Stride for one group's columns in output
 
     const Vector = @Vector(4, T);
-    const can_use_simd = kernel_w >= 4;
+    // Check for float type before enabling SIMD
+    const can_use_simd = @typeInfo(T) == .float and kernel_w >= 4;
 
     var row: usize = 0;
     while (row < batch_size * out_height * out_width) : (row += 1) {
@@ -879,63 +1122,99 @@ pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize,
         const oh = (row % (out_height * out_width)) / out_width;
         const ow = row % out_width;
 
-        const batch_offset = b * input_batch_stride;
-        const h_offset = oh * stride_h;
-        const w_offset = ow * stride_w;
+        const input_batch_offset = b * input_batch_stride;
+        const h_start = oh * stride_h;
+        const w_start = ow * stride_w;
 
-        var c: usize = 0;
-        while (c < channels) : (c += 1) {
-            const channel_offset = batch_offset + c * input_channel_stride;
-            const output_offset = row * output_col_stride + c * kernel_size;
+        var g: usize = 0;
+        while (g < group) : (g += 1) {
+            const input_group_offset = input_batch_offset + g * channels_per_group * input_channel_stride;
+            const output_group_offset = row * output.shape[1] + g * output_col_stride_per_group; // Offset for the start of this group's columns
 
-            var kh: usize = 0;
-            while (kh < kernel_h) : (kh += 1) {
-                const h_idx = h_offset + kh * dilation_h;
-                if (h_idx >= height) continue; // Bounds check
-                const row_offset = channel_offset + h_idx * width;
+            var c_in_group: usize = 0;
+            while (c_in_group < channels_per_group) : (c_in_group += 1) {
+                const input_channel_offset = input_group_offset + c_in_group * input_channel_stride;
+                // Output column position calculation: group offset + channel within group offset
+                const output_col_base = output_group_offset + c_in_group * kernel_patch_size;
 
-                if (can_use_simd) {
-                    var kw: usize = 0;
-                    while (kw + 4 <= kernel_w) : (kw += 4) {
-                        const w_idx = w_offset + kw * dilation_w;
-                        if (w_idx + 3 * dilation_w >= width) break; // Bounds check for SIMD
-                        const input_idx = row_offset + w_idx;
-                        const out_idx = output_offset + kh * kernel_w + kw;
-
-                        const vec = Vector{
-                            input.data[input_idx],
-                            input.data[input_idx + dilation_w],
-                            input.data[input_idx + 2 * dilation_w],
-                            input.data[input_idx + 3 * dilation_w],
-                        };
-
-                        output.data[out_idx] = vec[0];
-                        output.data[out_idx + 1] = vec[1];
-                        output.data[out_idx + 2] = vec[2];
-                        output.data[out_idx + 3] = vec[3];
+                var kh: usize = 0;
+                while (kh < kernel_h) : (kh += 1) {
+                    const ih = h_start + kh * dilation_h;
+                    // Skip if input h is out of bounds
+                    if (ih >= height) {
+                        // Fill corresponding output with zeros if input is out of bounds due to dilation/stride
+                        const output_row_patch_offset = output_col_base + kh * kernel_w;
+                        if (can_use_simd) {
+                            var kw_fill: usize = 0;
+                            while (kw_fill + 4 <= kernel_w) : (kw_fill += 4) {
+                                output.data[output_row_patch_offset + kw_fill] = 0;
+                                output.data[output_row_patch_offset + kw_fill + 1] = 0;
+                                output.data[output_row_patch_offset + kw_fill + 2] = 0;
+                                output.data[output_row_patch_offset + kw_fill + 3] = 0;
+                            }
+                            while (kw_fill < kernel_w) : (kw_fill += 1) {
+                                output.data[output_row_patch_offset + kw_fill] = 0;
+                            }
+                        } else {
+                            for (0..kernel_w) |kw_fill| {
+                                output.data[output_row_patch_offset + kw_fill] = 0;
+                            }
+                        }
+                        continue;
                     }
 
-                    var kw_rem = kw; // Start from where SIMD left off
-                    while (kw_rem < kernel_w) : (kw_rem += 1) {
-                        const w_idx = w_offset + kw_rem * dilation_w;
-                        if (w_idx >= width) continue; // Bounds check
-                        const input_idx = row_offset + w_idx;
-                        const out_idx = output_offset + kh * kernel_w + kw_rem;
-                        output.data[out_idx] = input.data[input_idx];
+                    const input_row_offset = input_channel_offset + ih * width;
+                    const output_row_patch_offset = output_col_base + kh * kernel_w;
+
+                    if (can_use_simd) {
+                        var kw: usize = 0;
+                        while (kw + 4 <= kernel_w) : (kw += 4) {
+                            const iw0 = w_start + kw * dilation_w;
+                            const iw1 = w_start + (kw + 1) * dilation_w;
+                            const iw2 = w_start + (kw + 2) * dilation_w;
+                            const iw3 = w_start + (kw + 3) * dilation_w;
+                            const out_idx = output_row_patch_offset + kw;
+
+                            // SIMD bounds check: Ensure all 4 accesses are valid
+                            if (iw3 < width) {
+                                const vec = Vector{
+                                    input.data[input_row_offset + iw0],
+                                    input.data[input_row_offset + iw1],
+                                    input.data[input_row_offset + iw2],
+                                    input.data[input_row_offset + iw3],
+                                };
+                                output.data[out_idx] = vec[0];
+                                output.data[out_idx + 1] = vec[1];
+                                output.data[out_idx + 2] = vec[2];
+                                output.data[out_idx + 3] = vec[3];
+                            } else {
+                                // Handle boundary elements individually if SIMD goes out of bounds
+                                output.data[out_idx] = if (iw0 < width) input.data[input_row_offset + iw0] else 0;
+                                output.data[out_idx + 1] = if (iw1 < width) input.data[input_row_offset + iw1] else 0;
+                                output.data[out_idx + 2] = if (iw2 < width) input.data[input_row_offset + iw2] else 0;
+                                output.data[out_idx + 3] = if (iw3 < width) input.data[input_row_offset + iw3] else 0;
+                            }
+                        }
+                        // Handle remaining elements (scalar)
+                        var kw_rem = kw;
+                        while (kw_rem < kernel_w) : (kw_rem += 1) {
+                            const iw = w_start + kw_rem * dilation_w;
+                            const out_idx = output_row_patch_offset + kw_rem;
+                            output.data[out_idx] = if (iw < width) input.data[input_row_offset + iw] else 0;
+                        }
+                    } else { // Scalar path
+                        var kw: usize = 0;
+                        while (kw < kernel_w) : (kw += 1) {
+                            const iw = w_start + kw * dilation_w;
+                            const out_idx = output_row_patch_offset + kw;
+                            // Set output to 0 if input index is out of bounds
+                            output.data[out_idx] = if (iw < width) input.data[input_row_offset + iw] else 0;
+                        }
                     }
-                } else {
-                    var kw: usize = 0;
-                    while (kw < kernel_w) : (kw += 1) {
-                        const w_idx = w_offset + kw * dilation_w;
-                        if (w_idx >= width) continue; // Bounds check
-                        const input_idx = row_offset + w_idx;
-                        const out_idx = output_offset + kh * kernel_w + kw;
-                        output.data[out_idx] = input.data[input_idx];
-                    }
-                }
-            }
-        }
-    }
+                } // end kh
+            } // end c_in_group
+        } // end g
+    } // end row
 }
 
 /// Converts a 2D matrix back to a 4D tensor using col2im algorithm
@@ -1085,8 +1364,12 @@ pub fn OnnxConv(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), bias: ?
     const kernel_height = kernel.shape[2];
     const kernel_width = kernel.shape[3];
 
-    // Group validation - currently only supporting group=1
-    if (group != null and group.? != 1) {
+    // Group validation (minimal here, more detailed in OnnxConvLean)
+    const actual_group = group orelse 1;
+    const in_channels = input.shape[1];
+    const kernel_channels_per_group = kernel.shape[1];
+    if (in_channels % actual_group != 0 or out_channels % actual_group != 0 or kernel_channels_per_group != in_channels / actual_group) {
+        // Basic check, detailed error handled by OnnxConvLean
         return TensorMathError.InvalidDimensions;
     }
 
@@ -1168,7 +1451,7 @@ pub fn OnnxConv(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), bias: ?
     errdefer output.deinit();
 
     // Call the lean version
-    try OnnxConvLean(T, input, kernel, &output, bias, stride, pads, dilations, group, auto_pad);
+    try OnnxConvLean(T, input, kernel, &output, bias, stride, pads, dilations, actual_group, auto_pad);
 
     return output;
 }
@@ -1201,234 +1484,6 @@ pub fn convolution_backward_biases(comptime T: type, dValues: *Tensor(T)) !Tenso
     }
 
     return bias_gradients;
-}
-
-pub fn convolution_backward_weights(comptime T: type, input: *Tensor(T), dvalues: *Tensor(T), kernel_shape: []const usize, stride: [2]usize) !Tensor(T) {
-    if (kernel_shape.len != 4) return TensorMathError.InvalidDimensions;
-
-    // Create mutable copy of kernel_shape
-    var mutable_kernel_shape: [4]usize = undefined;
-    @memcpy(&mutable_kernel_shape, kernel_shape);
-
-    const batch_size = input.shape[0];
-    const num_filters = kernel_shape[0];
-    const kernel_height = kernel_shape[2];
-    const kernel_width = kernel_shape[3];
-
-    const kernel_size = [2]usize{ kernel_height, kernel_width };
-    var input_col = try im2col(T, input, kernel_size, stride, null);
-    defer input_col.deinit();
-
-    const out_height = dvalues.shape[2];
-    const out_width = dvalues.shape[3];
-    const total_spatial = out_height * out_width;
-
-    var dval_shape = [_]usize{ num_filters, batch_size * total_spatial };
-    var dval_reshaped = try Tensor(T).fromShape(&pkg_allocator, &dval_shape);
-    defer dval_reshaped.deinit();
-
-    // Pre-compute strides for faster access
-    const out_channel_stride = out_height * out_width;
-    const out_batch_stride = num_filters * out_channel_stride;
-
-    // Use SIMD for copying when possible
-    const Vector = @Vector(4, T);
-    const can_use_simd = total_spatial >= 4;
-
-    // Safe copy with optimized memory access
-    for (0..batch_size) |b| {
-        const batch_offset = b * out_batch_stride;
-        const dst_batch_offset = b * total_spatial;
-
-        for (0..num_filters) |f| {
-            const src_offset = batch_offset + f * out_channel_stride;
-            const dst_offset = f * batch_size * total_spatial + dst_batch_offset;
-
-            if (can_use_simd) {
-                var i: usize = 0;
-                while (i + 4 <= total_spatial) : (i += 4) {
-                    const vec = Vector{
-                        dvalues.data[src_offset + i],
-                        dvalues.data[src_offset + i + 1],
-                        dvalues.data[src_offset + i + 2],
-                        dvalues.data[src_offset + i + 3],
-                    };
-
-                    dval_reshaped.data[dst_offset + i] = vec[0];
-                    dval_reshaped.data[dst_offset + i + 1] = vec[1];
-                    dval_reshaped.data[dst_offset + i + 2] = vec[2];
-                    dval_reshaped.data[dst_offset + i + 3] = vec[3];
-                }
-
-                // Handle remaining elements
-                var i_rem = total_spatial - (total_spatial % 4);
-                while (i_rem < total_spatial) : (i_rem += 1) {
-                    dval_reshaped.data[dst_offset + i_rem] = dvalues.data[src_offset + i_rem];
-                }
-            } else {
-                for (0..total_spatial) |i| {
-                    dval_reshaped.data[dst_offset + i] = dvalues.data[src_offset + i];
-                }
-            }
-        }
-    }
-
-    var dW = try mat_mul(T, &dval_reshaped, &input_col);
-    defer dW.deinit();
-
-    // Use SIMD for division
-    const batch_size_f = @as(T, @floatFromInt(batch_size));
-    if (can_use_simd) {
-        const batch_size_vec = Vector{ batch_size_f, batch_size_f, batch_size_f, batch_size_f };
-        var i: usize = 0;
-        while (i + 4 <= dW.data.len) : (i += 4) {
-            const vec = Vector{
-                dW.data[i],
-                dW.data[i + 1],
-                dW.data[i + 2],
-                dW.data[i + 3],
-            };
-            const result = vec / batch_size_vec;
-            dW.data[i] = result[0];
-            dW.data[i + 1] = result[1];
-            dW.data[i + 2] = result[2];
-            dW.data[i + 3] = result[3];
-        }
-
-        // Handle remaining elements
-        var i_rem = dW.data.len - (dW.data.len % 4);
-        while (i_rem < dW.data.len) : (i_rem += 1) {
-            dW.data[i_rem] = dW.data[i_rem] / batch_size_f;
-        }
-    } else {
-        for (dW.data) |*val| {
-            val.* = val.* / batch_size_f;
-        }
-    }
-
-    var dW_reshaped = try Tensor(T).fromShape(&pkg_allocator, &mutable_kernel_shape);
-    errdefer dW_reshaped.deinit();
-
-    @memcpy(dW_reshaped.data, dW.data);
-
-    return dW_reshaped;
-}
-
-pub fn convolution_backward_input(comptime T: type, dvalues: *const Tensor(T), kernel: *const Tensor(T), input_shape: []const usize, stride: [2]usize) !Tensor(T) {
-    if (input_shape.len != 4) return TensorMathError.InvalidDimensions;
-
-    const batch_size = input_shape[0];
-    const channels = input_shape[1];
-    const kernel_height = kernel.shape[2];
-    const kernel_width = kernel.shape[3];
-    const num_filters = kernel.shape[0];
-
-    const out_height = dvalues.shape[2];
-    const out_width = dvalues.shape[3];
-    const total_spatial = out_height * out_width;
-
-    const total_batch_spatial = try std.math.mul(usize, batch_size, total_spatial);
-    var dval_shape = [_]usize{ total_batch_spatial, num_filters };
-    var dval_reshaped = try Tensor(T).fromShape(&pkg_allocator, &dval_shape);
-    defer dval_reshaped.deinit();
-
-    // Pre-compute strides for faster access
-    const dval_channel_stride = out_height * out_width;
-    const dval_batch_stride = num_filters * dval_channel_stride;
-
-    // Use SIMD for copying when possible
-    const Vector = @Vector(4, T);
-    const can_use_simd = num_filters >= 4;
-
-    // Safe reshape with optimized memory access
-    for (0..batch_size) |b| {
-        const batch_offset = b * dval_batch_stride;
-        const dst_batch_offset = b * total_spatial;
-
-        for (0..total_spatial) |i| {
-            const src_base = batch_offset + i % dval_channel_stride;
-            const dst_base = dst_batch_offset + i;
-
-            if (can_use_simd) {
-                var f: usize = 0;
-                while (f + 4 <= num_filters) : (f += 4) {
-                    const vec = Vector{
-                        dvalues.data[src_base + f * dval_channel_stride],
-                        dvalues.data[src_base + (f + 1) * dval_channel_stride],
-                        dvalues.data[src_base + (f + 2) * dval_channel_stride],
-                        dvalues.data[src_base + (f + 3) * dval_channel_stride],
-                    };
-
-                    dval_reshaped.data[dst_base * num_filters + f] = vec[0];
-                    dval_reshaped.data[dst_base * num_filters + f + 1] = vec[1];
-                    dval_reshaped.data[dst_base * num_filters + f + 2] = vec[2];
-                    dval_reshaped.data[dst_base * num_filters + f + 3] = vec[3];
-                }
-
-                // Handle remaining filters
-                var f_rem = num_filters - (num_filters % 4);
-                while (f_rem < num_filters) : (f_rem += 1) {
-                    dval_reshaped.data[dst_base * num_filters + f_rem] = dvalues.data[src_base + f_rem * dval_channel_stride];
-                }
-            } else {
-                for (0..num_filters) |f| {
-                    dval_reshaped.data[dst_base * num_filters + f] = dvalues.data[src_base + f * dval_channel_stride];
-                }
-            }
-        }
-    }
-
-    const kernel_spatial = kernel_height * kernel_width;
-    var transposed_shape = [_]usize{ num_filters, try std.math.mul(usize, channels, kernel_spatial) };
-    var kernel_transposed = try Tensor(T).fromShape(&pkg_allocator, &transposed_shape);
-    defer kernel_transposed.deinit();
-
-    // Pre-compute strides for kernel transpose
-    const kernel_filter_stride = channels * kernel_spatial;
-
-    // Safe transpose with optimized memory access
-    for (0..num_filters) |f| {
-        const filter_offset = f * kernel_filter_stride;
-        const src_filter_offset = f * channels * kernel_spatial;
-
-        for (0..channels) |c| {
-            const channel_offset = filter_offset + c * kernel_spatial;
-            const src_channel_offset = src_filter_offset + c * kernel_spatial;
-
-            if (can_use_simd and kernel_spatial >= 4) {
-                var k: usize = 0;
-                while (k + 4 <= kernel_spatial) : (k += 4) {
-                    const vec = Vector{
-                        kernel.data[src_channel_offset + k],
-                        kernel.data[src_channel_offset + k + 1],
-                        kernel.data[src_channel_offset + k + 2],
-                        kernel.data[src_channel_offset + k + 3],
-                    };
-
-                    kernel_transposed.data[channel_offset + k] = vec[0];
-                    kernel_transposed.data[channel_offset + k + 1] = vec[1];
-                    kernel_transposed.data[channel_offset + k + 2] = vec[2];
-                    kernel_transposed.data[channel_offset + k + 3] = vec[3];
-                }
-
-                // Handle remaining elements
-                var k_rem = kernel_spatial - (kernel_spatial % 4);
-                while (k_rem < kernel_spatial) : (k_rem += 1) {
-                    kernel_transposed.data[channel_offset + k_rem] = kernel.data[src_channel_offset + k_rem];
-                }
-            } else {
-                for (0..kernel_spatial) |k| {
-                    kernel_transposed.data[channel_offset + k] = kernel.data[src_channel_offset + k];
-                }
-            }
-        }
-    }
-
-    var dX_col = try mat_mul(T, &dval_reshaped, &kernel_transposed);
-    defer dX_col.deinit();
-
-    const kernel_size = [2]usize{ kernel_height, kernel_width };
-    return try col2im(T, &dX_col, input_shape, kernel_size, stride);
 }
 
 pub fn debug_print_max_pool(input_shape: []const usize, kernel_shape: []const usize, stride: []const usize, padding: ?[]const usize) void {

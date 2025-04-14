@@ -111,7 +111,7 @@ pub fn build(b: *std.Build) void {
         .name = "zant",
         .root_source_file = b.path(lib_model_path),
         .target = target,
-        .optimize = .ReleaseFast,
+        .optimize = .ReleaseSmall,
     });
     static_lib.linkLibC();
     static_lib.root_module.addImport("zant", zant_mod);

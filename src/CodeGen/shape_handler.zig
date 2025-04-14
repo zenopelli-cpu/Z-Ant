@@ -27,6 +27,16 @@ const globals = @import("globals.zig");
 // ----------------------------------- SHAPE inference -----------------------------------
 
 pub fn compute_output_shape(readyNode: *ReadyNode) !void {
+    // Ensure the node has a name for debugging purposes
+    if (readyNode.nodeProto.name == null) {
+        // Generate a name like "OpType_OutputName"
+        const op_type = readyNode.nodeProto.op_type;
+        const output_name = readyNode.outputs.items[0].name; // Directly assign since it's not optional
+        readyNode.nodeProto.name = try std.fmt.allocPrint(allocator, "{s}_{s}", .{ op_type, output_name });
+        // Note: This allocated name needs to be managed if the NodeProto lifetime extends beyond this scope.
+        // Assuming the global allocator lives long enough or NodeProto is processed quickly.
+    }
+
     if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Add")) {
         //https://onnx.ai/onnx/operators/onnx__Add.html
         try compute_Add_output_shape(readyNode);
@@ -51,6 +61,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Div")) {
         //https://onnx.ai/onnx/operators/onnx__Div.html
         try compute_Div_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "DynamicQuantizeLinear")) {
+        // https://onnx.ai/onnx/operators/onnx_aionnx_preview_training__DynamicQuantizeLinear.html
+        try compute_dynamicQuantizeLinear_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Flatten")) {
         return error.OperationWIP;
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
@@ -405,8 +418,33 @@ inline fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
         std.debug.print("\n input_a_shape: []i64 = {any}", .{input_a.?.shape});
         std.debug.print("\n input_b_shape: []i64 = {any}", .{input_b.?.shape});
 
-        // Use TensorMath to compute the output shape for multiplication
-        shape = try utils.usizeSliceToI64Slice(@constCast(try tensorMath.get_mul_output_shape(try utils.i64SliceToUsizeSlice(input_a.?.shape), try utils.i64SliceToUsizeSlice(input_b.?.shape))));
+        const shape_a_i64 = input_a.?.shape;
+        const shape_b_i64 = input_b.?.shape;
+
+        // Handle empty shapes by treating them as {1} for broadcasting calculation
+        const effective_shape_a_i64 = if (shape_a_i64.len == 0) &[_]i64{1} else shape_a_i64;
+        const effective_shape_b_i64 = if (shape_b_i64.len == 0) &[_]i64{1} else shape_b_i64;
+
+        // Convert effective shapes to usize
+        const shape_a_usize = try utils.i64SliceToUsizeSlice(effective_shape_a_i64);
+        // Defer free only if the original shape wasn't empty (to avoid freeing static slice {1})
+        if (shape_a_i64.len != 0) {
+            defer allocator.free(shape_a_usize);
+        }
+
+        const shape_b_usize = try utils.i64SliceToUsizeSlice(effective_shape_b_i64);
+        if (shape_b_i64.len != 0) {
+            defer allocator.free(shape_b_usize);
+        }
+
+        // Use TensorMath to compute the output shape using effective shapes
+        const output_shape_usize = try tensorMath.get_mul_output_shape(shape_a_usize, shape_b_usize);
+        // Assume get_mul_output_shape returns an allocated slice that needs freeing
+        defer allocator.free(output_shape_usize);
+
+        // Convert the result back to i64
+        shape = try utils.usizeSliceToI64Slice(@constCast(output_shape_usize));
+        // Note: The memory for 'shape' is now owned by the caller/ReadyNode management
     }
 
     readyNode.outputs.items[0].shape = shape;
@@ -1178,7 +1216,7 @@ inline fn compute_pads_output_shape(readyNode: *ReadyNode) !void {
     const output_shape_usize = try tensorMath.get_pads_output_shape(allocator, data_shape_usize, pads_values_i64, axes_values_isize);
     defer allocator.free(output_shape_usize);
 
-    // Convert result back to i64
+    // Convert result back to i64 for storing in readyNode
     readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shape_usize);
     std.debug.print("\n final output_shape: {any}", .{readyNode.outputs.items[0].shape});
 }
@@ -1202,4 +1240,42 @@ inline fn compute_mean_output_shape(readyNode: *ReadyNode) !void {
 
     readyNode.outputs.items[0].shape = output_shape_i64;
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_dynamicQuantizeLinear_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_dynamicQuantizeLinear_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    const input_shape = readyNode.inputs.items[0].?.shape;
+    std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+    // Ensure the correct number of outputs
+    if (readyNode.outputs.items.len != 3) {
+        std.debug.print("ERROR: DynamicQuantizeLinear expects 3 outputs, but got {}.", .{readyNode.outputs.items.len});
+        return error.MismatchedOutputCount;
+    }
+
+    // Convert input shape to usize
+    const usize_input_shape = try utils.i64SliceToUsizeSlice(input_shape);
+    defer allocator.free(usize_input_shape);
+
+    // Get output shapes using the utility function
+    const output_shapes = try tensorMath.get_dynamicQuantizeLinear_output_shape(usize_input_shape);
+    defer {
+        for (output_shapes) |shape| {
+            allocator.free(shape);
+        }
+        allocator.free(output_shapes);
+    }
+
+    // Assign shapes to output tensors
+    // Output 0: y (quantized data) - shape is same as input
+    readyNode.outputs.items[0].shape = try utils.usizeSliceToI64Slice(output_shapes[0]);
+    std.debug.print("\n output[0] (y) shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+
+    // Output 1: y_scale (scalar) - shape is {1}
+    readyNode.outputs.items[1].shape = try utils.usizeSliceToI64Slice(output_shapes[1]);
+    std.debug.print("\n output[1] (y_scale) shape: []i64 = {any}", .{readyNode.outputs.items[1].shape});
+
+    // Output 2: y_zero_point (scalar) - shape is {1}
+    readyNode.outputs.items[2].shape = try utils.usizeSliceToI64Slice(output_shapes[2]);
+    std.debug.print("\n output[2] (y_zero_point) shape: []i64 = {any}", .{readyNode.outputs.items[2].shape});
 }

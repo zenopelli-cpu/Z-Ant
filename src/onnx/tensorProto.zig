@@ -25,6 +25,7 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 12: doc_string, optional string
 //  - 13: external_data, repeated StringStringEntryProto
 //  - 14: data_location, optional DataLocation
+//  - 15: uint16_data, repeated uint16
 //  - 16: metadata_props, repeated StringStringEntryProto
 pub const TensorProto = struct {
     dims: []i64,
@@ -38,6 +39,7 @@ pub const TensorProto = struct {
     int64_data: ?[]i64, //DataType = .INT64
     double_data: ?[]f64, //DataType = .DOUBLE
     uint64_data: ?[]u64, //DataType = .UINT64
+    uint16_data: ?[]u16, //DataType = .UINT16
     doc_string: ?[]const u8,
     external_data: []*StringStringEntryProto,
     data_location: ?DataLocation,
@@ -54,6 +56,7 @@ pub const TensorProto = struct {
         if (self.int64_data) |data| allocator.free(data);
         if (self.double_data) |data| allocator.free(data);
         if (self.uint64_data) |data| allocator.free(data);
+        if (self.uint16_data) |data| allocator.free(data);
 
         // Free string_data
         if (self.string_data) |data| {
@@ -83,6 +86,7 @@ pub const TensorProto = struct {
         self.int64_data = null;
         self.double_data = null;
         self.uint64_data = null;
+        self.uint16_data = null;
         self.string_data = null;
         self.segment = null;
         self.name = null;
@@ -106,6 +110,7 @@ pub const TensorProto = struct {
             .int64_data = null,
             .double_data = null,
             .uint64_data = null,
+            .uint16_data = null,
             .doc_string = null,
             .external_data = undefined,
             .data_location = null,
@@ -165,11 +170,13 @@ pub const TensorProto = struct {
                         var int_reader = try reader.readLengthDelimited();
                         while (int_reader.hasMore()) {
                             const value = try int_reader.readVarint();
-                            try data.append(@intCast(value));
+                            const value32 = @as(u32, @intCast(value));
+                            try data.append(@bitCast(value32));
                         }
                     } else {
                         const value = try reader.readVarint();
-                        try data.append(@intCast(value));
+                        const value32 = @as(u32, @intCast(value));
+                        try data.append(@bitCast(value32));
                     }
                     tensor.int32_data = try data.toOwnedSlice();
                 },
@@ -180,11 +187,11 @@ pub const TensorProto = struct {
                         var int_reader = try reader.readLengthDelimited();
                         while (int_reader.hasMore()) {
                             const value = try int_reader.readVarint();
-                            try data.append(@intCast(value));
+                            try data.append(@bitCast(value));
                         }
                     } else {
                         const value = try reader.readVarint();
-                        try data.append(@intCast(value));
+                        try data.append(@bitCast(value));
                     }
                     tensor.int64_data = try data.toOwnedSlice();
                 },
@@ -336,6 +343,16 @@ pub const TensorProto = struct {
             std.debug.print("]\n", .{});
         }
 
+        if (self.uint16_data) |data| {
+            std.debug.print("{s}UInt16 Data: [", .{space});
+            for (0..if (data.len < 10) data.len else 10) |i| {
+                if (i > 0) std.debug.print(", ", .{});
+                std.debug.print("{}", .{data[i]});
+            }
+            if (data.len >= 10) std.debug.print(", ... ", .{});
+            std.debug.print("]\n", .{});
+        }
+
         if (self.string_data) |data| {
             std.debug.print("  String Data: [", .{});
             for (data, 0..) |val, i| {
@@ -412,6 +429,14 @@ pub const TensorProto = struct {
                 const dest_bytes = std.mem.sliceAsBytes(typed_data);
                 @memcpy(dest_bytes, raw_data_slice);
                 self.uint64_data = typed_data;
+            },
+            .UINT16 => {
+                const num_elements = @divExact(raw_data_slice.len, @sizeOf(u16));
+                const typed_data = try allocator.alignedAlloc(u16, @alignOf(u16), num_elements);
+                errdefer allocator.free(typed_data);
+                const dest_bytes = std.mem.sliceAsBytes(typed_data);
+                @memcpy(dest_bytes, raw_data_slice);
+                self.uint16_data = typed_data;
             },
             else => {
                 std.debug.print("\n Data type conversion not supported for {s}, keeping raw data \n", .{@tagName(data_type)});

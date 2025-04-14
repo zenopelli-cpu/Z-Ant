@@ -103,7 +103,7 @@ fn get_input_coord(
 
     // Check if the coordinate is within the original data region
     if (coord >= pad_start and coord < axis_len_out - pad_end) {
-        return coord - pad_start;
+        return @as(isize, @intCast(coord - pad_start));
     }
 
     // If not in original data region, calculate based on mode
@@ -123,22 +123,22 @@ fn get_input_coord(
             const rel_coord = coord - pad_start;
             if (rel_coord < 0) {
                 // Reflect before start: e.g., rel_coord -1 -> 0, -2 -> 1
-                return -rel_coord;
+                return @as(isize, @intCast(-rel_coord));
             } else if (rel_coord >= len_in) {
                 // Reflect after end: e.g., rel_coord len_in -> len_in - 2, len_in + 1 -> len_in - 3
-                return (2 * len_in) - rel_coord - 2;
+                return @as(isize, @intCast((2 * len_in) - rel_coord - 2));
             } else {
                 // Should be unreachable due to the initial check, but for completeness
-                return rel_coord;
+                return @as(isize, @intCast(rel_coord));
             }
         },
         .wrap => {
             if (coord < pad_start) {
                 // Wrap before the start
-                return @mod(coord - pad_start, len_in);
+                return @as(isize, @intCast(@mod(coord - pad_start, len_in)));
             } else { // coord >= axis_len_out - pad_end
                 // Wrap after the end
-                return @mod(coord - pad_start, len_in);
+                return @as(isize, @intCast(@mod(coord - pad_start, len_in)));
             }
         },
     }

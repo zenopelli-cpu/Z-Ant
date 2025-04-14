@@ -51,17 +51,33 @@ pub fn main() !void {
         &output_ptr,
     );
 
-    std.debug.print("Predict call finished.\\n", .{});
+    std.debug.print("Predict call finished.\n", .{});
 
     const output_size = getPredictOutputSize();
 
-    if (output_size == 0 or @as(?*model_opts.data_type, @ptrCast(output_ptr)) == null) {
-        std.debug.print("Error: predict did not return a valid output.\\n", .{});
+    // Check if output_ptr is null before creating slice
+    // Use @intFromPtr to check if the pointer address is 0 (NULL)
+    if (@intFromPtr(output_ptr) == 0) {
+        std.debug.print("Error: predict returned a null pointer.\n", .{});
         allocator.free(input_data);
         return;
     }
 
-    std.debug.print("WARNING: Memory for the predict output was NOT freed!\\n", .{});
+    const output_slice = @as([*]model_opts.data_type, @ptrCast(output_ptr))[0..output_size];
+
+    //print the output
+    std.debug.print("Output (first 10 elements):\n", .{});
+    var i: usize = 0;
+    while (i < output_slice.len and i < 10) : (i += 1) {
+        std.debug.print("{d}, ", .{output_slice[i]});
+    }
+    if (output_slice.len > 10) {
+        std.debug.print("...\n", .{});
+    } else {
+        std.debug.print("\n", .{});
+    }
+
+    std.debug.print("WARNING: Memory for the predict output was NOT freed!\n", .{});
 
     std.debug.print("Attempting to free input memory...\\n", .{});
     allocator.free(input_data);

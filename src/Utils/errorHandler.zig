@@ -59,6 +59,7 @@ pub const TensorMathError = error{
     InvalidPaddingSize,
     UnexpectedError,
     InputTensorNotScalar,
+    InvalidGroupParameter,
 };
 
 /// Tensor errors
