@@ -1019,13 +1019,44 @@ inline fn write_matmul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name) });
     }
 
-    //This is cursed, there must be a cleaner impl.
-    var tens_data_size: usize = 1;
-    for (0..node.inputs.items[0].?.shape.len) |i| {
-        tens_data_size *= @intCast(node.inputs.items[1].?.shape[i]);
+    // Calculate b_width_bytes safely, handling potential null tensorProto
+    // Get type information for tensor B to estimate element size
+    const input_B_name = node.inputs.items[1].?.name;
+    const ready_tensor_B = globals.tensorHashMap.getPtr(input_B_name) orelse {
+        std.debug.print("Error: Tensor '{s}' not found in globals.tensorHashMap for MatMul.\n", .{input_B_name});
+        return error.TensorNotFound;
+    };
+
+    var element_size_bytes: usize = 4; // Default to f32 size as fallback
+    if (ready_tensor_B.tensorProto) |tp| {
+        const data_type = tp.data_type;
+        // Determine size from DataType enum
+        element_size_bytes = switch (data_type) {
+            .FLOAT => @sizeOf(f32),
+            .FLOAT16 => @sizeOf(f16),
+            .INT64 => @sizeOf(i64),
+            .INT32 => @sizeOf(i32),
+            .INT8 => @sizeOf(i8),
+            .UINT8 => @sizeOf(u8),
+            // Add other supported types as needed
+            else => blk: {
+                std.debug.print("Warning: Unsupported DataType '{any}' for MatMul input B '{s}'. Assuming f32 size.\n", .{ data_type, input_B_name });
+                break :blk 4;
+            },
+        };
+    } else {
+        // Fallback if tensorProto is null - log a warning
+        std.debug.print("Warning: TensorProto for MatMul input B '{s}' is null. Assuming f32 size for width calculation.\n", .{input_B_name});
     }
+
     const b_dims = node.inputs.items[1].?.shape.len;
-    const b_width_bytes: usize = if (node.inputs.items[1].?.tensorProto.?.raw_data) |b| @divFloor(b.len, tens_data_size) else @intCast(node.inputs.items[1].?.shape[b_dims - 1]);
+    if (b_dims == 0) {
+        std.debug.print("Error: MatMul input B '{s}' has zero dimensions.\n", .{input_B_name});
+        return error.InvalidShape; // Avoid panic on empty shape
+    }
+
+    const b_width_elements: usize = @intCast(node.inputs.items[1].?.shape[b_dims - 1]);
+    const b_width_bytes: usize = b_width_elements * element_size_bytes;
 
     if (b_width_bytes >= std.atomic.cache_line) { //B is large enough for the new mat mul to work;
         _ = try writer.print(
