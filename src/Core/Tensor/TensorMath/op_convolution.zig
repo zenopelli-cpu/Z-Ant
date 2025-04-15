@@ -7,6 +7,7 @@ const TensorMathError = zant.utils.error_handler.TensorMathError;
 
 const op_mat_mul = @import("op_mat_mul.zig");
 const mat_mul = op_mat_mul.mat_mul;
+const blocked_mat_mul = op_mat_mul.blocked_mat_mul;
 const op_padding = @import("lib_shape_math/op_padding.zig");
 const addPaddingAndDilation = op_padding.addPaddingAndDilation;
 
@@ -489,6 +490,31 @@ pub fn convolve_tensor_with_bias(
         }
     }
 
+
+
+    const vals_in_cache = std.atomic.cache_line / @sizeOf(T);
+    var result: Tensor(T) = undefined;
+    defer result.deinit();
+    //print kernel_matrix and input_col
+    // std.debug.print("\n[DEBUG] Kernel matrix: {any}", .{kernel_matrix.shape});
+    //std.debug.print("\n[DEBUG] Input col: {any}", .{input_col.shape});
+    if(kernel_matrix.shape[kernel_matrix.shape.len-1] > vals_in_cache){
+        result = blocked_mat_mul(T, &input_col, &kernel_matrix) catch {
+            if (log_functionC) |log_func| {
+                log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed in mat_mul")));
+            }
+            @panic("Failed in blocked mat_mul");
+        };
+    } else {
+        result = mat_mul(T, &input_col, &kernel_matrix) catch {
+            if (log_functionC) |log_func| {
+                log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed in mat_mul")));
+            }
+            @panic("Failed in mat_mul");
+        };
+    }
+    
+
     // Perform group-wise matrix multiplication logic
     // input_col (I) shape: [N, group * K], where N = B*OH*OW, K = C/g * kH * kW
     // kernel_matrix (W) shape: [M, K]
@@ -530,6 +556,7 @@ pub fn convolve_tensor_with_bias(
             result.data[n * M + m] = dot_product;
         }
     }
+
 
     if (log_functionC) |log_func| {
         log_func(@constCast(@ptrCast("OnnxConvLean4")));
