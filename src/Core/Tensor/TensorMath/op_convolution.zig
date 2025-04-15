@@ -267,7 +267,7 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
         log_func(@constCast(@ptrCast("OnnxConvLean2")));
     }
     // Perform convolution with padded input, kernel, and bias
-    var result = convolve_tensor_with_bias(
+    var result = convolve_tensor_with_bias_memory_efficient(
         T,
         &padded_input,
         kernel,
@@ -294,7 +294,17 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
 
     // Validate output dimensions and copy result
     // Output shape should match the expected 4D shape based on actual_input_shape
-    if (!std.mem.eql(usize, result.shape[0..4], output.shape[0..4])) {
+    var shape_match = false;
+    if (output.shape.len == 4) {
+        // Compare all 4 dimensions if output is 4D
+        shape_match = std.mem.eql(usize, result.shape[0..4], output.shape[0..4]);
+    } else if (output.shape.len == 3) {
+        // Compare dimensions C, H, W if output is 3D
+        // Result is always 4D [B=1, C, H, W] from convolve_tensor_with_bias
+        shape_match = std.mem.eql(usize, result.shape[1..4], output.shape[0..3]);
+    } // else: Let the data length check catch other invalid output shapes
+
+    if (!shape_match) {
         //std.debug.print("\n[DEBUG] OnnxConvLean: Result shape: {any}", .{result.shape});
         // Adjust error message or logic if needed, considering the 3D input case
         if (log_functionC) |log_func| {

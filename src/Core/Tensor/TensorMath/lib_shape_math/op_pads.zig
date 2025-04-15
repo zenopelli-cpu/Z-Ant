@@ -25,18 +25,49 @@ pub fn get_pads_output_shape(
     axes: ?[]const isize,
 ) ![]usize {
     const rank = input_shape.len;
+    var output_rank = rank; // Rank of the output shape
+    var effective_rank = rank; // Rank used for padding calculation
+    var effective_input_shape = input_shape; // Shape used for calculation
+    var temp_effective_input_shape: []usize = undefined; // Buffer if we prepend shape
+    var temp_shape_allocated = false;
 
     // Check pad length IF axes is null
-    if (axes == null and pad_values.len != rank * 2) {
-        return TensorMathError.InvalidPaddingShape;
+    if (axes == null) {
+        if (pad_values.len == rank * 2) {
+            // Standard case: pads match input rank
+            effective_rank = rank;
+            output_rank = rank;
+        } else if (pad_values.len == (rank + 1) * 2) {
+            // Special case: pads imply rank + 1, assume leading batch dim
+            effective_rank = rank + 1;
+            output_rank = rank + 1;
+            // Create effective shape [1] ++ input_shape
+            temp_effective_input_shape = try pkg_allocator.alloc(usize, effective_rank);
+            temp_shape_allocated = true;
+            temp_effective_input_shape[0] = 1;
+            @memcpy(temp_effective_input_shape[1..], input_shape);
+            effective_input_shape = temp_effective_input_shape;
+        } else {
+            // Mismatched pads length
+            return TensorMathError.InvalidPaddingShape;
+        }
     }
 
-    var output_shape = try allocator.alloc(usize, rank);
+    var output_shape = try allocator.alloc(usize, output_rank);
     errdefer allocator.free(output_shape);
-    @memcpy(output_shape, input_shape); // Start with input shape
+    // Initialize output shape based on effective input shape
+    if (effective_rank == output_rank) {
+        @memcpy(output_shape, effective_input_shape);
+    } else { // effective_rank = rank + 1, output_rank = rank + 1
+        @memcpy(output_shape, effective_input_shape); // Copy the [1, ...] shape
+    }
+    // Free temp buffer if it was used
+    if (temp_shape_allocated) {
+        pkg_allocator.free(temp_effective_input_shape);
+    }
 
     if (axes) |ax| {
-        if (ax.len > rank) {
+        if (ax.len > effective_rank) {
             // Should have been caught earlier, but defensive check
             return TensorMathError.InvalidInput;
         }
@@ -44,7 +75,7 @@ pub fn get_pads_output_shape(
         if (pad_values.len != ax.len * 2) { // Check specifically for axes case
             return TensorMathError.InvalidPaddingShape;
         }
-        var axis_seen = try std.DynamicBitSet.initEmpty(allocator, rank);
+        var axis_seen = try std.DynamicBitSet.initEmpty(allocator, effective_rank);
         defer axis_seen.deinit();
 
         for (ax, 0..) |axis_raw, i| {
@@ -73,9 +104,9 @@ pub fn get_pads_output_shape(
         // if (pad_values.len != rank * 2) { // Redundant if top check exists
         //      return TensorMathError.InvalidPaddingShape;
         // }
-        for (0..rank) |axis| {
+        for (0..effective_rank) |axis| {
             const pad_start = pad_values[axis];
-            const pad_end = pad_values[rank + axis];
+            const pad_end = pad_values[effective_rank + axis];
 
             if (@as(isize, @intCast(output_shape[axis])) + pad_start + pad_end <= 0) {
                 // Resulting dimension size is non-positive
@@ -246,105 +277,149 @@ pub fn pads_lean(
     axes: ?[]const isize, // Optional axes to apply padding
     output: *Tensor(T),
 ) !void {
-    const rank = data.shape.len;
-    if (output.shape.len != rank) return TensorMathError.OutputTensorWrongShape; // Should be guaranteed by caller
-    if (pad_values.len != rank * 2) return TensorMathError.InvalidPaddingShape; // Should be guaranteed by caller
+    const input_rank = data.shape.len;
+    const output_rank = output.shape.len;
 
-    const const_val = if (mode == .constant) constant_value orelse @as(T, 0) else @as(T, undefined); // Default 0 for constant mode
+    // Allow output rank to be input_rank + 1 (prepended dim case)
+    if (output_rank != input_rank and output_rank != input_rank + 1) {
+        // Only allow output rank == input rank or output rank == input rank + 1
+        return TensorMathError.OutputTensorWrongShape;
+    }
+    // Validate pad_values length against the effective rank (output rank) if axes is null
+    if (axes == null and pad_values.len != output_rank * 2) {
+        // This check might seem redundant given get_pads_output_shape, but good defense
+        return TensorMathError.InvalidPaddingShape;
+    }
+    // Validate pad_values length against axes length if axes is provided
+    if (axes != null and pad_values.len != axes.?.len * 2) {
+        return TensorMathError.InvalidPaddingShape;
+    }
 
-    // Create effective pads/axes mapping
-    // Store pad_start and pad_end directly for each axis for quick lookup
-    var pads_per_axis = try pkg_allocator.alloc([2]i64, rank);
+    const const_val = if (mode == .constant) constant_value orelse @as(T, 0) else @as(T, undefined);
+
+    // Store pad_start and pad_end for each *output* axis
+    var pads_per_axis = try pkg_allocator.alloc([2]i64, output_rank);
     defer pkg_allocator.free(pads_per_axis);
-    // Initialize with zero padding for axes not specified
-    for (0..rank) |i| {
+    // Initialize with zero padding
+    for (0..output_rank) |i| {
         pads_per_axis[i] = .{ @as(i64, 0), @as(i64, 0) };
     }
 
+    const prepended_dim = (output_rank == input_rank + 1);
+
     if (axes) |ax| {
-        if (ax.len > rank or pad_values.len != ax.len * 2) return TensorMathError.InvalidInput; // Should be guaranteed by caller
-        var axis_map = std.AutoHashMap(isize, [2]i64).init(pkg_allocator);
+        // axes are relative to input dimensions
+        if (ax.len > input_rank) return TensorMathError.InvalidInput; // Should be guaranteed by caller
+        var axis_map = std.AutoHashMap(usize, void).init(pkg_allocator); // Track seen output axes
         defer axis_map.deinit();
 
         for (ax, 0..) |axis_raw, i| {
-            const resolved_axis: usize = if (axis_raw >= 0) @intCast(axis_raw) else @intCast(@as(isize, @intCast(rank)) + axis_raw);
-            if (resolved_axis >= rank) return TensorMathError.AxisOutOfRange; // Should be checked earlier
-            if (axis_map.contains(@intCast(resolved_axis))) return TensorMathError.InvalidInput; // Repeated axis
+            const resolved_input_axis: usize = if (axis_raw >= 0) @intCast(axis_raw) else @intCast(@as(isize, @intCast(input_rank)) + axis_raw);
+            if (resolved_input_axis >= input_rank) return TensorMathError.AxisOutOfRange;
+
+            // Map input axis to output axis
+            const output_axis = if (prepended_dim) resolved_input_axis + 1 else resolved_input_axis;
+
+            if (axis_map.contains(output_axis)) return TensorMathError.InvalidInput; // Repeated axis applied to same output dim
 
             const p_start = pad_values[i];
             const p_end = pad_values[ax.len + i];
-            try axis_map.put(@intCast(resolved_axis), .{ p_start, p_end });
-            pads_per_axis[resolved_axis] = .{ p_start, p_end }; // Also store directly
+            try axis_map.put(output_axis, {});
+            pads_per_axis[output_axis] = .{ p_start, p_end };
         }
     } else {
-        // No axes specified, apply to all
-        if (pad_values.len != rank * 2) return TensorMathError.InvalidPaddingShape; // Should be guaranteed
-        for (0..rank) |axis| {
-            pads_per_axis[axis] = .{ pad_values[axis], pad_values[rank + axis] };
+        // No axes specified, apply to all output dimensions
+        // pad_values length must match output_rank * 2 (checked earlier)
+        for (0..output_rank) |axis| {
+            pads_per_axis[axis] = .{ pad_values[axis], pad_values[output_rank + axis] };
         }
     }
 
     // Iterate through each element of the output tensor
     var out_iter = try IndexIterator.init(pkg_allocator, output.shape);
     defer out_iter.deinit();
-    var in_indices = try pkg_allocator.alloc(usize, rank);
+    // Input indices buffer has size input_rank
+    var in_indices = try pkg_allocator.alloc(usize, input_rank);
     defer pkg_allocator.free(in_indices);
 
     while (out_iter.next()) {
         const out_flat_index = out_iter.getFlatIndex();
         var use_constant = false;
-        var copy_from_input = true;
+        var calculated_in_indices = true; // Track if we successfully got all needed input coords
 
-        // Calculate corresponding input indices based on padding mode
-        for (out_iter.current_indices, 0..) |out_coord, axis| {
-            const pad_start = pads_per_axis[axis][0];
-            const pad_end = pads_per_axis[axis][1];
-            const axis_len_in = data.shape[axis];
+        // Calculate potential input indices based on output indices and padding rules.
+        for (0..output_rank) |output_axis| {
+            const out_coord = out_iter.current_indices[output_axis];
+            const pad_start = pads_per_axis[output_axis][0];
+            const pad_end = pads_per_axis[output_axis][1];
 
-            if (pad_start != 0 or pad_end != 0) { // Only calculate if padding is applied to this axis
-                const maybe_in_coord = get_input_coord(out_coord, axis_len_in, pad_start, pad_end, mode);
-                if (maybe_in_coord) |in_coord| {
-                    if (in_coord < 0 or @as(usize, @intCast(in_coord)) >= axis_len_in) {
-                        // This should ideally not happen with correct get_input_coord logic, but safeguard
+            // Determine corresponding input axis, if any
+            const maybe_input_axis: ?usize = if (!prepended_dim) output_axis else if (output_axis == 0) null // Prepended dimension has no direct input counterpart
+                else output_axis - 1; // Shift subsequent axes
 
-                        return TensorMathError.UnexpectedError; // Or a more specific error
-                    }
-                    in_indices[axis] = @intCast(in_coord);
+            // Determine the effective input size for this dimension for get_input_coord
+            const axis_len_in: usize = if (maybe_input_axis) |ia| data.shape[ia] else 1; // Treat prepended dim as having size 1 input
+
+            // Calculate the source coordinate using the effective input length
+            const maybe_in_coord = get_input_coord(out_coord, axis_len_in, pad_start, pad_end, mode);
+
+            if (maybe_in_coord) |in_coord| {
+                // Check bounds relative to effective input length
+                if (in_coord < 0 or @as(usize, @intCast(in_coord)) >= axis_len_in) {
+                    return TensorMathError.UnexpectedError;
+                }
+                // Store input index if this output axis corresponds to an actual input axis
+                if (maybe_input_axis) |ia| {
+                    in_indices[ia] = @intCast(in_coord);
                 } else {
-                    // get_input_coord returned null, only happens for constant mode in padding area
-                    copy_from_input = false;
-                    if (mode == .constant) {
-                        use_constant = true;
-                    } else {
-                        // Should not happen for non-constant modes
-
+                    // This coordinate is in the prepended dimension. get_input_coord should return 0
+                    // for edge/reflect/wrap based on axis_len_in=1. If it's not 0, something is wrong.
+                    if (in_coord != 0) {
+                        std.debug.print("Error: get_input_coord returned non-zero index {} for prepended dimension (axis_len_in=1)", .{in_coord});
                         return TensorMathError.UnexpectedError;
                     }
-                    break; // No need to check other axes if we use constant value
+                    // No need to store index as it doesn't map to an input dimension.
                 }
             } else {
-                // No padding on this axis, input index is the same as output index
-                in_indices[axis] = out_coord;
+                // get_input_coord returned null, only valid for constant mode in padding area
+                if (mode == .constant) {
+                    use_constant = true;
+                    calculated_in_indices = false; // Input indices are now irrelevant
+                    break; // Stop calculating indices for this output element
+                } else {
+                    // Should not happen for non-constant modes
+                    std.debug.print("Error: get_input_coord returned null for non-constant mode {}", .{mode});
+                    return TensorMathError.UnexpectedError;
+                }
             }
         }
 
+        // Assign value to output tensor element
         if (use_constant) {
             output.data[out_flat_index] = const_val;
-        } else if (copy_from_input) {
-            // Calculate flat index for input tensor
+        } else if (calculated_in_indices) {
+            // Calculate flat index using input_rank, in_indices, and data.shape/strides
             var in_flat_index: usize = 0;
             var current_stride: usize = 1;
-            var i = rank;
+            var i = input_rank; // Iterate based on input rank
             while (i > 0) {
                 i -= 1;
                 in_flat_index += in_indices[i] * current_stride;
+                // Stride calculation MUST use input shape
                 current_stride *= data.shape[i];
+            }
+
+            // Safeguard: Check if calculated index is within bounds of input data
+            if (in_flat_index >= data.data.len) {
+                std.debug.print("Error: Calculated in_flat_index {} out of bounds (size {}). In Indices: {any}, Input Shape: {any}", .{ in_flat_index, data.data.len, in_indices, data.shape });
+                return TensorMathError.UnexpectedError;
             }
 
             output.data[out_flat_index] = data.data[in_flat_index];
         } else {
-            // This case should ideally be unreachable if logic is correct
-
+            // This case implies (!use_constant and !calculated_in_indices), which should be unreachable
+            // if the logic in the loop is correct.
+            std.debug.print("Error: Reached unreachable state in pads_lean (use_constant=false, calculated_in_indices=false)", .{});
             return TensorMathError.UnexpectedError;
         }
     }
