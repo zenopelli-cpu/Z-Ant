@@ -265,7 +265,7 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
         log_func(@constCast(@ptrCast("OnnxConvLean2")));
     }
     // Perform convolution with padded input, kernel, and bias
-    var result = convolve_tensor_with_bias_memory_efficient(
+    var result = convolve_tensor_with_bias(
         T,
         &padded_input,
         kernel,
@@ -1454,36 +1454,6 @@ pub fn OnnxConv(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), bias: ?
     try OnnxConvLean(T, input, kernel, &output, bias, stride, pads, dilations, actual_group, auto_pad);
 
     return output;
-}
-
-pub fn convolution_backward_biases(comptime T: type, dValues: *Tensor(T)) !Tensor(T) {
-    if (dValues.shape.len != 4) return TensorMathError.InvalidDimensions;
-
-    const out_channels = dValues.shape[1];
-    var bias_gradients_shape = [_]usize{out_channels};
-
-    var bias_gradients = try Tensor(T).fromShape(&pkg_allocator, &bias_gradients_shape);
-    errdefer bias_gradients.deinit();
-    try bias_gradients.set(0, 0);
-
-    const batch_size = dValues.shape[0];
-    const output_height = dValues.shape[2];
-    const output_width = dValues.shape[3];
-
-    for (0..out_channels) |oc| {
-        var sum: T = 0;
-        for (0..batch_size) |b| {
-            for (0..output_height) |h| {
-                for (0..output_width) |w| {
-                    const val = try dValues.get_at(&[_]usize{ b, oc, h, w });
-                    sum += val; // Direct addition for floating point
-                }
-            }
-        }
-        try bias_gradients.set_at(&[_]usize{oc}, sum);
-    }
-
-    return bias_gradients;
 }
 
 pub fn debug_print_max_pool(input_shape: []const usize, kernel_shape: []const usize, stride: []const usize, padding: ?[]const usize) void {

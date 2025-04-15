@@ -367,6 +367,7 @@ inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n calculated output_shape_usize: []usize = {any}", .{output_shape_usize});
 
     // 5. Convert result back to i64
+    std.debug.print("\n >>> DEBUG: output_shape_usize before conversion: {any}\n", .{output_shape_usize});
     const output_shape_i64 = try utils.usizeSliceToI64Slice(output_shape_usize);
     // NOTE: utils.usizeSliceToI64Slice allocates, so the caller (or ReadyNode deinit) should free it.
 
