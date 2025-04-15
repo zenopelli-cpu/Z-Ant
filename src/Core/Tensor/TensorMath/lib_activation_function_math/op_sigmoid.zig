@@ -26,6 +26,7 @@ pub inline fn sigmoid(comptime T: anytype, tensor: *Tensor(T)) !Tensor(T) {
 }
 
 pub inline fn sigmoid_lean(comptime T: anytype, input_tensor: *Tensor(T), output_tensor: *Tensor(T)) !void {
+    @setEvalBranchQuota(100000);
     //std.debug.print("\n[DEBUG] sigmoid_lean:", .{});
     //std.debug.print("\n  Input shape: ", .{});
     //for (input_tensor.shape) |s| std.debug.print("{d} ", .{s});
@@ -52,4 +53,14 @@ pub fn sigmoid_backward(comptime T: anytype, gradient: *Tensor(T), act_forward_o
         const sigmoid_output = act_forward_out.data[i];
         gradient.data[i] *= sigmoid_output * (1 - sigmoid_output);
     }
+}
+
+pub fn get_sigmoid_output_shape(input_shape: []const usize) ![]usize {
+    // Allocate and copy the input shape
+    const output_shape = try pkg_allocator.alloc(usize, input_shape.len);
+    errdefer pkg_allocator.free(output_shape);
+
+    std.mem.copyForwards(usize, output_shape, input_shape);
+
+    return output_shape;
 }

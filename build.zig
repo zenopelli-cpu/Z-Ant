@@ -21,16 +21,17 @@ pub fn build(b: *std.Build) void {
     };
 
     const target = b.resolveTargetQuery(target_query);
-    const optimize = b.standardOptimizeOption(.{});
+    const optimize = .Debug; // Force Debug mode
 
     // -------------------- Modules creation
 
     const zant_mod = b.createModule(.{ .root_source_file = b.path("src/zant.zig") });
     zant_mod.addOptions("build_options", build_options);
 
-    //************************************************UNIT TESTS************************************************
     const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/CodeGen/codegen.zig") });
     codeGen_mod.addImport("zant", zant_mod);
+
+    //************************************************UNIT TESTS************************************************
 
     // Define unified tests for the project.
     const unit_tests = b.addTest(.{
@@ -39,6 +40,14 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    // Define test options
+    const test_options = b.addOptions();
+    test_options.addOption(bool, "heavy", b.option(bool, "heavy", "Run heavy tests") orelse false);
+    unit_tests.root_module.addOptions("test_options", test_options);
+
+    const test_name = b.option([]const u8, "test_name", "specify a test name to run") orelse "";
+    test_options.addOption([]const u8, "test_name", test_name);
 
     unit_tests.root_module.addImport("zant", zant_mod);
     unit_tests.root_module.addImport("codegen", codeGen_mod);
@@ -102,7 +111,7 @@ pub fn build(b: *std.Build) void {
         .name = "zant",
         .root_source_file = b.path(lib_model_path),
         .target = target,
-        .optimize = optimize,
+        .optimize = .ReleaseSmall,
     });
     static_lib.linkLibC();
     static_lib.root_module.addImport("zant", zant_mod);
@@ -135,8 +144,11 @@ pub fn build(b: *std.Build) void {
     const test_step_generated_lib = b.step("test-generated-lib", "Run generated library tests");
     test_step_generated_lib.dependOn(&run_test_generated_lib.step);
 
+
     // ************************************************ ONEOP CODEGEN ************************************************
 
+
+    // ************************************************ ONEOP CODEGEN ************************************************
     // Setup oneOp codegen
 
     const oneop_codegen_exe = b.addExecutable(.{
@@ -157,7 +169,9 @@ pub fn build(b: *std.Build) void {
 
     // ************************************************
 
+
     //Setup test_all_oneOp
+
 
     const test_all_oneOp = b.addTest(.{
         .name = "test_all_oneOp",
@@ -182,15 +196,25 @@ pub fn build(b: *std.Build) void {
     const step_test_oneOp = b.step("test-codegen", "Run generated library tests");
     step_test_oneOp.dependOn(&run_test_all_oneOp.step);
 
+
     // ************************************************
     // Benchmark
 
     const benchmark = b.addExecutable(.{
         .name = "benchmark",
         .root_source_file = b.path("benchmarks/main.zig"),
+
+    // ************************************************ ONNX PARSER TESTS ************************************************
+    // Add test for generated library
+
+    const test_onnx_parser = b.addTest(.{
+        .name = "test_generated_lib",
+        .root_source_file = b.path("tests/Onnx/onnx_loader.zig"),
+
         .target = target,
         .optimize = optimize,
     });
+
 
     const bench_options = b.addOptions();
     bench_options.addOption(bool, "full", b.option(bool, "full", "Choose whenever run full benchmark or not") orelse false);
@@ -202,4 +226,72 @@ pub fn build(b: *std.Build) void {
     const run_benchmark = b.addRunArtifact(benchmark);
     const benchmark_step = b.step("benchmark", "Run benchmarks");
     benchmark_step.dependOn(&run_benchmark.step);
+
+    test_onnx_parser.root_module.addImport("zant", zant_mod);
+    test_onnx_parser.linkLibC();
+
+    const run_test_onnx_parser = b.addRunArtifact(test_onnx_parser);
+    const step_test_onnx_parser = b.step("onnx-parser", "Run generated library tests");
+    step_test_onnx_parser.dependOn(&run_test_onnx_parser.step);
+
+    // Path to the generated model options file (moved here)
+    const model_options_path = std.fmt.allocPrint(b.allocator, "generated/{s}/model_options.zig", .{model_name_option}) catch |err| {
+        std.debug.print("Error allocating model options path: {}\n", .{err});
+        return;
+    };
+
+    // ************************************************ MAIN EXECUTABLE (for profiling) ************************************************
+
+    const main_executable = b.addExecutable(.{
+        .name = "main_profiling_target",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    main_executable.linkLibC();
+    main_executable.linkLibrary(static_lib);
+    const model_opts_mod = b.createModule(.{
+        .root_source_file = b.path(model_options_path),
+    });
+    model_opts_mod.addImport("zant", zant_mod);
+    model_opts_mod.addImport("codegen", codeGen_mod);
+    main_executable.root_module.addImport("model_opts", model_opts_mod);
+    const install_main_exe_step = b.addInstallArtifact(main_executable, .{}); // Installa l'eseguibile
+
+    const build_main_step = b.step("build-main", "Build the main executable for profiling");
+    build_main_step.dependOn(&install_main_exe_step.step);
+
+    // ************************************************ NATIVE GUI ************************************************
+
+    {
+        const dvui_dep = b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .sdl, .sdl3 = true });
+
+        const gui_exe = b.addExecutable(.{
+            .name = "gui",
+            .root_source_file = b.path("gui/sdl/sdl-standalone.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+
+        // Can either link the backend ourselves:
+        // const dvui_mod = dvui_dep.module("dvui");
+        // const sdl = dvui_dep.module("sdl");
+        // @import("dvui").linkBackend(dvui_mod, sdl);
+        // exe.root_module.addImport("dvui", dvui_mod);
+
+        // Or use a prelinked one:
+        gui_exe.root_module.addImport("dvui", dvui_dep.module("dvui_sdl"));
+
+        const compile_step = b.step("compile-gui", "Compile gui");
+        compile_step.dependOn(&b.addInstallArtifact(gui_exe, .{}).step);
+        b.getInstallStep().dependOn(compile_step);
+
+        const run_cmd = b.addRunArtifact(gui_exe);
+        run_cmd.step.dependOn(compile_step);
+
+        const run_step = b.step("gui", "Run gui");
+        run_step.dependOn(&run_cmd.step);
+    }
+
 }

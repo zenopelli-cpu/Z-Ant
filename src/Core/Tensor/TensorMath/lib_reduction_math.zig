@@ -84,6 +84,7 @@ pub fn reduce_mean(comptime T: anytype, tensor: *Tensor(T), axes: ?[]const i64, 
 }
 
 /// Lean version of reduce_mean that operates on pre-allocated output tensor
+/// Lean version of reduce_mean that operates on pre-allocated output tensor
 pub inline fn lean_reduce_mean(
     comptime T: anytype,
     input_tensor: *Tensor(T),
@@ -265,4 +266,57 @@ pub inline fn lean_reduce_mean(
         //std.debug.print("\n  Final sum={d}, mean={d}", .{ sum, sum / @as(T, @floatFromInt(count)) });
         output_tensor.data[out_idx] = sum / @as(T, @floatFromInt(count));
     }
+}
+
+pub fn get_reduce_mean_output_shape(input_shape: []const usize, axes: ?[]const i64, keepdims: bool, noop_with_empty_axes: bool) ![]usize {
+    const allocator = pkg_allocator;
+
+    // Handle empty/null axes case
+    if (axes == null or axes.?.len == 0) {
+        if (noop_with_empty_axes) {
+            // Return copy of input shape
+            return try allocator.dupe(usize, input_shape);
+        }
+        // Reduce over all dimensions
+        if (keepdims) {
+            const out_shape = try allocator.alloc(usize, input_shape.len);
+            @memset(out_shape, 1);
+            return out_shape;
+        } else {
+            var out_shape = try allocator.alloc(usize, 1);
+            out_shape[0] = 1;
+            return out_shape;
+        }
+    }
+
+    // Mark dimensions to reduce
+    var reduce_dims = try allocator.alloc(bool, input_shape.len);
+    defer allocator.free(reduce_dims);
+    @memset(reduce_dims, false);
+
+    for (axes.?) |axis| {
+        const actual_axis = if (axis < 0)
+            @as(usize, @intCast(@as(i64, @intCast(input_shape.len)) + axis))
+        else
+            @as(usize, @intCast(axis));
+        reduce_dims[actual_axis] = true;
+    }
+
+    // Count remaining dimensions
+    var remaining_dims: usize = 0;
+    for (reduce_dims) |is_reduced| {
+        if (!is_reduced or keepdims) remaining_dims += 1;
+    }
+
+    // Create output shape
+    var out_shape = try allocator.alloc(usize, remaining_dims);
+    var out_dim: usize = 0;
+    for (input_shape, 0..) |dim_size, i| {
+        if (!reduce_dims[i] or keepdims) {
+            out_shape[out_dim] = if (reduce_dims[i]) 1 else dim_size;
+            out_dim += 1;
+        }
+    }
+
+    return out_shape;
 }

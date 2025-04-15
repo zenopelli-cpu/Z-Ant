@@ -96,16 +96,35 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     const N = B.shape[dim_num - 1];
     const K = A.shape[dim_num - 1];
 
-    // std.debug.print("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
-    // std.debug.print("Input tensor A shape: ", .{});
-    // for (A.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\nInput tensor B shape: ", .{});
-    // for (B.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\n", .{});
+    // Add dimension validation
+    if (M >= std.math.maxInt(usize) / 2 or
+        N >= std.math.maxInt(usize) / 2 or
+        K >= std.math.maxInt(usize) / 2)
+    {
+        return TensorMathError.InputTensorsWrongShape;
+    }
 
-    // std.debug.print("Output tensor Y shape: ", .{});
-    // for (Y.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\n", .{});
+    // Add shape validation
+    if (B.shape[dim_num - 2] != K) {
+        return TensorMathError.InputTensorsWrongShape;
+    }
+
+    // Validate output tensor shape
+    if (Y.shape[dim_num - 2] != M or Y.shape[dim_num - 1] != N) {
+        return TensorMathError.OutputTensorWrongShape;
+    }
+
+    // Debug prints only when needed
+    if (false) {
+        std.debug.print("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
+        std.debug.print("Input tensor A shape: ", .{});
+        for (A.shape) |dim| std.debug.print("{} ", .{dim});
+        std.debug.print("\nInput tensor B shape: ", .{});
+        for (B.shape) |dim| std.debug.print("{} ", .{dim});
+        std.debug.print("\nOutput tensor Y shape: ", .{});
+        for (Y.shape) |dim| std.debug.print("{} ", .{dim});
+        std.debug.print("\n", .{});
+    }
 
     // SIMD vector type
     const Vec = @Vector(DEFAULT_VECTOR_WIDTH, T);
@@ -170,6 +189,7 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
 
     // std.debug.print("Matrix multiplication completed\n", .{});
 }
+
 
 const CACHE_BLOCK_SIZE_BYTES: usize = std.atomic.cache_line;
 
@@ -392,6 +412,35 @@ inline fn simd_tile_mul(
             A_ptr[c_chunk_row * a_cols + tile + t_row] *
             B_ptr[tile * b_cols + t_row * b_cols + c_chunk_column + t_col];
     }
+
+pub fn get_mat_mul_output_shape(shape_a: []const usize, shape_b: []const usize) ![]usize {
+    if (shape_a.len < 2 or shape_b.len < 2) {
+        return error.InvalidShape;
+    }
+
+    const a_rows = shape_a[shape_a.len - 2];
+    const a_cols = shape_a[shape_a.len - 1];
+    const b_rows = shape_b[shape_b.len - 2];
+    const b_cols = shape_b[shape_b.len - 1];
+
+    if (a_cols != b_rows) {
+        return error.ShapeMismatch;
+    }
+
+    var output_shape = try pkg_allocator.alloc(usize, shape_a.len);
+    errdefer pkg_allocator.free(output_shape);
+
+    // Copy batch dimensions from input_a
+    for (0..shape_a.len - 2) |i| {
+        output_shape[i] = shape_a[i];
+    }
+
+    // Set matrix multiplication dimensions
+    output_shape[output_shape.len - 2] = a_rows;
+    output_shape[output_shape.len - 1] = b_cols;
+
+    return output_shape;
+
 }
 
 /// Function that performs the multiplication of two tensors used in a recursive way to handle multidimensional tensors

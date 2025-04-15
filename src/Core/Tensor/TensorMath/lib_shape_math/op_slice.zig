@@ -14,8 +14,12 @@ const pkg_allocator = zant.utils.allocator.allocator;
 /// axes: Which axes to slice (if null, assumes [0,1,2,...])
 /// steps: Step sizes for each axis (if null, assumes all 1s)
 pub fn slice_onnx(comptime T: type, input: *Tensor(T), starts: []const i64, ends: []const i64, axes: ?[]const i64, steps: ?[]const i64) !Tensor(T) {
-    // Create output tensor
-    var output = try Tensor(T).fromShape(&pkg_allocator, input.shape);
+    // Calculate output shape first
+    const output_shape = try get_slice_output_shape(input.shape, starts, ends, axes, steps);
+    defer pkg_allocator.free(output_shape);
+
+    // Create output tensor using input's allocator for consistency
+    var output = try Tensor(T).fromShape(input.allocator, output_shape);
     errdefer output.deinit();
 
     try lean_slice_onnx(T, input, starts, ends, axes, steps, &output);
@@ -80,38 +84,6 @@ pub fn lean_slice_onnx(comptime T: type, input: *Tensor(T), starts: []const i64,
         }
     }
 
-    // Calculate output shape
-    var total_elements: usize = 1;
-    for (0..input.shape.len) |i| {
-        const start = actual_starts[i];
-        const end = actual_ends[i];
-        const step = actual_steps[i];
-
-        var dim_size: usize = 0;
-        if (step > 0) {
-            if (end > start) {
-                dim_size = @intCast(@divTrunc((@as(i64, @intCast(end - start)) + step - 1), step));
-            }
-        } else {
-            if (start > end) {
-                // For negative steps, we need to handle the range differently
-                // Add 1 to end because end is exclusive
-                const range = start - (end + 1);
-                const abs_step = -step;
-                dim_size = @intCast(@divTrunc(range + abs_step - 1, abs_step));
-            }
-        }
-        output.shape[i] = dim_size;
-        total_elements *= dim_size;
-    }
-
-    // Resize output data if needed
-    if (output.data.len != total_elements) {
-        if (output.data.len > 0) pkg_allocator.free(output.data);
-        output.data = try pkg_allocator.alloc(T, total_elements);
-    }
-    output.size = total_elements;
-
     // Helper function to convert flat index to coordinates
     var input_coords = try pkg_allocator.alloc(usize, input.shape.len);
     defer pkg_allocator.free(input_coords);
@@ -120,7 +92,7 @@ pub fn lean_slice_onnx(comptime T: type, input: *Tensor(T), starts: []const i64,
 
     // Copy data
     var output_idx: usize = 0;
-    while (output_idx < total_elements) : (output_idx += 1) {
+    while (output_idx < output.size) : (output_idx += 1) {
         // Convert output_idx to coordinates
         var temp = output_idx;
         for (0..input.shape.len) |i| {
@@ -222,7 +194,6 @@ pub fn get_slice_output_shape(input_shape: []const usize, starts: []const i64, e
     std.debug.print("\n  actual_ends: {any}", .{actual_ends});
     std.debug.print("\n  actual_steps: {any}", .{actual_steps});
 
-    // Calculate output shape
     // Calculate output shape
     var output_shape = try pkg_allocator.alloc(usize, input_shape.len);
     errdefer pkg_allocator.free(output_shape);

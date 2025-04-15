@@ -122,6 +122,10 @@ pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(
         //std.debug.print("\n  B shape after transpose: ", .{});
         //for (actual_B_ptr.shape) |s| std.debug.print("{d} ", .{s});
     }
+    defer {
+        if (transA) actual_A.deinit();
+        if (transB) actual_B.deinit();
+    }
 
     const vals_in_cache = std.atomic.cache_line / @sizeOf(T);
     if(B.shape[B.shape.len-1] > vals_in_cache){

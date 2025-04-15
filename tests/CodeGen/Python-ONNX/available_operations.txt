@@ -1,4 +1,5 @@
 Gemm
+Sub
 Div
 Add
 Concat
@@ -8,8 +9,13 @@ Gather
 MatMul
 MaxPool
 Relu
-Shape
 Reshape
 Sigmoid
 Slice
 Transpose
+Ceil
+Identity
+LeakyRelu
+Mul
+Split
+BatchNormalization
