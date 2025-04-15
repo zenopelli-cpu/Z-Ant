@@ -20,8 +20,8 @@ const Benchmark = struct {
 const BenchmarkResult = struct {
     a_shape: [2]usize,
     b_shape: [2]usize,
-    names: [test_bench.len + 1] []const u8,
-    times: [test_bench.len + 1] u64,
+    names: [test_bench.len + 1][]const u8,
+    times: [test_bench.len + 1]u64,
 };
 
 const test_bench = [_]Benchmark{
@@ -82,7 +82,7 @@ inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T),
     // std.debug.print("\n", .{});
 
     @memset(Y.data, 0);
-    
+
     try lean_mat_mul(T, A, B, &Y);
 
     return Y;
@@ -102,29 +102,28 @@ fn mat_mul_bench(comptime T: anytype, comptime N: u8, comptime tests_num: usize)
 
     const cache_block_size = std.atomic.cache_line / @sizeOf(data_type);
 
-    for(0..tests_num) |_| {
+    for (0..tests_num) |_| {
         var shape_1: [2]usize = [_]usize{ twoN, twoN }; // 2^N x 2^N matrix
-        var shape_2: [2]usize = [_]usize{ twoN , twoN }; // 2^N x 2^N matrix
-    
+        var shape_2: [2]usize = [_]usize{ twoN, twoN }; // 2^N x 2^N matrix
+
         const rnd_a_rows: usize = rand.intRangeLessThan(u8, 1, cache_block_size);
         const rnd_a_cols: usize = rand.intRangeLessThan(u8, 1, cache_block_size);
         const rnd_b_cols: usize = rand.intRangeLessThan(u8, 1, cache_block_size);
-    
+
         shape_1[0] += rnd_a_rows;
         shape_1[1] += rnd_a_cols;
         shape_2[0] += rnd_a_cols;
         shape_2[1] += rnd_b_cols;
-        
-        
+
         var input_data_size: usize = 1;
         for (shape_1) |dim| {
             input_data_size *= dim;
         }
-    
+
         // Create input data array directly instead of ArrayList
         var inputArray1 = try allocator.alloc(data_type, input_data_size);
         defer allocator.free(inputArray1);
-    
+
         // Fill with random values
         for (0..input_data_size) |i| {
             if (data_type == f32 or data_type == f64 or data_type == f16) {
@@ -133,15 +132,15 @@ fn mat_mul_bench(comptime T: anytype, comptime N: u8, comptime tests_num: usize)
                 inputArray1[i] = rand.intRangeLessThan(u4, 0, 10);
             }
         }
-    
+
         input_data_size = 1;
         for (shape_2) |dim| {
             input_data_size *= dim;
         }
-    
+
         var inputArray2 = try allocator.alloc(data_type, input_data_size);
         defer allocator.free(inputArray2);
-    
+
         // Fill with random values
         for (0..input_data_size) |i| {
             if (data_type == f32 or data_type == f64 or data_type == f16) {
@@ -150,16 +149,16 @@ fn mat_mul_bench(comptime T: anytype, comptime N: u8, comptime tests_num: usize)
                 inputArray2[i] = rand.intRangeLessThan(u4, 0, 10);
             }
         }
-    
+
         //Allocate input tensors
         var t1 = try Tensor(data_type).fromArray(&allocator, inputArray1, &shape_1);
         defer t1.deinit();
         var t2 = try Tensor(data_type).fromArray(&allocator, inputArray2, &shape_2);
         defer t2.deinit();
-    
+
         //Allocate output tensors
         // Calculate time
-    
+
         // Benchmark old implementation
         var timer = try std.time.Timer.start();
         const simple_start = timer.lap();
@@ -167,78 +166,75 @@ fn mat_mul_bench(comptime T: anytype, comptime N: u8, comptime tests_num: usize)
         defer simple.deinit();
         const simple_end = timer.lap();
         const simple_time_ns = simple_end - simple_start;
-    
+
         var bench_times: [test_bench.len + 1]u64 = undefined;
         var bench_names: [test_bench.len + 1][]const u8 = undefined;
-        
+
         bench_times[0] = simple_time_ns;
         bench_names[0] = "Naive";
         // Running the benchmarks
         inline for (0..test_bench.len, test_bench) |i, bench| {
             timer.reset();
-    
+
             const start = timer.lap();
             var result = try mat_mul(data_type, &t1, &t2, bench.mat_mul);
-    
+
             defer result.deinit();
-    
+
             const end = timer.lap();
             const time_ns = end - start;
-    
+
             bench_times[i + 1] = time_ns;
             bench_names[i + 1] = bench.name;
-    
+
             // Check if the result is correct
-    
+
             check_loop: for (0..simple.shape[0]) |x| {
                 for (0..simple.shape[1]) |y| {
                     if (simple.data[x * simple.shape[1] + y] != result.data[x * simple.shape[1] + y]) {
                         std.debug.panic("Error: {s}: Element ({d}, {d}) mismatch: \n \t expected: {d} got {d}\n", .{ bench.name, x, y, simple.data[x * simple.shape[1] + y], result.data[x * simple.shape[1] + y] });
-    
+
                         break :check_loop;
                     }
                 }
             }
         }
-        
-        var benchmark_res : BenchmarkResult = .{.a_shape = undefined, .b_shape = undefined, .names = undefined, .times = undefined}; 
-        
+
+        var benchmark_res: BenchmarkResult = .{ .a_shape = undefined, .b_shape = undefined, .names = undefined, .times = undefined };
+
         @memcpy(&benchmark_res.names, &bench_names);
         @memcpy(&benchmark_res.times, &bench_times);
         @memcpy(&benchmark_res.a_shape, &shape_1);
         @memcpy(&benchmark_res.b_shape, &shape_2);
-    
+
         try results.append(benchmark_res);
     }
-    
+
     return results.toOwnedSlice();
-    
 }
 
 fn run_mat_mul_benchmarks(comptime T: anytype, comptime N: u8, comptime tests_num: usize) !void {
-
     const results = try mat_mul_bench(T, N, tests_num);
 
-    std.debug.print("MatMul benchmark results for type {any} with base {d}:\n\n", .{T, N});
+    std.debug.print("MatMul benchmark results for type {any} with base {d}:\n\n", .{ T, N });
 
-    for(0..results.len) |i| {
+    for (0..results.len) |i| {
         const result = results[i];
         std.debug.print("Test #{d}\n", .{i});
         std.debug.print("\tShapes\n", .{});
-        std.debug.print("\t\tA Shape: {any}\n \t\tB Shape: {any} \n", .{result.a_shape, result.b_shape});
+        std.debug.print("\t\tA Shape: {any}\n \t\tB Shape: {any} \n", .{ result.a_shape, result.b_shape });
         std.debug.print("\tTimes:\n", .{});
         for (0..result.names.len) |mat_mul_i| {
             std.debug.print("\t\t{s} took {d} ms\n", .{ result.names[mat_mul_i], @as(f64, @floatFromInt(result.times[mat_mul_i])) / 1_000_000.0 });
         }
-        
+
         std.debug.print("\tSpeedups:\n", .{});
         for (2..result.names.len) |mat_mul_i| {
             const current_speedup = @as(f64, @floatFromInt(result.times[1])) / @as(f64, @floatFromInt(result.times[mat_mul_i]));
-            std.debug.print("\t\t{s}: {d:.2}x\n", .{result.names[mat_mul_i], current_speedup});
+            std.debug.print("\t\t{s}: {d:.2}x\n", .{ result.names[mat_mul_i], current_speedup });
         }
     }
 }
-
 
 pub fn run() !void {
     if (bench_options.full) {
