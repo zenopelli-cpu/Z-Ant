@@ -30,6 +30,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Add")) {
         //https://onnx.ai/onnx/operators/onnx__Add.html
         try compute_Add_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "AveragePool")) {
+        try compute_averagePool_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Ceil")) {
         //https://onnx.ai/onnx/operators/onnx__Ceil.html
         try compute_ceil_output_shape(readyNode);
@@ -62,8 +64,6 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         try compute_matmul_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "MaxPool")) {
         try compute_maxPool_output_shape(readyNode);
-    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "AveragePool")) {
-        try compute_averagePool_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Mul")) {
         //https://onnx.ai/onnx/operators/onnx__Mul.html
         try compute_mul_output_shape(readyNode);
@@ -101,6 +101,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sub")) {
         //https://onnx.ai/onnx/operators/onnx__Sub.html
         try compute_Sub_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Tanh")) {
+        try compute_tanh_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Transpose")) {
         try compute_transpose_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Unsqueeze")) {
@@ -1080,6 +1082,12 @@ pub fn compute_concat_output_shape(readyNode: *ReadyNode) !void {
     allocator.free(input_shapes);
     allocator.free(output_shape);
     // std.debug.print("\n   Cleanup complete", .{});
+}
+
+inline fn compute_tanh_output_shape(readyNode: *ReadyNode) !void {
+    const input_shape = readyNode.inputs.items[0].?.shape;
+    // Tanh is an element-wise operation, output shape is identical to input shape
+    readyNode.outputs.items[0].shape = try allocator.dupe(i64, input_shape);
 }
 
 inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
