@@ -10,6 +10,7 @@ const mat_mul = op_mat_mul.mat_mul;
 const blocked_mat_mul = op_mat_mul.blocked_mat_mul;
 const op_padding = @import("lib_shape_math/op_padding.zig");
 const addPaddingAndDilation = op_padding.addPaddingAndDilation;
+const op_transpose = @import("lib_shape_math/op_transpose.zig");
 
 // CONVOLVE -----------------------------------------------------------------------------------------------------------------------
 
@@ -490,32 +491,7 @@ pub fn convolve_tensor_with_bias(
         }
     }
 
-
-
-    const vals_in_cache = std.atomic.cache_line / @sizeOf(T);
-    var result: Tensor(T) = undefined;
-    defer result.deinit();
-    //print kernel_matrix and input_col
-    // std.debug.print("\n[DEBUG] Kernel matrix: {any}", .{kernel_matrix.shape});
-    //std.debug.print("\n[DEBUG] Input col: {any}", .{input_col.shape});
-    if(kernel_matrix.shape[kernel_matrix.shape.len-1] > vals_in_cache){
-        result = blocked_mat_mul(T, &input_col, &kernel_matrix) catch {
-            if (log_functionC) |log_func| {
-                log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed in mat_mul")));
-            }
-            @panic("Failed in blocked mat_mul");
-        };
-    } else {
-        result = mat_mul(T, &input_col, &kernel_matrix) catch {
-            if (log_functionC) |log_func| {
-                log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed in mat_mul")));
-            }
-            @panic("Failed in mat_mul");
-        };
-    }
-    
-
-    // Perform group-wise matrix multiplication logic
+    // Perform group-wise matrix multiplication logic OR standard mat_mul
     // input_col (I) shape: [N, group * K], where N = B*OH*OW, K = C/g * kH * kW
     // kernel_matrix (W) shape: [M, K]
     // Output (O) shape: [N, M]
@@ -523,54 +499,77 @@ pub fn convolve_tensor_with_bias(
     const M = num_filters; // Total output filters
     const K = kernel_elements_per_filter; // C/g * kH * kW
 
-    var result_shape = [_]usize{ N, M };
-    var result = Tensor(T).fromShape(&pkg_allocator, &result_shape) catch {
-        if (log_functionC) |log_func| {
-            log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed to allocate result tensor for matmul")));
+    // Declare result outside the branches
+    var result: ?Tensor(T) = null; // Initialize as null
+    // Use a sentinel value check for defer, assuming .data.ptr is null before assignment
+    // If allocation fails inside branches, it won't be deferred. If it succeeds, it will be.
+    defer if (result) |*r| r.deinit(); // Deinit if result has a value
+
+    if (group == 1) {
+        // --- Standard Convolution (group = 1) ---
+
+        // Transpose the kernel matrix: [M, K] -> [K, M]
+        var kernel_matrix_transposed = try op_transpose.transposeLastTwo(T, &kernel_matrix);
+        defer kernel_matrix_transposed.deinit();
+
+        // Check cache size to potentially use blocked mat mul
+        const vals_in_cache = std.atomic.cache_line / @sizeOf(T);
+        // Multiply input_col [N, K] by kernel_matrix_transposed [K, M]
+        if (kernel_matrix_transposed.shape[kernel_matrix_transposed.shape.len - 1] > vals_in_cache) { // Check transposed shape
+            result = blocked_mat_mul(T, &input_col, &kernel_matrix_transposed) catch {
+                if (log_functionC) |log_func| {
+                    log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed in blocked_mat_mul (group=1)")));
+                }
+                @panic("Failed in blocked mat_mul (group=1)");
+            };
+        } else {
+            result = mat_mul(T, &input_col, &kernel_matrix_transposed) catch {
+                if (log_functionC) |log_func| {
+                    log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed in mat_mul (group=1)")));
+                }
+                @panic("Failed in mat_mul (group=1)");
+            };
         }
-        @panic("Memory allocation failed for result tensor");
-    };
-    defer result.deinit();
-    try result.set(0, 0); // Initialize result tensor
-
-    // Optimized loops for group-wise dot product calculation
-    var n: usize = 0;
-    while (n < N) : (n += 1) {
-        const input_col_row_offset = n * input_col.shape[1]; // Offset for start of row n in input_col.data
-
-        var m: usize = 0;
-        while (m < M) : (m += 1) {
-            const g = m / filters_per_group; // Determine the group for the current filter m
-            const kernel_filter_offset = m * K; // Offset for start of filter m in kernel_matrix.data
-            const input_col_group_offset = input_col_row_offset + g * K; // Offset for the relevant group's data in input_col row n
-
-            // Calculate dot product for O[n, m]
-            var dot_product: T = 0;
-
-            // TODO: Potential SIMD optimization for dot product
-            var k: usize = 0;
-            while (k < K) : (k += 1) {
-                // Accessing data directly via pointers and offsets
-                dot_product += input_col.data[input_col_group_offset + k] * kernel_matrix.data[kernel_filter_offset + k];
+    } else {
+        // --- Grouped Convolution (group > 1) ---
+        // Allocate result tensor for the manual loop
+        var result_shape = [_]usize{ N, M };
+        result = Tensor(T).fromShape(&pkg_allocator, &result_shape) catch {
+            if (log_functionC) |log_func| {
+                log_func(@constCast(@ptrCast("convolve_tensor_with_bias: Failed to allocate result tensor for matmul (group>1)")));
             }
-            result.data[n * M + m] = dot_product;
+            @panic("Memory allocation failed for result tensor (group>1)");
+        };
+        // Initialize result tensor
+        try result.?.set(0, 0); // Use .? to unwrap the optional
+
+        // Optimized loops for group-wise dot product calculation
+        var n: usize = 0;
+        while (n < N) : (n += 1) {
+            const input_col_row_offset = n * input_col.shape[1]; // Offset for start of row n in input_col.data
+
+            var m: usize = 0;
+            while (m < M) : (m += 1) {
+                const g = m / filters_per_group; // Determine the group for the current filter m
+                const kernel_filter_offset = m * K; // Offset for start of filter m in kernel_matrix.data
+                // Calculate offset into input_col for the specific group g's data for this row n
+                const input_col_group_offset = input_col_row_offset + g * K;
+
+                // Calculate dot product for O[n, m] using data from the correct group
+                var dot_product: T = 0;
+                var k: usize = 0;
+                while (k < K) : (k += 1) {
+                    // Accessing data directly via pointers and offsets
+                    dot_product += input_col.data[input_col_group_offset + k] * kernel_matrix.data[kernel_filter_offset + k];
+                }
+                // Store the result for this output element
+                result.?.data[n * M + m] = dot_product; // Use ?.data to access optional
+            }
         }
-    }
+    } // End if (group == 1) else
 
-
-    if (log_functionC) |log_func| {
-        log_func(@constCast(@ptrCast("OnnxConvLean4")));
-    }
-    // Verify that result matches expected number of patches
-    const expected_patches = batch_size * out_height * out_width; // This is N
-    if (result.shape[0] != expected_patches) {
-        //std.debug.print("\n[DEBUG] Patch mismatch: got {}, expected {}", .{ result.shape[0], expected_patches });
-        return TensorMathError.InvalidDimensions;
-    }
-    if (result.shape[1] != num_filters) {
-        // Should not happen if logic is correct
-        return TensorMathError.InvalidDimensions;
-    }
+    // --- Post-computation checks and reshaping ---
+    // The 'result' tensor is now populated correctly based on the group value
 
     // Reshape result [N, M] -> [B, M, OH, OW] and add bias
     //var idx: usize = 0;
@@ -581,7 +580,7 @@ pub fn convolve_tensor_with_bias(
                 for (0..out_width) |w| {
                     // Calculate index in the flat result tensor [N, M]
                     const n_idx = b * (out_height * out_width) + h * out_width + w;
-                    const val = result.data[n_idx * num_filters + f]; // Access result[n_idx, f]
+                    const val = result.?.data[n_idx * num_filters + f]; // Access result.?.data[n_idx, f]
                     // Set value in the final output tensor [B, M, OH, OW]
                     try output.set_at(&[_]usize{ b, f, h, w }, val + bias_val);
                 }

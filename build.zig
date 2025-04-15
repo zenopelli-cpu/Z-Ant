@@ -144,9 +144,7 @@ pub fn build(b: *std.Build) void {
     const test_step_generated_lib = b.step("test-generated-lib", "Run generated library tests");
     test_step_generated_lib.dependOn(&run_test_generated_lib.step);
 
-
     // ************************************************ ONEOP CODEGEN ************************************************
-
 
     // ************************************************ ONEOP CODEGEN ************************************************
     // Setup oneOp codegen
@@ -169,9 +167,7 @@ pub fn build(b: *std.Build) void {
 
     // ************************************************
 
-
     //Setup test_all_oneOp
-
 
     const test_all_oneOp = b.addTest(.{
         .name = "test_all_oneOp",
@@ -196,13 +192,15 @@ pub fn build(b: *std.Build) void {
     const step_test_oneOp = b.step("test-codegen", "Run generated library tests");
     step_test_oneOp.dependOn(&run_test_all_oneOp.step);
 
-
     // ************************************************
     // Benchmark
 
     const benchmark = b.addExecutable(.{
         .name = "benchmark",
         .root_source_file = b.path("benchmarks/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
     // ************************************************ ONNX PARSER TESTS ************************************************
     // Add test for generated library
@@ -214,7 +212,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-
 
     const bench_options = b.addOptions();
     bench_options.addOption(bool, "full", b.option(bool, "full", "Choose whenever run full benchmark or not") orelse false);
@@ -293,5 +290,4 @@ pub fn build(b: *std.Build) void {
         const run_step = b.step("gui", "Run gui");
         run_step.dependOn(&run_cmd.step);
     }
-
 }

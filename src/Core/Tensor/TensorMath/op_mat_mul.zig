@@ -190,7 +190,6 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     // std.debug.print("Matrix multiplication completed\n", .{});
 }
 
-
 const CACHE_BLOCK_SIZE_BYTES: usize = std.atomic.cache_line;
 
 pub inline fn blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T)) !Tensor(T) {
@@ -265,7 +264,6 @@ pub inline fn blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *cons
 //Loosely inspired from https://coffeebeforearch.github.io/2020/06/23/mmul.html
 //Easy to implement, works, loses some efficiency on non-square matrices or really large B matrices
 pub inline fn lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T), C: *const Tensor(T)) !void {
-    
     const cache_block_size = comptime (CACHE_BLOCK_SIZE_BYTES / @sizeOf(T));
 
     const a_rows = A.shape[A.shape.len - 2];
@@ -285,17 +283,16 @@ pub inline fn lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: 
     //const remaining_c_cols = c_cols - nearest_c_cols;
     const nearest_b_rows = cache_block_size * (b_rows / cache_block_size);
     const remaining_b_rows = b_rows - nearest_b_rows;
-    
+
     const VEC_WIDTH: usize = comptime (std.simd.suggestVectorLength(T) orelse 4);
     var a_vec: @Vector(VEC_WIDTH, T) = undefined;
     var b_vec: @Vector(VEC_WIDTH, T) = undefined;
     var c_vec: @Vector(VEC_WIDTH, T) = undefined;
-    
+
     var c_chunk_column: usize = 0;
-    
+
     while (c_chunk_column + cache_block_size <= nearest_c_cols) : (c_chunk_column += cache_block_size) {
         for (0..c_rows) |c_chunk_row| {
-            
             var tile: usize = 0;
             while (tile < nearest_b_rows) : (tile += cache_block_size) {
                 for (0..cache_block_size) |t_row| {
@@ -309,9 +306,8 @@ pub inline fn lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: 
             }
         }
     }
-    
+
     for (0..c_rows) |c_chunk_row| {
-        
         var tile: usize = 0;
         while (tile < nearest_b_rows) : (tile += cache_block_size) {
             for (0..cache_block_size) |t_row| {
@@ -325,8 +321,6 @@ pub inline fn lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: 
             simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
         }
     }
-    
-    
 }
 
 // inline fn tile_mul(
@@ -372,7 +366,7 @@ inline fn simd_tile_mul(
 
     const VEC_WIDTH: usize = comptime (std.simd.suggestVectorLength(T) orelse 4);
     //const VEC_WIDTH: usize = comptime (8);
-    
+
     // Ensure that c_chunk_column + CACHE_BLOCK_SIZE does not exceed c_cols
     const end_col = @min(CACHE_BLOCK_SIZE, c_cols - c_chunk_column);
 
@@ -412,6 +406,7 @@ inline fn simd_tile_mul(
             A_ptr[c_chunk_row * a_cols + tile + t_row] *
             B_ptr[tile * b_cols + t_row * b_cols + c_chunk_column + t_col];
     }
+}
 
 pub fn get_mat_mul_output_shape(shape_a: []const usize, shape_b: []const usize) ![]usize {
     if (shape_a.len < 2 or shape_b.len < 2) {
@@ -440,7 +435,6 @@ pub fn get_mat_mul_output_shape(shape_a: []const usize, shape_b: []const usize) 
     output_shape[output_shape.len - 1] = b_cols;
 
     return output_shape;
-
 }
 
 /// Function that performs the multiplication of two tensors used in a recursive way to handle multidimensional tensors
