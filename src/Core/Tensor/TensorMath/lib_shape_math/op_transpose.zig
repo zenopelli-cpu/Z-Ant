@@ -321,10 +321,32 @@ pub fn transpose_onnx_lean(
     // -----------------------------
     // 4) Allocate output data if needed
     // -----------------------------
-    if (output.data.len != total_size or !output.owns_memory) {
-        if (output.owns_memory and output.data.len > 0) allocator.free(output.data);
-        output.data = try allocator.alloc(T, total_size);
-        output.owns_memory = true;
+    const size_matches = (output.data.len == total_size);
+
+    if (size_matches) {
+        // Size is correct, proceed using existing buffer (owned or unowned).
+        // Ownership status remains unchanged.
+    } else {
+        // Size mismatch, reallocation is needed.
+        if (!output.owns_memory) {
+            // Cannot reallocate an unowned buffer of the wrong size.
+            std.debug.print("ERROR: transpose_onnx_lean output tensor has wrong size ({d}) but is unowned. Expected size {d}. Caller must provide correct buffer.\\n", .{ output.data.len, total_size });
+            return error.OutputBufferWrongSize; // Require caller to provide correct buffer
+        } else {
+            // Output owns memory, but it's the wrong size. Reallocate.
+            if (output.data.len > 0) { // Free only if there's something to free
+                allocator.free(output.data);
+            }
+            // Allocate new data
+            if (total_size > 0) {
+                output.data = try allocator.alloc(T, total_size);
+                // output.owns_memory remains true (still owns the new buffer)
+            } else {
+                // Handle zero-size output after freeing
+                output.data = &[_]T{};
+                output.owns_memory = false; // Doesn't own the empty slice
+            }
+        }
     }
     output.size = total_size;
 
