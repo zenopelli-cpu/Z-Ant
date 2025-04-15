@@ -428,23 +428,23 @@ inline fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
 
         // Convert effective shapes to usize
         const shape_a_usize = try utils.i64SliceToUsizeSlice(effective_shape_a_i64);
-        // Defer free only if the original shape wasn't empty (to avoid freeing static slice {1})
-        if (shape_a_i64.len != 0) {
-            defer allocator.free(shape_a_usize);
-        }
-
         const shape_b_usize = try utils.i64SliceToUsizeSlice(effective_shape_b_i64);
-        if (shape_b_i64.len != 0) {
-            defer allocator.free(shape_b_usize);
-        }
 
         // Use TensorMath to compute the output shape using effective shapes
         const output_shape_usize = try tensorMath.get_mul_output_shape(shape_a_usize, shape_b_usize);
-        // Assume get_mul_output_shape returns an allocated slice that needs freeing
+
+        // Defer freeing the intermediate usize slices *after* they've been used
+        if (shape_a_i64.len != 0) {
+            defer allocator.free(shape_a_usize);
+        }
+        if (shape_b_i64.len != 0) {
+            defer allocator.free(shape_b_usize);
+        }
+        // Defer freeing the result from get_mul_output_shape *after* it has been used for conversion
         defer allocator.free(output_shape_usize);
 
         // Convert the result back to i64
-        shape = try utils.usizeSliceToI64Slice(@constCast(output_shape_usize));
+        shape = try utils.usizeSliceToI64Slice(output_shape_usize);
         // Note: The memory for 'shape' is now owned by the caller/ReadyNode management
     }
 
