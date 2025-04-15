@@ -30,14 +30,14 @@ const test_bench = [_]Benchmark{
 };
 
 const test_data_types = [_]type{
-    u8,
+    //u8,
     u16,
     u32,
     f16,
     f32,
 };
 
-const test_data_n = [_]usize{ 8, 9, 10 };
+const test_data_n = [_]usize{5};
 
 fn print_mat(comptime T: anytype, mat: *const Tensor(T)) void {
     std.debug.print("Matrix shape: ", .{});
