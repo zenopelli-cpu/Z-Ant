@@ -14,7 +14,7 @@ pub fn tanh(comptime T: anytype, input: *Tensor(T)) !Tensor(T) {
     // Allocating output tensor with the same shape of the input
     var result = try Tensor(T).fromShape(input.allocator, input.shape);
 
-    tanh_lean(T, input, &result);
+    try tanh_lean(T, input, &result);
 
     return result;
 }
