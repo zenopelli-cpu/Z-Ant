@@ -20,7 +20,7 @@ pub fn tanh(comptime T: anytype, input: *Tensor(T)) !Tensor(T) {
 }
 
 // --------- lean TANH
-pub inline fn tanh_lean(comptime T: anytype, input: *Tensor(T), result: *Tensor(T)) void {
+pub inline fn tanh_lean(comptime T: anytype, input: *Tensor(T), result: *Tensor(T)) !void {
     // Compute tanh(x) for each element of the tensor
     for (0..input.size) |i| {
         result.data[i] = std.math.tanh(input.data[i]);
