@@ -60,6 +60,8 @@ pub const TensorMathError = error{
     UnexpectedError,
     InputTensorNotScalar,
     InvalidGroupParameter,
+    InvalidZeroPointShape,
+    OutputShapeMismatch,
 };
 
 /// Tensor errors

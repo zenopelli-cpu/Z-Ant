@@ -32,7 +32,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         // Generate a name like "OpType_OutputName"
         const op_type = readyNode.nodeProto.op_type;
         const output_name = readyNode.outputs.items[0].name; // Directly assign since it's not optional
-        readyNode.nodeProto.name = try std.fmt.allocPrint(allocator, "{s}_{s}", .{ op_type, output_name });
+        _ = try std.fmt.allocPrint(allocator, "{s}_{s}", .{ op_type, output_name }); // Keep allocation for potential local use or logging if needed, but don't assign. Free later if stored.
         // Note: This allocated name needs to be managed if the NodeProto lifetime extends beyond this scope.
         // Assuming the global allocator lives long enough or NodeProto is processed quickly.
     }
@@ -43,6 +43,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "BatchNormalization")) {
         //https://onnx.ai/onnx/operators/onnx__BatchNormalization.html
         try compute_batchNormalization_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Cast")) {
+        // https://onnx.ai/onnx/operators/onnx__Cast.html
+        try compute_cast_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Ceil")) {
         //https://onnx.ai/onnx/operators/onnx__Ceil.html
         try compute_ceil_output_shape(readyNode);
@@ -58,6 +61,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Conv")) {
         //https://onnx.ai/onnx/operators/onnx__Conv.html
         try compute_conv_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "ConvInteger")) {
+        //https://onnx.ai/onnx/operators/onnx__ConvInteger.html
+        try compute_convInteger_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Div")) {
         //https://onnx.ai/onnx/operators/onnx__Div.html
         try compute_Div_output_shape(readyNode);
@@ -155,6 +161,23 @@ inline fn compute_batchNormalization_output_shape(readyNode: *ReadyNode) !void {
     readyNode.outputs.items[0].shape = shape;
 }
 
+inline fn compute_cast_output_shape(readyNode: *ReadyNode) !void {
+    // Cast is an element-wise operation, output shape is identical to input shape
+    std.debug.print("\n====== compute_cast_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        const input_shape = readyNode.inputs.items[0].?.shape;
+        std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+        // Cast operation preserves the input shape
+        shape = try allocator.dupe(i64, input_shape);
+        std.debug.print("\n output_shape: []i64 = {any}", .{shape});
+    }
+    readyNode.outputs.items[0].shape = shape;
+}
+
 inline fn compute_Sub_output_shape(readyNode: *ReadyNode) !void {
     var shape: []const i64 = undefined;
 
@@ -241,7 +264,7 @@ inline fn compute_ReLU_output_shape(readyNode: *ReadyNode) !void {
 }
 
 inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
-    std.debug.print("\n====== compute_reshape_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
+    std.debug.print("\n====== compute_reshape_output_shape node: {s}======", .{readyNode.nodeProto.name orelse "(unnamed)"});
     const input_rt: *globals.ReadyTensor = readyNode.inputs.items[0].?;
     const input_shape_i64 = input_rt.shape;
     std.debug.print("\n input_shape: []i64 = {any}", .{input_shape_i64});
@@ -1279,4 +1302,88 @@ inline fn compute_dynamicQuantizeLinear_output_shape(readyNode: *ReadyNode) !voi
     // Output 2: y_zero_point (scalar) - shape is {1}
     readyNode.outputs.items[2].shape = try utils.usizeSliceToI64Slice(output_shapes[2]);
     std.debug.print("\n output[2] (y_zero_point) shape: []i64 = {any}", .{readyNode.outputs.items[2].shape});
+}
+
+inline fn compute_convInteger_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_convInteger_output_shape node: {s}=====", .{readyNode.nodeProto.name.?});
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        // ConvInteger shape calculation is the same as Conv
+        const input_shape: []const i64 = readyNode.inputs.items[0].?.shape;
+        const kernel_shape: []const i64 = readyNode.inputs.items[1].?.shape;
+
+        // Extract attributes similar to compute_conv_output_shape
+        var stride: ?[]i64 = null;
+        var dilation: ?[]i64 = null;
+        var auto_pad: []const u8 = "NOTSET";
+        var pads: ?[]i64 = null;
+        for (readyNode.nodeProto.attribute) |attr| {
+            if (std.mem.eql(u8, attr.name, "strides")) {
+                if (attr.type == AttributeType.INTS) stride = attr.ints;
+            } else if (std.mem.eql(u8, attr.name, "dilations")) {
+                if (attr.type == AttributeType.INTS) dilation = attr.ints;
+            } else if (std.mem.eql(u8, attr.name, "auto_pad")) {
+                if (attr.type == AttributeType.STRING) auto_pad = attr.s;
+            } else if (std.mem.eql(u8, attr.name, "pads")) {
+                if (attr.type == AttributeType.INTS) pads = attr.ints;
+            }
+        }
+
+        // Defaults if not found (as per ONNX spec)
+        const default_stride = [_]i64{ 1, 1 }; // Assuming 2D for now
+        const default_dilation = [_]i64{ 1, 1 };
+
+        const stride_ref = stride orelse &default_stride;
+        const dilation_ref = dilation orelse &default_dilation;
+
+        std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+        std.debug.print("\n kernel_shape: []i64 = {any}", .{kernel_shape});
+        std.debug.print("\n stride: []i64 = {any}", .{stride_ref});
+        std.debug.print("\n dilation: []i64 = {any}", .{dilation_ref});
+        std.debug.print("\n pads: ?[]i64 = {any}", .{pads});
+        std.debug.print("\n auto_pad: {s}", .{auto_pad});
+
+        // Convert shapes and attributes to usize slices for the math function
+        const input_shape_usize = try utils.i64SliceToUsizeSlice(input_shape);
+        defer allocator.free(input_shape_usize);
+        const kernel_shape_usize = try utils.i64SliceToUsizeSlice(kernel_shape);
+        defer allocator.free(kernel_shape_usize);
+        const stride_usize = try utils.i64SliceToUsizeSlice(stride_ref);
+        defer allocator.free(stride_usize);
+        const dilation_usize = try utils.i64SliceToUsizeSlice(dilation_ref);
+        defer allocator.free(dilation_usize);
+
+        var pads_usize: ?[]usize = null;
+        var pads_alloc: []usize = undefined; // Keep track of allocation
+        if (pads) |p| {
+            pads_alloc = try utils.i64SliceToUsizeSlice(p);
+            pads_usize = pads_alloc;
+        }
+        defer if (pads_usize != null) allocator.free(pads_alloc);
+
+        // Call the existing convolution shape calculation function
+        const output_shape_usize_array = try tensorMath.get_convolution_output_shape(
+            input_shape_usize,
+            kernel_shape_usize,
+            stride_usize,
+            pads_usize,
+            dilation_usize,
+            auto_pad,
+        );
+
+        // Convert the [4]usize array back to []const i64 slice
+        // shape = try utils.usizeSliceToI64Slice(&output_shape_usize_array); // Original line with error
+        // shape = try utils.usizeSliceToI64Slice(output_shape_usize_array[0..]); // Still wrong type (needs mutable)
+
+        // Create a mutable copy
+        var mutable_output_shape_array = output_shape_usize_array;
+
+        // Pass a slice of the mutable array
+        shape = try utils.usizeSliceToI64Slice(mutable_output_shape_array[0..]);
+    }
+    readyNode.outputs.items[0].shape = shape;
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }

@@ -159,7 +159,7 @@ pub fn getTensorShape(tensorName: []const u8) ?[]i64 {
 
 // Marks output tensors as ready for computation in all the graph
 pub fn setOutputsReady(completedNode: *ReadyNode, tensorHashMap: *std.StringHashMap(ReadyTensor)) !void {
-    std.debug.print("\n -----> set {s} outputs to ready", .{completedNode.nodeProto.name.?});
+    std.debug.print("\n -----> set {s} outputs to ready", .{completedNode.nodeProto.name orelse "(unnamed)"});
     completedNode.ready = true;
     for (completedNode.outputs.items) |ready_output_tensor| { //for each output tensor of the completed node
         var mutablePtr: *ReadyTensor = if (tensorHashMap.getPtr(ready_output_tensor.name)) |V_ptr| V_ptr else return error.keyNotAvailable;

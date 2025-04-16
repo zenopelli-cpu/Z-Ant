@@ -306,26 +306,28 @@ fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: [
         return TensorError.InputArrayWrongSize;
     }
 
-    // Handle the shape - avoiding any freeing operations
-    if (output.shape.len == modified_shape.len) {
+    // Handle the shape - manage memory correctly
+    if (output.shape.len != modified_shape.len) {
+        // If lengths differ, free the old shape and allocate a new one
+        pkg_allocator.free(output.shape);
+        output.shape = try pkg_allocator.dupe(usize, modified_shape);
+    } else {
         // If lengths match, just copy the new values
         for (modified_shape, 0..) |dim, i| {
             output.shape[i] = dim;
         }
-    } else {
-        // If lengths differ, allocate a new shape without freeing the old one
-        output.shape = try pkg_allocator.dupe(usize, modified_shape);
     }
 
     // Ensure output.size matches the size calculated from the shape
     output.size = total_size;
 
-    // Copy input data to output - make sure sizes match
-    if (output.data.len == input.data.len) {
-        @memcpy(output.data, input.data);
-    } else {
-        // Don't try to free the existing data, just allocate new memory
-        // and update the reference
+    // Copy input data to output - manage memory correctly
+    if (output.data.len != input.data.len) {
+        // If lengths differ, free the old data and allocate new memory
+        pkg_allocator.free(output.data);
         output.data = try pkg_allocator.dupe(T, input.data);
+    } else {
+        // If lengths match, copy the data
+        @memcpy(output.data, input.data);
     }
 }

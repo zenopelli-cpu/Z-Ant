@@ -106,6 +106,8 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, t: *TensorProto, nam
 /// - `t`: The tensor initializer.
 /// - `name`: The sanitized name of the tensor.
 pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []const u8) !void {
+    std.debug.print("\n[writeArray] Processing tensor: {s}, DataType: {any}", .{ name, t.data_type });
+
     const dataTypeString: []const u8 = try utils.getTypeString(t.data_type);
 
     var size: i64 = 1;
@@ -128,6 +130,8 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
         writeArrayData(writer, f64, d) catch return error.f64DataUnavailable;
     } else if (t.uint64_data) |d| {
         writeArrayData(writer, u64, d) catch return error.u64DataUnavailable;
+    } else if (t.uint16_data) |d| {
+        writeArrayData(writer, u16, d) catch return error.u16DataUnavailable;
     } else if (t.raw_data) |raw| {
         // Handle raw data based on data_type
         switch (t.data_type) {
@@ -137,13 +141,18 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
             .INT64 => try writeRawData(writer, i64, raw),
             .DOUBLE => try writeRawData(writer, f64, raw),
             .UINT64 => try writeRawData(writer, u64, raw),
+            .UINT16 => try writeRawData(writer, u16, raw),
             // TODO: Add other types as needed (e.g., FLOAT16, INT8, etc.)
             else => {
+                std.debug.print("\n[writeArray] Error: Unsupported raw data type {any} for tensor {s}", .{ t.data_type, name });
                 std.log.err("Unsupported raw data type: {any}", .{t.data_type});
                 return error.DataTypeNotAvailable;
             },
         }
-    } else return error.DataTypeNotAvailable;
+    } else {
+        std.debug.print("\n[writeArray] Error: No recognized data field (float_data, int_data, raw_data, etc.) found for tensor {s} with DataType {any}", .{ name, t.data_type });
+        return error.DataTypeNotAvailable;
+    }
 
     try writer.print(
         \\}} ;

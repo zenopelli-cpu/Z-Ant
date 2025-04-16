@@ -88,7 +88,6 @@ pub const mat_mul_lean = op_mat_mul.lean_mat_mul;
 
 pub const blocked_mat_mul_lean = op_mat_mul.lean_blocked_mat_mul;
 
-
 pub const get_mat_mul_output_shape = op_mat_mul.get_mat_mul_output_shape;
 
 pub const dot_product_tensor_flat = op_mat_mul.dot_product_tensor_flat;
@@ -110,11 +109,13 @@ pub const batchNormalization = op_bachNorm.batchNormalization;
 pub const batchNormalization_lean = op_bachNorm.batchNormalization_lean;
 pub const get_batchNormalization_output_shape = op_bachNorm.get_batchNormalization_output_shape;
 
+//CONV
+
 //----------- importing standard DynamicQuantizeLinear method ----------
 const op_DynamicQuantizeLinear = @import("op_DynamicQuantizeLinear.zig");
-pub const DynamicQuantizeLinear = op_DynamicQuantizeLinear.dynamicQuantizeLinear;
+pub const dynamicQuantizeLinear = op_DynamicQuantizeLinear.dynamicQuantizeLinear;
 pub const get_dynamicQuantizeLinear_output_shape = op_DynamicQuantizeLinear.get_dynamicQuantizeLinear_output_shape;
-pub const DynamicQuantizeLinear_lean = op_DynamicQuantizeLinear.dynamicQuantizeLinear_lean;
+pub const dynamicQuantizeLinear_lean = op_DynamicQuantizeLinear.dynamicQuantizeLinear_lean;
 
 // ---------- importing standard Convolution methods ----------
 const convolution_math_lib = @import("op_convolution.zig");
@@ -124,6 +125,9 @@ pub const get_convolution_output_shape = convolution_math_lib.get_convolution_ou
 pub const Conv = convolution_math_lib.OnnxConv;
 pub const conv_lean = convolution_math_lib.OnnxConvLean;
 pub const setLogFunctionC = convolution_math_lib.setLogFunctionC;
+//CONV INTEGER
+
+pub const convInteger_lean = convolution_math_lib.convInteger_lean;
 
 // ---------- importing standard Pooling methods ----------
 const pooling_math_lib = @import("op_pooling.zig");

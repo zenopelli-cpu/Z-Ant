@@ -53,8 +53,9 @@ pub const ReadyTensor = struct {
     name: []const u8,
     ready: bool,
     shape: []const i64,
-    tensorProto: ?*TensorProto,
-    tag: TensorTag,
+    dtype: DataType = .UNDEFINED,
+    tensorProto: ?*TensorProto = null,
+    tag: TensorTag = TensorTag.LINK,
 
     pub fn createInitializer(tensorProto: *TensorProto) !ReadyTensor {
         return ReadyTensor{
@@ -208,7 +209,8 @@ fn populateReadyTensorHashMap(model: ModelOnnx) !void {
     //adding initializers to the hash map
     for (protoGraph.initializers) |init_ptr| {
         //create the readyTensor
-        const readyTensor: ReadyTensor = try ReadyTensor.createInitializer(init_ptr);
+        var readyTensor: ReadyTensor = try ReadyTensor.createInitializer(init_ptr);
+        readyTensor.dtype = init_ptr.data_type;
         //add the readyTensor to the HashMap
         try tensorHashMap.put(readyTensor.name, readyTensor);
     }
@@ -216,34 +218,83 @@ fn populateReadyTensorHashMap(model: ModelOnnx) !void {
     //adding all the nodes inputs and outputs
     for (protoGraph.nodes) |node| { //for each NodeProto in the GraphProto
         for (node.input) |input_name| {
-            try addToTensorHashMap(input_name, node);
+            try addToTensorHashMap(input_name, node, protoGraph);
         }
         for (node.output) |output_name| {
-            try addToTensorHashMap(output_name, node);
+            try addToTensorHashMap(output_name, node, protoGraph);
         }
     }
 }
 
-pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto) !void {
+pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *GraphProto) !void {
     if (tensorHashMap.get(name) != null or std.mem.eql(u8, name, "")) {
         return;
     } else {
+        var readyTensor: ReadyTensor = undefined;
+        var tensor_dtype: DataType = .UNDEFINED;
+
         //if input
         if (utils.isInput(name)) {
-            //add the readyTensor to the HashMap
-            try tensorHashMap.put(name, try ReadyTensor.createInput(name));
-            return;
+            readyTensor = try ReadyTensor.createInput(name);
+            // Find dtype from graph inputs
+            for (graph.inputs) |graph_input| {
+                if (std.mem.eql(u8, graph_input.name.?, name)) {
+                    tensor_dtype = @enumFromInt(graph_input.type.?.tensor_type.?.elem_type);
+                    break;
+                }
+            }
         }
         //if constant, pay attention, we add the Constatant only if it is a TENSOR (aka AttributeProto.t)
-        if (std.mem.eql(u8, nodeProto.op_type, "Constant")) {
+        else if (std.mem.eql(u8, nodeProto.op_type, "Constant")) {
             //add the readyTensor to the HashMap
-            if (nodeProto.attribute[0].type == onnx.AttributeType.TENSOR) try tensorHashMap.put(name, try ReadyTensor.createConstant(name, nodeProto.attribute[0].t.?));
-            return;
+            if (nodeProto.attribute.len > 0 and nodeProto.attribute[0].type == onnx.AttributeType.TENSOR) {
+                const const_tensor_proto = nodeProto.attribute[0].t.?;
+                readyTensor = try ReadyTensor.createConstant(name, const_tensor_proto);
+                tensor_dtype = const_tensor_proto.data_type;
+            } else {
+                // Handle non-tensor constants if necessary, or assume LINK for now
+                readyTensor = try ReadyTensor.createLink(name);
+                // Try to find dtype from value_info for non-tensor constants if needed
+                for (graph.value_info) |vi| {
+                    if (std.mem.eql(u8, vi.name.?, name)) {
+                        tensor_dtype = @enumFromInt(vi.type.?.tensor_type.?.elem_type);
+                        break;
+                    }
+                }
+            }
+        }
+        //else default (LINK)
+        else {
+            readyTensor = try ReadyTensor.createLink(name);
+            // Find dtype from value_info for LINK tensors
+            var found_in_value_info = false;
+            for (graph.value_info) |vi| {
+                if (std.mem.eql(u8, vi.name.?, name)) {
+                    tensor_dtype = @enumFromInt(vi.type.?.tensor_type.?.elem_type);
+                    found_in_value_info = true;
+                    break;
+                }
+            }
+            // Also check graph outputs
+            if (!found_in_value_info) {
+                for (graph.outputs) |graph_output| {
+                    if (std.mem.eql(u8, graph_output.name.?, name)) {
+                        tensor_dtype = @enumFromInt(graph_output.type.?.tensor_type.?.elem_type);
+                        break;
+                    }
+                }
+            }
         }
 
-        //else default
+        if (tensor_dtype == .UNDEFINED) {
+            std.debug.print("\nWARNING: Could not determine dtype for tensor '{s}' (Node: {s}). Defaulting to UNDEFINED.", .{ name, nodeProto.name orelse "unnamed" });
+            // Optionally return an error here if type is mandatory
+            // return error.DataTypeNotFoundForTensor;
+        }
+
+        readyTensor.dtype = tensor_dtype;
         //add the readyTensor to the HashMap
-        try tensorHashMap.put(name, try ReadyTensor.createLink(name));
+        try tensorHashMap.put(name, readyTensor);
     }
 }
 

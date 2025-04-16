@@ -267,7 +267,7 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
         log_func(@constCast(@ptrCast("OnnxConvLean2")));
     }
     // Perform convolution with padded input, kernel, and bias
-    var result = convolve_tensor_with_bias_memory_efficient(
+    var result = convolve_tensor_with_bias(
         T,
         &padded_input,
         kernel,
@@ -984,18 +984,21 @@ pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []
                     pad_w_begin = p[1];
                     pad_h_end = p[2];
                     pad_w_end = p[3];
-                    expected_out_height = @divFloor(in_height + pad_h_begin + pad_h_end - dilated_kernel_h, stride_h) + 1;
-                    expected_out_width = @divFloor(in_width + pad_w_begin + pad_w_end - dilated_kernel_w, stride_w) + 1;
-                } else {
-                    return TensorMathError.InvalidPadding;
-                }
+                } else if (p.len == 2) {
+                    pad_h_begin = p[0];
+                    pad_h_end = p[0];
+                    pad_w_begin = p[1];
+                    pad_w_end = p[1];
+                } // else default to zero padding
+                expected_out_height = @divFloor(in_height + pad_h_begin + pad_h_end - dilated_kernel_h, stride_h) + 1;
+                expected_out_width = @divFloor(in_width + pad_w_begin + pad_w_end - dilated_kernel_w, stride_w) + 1;
             } else {
                 // Default to VALID padding if pads not provided and NOTSET
                 expected_out_height = @divFloor(in_height - dilated_kernel_h, stride_h) + 1;
                 expected_out_width = @divFloor(in_width - dilated_kernel_w, stride_w) + 1;
             }
         } else {
-            return TensorMathError.InvalidPadding;
+            return TensorMathError.InvalidPadding; // Unsupported auto_pad value
         }
     } else {
         // No auto_pad, use explicit padding if provided, otherwise assume zero padding
@@ -1005,13 +1008,12 @@ pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []
                 pad_w_begin = p[1];
                 pad_h_end = p[2];
                 pad_w_end = p[3];
-            } else {
-                // Assume padding is [0,0,0,0] if pads is non-null but length < 4
-                pad_h_begin = 0;
-                pad_w_begin = 0;
-                pad_h_end = 0;
-                pad_w_end = 0;
-            }
+            } else if (p.len == 2) { // Handle symmetric padding [h, w]
+                pad_h_begin = p[0];
+                pad_h_end = p[0];
+                pad_w_begin = p[1];
+                pad_w_end = p[1];
+            } // else: pads is non-null but < 2 or 3 length, assume zero padding
         }
         // Calculate output shape with potentially zero padding
         expected_out_height = @divFloor(in_height + pad_h_begin + pad_h_end - dilated_kernel_h, stride_h) + 1;
@@ -1536,4 +1538,268 @@ pub fn get_max_pool_output_shape(input_shape: []const usize, kernel_shape: []con
 
     // Continue with the rest of the function...
     // ...
+}
+
+// CONVINTEGER --------------------------------------------------------------------------------------------------------------------
+
+/// ONNX ConvInteger operation (Opset 10+)
+/// Computes integer convolution: output = sum((x - x_zero_point) * (w - w_zero_point))
+/// Accumulation MUST be done in i32. Intermediate product MUST NOT overflow.
+/// T1, T2: Input/Weight types (u8 or i8)
+/// T3: Output type (must be i32)
+/// x: Input tensor [N, C, H, W] (T1)
+/// w: Weight tensor [M, C/g, kH, kW] (T2)
+/// x_zero_point: Scalar zero point for x (T1)
+/// w_zero_point: Scalar or per-output-channel zero point for w (T2)
+/// output: Output tensor [N, M, oH, oW] (i32)
+pub fn convInteger_lean(
+    comptime T1: type, // Input data type (u8 or i8)
+    comptime T2: type, // Weight data type (u8 or i8)
+    x: *const Tensor(T1),
+    w: *const Tensor(T2),
+    x_zero_point: ?*const Tensor(T1), // Scalar (shape [])
+    w_zero_point: ?*const Tensor(T2), // Scalar (shape []) or 1D (shape [M])
+    output: *Tensor(i32), // Output is always i32
+    stride: []const usize,
+    pads: ?[]const usize,
+    dilations: ?[]const usize,
+    group: ?usize,
+    auto_pad: ?[]const u8,
+) !void {
+    // --- Basic Type and Dimension Validations ---
+    if (@typeInfo(T1) != .int and @typeInfo(T1) != .ComptimeInt) {
+        if (@typeInfo(T1).int.signedness == .unsigned and @typeInfo(T1).int.bits != 8) return error.InvalidDataType; // T1 must be u8 or i8
+        if (@typeInfo(T1).int.signedness == .signed and @typeInfo(T1).int.bits != 8) return error.InvalidDataType;
+    }
+    if (@typeInfo(T2) != .int and @typeInfo(T2) != .ComptimeInt) {
+        if (@typeInfo(T2).int.signedness == .unsigned and @typeInfo(T2).int.bits != 8) return error.InvalidDataType; // T2 must be u8 or i8
+        if (@typeInfo(T2).int.signedness == .signed and @typeInfo(T2).int.bits != 8) return error.InvalidDataType;
+    }
+
+    if (x.shape.len != 4 or w.shape.len != 4) {
+        return TensorMathError.InvalidDimensions; // Expect 4D input and weight
+    }
+
+    // --- Get Dimensions ---
+    const batch_size = x.shape[0];
+    const in_channels = x.shape[1]; // C
+    const in_height = x.shape[2];
+    const in_width = x.shape[3];
+
+    const num_filters = w.shape[0]; // M (total output channels)
+    const kernel_channels_per_group = w.shape[1]; // C/g
+    const kernel_height = w.shape[2]; // kH
+    const kernel_width = w.shape[3]; // kW
+
+    // --- Group Validations ---
+    const actual_group = group orelse 1;
+    if (in_channels % actual_group != 0) return TensorMathError.InvalidGroupParameter;
+    if (num_filters % actual_group != 0) return TensorMathError.InvalidGroupParameter;
+    if (kernel_channels_per_group != in_channels / actual_group) return TensorMathError.InvalidDimensions;
+    const channels_per_group = in_channels / actual_group; // C/g
+    const filters_per_group = num_filters / actual_group; // M/g
+
+    // --- Zero Point Handling ---
+    var x_zp: T1 = 0; // Default zero point is 0
+    if (x_zero_point) |zp_tensor| {
+        if (zp_tensor.shape.len != 0 and zp_tensor.size != 1) return TensorMathError.InvalidZeroPointShape; // Must be scalar
+        x_zp = zp_tensor.data[0];
+    }
+
+    var w_zp_scalar: ?T2 = null;
+    var w_zp_per_channel: ?[*]const T2 = null;
+    if (w_zero_point) |zp_tensor| {
+        if (zp_tensor.shape.len == 0 or zp_tensor.size == 1) {
+            // Scalar zero point
+            w_zp_scalar = zp_tensor.data[0];
+        } else if (zp_tensor.shape.len == 1 and zp_tensor.shape[0] == num_filters) {
+            // Per-channel zero point
+            w_zp_per_channel = zp_tensor.data.ptr;
+        } else {
+            return TensorMathError.InvalidZeroPointShape; // Must be scalar or 1D with size M
+        }
+    }
+
+    // --- Stride and Dilation ---
+    const stride_h: isize = if (stride.len > 0) @as(isize, stride[0]) else 1;
+    const stride_w = if (stride.len > 1) stride[1] else stride_h;
+    const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
+    const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else d[0] else 1;
+    const dilated_kernel_h = (kernel_height - 1) * dilation_h + 1;
+    const dilated_kernel_w = (kernel_width - 1) * dilation_w + 1;
+
+    // --- Padding Calculation ---
+    var pad_h_begin: usize = 0;
+    var pad_h_end: usize = 0;
+    var pad_w_begin: usize = 0;
+    var pad_w_end: usize = 0;
+    var expected_out_height: usize = undefined;
+    var expected_out_width: usize = undefined;
+
+    // Calculate output shape and padding based on auto_pad or explicit pads
+    if (auto_pad) |pad_mode| {
+        if (std.mem.eql(u8, pad_mode, "VALID")) {
+            expected_out_height = @divFloor(in_height - dilated_kernel_h, stride_h) + 1;
+            expected_out_width = @divFloor(in_width - dilated_kernel_w, stride_w) + 1;
+        } else if (std.mem.eql(u8, pad_mode, "SAME_UPPER") or std.mem.eql(u8, pad_mode, "SAME_LOWER")) {
+            expected_out_height = ceilDiv(in_height, stride_h);
+            expected_out_width = ceilDiv(in_width, stride_w);
+            const total_pad_h = @max((expected_out_height - 1) * stride_h + dilated_kernel_h - in_height, 0);
+            const total_pad_w = @max((expected_out_width - 1) * stride_w + dilated_kernel_w - in_width, 0);
+            if (std.mem.eql(u8, pad_mode, "SAME_UPPER")) {
+                pad_h_begin = total_pad_h / 2;
+                pad_h_end = total_pad_h - pad_h_begin;
+                pad_w_begin = total_pad_w / 2;
+                pad_w_end = total_pad_w - pad_w_begin;
+            } else { // SAME_LOWER
+                pad_h_end = total_pad_h / 2;
+                pad_h_begin = total_pad_h - pad_h_end;
+                pad_w_end = total_pad_w / 2;
+                pad_w_begin = total_pad_w - pad_w_end;
+            }
+        } else if (std.mem.eql(u8, pad_mode, "NOTSET")) {
+            if (pads) |p| {
+                if (p.len >= 4) {
+                    pad_h_begin = p[0];
+                    pad_w_begin = p[1];
+                    pad_h_end = p[2];
+                    pad_w_end = p[3];
+                } else if (p.len == 2) {
+                    pad_h_begin = p[0];
+                    pad_h_end = p[0];
+                    pad_w_begin = p[1];
+                    pad_w_end = p[1];
+                } // else default zero padding
+            } // else default zero padding
+            // Calculate output size with determined padding
+            expected_out_height = @divFloor(in_height + pad_h_begin + pad_h_end - dilated_kernel_h, stride_h) + 1;
+            expected_out_width = @divFloor(in_width + pad_w_begin + pad_w_end - dilated_kernel_w, stride_w) + 1;
+        } else {
+            return TensorMathError.InvalidPadding; // Unsupported auto_pad value
+        }
+    } else {
+        // No auto_pad, use explicit padding if provided, otherwise assume zero padding
+        if (pads) |p| {
+            if (p.len >= 4) {
+                pad_h_begin = p[0];
+                pad_w_begin = p[1];
+                pad_h_end = p[2];
+                pad_w_end = p[3];
+            } else if (p.len == 2) { // Handle symmetric padding [h, w]
+                pad_h_begin = p[0];
+                pad_h_end = p[0];
+                pad_w_begin = p[1];
+                pad_w_end = p[1];
+            } // else: default zero padding
+        }
+        // Calculate output shape with potentially zero padding
+        expected_out_height = @divFloor(in_height + pad_h_begin + pad_h_end - dilated_kernel_h, stride_h) + 1;
+        expected_out_width = @divFloor(in_width + pad_w_begin + pad_w_end - dilated_kernel_w, stride_w) + 1;
+    }
+
+    // --- Validate Output Tensor Shape ---
+    if (output.shape.len != 4 or
+        output.shape[0] != batch_size or
+        output.shape[1] != num_filters or
+        output.shape[2] != expected_out_height or
+        output.shape[3] != expected_out_width)
+    {
+        return TensorMathError.OutputShapeMismatch;
+    }
+
+    // --- Pre-calculate Strides for Direct Pointer Access ---
+    const in_h_stride = in_width;
+    const in_c_stride = in_height * in_width;
+    const in_batch_stride = in_channels * in_c_stride;
+
+    const kernel_w_stride = 1;
+    const kernel_h_stride = kernel_width;
+    const kernel_c_stride = kernel_height * kernel_width; // Stride for C/g dim
+    const kernel_f_stride = kernel_channels_per_group * kernel_c_stride; // Stride for M dim
+
+    const out_w_stride = 1;
+    const out_h_stride = expected_out_width;
+    const out_c_stride = expected_out_height * out_h_stride; // Stride for M dim
+    const out_batch_stride = num_filters * out_c_stride;
+
+    // --- Pointers to Data Start ---
+    const x_ptr = x.data.ptr;
+    const w_ptr = w.data.ptr;
+    const y_ptr = output.data.ptr; // Output data pointer
+
+    // --- Convolution Loop ---
+    var b: usize = 0;
+    while (b < batch_size) : (b += 1) {
+        const in_batch_offset = b * in_batch_stride;
+        const out_batch_offset = b * out_batch_stride;
+
+        var f: usize = 0;
+        while (f < num_filters) : (f += 1) {
+            const current_group = f / filters_per_group;
+            const w_f_offset = f * kernel_f_stride; // Offset for filter f in w [f, _, _, _]
+            const y_f_offset = out_batch_offset + f * out_c_stride; // Offset for output [b, f, _, _]
+
+            // Get the correct weight zero point for this filter
+            const w_zp: T2 = if (w_zp_per_channel) |zp_ptr| zp_ptr[f] else (w_zp_scalar orelse 0);
+
+            // Calculate input channel range for this group
+            const in_c_start = current_group * channels_per_group;
+            const in_c_end = in_c_start + channels_per_group;
+
+            var oh: isize = 0;
+            while (oh < expected_out_height) : (oh += 1) {
+                const ih_base = @as(isize, oh * stride_h) - @as(isize, pad_h_begin); // Input h start potentially negative due to padding
+
+                var ow: usize = 0;
+                while (ow < expected_out_width) : (ow += 1) {
+                    const iw_base = @as(isize, ow * stride_w) - @as(isize, pad_w_begin); // Input w start potentially negative
+                    var accumulator: i32 = 0; // Accumulate in i32
+
+                    // Iterate over the input channels relevant to the current group
+                    var c = in_c_start;
+                    while (c < in_c_end) : (c += 1) {
+                        const k_c = c - in_c_start; // Kernel channel index (0 to C/g - 1)
+                        const in_c_offset = in_batch_offset + c * in_c_stride;
+                        const w_c_offset = w_f_offset + k_c * kernel_c_stride;
+
+                        var kh: usize = 0;
+                        while (kh < kernel_height) : (kh += 1) {
+                            const ih: isize = ih_base + @as(isize, kh * dilation_h);
+
+                            var kw: usize = 0;
+                            while (kw < kernel_width) : (kw += 1) {
+                                const iw: isize = iw_base + @as(isize, kw * dilation_w);
+
+                                // Check if the input coordinates (ih, iw) are within the valid (unpadded) input bounds
+                                if (ih >= 0 and ih < @as(isize, in_height) and iw >= 0 and iw < @as(isize, in_width)) {
+                                    // Valid input pixel
+                                    const x_idx = in_c_offset + @as(usize, ih) * in_h_stride + @as(usize, iw);
+                                    const w_idx = w_c_offset + kh * kernel_h_stride + kw * kernel_w_stride;
+
+                                    const x_val: T1 = x_ptr[x_idx];
+                                    const w_val: T2 = w_ptr[w_idx];
+
+                                    // Perform calculation: (x - x_zp) * (w - w_zp)
+                                    // Cast to i32 BEFORE operations to prevent overflow during multiplication
+                                    const term: i32 = (@as(i32, x_val) - @as(i32, x_zp)) * (@as(i32, w_val) - @as(i32, w_zp));
+                                    accumulator += term;
+                                } else {
+                                    // Padded area: contribution is (-x_zp) * (w - w_zp)
+                                    const w_idx = w_c_offset + kh * kernel_h_stride + kw * kernel_w_stride;
+                                    const w_val: T2 = w_ptr[w_idx];
+                                    // Cast to i32 before operations
+                                    const term: i32 = (@as(i32, 0) - @as(i32, x_zp)) * (@as(i32, w_val) - @as(i32, w_zp));
+                                    accumulator += term;
+                                }
+                            } // kw
+                        } // kh
+                    } // c (channel loop for the group)
+
+                    // Store the final accumulated i32 result
+                    const y_idx = y_f_offset + oh * out_h_stride + ow * out_w_stride;
+                    y_ptr[y_idx] = accumulator;
+                } // ow
+            } // oh
+        } // f (filter loop)
+    } // b (batch loop)
 }

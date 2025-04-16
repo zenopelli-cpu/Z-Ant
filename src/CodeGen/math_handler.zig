@@ -59,6 +59,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_constant(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Conv")) {
         try write_conv(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "ConvInteger")) {
+        try write_convInteger(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Div")) {
         try write_div(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "DynamicQuantizeLinear")) {
@@ -115,6 +117,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_unsqueeze(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Mean")) {
         try write_mean(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Cast")) {
+        try write_cast(writer, node);
     } else {
         return error.OperationNotSupported;
     }
@@ -380,7 +384,7 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //      - X (heterogeneous) - T: Input data tensor
     //      - W (heterogeneous) - T: The weight tensor
     //      - B (optional, heterogeneous) - T: Optional 1D bias to be added to the convolution, has size of M.
-    // OUTPUT:
+    // OUTPUTS:
     //      - Y (heterogeneous) - T: Output data tensor that contains the result of the convolution
     // ATTRIBUTES:
     //      - auto_pad - STRING (default is 'NOTSET'): auto_pad must be either NOTSET, SAME_UPPER, SAME_LOWER or VALID. Where default value is NOTSET
@@ -456,20 +460,25 @@ inline fn write_conv(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     const stride_string: []const u8 = try utils.i64SliceToUsizeArrayString(strides.?);
 
     //----create ?pads string
-    var pads_string: []const u8 = undefined;
+    var pads_string: []const u8 = "null";
     if (pads != null) {
-        pads_string = try utils.i64SliceToUsizeArrayString(pads.?);
-    } else {
-        pads_string = try std.mem.concat(allocator, u8, &[_][]const u8{" null"});
-    }
+        if (pads.?.len > 0) { // Check if the slice is actually non-empty
+            pads_string = try utils.i64SliceToUsizeArrayString(pads.?);
+            // Assuming no allocation needed to be freed, following write_conv
+        } else {
+            pads_string = "&[_]usize{}"; // Use explicit empty slice literal if input slice is empty
+        }
+    } // else pads_string remains "null"
 
     //----create ?dilatations string
-    var dilat_string: []const u8 = undefined;
+    var dilat_string: []const u8 = "null";
     if (dilations != null) {
-        dilat_string = try utils.i64SliceToUsizeArrayString(dilations.?);
-    } else {
-        dilat_string = try std.mem.concat(allocator, u8, &[_][]const u8{" null"});
-    }
+        if (dilations.?.len > 0) {
+            dilat_string = try utils.i64SliceToUsizeArrayString(dilations.?);
+        } else {
+            dilat_string = "&[_]usize{}";
+        }
+    } // else dilat_string remains "null"
 
     // pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void
     _ = try writer.print(
@@ -1434,7 +1443,7 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         });
         defer allocator.free(shape_tensor_name);
 
-        // Generate code to convert tensor data to isize slice at runtime
+        // Generate code to convert tensor data to isize slice
         try shape_slice_code.writer().print(
             \\    // Convert shape tensor data to isize slice
             \\    const shape_slice_{s} = utils.sliceToIsizeSlice({s}.data); // Removed catch return
@@ -2702,7 +2711,6 @@ inline fn write_dynamicQuantizeLinear(writer: std.fs.File.Writer, node: *ReadyNo
 
     // Write the lean function call
     _ = try writer.print(
-        \\n        \\
         \\    tensMath.dynamicQuantizeLinear_lean(
         \\        {s}, // x: *const Tensor(f32)
         \\        {s}, // y: *Tensor(u8)
@@ -2714,5 +2722,210 @@ inline fn write_dynamicQuantizeLinear(writer: std.fs.File.Writer, node: *ReadyNo
         output_y_string,
         output_scale_string,
         output_zp_string,
+    });
+}
+
+inline fn write_cast(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Cast.html
+    // INPUTS:
+    //      - input (heterogeneous) - T1: Input tensor to be cast.
+    // OUTPUTS:
+    //      - output (heterogeneous) - T2: Output tensor with the same shape as input and specified type.
+    // ATTRIBUTES:
+    //      - to (INT, required): The data type to cast to.
+
+    // Get the target type from the attribute
+    var target_type: DataType = undefined;
+    var target_type_found = false;
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "to")) {
+            if (attr.type == AttributeType.INT) {
+                target_type = @enumFromInt(attr.i);
+                target_type_found = true;
+                break;
+            } else {
+                return error.CastToAttributeNotINT;
+            }
+        }
+    }
+
+    if (!target_type_found) {
+        return error.CastToAttributeNotFound;
+    }
+
+    const target_type_string = try utils.getTypeString(target_type);
+
+    // Create input tensor string
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name) });
+    }
+
+    _ = try writer.print(
+        \\
+        \\
+        \\    tensMath.cast_lean(T, {s}, {s}, &tensor_{s}); // T is the source type, {s} is the target type string
+    , .{
+        target_type_string, // Target type as string
+        input_tensor_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+        target_type_string, // Pass target type string again for comment clarity
+    });
+}
+
+inline fn write_convInteger(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // INPUTS:
+    //      - x: Input tensor (u8 or i8)
+    //      - w: Weight tensor (u8 or i8)
+    //      - x_zero_point: Zero point for input tensor x (optional, u8 or i8)
+    //      - w_zero_point: Zero point for weight tensor w (optional, u8 or i8)
+    // OUTPUTS:
+    //      - y: Output tensor (i32)
+    // ATTRIBUTES:
+    //      - auto_pad, dilations, group, kernel_shape, pads, strides (similar to Conv)
+
+    var auto_pad: []const u8 = "NOTSET";
+    var dilations: ?[]i64 = null;
+    var group: i64 = 1;
+    var kernel_shape: ?[]i64 = null;
+    var pads: ?[]i64 = null;
+    var strides: ?[]i64 = null;
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.indexOf(u8, attr.name, "auto_pad")) |_| {
+            if (attr.type == AttributeType.STRING) auto_pad = attr.s else return error.ConvAuto_padNotSTRING;
+        } else if (std.mem.indexOf(u8, attr.name, "dilations")) |_| {
+            if (attr.type == AttributeType.INTS) dilations = attr.ints else return error.ConvDilatationNoINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "group")) |_| {
+            if (attr.type == AttributeType.INT) group = attr.i else return error.ConvGroupNotINT;
+        } else if (std.mem.indexOf(u8, attr.name, "kernel_shape")) |_| {
+            if (attr.type == AttributeType.INTS) kernel_shape = attr.ints else return error.ConvKernelShapeNotINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "pads")) |_| {
+            if (attr.type == AttributeType.INTS) pads = attr.ints else return error.ConvPadsNotINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "strides")) |_| {
+            if (attr.type == AttributeType.INTS) strides = attr.ints else return error.ConvStridesNotINTS;
+        }
+    }
+
+    //----create tensor_x_string
+    var tensor_x_string: []u8 = undefined;
+    defer allocator.free(tensor_x_string);
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_x_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        tensor_x_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name), ")" });
+    }
+
+    //----create tensor_w_string
+    var tensor_w_string: []u8 = undefined;
+    defer allocator.free(tensor_w_string);
+    if (node.inputs.items[1].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_w_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[1].?.name),
+            ")",
+        });
+    } else {
+        tensor_w_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name), ")" });
+    }
+
+    //----create ?x_zero_point string
+    var x_zp_string: []u8 = undefined;
+    var free_x_zp = false;
+    if (node.inputs.items.len > 2 and node.inputs.items[2] != null) { // Index 2 might be x_zero_point
+        const x_zp_name = try utils.getSanitizedName(node.inputs.items[2].?.name);
+        if (node.inputs.items[2].?.tag == globals.TensorTag.INITIALIZER) {
+            x_zp_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", x_zp_name, ")" });
+        } else {
+            x_zp_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", x_zp_name, ")" });
+        }
+        free_x_zp = true;
+    } else {
+        x_zp_string = try allocator.dupe(u8, "null");
+        free_x_zp = true;
+    }
+    defer if (free_x_zp) allocator.free(x_zp_string);
+
+    //----create ?w_zero_point string
+    var w_zp_string: []u8 = undefined;
+    var free_w_zp = false;
+    if (node.inputs.items.len > 3 and node.inputs.items[3] != null) { // Index 3 might be w_zero_point
+        const w_zp_name = try utils.getSanitizedName(node.inputs.items[3].?.name);
+        if (node.inputs.items[3].?.tag == globals.TensorTag.INITIALIZER) {
+            w_zp_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", w_zp_name, ")" });
+        } else {
+            w_zp_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", w_zp_name, ")" });
+        }
+        free_w_zp = true;
+    } else {
+        w_zp_string = try allocator.dupe(u8, "null");
+        free_w_zp = true;
+    }
+    defer if (free_w_zp) allocator.free(w_zp_string);
+
+    //----create stride string (mandatory)
+    if (strides == null) return error.StrideNotFound;
+    const stride_string: []const u8 = try utils.i64SliceToUsizeArrayString(strides.?);
+
+    //----create ?pads string
+    var pads_string: []const u8 = "null";
+    if (pads != null) {
+        if (pads.?.len > 0) { // Check if the slice is actually non-empty
+            pads_string = try utils.i64SliceToUsizeArrayString(pads.?);
+            // Assuming no allocation needed to be freed, following write_conv
+        } else {
+            pads_string = "&[_]usize{}"; // Use explicit empty slice literal if input slice is empty
+        }
+    } // else pads_string remains "null"
+
+    //----create ?dilations string
+    var dilat_string: []const u8 = "null";
+    if (dilations != null) {
+        if (dilations.?.len > 0) {
+            dilat_string = try utils.i64SliceToUsizeArrayString(dilations.?);
+        } else {
+            dilat_string = "&[_]usize{}";
+        }
+    } // else dilat_string remains "null"
+
+    _ = try writer.print(
+        \\    
+        \\
+        \\    tensMath.convInteger_lean(
+        \\        T, // Type (passed from caller, assumed i32 for output)
+        \\        {s}, // x
+        \\        {s}, // w
+        \\        {s}, // x_zero_point
+        \\        {s}, // w_zero_point
+        \\        &tensor_{s}, // y
+        \\        {s}, // stride
+        \\        {s}, // pads
+        \\        {s}, // dilations
+        \\        {}, // group
+        \\        "{s}", // auto_pad
+        \\    )
+    , .{
+        tensor_x_string, // x
+        tensor_w_string, // w
+        x_zp_string, // x_zero_point
+        w_zp_string, // w_zero_point
+        try utils.getSanitizedName(node.outputs.items[0].name), // y
+        stride_string, // Strides
+        pads_string, // Pads
+        dilat_string, // Dilations
+        group, // Group
+        auto_pad, // auto_pad
     });
 }
