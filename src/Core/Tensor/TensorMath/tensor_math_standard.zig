@@ -200,6 +200,7 @@ pub const div_lean = division.div_lean;
 const tanhy = @import("lib_elementWise_math/op_tanh.zig");
 pub const tanh = tanhy.tanh;
 pub const tanh_lean = tanhy.tanh_lean;
+pub const get_tanh_output_shape = tanhy.get_tanh_output_shape;
 
 //--ceil
 const Ceil = @import("lib_elementWise_math/op_ceil.zig");
