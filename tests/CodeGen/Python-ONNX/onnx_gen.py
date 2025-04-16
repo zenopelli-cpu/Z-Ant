@@ -650,6 +650,83 @@ def generate_fuzz_model(op_name):
         }
         return [input_info], output_info, [node], initializers, metadata
     
+    elif op_name == "AveragePool":
+        N, C = 1, 1
+        H = 4
+        W = 4
+        input_shape = [N, C, H, W]
+
+        # Create input data with predictable values
+        data = np.zeros(input_shape, dtype=np.float32)
+        for i in range(H):
+            for j in range(W):
+                data[0, 0, i, j] = float(i * W + j + 1)
+
+        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, input_shape, data.flatten().tolist())
+        initializers.append(init_tensor)
+
+        # Randomized parameters
+        kernel_shape = [random.randint(2, 3), random.randint(2, 3)]
+        strides = [random.randint(1, 2), random.randint(1, 2)]
+        count_include_pad = random.choice([0, 1])  # 0 = False, 1 = True
+        auto_pad = random.choice(["NOTSET", "VALID", "SAME_UPPER", "SAME_LOWER"])  # Random auto_pad
+        if auto_pad == "NOTSET":
+            pads = [random.randint(0, 1) for _ in range(4)]
+        else:
+            pads = [0, 0, 0, 0]  # Default
+
+        # Output dimensions calculation
+        if auto_pad == "NOTSET":
+            # Standard calculation with explicit pads
+            H_out = ((H + pads[0] + pads[2] - kernel_shape[0]) // strides[0]) + 1
+            W_out = ((W + pads[1] + pads[3] - kernel_shape[1]) // strides[1]) + 1
+        elif auto_pad == "VALID":
+            # No padding
+            H_out = ((H - kernel_shape[0]) // strides[0]) + 1
+            W_out = ((W - kernel_shape[1]) // strides[1]) + 1
+        else:  # SAME_UPPER or SAME_LOWER
+            # Maintain output dimensions similar to input
+            H_out = int(np.ceil(H / strides[0]))
+            W_out = int(np.ceil(W / strides[1]))
+            # Calculate total padding (for reference, not used in the node)
+            pad_h = (H_out - 1) * strides[0] + kernel_shape[0] - H
+            pad_w = (W_out - 1) * strides[1] + kernel_shape[1] - W
+            pads = [pad_h // 2, pad_w // 2, pad_h - pad_h // 2, pad_w - pad_w // 2]  # Only for metadata
+
+        output_shape = [N, C, H_out, W_out]
+        if H_out <= 0 or W_out <= 0:
+            # Avoid invalid shapes
+            kernel_shape = [2, 2]  # Fallback
+            strides = [1, 1]
+            auto_pad = "NOTSET"
+            pads = [0, 0, 0, 0]
+            H_out = ((H + pads[0] + pads[2] - kernel_shape[0]) // strides[0]) + 1
+            W_out = ((W + pads[1] + pads[3] - kernel_shape[1]) // strides[1]) + 1
+            output_shape = [N, C, H_out, W_out]
+
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, output_shape)
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, input_shape)
+
+        node = helper.make_node(op_name, inputs=[input_names[0]], outputs=[output_names[0]],
+                                kernel_shape=kernel_shape,
+                                strides=strides,
+                                pads=pads,
+                                count_include_pad=count_include_pad,
+                                auto_pad=auto_pad,
+                                name=f"{op_name}node_k{kernel_shape}_s{strides}_p{pads}_c{count_include_pad}_ap{auto_pad}")
+
+        metadata = {
+            "input_shapes": [input_shape],
+            "output_shapes": [output_shape],
+            "kernel_shape": kernel_shape,
+            "strides": strides,
+            "pads": pads,
+            "auto_pad": auto_pad,
+            "count_include_pad": count_include_pad
+        }
+
+        return [input_info], output_info, [node], initializers, metadata
+    
     elif op_name == "Mean":
         num_inputs = random.randint(1, 5)
         max_dims = 3 

@@ -46,7 +46,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     if (std.mem.eql(u8, node.nodeProto.op_type, "Add")) {
         try write_add(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "AveragePool")) {
-        try writer.writeAll("// Handle AveragePool\n");
+        try write_averagePool(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "BatchNormalization")) {
         try write_BatchNormalization(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Ceil")) {
@@ -109,6 +109,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_sub(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sum")) {
         try write_sum(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Tanh")) {
+        try write_tanh(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Transpose")) {
         try write_transpose(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Shape")) {
@@ -1206,6 +1208,126 @@ inline fn write_maxPool(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
+inline fn write_averagePool(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__AveragePool.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input data tensor
+    // OUTPUTS:
+    //      - Y (heterogeneous) - T: Output data tensor from average pooling
+    // ATTRIBUTES:
+    //      - auto_pad - STRING (default is 'NOTSET'): NOTSET, SAME_UPPER, SAME_LOWER, VALID
+    //      - ceil_mode - INT (default is '0'): Whether to use ceil or floor
+    //      - count_include_pad - INT (default is '0'): Whether to include padding in averaging
+    //      - dilations - INTS: Dilation value along each spatial axis (default 1)
+    //      - kernel_shape - INTS (required): Kernel size along each axis
+    //      - pads - INTS: Padding for each spatial axis
+    //      - strides - INTS: Stride along each spatial axis (default 1)
+
+    std.debug.print("DEBUG: write_averagePool called for node: {s}\n", .{node.nodeProto.name orelse "unnamed"});
+
+    var auto_pad: []const u8 = "NOTSET";
+    var ceil_mode: i64 = 0;
+    var count_include_pad: i64 = 0;
+    var dilations: ?[]i64 = null;
+    var kernel_shape: ?[]i64 = null; // Obbligatorio
+    var pads: ?[]i64 = null;
+    var strides: ?[]i64 = null;
+
+    // Leggi gli attributi
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.indexOf(u8, attr.name, "auto_pad")) |_| {
+            if (attr.type == AttributeType.STRING) auto_pad = attr.s else return error.AveragePoolAutoPadNotSTRING;
+        } else if (std.mem.indexOf(u8, attr.name, "ceil_mode")) |_| {
+            if (attr.type == AttributeType.INT) ceil_mode = attr.i else return error.MaxPoolCeil_modeNotINT;
+        } else if (std.mem.indexOf(u8, attr.name, "count_include_pad")) |_| {
+            if (attr.type == AttributeType.INT) count_include_pad = attr.i else return error.AveragePoolCountIncludePadNotINT;
+        } else if (std.mem.indexOf(u8, attr.name, "dilations")) |_| {
+            if (attr.type == AttributeType.INTS) dilations = attr.ints else return error.AveragePoolDilationsNotINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "kernel_shape")) |_| {
+            if (attr.type == AttributeType.INTS) kernel_shape = attr.ints else return error.AveragePoolKernelShapeNotINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "pads")) |_| {
+            if (attr.type == AttributeType.INTS) pads = attr.ints else return error.AveragePoolPadsNotINTS;
+        } else if (std.mem.indexOf(u8, attr.name, "strides")) |_| {
+            if (attr.type == AttributeType.INTS) strides = attr.ints else return error.AveragePoolStridesNotINTS;
+        }
+    }
+
+    // Crea tensor_X_string per l'input
+    var tensor_X_string: []u8 = undefined;
+    defer allocator.free(tensor_X_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "&tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+        });
+    }
+
+    // Crea stringa per kernel_shape
+    var kernel_shape_string: []const u8 = undefined;
+    if (kernel_shape != null) {
+        kernel_shape_string = try utils.i64SliceToUsizeArrayString(kernel_shape.?);
+    } else {
+        return error.Kernel_shapeNotFound;
+    }
+
+    // Crea stringa per strides
+    var strides_string: []const u8 = undefined;
+    if (strides != null) {
+        strides_string = try utils.i64SliceToUsizeArrayString(strides.?);
+    } else {
+        return error.StridesNotFound;
+    }
+
+    // Crea stringa per dilations
+    var dilations_string: []const u8 = undefined;
+    if (dilations != null) {
+        dilations_string = try utils.i64SliceToUsizeArrayString(dilations.?);
+    } else {
+        dilations_string = try utils.i64SliceToUsizeArrayString(&[_]i64{ 1, 1, 1, 1 }); // TODO: Hardcoded in 4D, not the most elegant solution
+    }
+
+    // Crea stringa per pads
+    var pads_string: []const u8 = undefined;
+    if (pads != null) {
+        pads_string = try utils.i64SliceToUsizeArrayString(pads.?);
+    } else {
+        return error.PadsNotFound;
+    }
+
+    // Scrivi la chiamata a onnx_averagepool_lean
+    _ = try writer.print(
+        \\
+        \\
+        \\    tensMath.onnx_averagepool_lean(
+        \\        T,
+        \\        {s}, // Input
+        \\        &tensor_{s}, // Output
+        \\        {s}, // kernel_shape
+        \\        {s}, // strides
+        \\        {s}, // dilations
+        \\        {s}, // pads
+        \\        tensMath.AutoPadType.{s}, // auto_pad
+        \\        {s}, // count_include_pad
+        \\    )
+    , .{
+        tensor_X_string, // Input
+        try utils.getSanitizedName(node.outputs.items[0].name), // Output
+        kernel_shape_string, // kernel_shape
+        strides_string, // strides
+        dilations_string, // dilations
+        pads_string, // pads
+        auto_pad, // auto_pad
+        if (count_include_pad == 1) "true" else "false", // count_include_pad
+    });
+}
+
 inline fn write_mul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // https://onnx.ai/onnx/operators/onnx__Mul.html
     // INPUTS:
@@ -1912,6 +2034,37 @@ inline fn write_transpose(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         tensor_A_string, // Input tensor
         perm_str, // Permutation array
         try utils.getSanitizedName(node.outputs.items[0].name), // Output tensor
+    });
+}
+
+inline fn write_tanh(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Tanh.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input tensor
+    // OUTPUTS:
+    //      - Y (heterogeneous) - T: Output tensor with hyperbolic tangent of input elements
+
+    // Create input tensor string
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name) });
+    }
+
+    _ = try writer.print(
+        \\
+        \\
+        \\    tensMath.tanh_lean(T, {s}, &tensor_{s})
+    , .{
+        input_tensor_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
     });
 }
 
