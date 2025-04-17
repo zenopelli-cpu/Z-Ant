@@ -8,6 +8,7 @@ pub const math_standard = @import("TensorMath/tensor_math_standard.zig");
 
 const std = @import("std");
 const zant = @import("../../zant.zig");
+const TensorWrapper = zant.core.tensorWrapper.TensorWrapper;
 
 const tMath = math_standard;
 const error_handler = zant.utils.error_handler;
@@ -43,6 +44,10 @@ pub fn Tensor(comptime T: type) type {
                 .allocator = allocator,
                 .owns_memory = true,
             };
+        }
+
+        pub fn initWrapper() TensorWrapper(@TypeOf(@This()), T) {
+            return TensorWrapper(@TypeOf(@This()), T).createWrapper(&@This());
         }
 
         ///Free all the possible allocation, use it every time you create a new Tensor ( defer yourTensor.deinit() )

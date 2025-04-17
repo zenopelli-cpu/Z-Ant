@@ -28,7 +28,7 @@ pub const TensorType = enum {
 /// TensorWrapper() is the superclass for all the possible implementation of a tensor (Tensor, QuantTensor, ClustTensor).
 ///
 /// @param T:comptime type of the values in the tensor
-pub fn TensorWrapper(comptime tensor: anytype, comptime dataType: type) type {
+pub fn TensorWrapper(comptime tensorType: type, comptime dataType: type) type {
     return struct {
         // const Self: type = @ptrCast(@alignCast(ptr)); // puntatore a tensore
         // const Self = @This();
@@ -36,7 +36,7 @@ pub fn TensorWrapper(comptime tensor: anytype, comptime dataType: type) type {
         // tensor_type: TensorType,    // Type of the tensor
 
         // Interface fields
-        const tensorType = @TypeOf(tensor); // Type of the actual tensor implementation
+        // const tensorType = @TypeOf(tensor); // Type of the actual tensor implementation
         const tensorTypeInfo = @typeInfo(tensorType); // Type info of the actual tensor implementation
         ptr: *anyopaque, // Pointer to the actual tensor implementation
 
@@ -46,10 +46,10 @@ pub fn TensorWrapper(comptime tensor: anytype, comptime dataType: type) type {
         fromArrayFn: *const fn (ctx: *anyopaque, allocator: *const std.mem.Allocator, inputArray: anytype, shape: []usize) anyerror!tensorType,
 
         // TODO: verify if MagicalReturnType works, possible solution: make it public or use type instead of type
-        // toArrayFn: *const fn (ctx: anyopaque, comptime dimension: usize) anyerror!MagicalReturnType(@This(), dataType, dimension),
-        toArrayFn1: *const fn (ctx: anyopaque, comptime dimension: usize) anyerror!type,
+        // toArrayFn1: *const fn (ctx: anyopaque, comptime dimension: usize) anyerror!MagicalReturnType(@This(), dataType, dimension),
+        // toArrayFn: *const fn (ctx: anyopaque, comptime dimension: usize) anyerror!type,
 
-        copyFn: *const fn (ctx: *anyopaque) anyerror!tensorType(dataType),
+        copyFn: *const fn (ctx: *anyopaque) anyerror!tensorType,
         fromShapeFn: *const fn (allocator: *const std.mem.Allocator, shape: []usize) anyerror!tensorType,
         fromConstBufferFn: *const fn (allocator: *const std.mem.Allocator, shape: []usize) anyerror!tensorType,
         fillFn: *const fn (ctx: *anyopaque, inputArray: anytype, shape: []usize) anyerror!void,
@@ -66,7 +66,7 @@ pub fn TensorWrapper(comptime tensor: anytype, comptime dataType: type) type {
         infoMetalFn: *const fn (ctx: *anyopaque) void,
 
         /// Function used to create a new tensor wrapper for the provided tensor.
-        fn createWrapper(ptr: anytype) TensorWrapper(tensor, dataType) {
+        pub fn createWrapper(ptr: anytype) !TensorWrapper(tensorType, dataType) {
             // const T = @TypeOf(ptr);
             // const ptr_info = @typeInfo(T);
 
@@ -85,11 +85,11 @@ pub fn TensorWrapper(comptime tensor: anytype, comptime dataType: type) type {
                     return tensorTypeInfo.Pointer.child.fromArray(allocator, inputArray, shape);
                 }
 
-                pub fn toArray(ctx: anyopaque, comptime dimension: usize) !MagicalReturnType(@This(), dataType, dimension) {
-                    // const self: tensorType = @ptrCast(@alignCast(ctx));
-                    const self: tensorType = @as(tensorType, ctx);
-                    return tensorTypeInfo.Pointer.child.toArray(self, dimension);
-                }
+                // pub fn toArray(ctx: anyopaque, comptime dimension: usize) !MagicalReturnType(@This(), dataType, dimension) {
+                //     // const self: tensorType = @ptrCast(@alignCast(ctx));
+                //     const self: tensorType = @as(tensorType, ctx);
+                //     return tensorTypeInfo.Pointer.child.toArray(self, dimension);
+                // }
 
                 pub fn copy(ctx: *anyopaque) !tensorType(dataType) {
                     const self: *tensorType = @ptrCast(@alignCast(ctx));
@@ -156,7 +156,7 @@ pub fn TensorWrapper(comptime tensor: anytype, comptime dataType: type) type {
                 .initFn = gen.init,
                 .deinitFn = gen.deinit,
                 .fromArrayFn = gen.fromArray,
-                .toArrayFn = gen.toArray,
+                //.toArrayFn = gen.toArray,
                 .copyFn = gen.copy,
                 .fromShapeFn = gen.fromShape,
                 .fromConstBufferFn = gen.fromConstBuffer,
@@ -191,9 +191,9 @@ pub fn TensorWrapper(comptime tensor: anytype, comptime dataType: type) type {
             return self.fromArrayFn(self.ptr, allocator, inputArray, shape);
         }
 
-        pub fn toArray(self: @This(), comptime dimension: usize) !MagicalReturnType(self, dataType, dimension) {
-            return self.toArrayFn(self.ptr, dimension);
-        }
+        // pub fn toArray(self: @This(), comptime dimension: usize) !MagicalReturnType(self, dataType, dimension) {
+        //     return self.toArrayFn(self.ptr, dimension);
+        // }
 
         pub fn copy(self: @This()) !tensorType(dataType) {
             return self.copyFn(self.ptr);
