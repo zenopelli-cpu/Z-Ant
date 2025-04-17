@@ -2,7 +2,7 @@
 
 <div align="left">
   <img src="https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-tests.yml/badge.svg" alt="Zig Tests" />
-  <img src="https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-heavy-tests.yml/badge.svg" alt="Zig Heavy Tests" />
+  <img src="https://github.com/ZantFoundation/Z-Ant/actions/workflows/zant-benchmarks.yml/badge.svg" alt="Zig Benchamrk Tests" />
   <img src="https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-codegen-tests.yml/badge.svg" alt="Zig Codegen Tests" />
 </div>
 
