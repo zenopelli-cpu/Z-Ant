@@ -20,8 +20,7 @@ pub fn main() !void {
     const gpa_allocator = gpa.allocator();
 
     const model_name = codegen_options.model;
-    // Format model path according to model_name
-    const model_path = "datasets/models/" ++ model_name ++ "/" ++ model_name ++ ".onnx";
+    const model_path = codegen_options.model_path;
 
     var model = try onnx.parseFromFile(gpa_allocator, model_path);
     defer model.deinit(gpa_allocator);
@@ -29,7 +28,7 @@ pub fn main() !void {
     model.print();
 
     // Create the generated model directory if not present
-    const generated_path = "generated/" ++ model_name ++ "/";
+    const generated_path = codegen_options.generated_path;
     //const generated_path = "src/codeGen/";
     try std.fs.cwd().makePath(generated_path);
 
