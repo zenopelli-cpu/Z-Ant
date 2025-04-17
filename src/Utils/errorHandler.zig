@@ -62,6 +62,7 @@ pub const TensorMathError = error{
     InvalidGroupParameter,
     InvalidZeroPointShape,
     OutputShapeMismatch,
+    ShapeMismatch,
 };
 
 /// Tensor errors

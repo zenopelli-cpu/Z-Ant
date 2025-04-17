@@ -37,6 +37,11 @@ pub var networkOutput = io_struct{
     .name = "",
     .shape = &[_]i64{},
 };
+// DataType of the network input tensor (derived from ONNX graph)
+// String form of the network input element type (e.g. "f32", "u8", etc.)
+pub var networkInputTypeString: []const u8 = "";
+// Add a global variable to store the actual DataType enum value
+pub var networkInputDataType: DataType = .UNDEFINED;
 
 pub var inputType: type = f32;
 
@@ -173,7 +178,15 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
     //setting the input
     const inputs = model.graph.?.inputs;
     networkInput.name = inputs[0].name.?;
+    // record input shape
     networkInput.shape = inputs[0].type.?.tensor_type.?.shape.?.shape;
+    // Derive and store the input element type string (e.g., "f32", "u8")
+    const raw_et: u32 = inputs[0].type.?.tensor_type.?.elem_type;
+    const int_val = @as(i32, @intCast(raw_et));
+    const input_dt = @as(DataType, @enumFromInt(int_val));
+    // Store the calculated DataType globally
+    networkInputDataType = input_dt;
+    networkInputTypeString = try utils.getTypeString(input_dt);
 
     //setting the output
     const outputs = model.graph.?.outputs;
@@ -237,9 +250,12 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *Graph
         if (utils.isInput(name)) {
             readyTensor = try ReadyTensor.createInput(name);
             // Find dtype from graph inputs
+            // Attempt to read the data type from graph inputs
             for (graph.inputs) |graph_input| {
                 if (std.mem.eql(u8, graph_input.name.?, name)) {
-                    tensor_dtype = @enumFromInt(graph_input.type.?.tensor_type.?.elem_type);
+                    const raw_et: u32 = graph_input.type.?.tensor_type.?.elem_type;
+                    const int_val_in = @as(i32, @intCast(raw_et));
+                    tensor_dtype = @as(DataType, @enumFromInt(int_val_in));
                     break;
                 }
             }
@@ -255,9 +271,12 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *Graph
                 // Handle non-tensor constants if necessary, or assume LINK for now
                 readyTensor = try ReadyTensor.createLink(name);
                 // Try to find dtype from value_info for non-tensor constants if needed
+                // Try to infer dtype from value_info
                 for (graph.value_info) |vi| {
                     if (std.mem.eql(u8, vi.name.?, name)) {
-                        tensor_dtype = @enumFromInt(vi.type.?.tensor_type.?.elem_type);
+                        const raw_et_vi = vi.type.?.tensor_type.?.elem_type;
+                        const int_val_vi = @as(i32, @intCast(raw_et_vi));
+                        tensor_dtype = @as(DataType, @enumFromInt(int_val_vi));
                         break;
                     }
                 }
@@ -268,22 +287,38 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *Graph
             readyTensor = try ReadyTensor.createLink(name);
             // Find dtype from value_info for LINK tensors
             var found_in_value_info = false;
+            // Also check value_info for LINK tensors
             for (graph.value_info) |vi| {
                 if (std.mem.eql(u8, vi.name.?, name)) {
-                    tensor_dtype = @enumFromInt(vi.type.?.tensor_type.?.elem_type);
+                    const raw_et_vi_link = vi.type.?.tensor_type.?.elem_type;
+                    const int_val_vi_link = @as(i32, @intCast(raw_et_vi_link));
+                    tensor_dtype = @as(DataType, @enumFromInt(int_val_vi_link));
                     found_in_value_info = true;
                     break;
                 }
             }
             // Also check graph outputs
             if (!found_in_value_info) {
+                // Finally check graph outputs
                 for (graph.outputs) |graph_output| {
                     if (std.mem.eql(u8, graph_output.name.?, name)) {
-                        tensor_dtype = @enumFromInt(graph_output.type.?.tensor_type.?.elem_type);
+                        const raw_et_out = graph_output.type.?.tensor_type.?.elem_type;
+                        const int_val_out = @as(i32, @intCast(raw_et_out));
+                        tensor_dtype = @as(DataType, @enumFromInt(int_val_out));
                         break;
                     }
                 }
             }
+
+            // --- START HEURISTIC FALLBACK FOR SHAPE TENSORS ---
+            // If type is still undefined, check common shape tensor naming patterns
+            if (tensor_dtype == .UNDEFINED) {
+                if (std.mem.endsWith(u8, name, "_shape") or std.mem.endsWith(u8, name, "_reshape_output")) {
+                    std.debug.print("\nINFO: Tensor '{s}' type is UNDEFINED. Defaulting to INT64 based on name pattern.", .{name});
+                    tensor_dtype = .INT64; // Default to INT64 for likely shape tensors
+                }
+            }
+            // --- END HEURISTIC FALLBACK ---
         }
 
         if (tensor_dtype == .UNDEFINED) {

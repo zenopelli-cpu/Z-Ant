@@ -9,6 +9,9 @@ const DataType = onnx.DataType;
 const TensorProto = onnx.TensorProto;
 const allocator = zant.utils.allocator.allocator;
 const codegen = @import("codegen.zig");
+// Access global codegen state and utilities
+const globals = codegen.globals;
+const utils = codegen.utils;
 const codeGenInitializers = codegen.parameters;
 const coddeGenPredict = codegen.predict;
 const codegen_options = @import("codegen_options");
@@ -113,8 +116,10 @@ fn write_FBA(writer: std.fs.File.Writer) !void {
 }
 
 fn write_type_T(writer: std.fs.File.Writer) !void {
-    _ = try writer.print( //TODO: get the type form the onnx model =^.^=
+    // Emit the tensor element type derived from the ONNX model input
+    const type_str = try utils.getTypeString(globals.networkInputDataType);
+    _ = try writer.print(
         \\
-        \\ const T = f32;
-    , .{});
+        \\ const T = {s};
+    , .{type_str});
 }

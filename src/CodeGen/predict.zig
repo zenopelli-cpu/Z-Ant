@@ -144,10 +144,11 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
                 const size = try write_OutputShape(
                     writer,
                     output,
+                    node,
                 );
                 try write_OutputTensor(
                     writer,
-                    output.name,
+                    output,
                     size,
                 );
             }
@@ -155,10 +156,35 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
     }
 }
 
-fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !i64 {
+fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor, node: *const ReadyNode) !i64 {
     if (@as(?*ReadyTensor, output) == null) return error.InvalidOutput;
-    const shape = output.shape;
+    const original_shape = output.shape;
     var size: i64 = 1;
+
+    // Check if it's a convolutional node
+    const op_type = node.nodeProto.op_type;
+    const is_conv = std.mem.eql(u8, op_type, "Conv") or std.mem.eql(u8, op_type, "ConvInteger");
+    const is_cast = std.mem.eql(u8, op_type, "Cast"); // Check for Cast node
+    const is_add = std.mem.eql(u8, op_type, "Add"); // Check for Add node
+
+    var shape_len_adj: usize = original_shape.len;
+    var needs_batch_dim: bool = false;
+
+    // Determine if a batch dimension needs to be added
+    if (is_conv and (original_shape.len == 0 or original_shape[0] != 1)) {
+        needs_batch_dim = true;
+        shape_len_adj += 1;
+    } else if (is_conv and original_shape.len > 0 and original_shape[0] == 1) {
+        // Already has batch dim 1, no change needed for conv
+    } else if (is_cast and original_shape.len == 3) { // Add check for Cast with 3 dims
+        needs_batch_dim = true;
+        shape_len_adj += 1;
+    } else if (is_add and original_shape.len == 3) { // Add check for Add with 3 dims
+        needs_batch_dim = true;
+        shape_len_adj += 1;
+    } else {
+        // Not a conv/cast/add node needing adjustment, or already has batch dim
+    }
 
     try writer.print(
         \\
@@ -166,15 +192,23 @@ fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !i64 {
         \\var shape_tensor_{s} : [{}]usize = [_]usize{{
     , .{
         try utils.getSanitizedName(output.name),
-        shape.len,
+        shape_len_adj, // Use adjusted length
     });
 
-    for (0..shape.len) |i| {
-        if (i > 0) try writer.print(",", .{});
+    var first_dim_written = false;
+    if (needs_batch_dim) {
+        try writer.print(" 1", .{}); // Add batch dimension of 1
+        size *= 1;
+        first_dim_written = true;
+    }
+
+    for (0..original_shape.len) |i| {
+        if (first_dim_written or i > 0) try writer.print(",", .{});
         try writer.print(
             \\ {}
-        , .{shape[i]});
-        size *= shape[i];
+        , .{original_shape[i]});
+        size *= original_shape[i];
+        first_dim_written = true; // Ensure comma is added after the first element (batch or original[0])
     }
 
     try writer.print(
@@ -230,10 +264,11 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
     }
 
     //const dataTypeString = try utils.getTypeString(tensor.data_type);
+    const type_str_const = try utils.getTypeString(tensor.data_type);
     try writer.print(
         \\
-        \\const array_{s} : [{d}]T = [_]T{{
-    , .{ sanitized_name, total_size });
+        \\const array_{s} : [{d}]{s} = [_]{s}{{
+    , .{ sanitized_name, total_size, type_str_const, type_str_const });
 
     // Write the actual data values
     if (tensor.float_data) |data| {
@@ -273,17 +308,27 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
     // Write tensor initialization using fromArray
     try writer.print(
         \\
-        \\const tensor_{s} = Tensor(T).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
-    , .{ sanitized_name, sanitized_name, sanitized_name });
+        \\const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
+    , .{ sanitized_name, type_str_const, sanitized_name, sanitized_name });
 }
 
-fn write_OutputTensor(writer: std.fs.File.Writer, name: []const u8, size: i64) !void {
-    const sanitized_name = try utils.getSanitizedName(name);
+fn write_OutputTensor(writer: std.fs.File.Writer, output: *ReadyTensor, size: i64) !void {
+    const sanitized_name = try utils.getSanitizedName(output.name);
+
+    // --- ADD CHECK FOR UNDEFINED TYPE ---
+    if (output.dtype == .UNDEFINED) {
+        std.debug.print("\n\nCODEGEN ERROR: Attempted to generate output tensor '{s}' but its data type is UNDEFINED. Check ONNX graph analysis in globals.zig.\n\n", .{output.name});
+        return error.DataTypeNotAvailable; // Or a more specific error like CannotGenerateUndefinedType
+    }
+    // --- END CHECK ---
+
+    const type_str = try utils.getTypeString(output.dtype);
     try writer.print(
         \\
-        \\var array_{s}: [{}]T = [_]T{{0}} ** {};
-        \\var tensor_{s} = Tensor(T).fromConstBuffer( &allocator, &array_{s}, &shape_tensor_{s});
-    , .{ sanitized_name, size, size, sanitized_name, sanitized_name, sanitized_name });
+        \\
+        \\var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {};
+        \\var tensor_{s} = Tensor({s}).fromConstBuffer( &allocator, &array_{s}, &shape_tensor_{s});
+    , .{ sanitized_name, size, type_str, type_str, size, sanitized_name, type_str, sanitized_name, sanitized_name });
 }
 
 fn write_outputsResetMethod(writer: std.fs.File.Writer) !void {

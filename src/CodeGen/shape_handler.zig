@@ -1492,14 +1492,8 @@ inline fn compute_convInteger_output_shape(readyNode: *ReadyNode) !void {
         );
 
         // Convert the [4]usize array back to []const i64 slice
-        // shape = try utils.usizeSliceToI64Slice(&output_shape_usize_array); // Original line with error
-        // shape = try utils.usizeSliceToI64Slice(output_shape_usize_array[0..]); // Still wrong type (needs mutable)
-
-        // Create a mutable copy
-        var mutable_output_shape_array = output_shape_usize_array;
-
-        // Pass a slice of the mutable array
-        shape = try utils.usizeSliceToI64Slice(mutable_output_shape_array[0..]);
+        // Pass a slice directly from the const array. usizeSliceToI64Slice takes []const usize.
+        shape = try utils.usizeSliceToI64Slice(@constCast(&output_shape_usize_array));
     }
     readyNode.outputs.items[0].shape = shape;
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});

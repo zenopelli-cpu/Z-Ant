@@ -330,7 +330,6 @@ pub fn transpose_onnx_lean(
         // Size mismatch, reallocation is needed.
         if (!output.owns_memory) {
             // Cannot reallocate an unowned buffer of the wrong size.
-            std.debug.print("ERROR: transpose_onnx_lean output tensor has wrong size ({d}) but is unowned. Expected size {d}. Caller must provide correct buffer.\\n", .{ output.data.len, total_size });
             return error.OutputBufferWrongSize; // Require caller to provide correct buffer
         } else {
             // Output owns memory, but it's the wrong size. Reallocate.

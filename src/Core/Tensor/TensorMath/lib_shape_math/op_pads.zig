@@ -375,7 +375,6 @@ pub fn pads_lean(
                     // This coordinate is in the prepended dimension. get_input_coord should return 0
                     // for edge/reflect/wrap based on axis_len_in=1. If it's not 0, something is wrong.
                     if (in_coord != 0) {
-                        std.debug.print("Error: get_input_coord returned non-zero index {} for prepended dimension (axis_len_in=1)", .{in_coord});
                         return TensorMathError.UnexpectedError;
                     }
                     // No need to store index as it doesn't map to an input dimension.
@@ -388,7 +387,6 @@ pub fn pads_lean(
                     break; // Stop calculating indices for this output element
                 } else {
                     // Should not happen for non-constant modes
-                    std.debug.print("Error: get_input_coord returned null for non-constant mode {}", .{mode});
                     return TensorMathError.UnexpectedError;
                 }
             }
@@ -411,7 +409,6 @@ pub fn pads_lean(
 
             // Safeguard: Check if calculated index is within bounds of input data
             if (in_flat_index >= data.data.len) {
-                std.debug.print("Error: Calculated in_flat_index {} out of bounds (size {}). In Indices: {any}, Input Shape: {any}", .{ in_flat_index, data.data.len, in_indices, data.shape });
                 return TensorMathError.UnexpectedError;
             }
 
@@ -419,7 +416,6 @@ pub fn pads_lean(
         } else {
             // This case implies (!use_constant and !calculated_in_indices), which should be unreachable
             // if the logic in the loop is correct.
-            std.debug.print("Error: Reached unreachable state in pads_lean (use_constant=false, calculated_in_indices=false)", .{});
             return TensorMathError.UnexpectedError;
         }
     }

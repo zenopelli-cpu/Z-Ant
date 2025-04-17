@@ -54,6 +54,7 @@ pub fn sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
 }
 // --------- lean SUM
 pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *const Tensor(inputType), t2: *const Tensor(inputType), outputTensor: *Tensor(outputType)) !void {
+
     // Simple case: same size tensors
     if (t1.size == t2.size) {
         // Use unrolled loop for small sizes to avoid SIMD overhead
@@ -81,8 +82,8 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
                 const v1: Vec = t1.data[i + offset * vector_len ..][0..vector_len].*;
                 const v2: Vec = t2.data[i + offset * vector_len ..][0..vector_len].*;
                 const result = v1 + v2;
-                comptime var j = 0;
-                inline while (j < vector_len) : (j += 1) {
+                // Use a standard for loop instead of inline while for runtime execution
+                for (0..vector_len) |j| {
                     outputTensor.data[i + offset * vector_len + j] = @as(outputType, result[j]);
                 }
             }

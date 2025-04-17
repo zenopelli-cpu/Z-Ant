@@ -122,7 +122,13 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Cast")) {
         try write_cast(writer, node);
     } else {
-        return error.OperationNotSupported;
+        // Stub for unsupported operations: generate unreachable at runtime
+        _ = try writer.print(
+            \\
+            \\    // Operation {s} not supported, inserting stub
+            \\    unreachable("Unsupported op: {s}");
+        , .{ node.nodeProto.op_type, node.nodeProto.op_type });
+        return;
     }
 
     try writer.writeAll(" catch return;");
@@ -2906,6 +2912,33 @@ inline fn write_cast(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         return error.CastToAttributeNotFound;
     }
 
+    // --- Safely get source type ---
+    var source_type: DataType = .UNDEFINED;
+    const input_ready_tensor_ptr = globals.tensorHashMap.getPtr(node.inputs.items[0].?.name);
+
+    if (input_ready_tensor_ptr) |rt_ptr| {
+        // Prioritize ReadyTensor.dtype if it's valid
+        if (rt_ptr.dtype != DataType.UNDEFINED) { // Check if dtype is set
+            source_type = rt_ptr.dtype;
+        } else if (rt_ptr.tensorProto) |tp| {
+            // Fallback to tensorProto if dtype is not set
+            source_type = tp.data_type;
+        } else {
+            std.debug.print("Error: Could not determine source type for Cast input '{s}' from either dtype or tensorProto\n", .{node.inputs.items[0].?.name});
+            return error.DataTypeNotFound; // Or another appropriate error
+        }
+    } else {
+        std.debug.print("Error: Cast input tensor '{s}' not found in map\n", .{node.inputs.items[0].?.name});
+        return error.TensorNotFound; // Or another appropriate error
+    }
+
+    if (source_type == DataType.UNDEFINED) {
+        std.debug.print("Error: Determined source type for Cast input '{s}' is UNDEFINED\n", .{node.inputs.items[0].?.name});
+        return error.DataTypeNotFound;
+    }
+    // --- End safe source type retrieval ---
+
+    const source_type_string = try utils.getTypeString(source_type);
     const target_type_string = try utils.getTypeString(target_type);
 
     // Create input tensor string
@@ -2919,18 +2952,26 @@ inline fn write_cast(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             ")",
         });
     } else {
-        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name) });
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name), ")" });
     }
 
     _ = try writer.print(
         \\
         \\
-        \\    tensMath.cast_lean(T, {s}, {s}, &tensor_{s}); // T is the source type, {s} is the target type string
+        \\    @setEvalBranchQuota(10000);
+        \\    tensMath.cast_lean(
+        \\        {s}, // Source type T1
+        \\        {s}, // Target type T2
+        \\        {s}, // Input tensor (*const Tensor(T1))
+        \\        &tensor_{s}, // Output tensor (*Tensor(T2))
+        \\        zant.onnx.DataType.{s} // Target DataType enum
+        \\    )
     , .{
-        target_type_string, // Target type as string
+        source_type_string, // Pass source type string
+        target_type_string, // Pass target type string
         input_tensor_string,
         try utils.getSanitizedName(node.outputs.items[0].name),
-        target_type_string, // Pass target type string again for comment clarity
+        @tagName(target_type), // Pass the DataType enum value as the 5th arg
     });
 }
 
@@ -3053,16 +3094,24 @@ inline fn write_convInteger(writer: std.fs.File.Writer, node: *ReadyNode) !void 
         }
     } // else dilat_string remains "null"
 
+    // Get the specific data types for input and weight tensors
+    const input_x_type = globals.tensorHashMap.get(node.inputs.items[0].?.name).?.dtype;
+    const input_w_type = globals.tensorHashMap.get(node.inputs.items[1].?.name).?.dtype;
+
+    const type_str_x = try utils.getTypeString(input_x_type);
+    const type_str_w = try utils.getTypeString(input_w_type);
+
     _ = try writer.print(
         \\    
         \\
         \\    tensMath.convInteger_lean(
-        \\        T, // Type (passed from caller, assumed i32 for output)
+        \\        {s}, // T1: Input data type (u8 or i8)
+        \\        {s}, // T2: Weight data type (u8 or i8)
         \\        {s}, // x
         \\        {s}, // w
         \\        {s}, // x_zero_point
         \\        {s}, // w_zero_point
-        \\        &tensor_{s}, // y
+        \\        &tensor_{s}, // y (Output is always i32)
         \\        {s}, // stride
         \\        {s}, // pads
         \\        {s}, // dilations
@@ -3070,6 +3119,8 @@ inline fn write_convInteger(writer: std.fs.File.Writer, node: *ReadyNode) !void 
         \\        "{s}", // auto_pad
         \\    )
     , .{
+        type_str_x, // T1 type string
+        type_str_w, // T2 type string
         tensor_x_string, // x
         tensor_w_string, // w
         x_zp_string, // x_zero_point

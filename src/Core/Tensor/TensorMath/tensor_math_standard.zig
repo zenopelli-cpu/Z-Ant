@@ -196,6 +196,10 @@ const division = @import("lib_elementWise_math/op_division.zig");
 pub const div = division.div;
 pub const div_lean = division.div_lean;
 
+//cast
+const op_cast = @import("op_cast.zig");
+pub const cast_lean = op_cast.cast_lean;
+
 //--tanh
 const tanhy = @import("lib_elementWise_math/op_tanh.zig");
 pub const tanh = tanhy.tanh;
