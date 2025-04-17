@@ -26,3 +26,13 @@ pub inline fn tanh_lean(comptime T: anytype, input: *Tensor(T), result: *Tensor(
         result.data[i] = std.math.tanh(input.data[i]);
     }
 }
+
+pub inline fn get_tanh_output_shape(input_shape: []const usize) ![]usize {
+    // Allocate and copy the input shape
+    const output_shape = try zant.utils.allocator.allocator.alloc(usize, input_shape.len);
+    errdefer zant.utils.allocator.allocator.free(output_shape);
+
+    std.mem.copyForwards(usize, output_shape, input_shape);
+
+    return output_shape;
+}
