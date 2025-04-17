@@ -144,11 +144,16 @@ extern void setLogFunction(void (*log_function)(uint8_t *string));
   ```bash
   zig build codegen -Dmodel=model_name [-Dlog -Duser_tests=path/to/tests.json]
   ```
-
+  Optionally you can add:
+  - ```-Dmodel_path=path/to/model.onnx``` to manually select the path of your ONNX model (by default it's selected from ```datasets/model_name/model_name.onnx```)
+  - ```-Dgenerated_path=path/to/generated/``` to manually select where you want to save the generated code (by default it's saved in ```generated/model_name/```)
 - **Compile static library:**
   ```bash
   zig build lib -Dmodel=model_name -Dtarget=target_arch -Dcpu=specific_cpu
   ```
+  Optionally you can add:
+  - ```-Dgeneratedpath=path/to/generated/``` to manually select where your generated code is saved (by default it's selected from ```generated/model_name/```)
+  - ```-Doutput_path=path/to/output/``` to manually select where you want to save the static library (by default it's saved in ```zig-out/model_name/```)
 
 - **Generate onnx oneOperation models:**
   ```bash
