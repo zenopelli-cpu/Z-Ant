@@ -116,7 +116,7 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
     }
     try writer.print(
         \\
-        \\const array_{s} : [{d}]{s} = [_]{s}{{ 
+        \\const array_{s} : [{d}]{s} linksection(".rodata") = [_]{s}{{
     , .{ name, size, dataTypeString, dataTypeString });
 
     // Select appropriate data storage format
@@ -132,12 +132,15 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
         writeArrayData(writer, u64, d) catch return error.u64DataUnavailable;
     } else if (t.uint16_data) |d| {
         writeArrayData(writer, u16, d) catch return error.u16DataUnavailable;
+    } else if (t.int8_data) |d| {
+        writeArrayData(writer, i8, d) catch return error.i8DataUnavailable;
     } else if (t.raw_data) |raw| {
         // Handle raw data based on data_type
         switch (t.data_type) {
             .FLOAT => try writeRawData(writer, f32, raw),
             .FLOAT16 => try writeRawData(writer, f16, raw),
             .INT32 => try writeRawData(writer, i32, raw),
+            .INT8 => try writeRawData(writer, i8, raw),
             .INT64 => try writeRawData(writer, i64, raw),
             .DOUBLE => try writeRawData(writer, f64, raw),
             .UINT64 => try writeRawData(writer, u64, raw),
