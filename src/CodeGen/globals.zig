@@ -20,6 +20,8 @@ const codegen_options = @import("codegen_options");
 
 pub var readyGraph: std.ArrayList(ReadyNode) = std.ArrayList(ReadyNode).init(allocator);
 pub var tensorHashMap: std.StringHashMap(ReadyTensor) = std.StringHashMap(ReadyTensor).init(allocator); //key: TensorProto.name
+// Map from tensor name to remaining use count in generated predict
+pub var tensorUseCount: std.StringHashMap(usize) = std.StringHashMap(usize).init(allocator);
 
 pub var onnxModel: ModelOnnx = undefined; //initialized in setGlobalAttributes(), it is mandatory
 
@@ -210,6 +212,20 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
 
     //create the ReadyGraph
     try populateReadyGraph(model);
+    // Initialize the tensor use counts (number of times each tensor is consumed)
+    tensorUseCount.deinit();
+    tensorUseCount = std.StringHashMap(usize).init(allocator);
+    for (readyGraph.items) |*node| {
+        for (node.inputs.items) |input_opt| {
+            if (input_opt) |input| {
+                const name = input.name;
+                if (name.len > 0) {
+                    const old_count = if (tensorUseCount.getPtr(name)) |ptr| ptr.* else 0;
+                    try tensorUseCount.put(name, old_count + 1);
+                }
+            }
+        }
+    }
 
     std.debug.print("\n NODE: {s}", .{model.graph.?.nodes[0].output[0]});
 }
@@ -372,5 +388,14 @@ fn populateReadyGraph(model: ModelOnnx) !void {
     for (graph.nodes) |node_ptr| { //for each NodeProto in the GraphProto
 
         try readyGraph.append(try ReadyNode.create(node_ptr));
+    }
+}
+// Decrements the remaining use count for a tensor. Returns updated count (0 if none or unknown).
+pub fn decrementUseCount(name: []const u8) usize {
+    if (tensorUseCount.getPtr(name)) |ptr| {
+        ptr.* -= 1;
+        return ptr.*;
+    } else {
+        return 0;
     }
 }
