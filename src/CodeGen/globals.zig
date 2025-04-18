@@ -273,11 +273,18 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *Graph
                 // Try to find dtype from value_info for non-tensor constants if needed
                 // Try to infer dtype from value_info
                 for (graph.value_info) |vi| {
-                    if (std.mem.eql(u8, vi.name.?, name)) {
-                        const raw_et_vi = vi.type.?.tensor_type.?.elem_type;
-                        const int_val_vi = @as(i32, @intCast(raw_et_vi));
-                        tensor_dtype = @as(DataType, @enumFromInt(int_val_vi));
-                        break;
+                    if (vi.name) |vi_name| {
+                        if (std.mem.eql(u8, vi_name, name)) {
+                            if (vi.type) |t| {
+                                if (t.tensor_type) |tt| {
+                                    const raw_et_vi_link = tt.elem_type;
+                                    const int_val_vi_link = @as(i32, @intCast(raw_et_vi_link));
+                                    tensor_dtype = @as(DataType, @enumFromInt(int_val_vi_link));
+                                    break;
+                                }
+                            }
+                            break;
+                        }
                     }
                 }
             }
@@ -289,23 +296,45 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *Graph
             var found_in_value_info = false;
             // Also check value_info for LINK tensors
             for (graph.value_info) |vi| {
-                if (std.mem.eql(u8, vi.name.?, name)) {
-                    const raw_et_vi_link = vi.type.?.tensor_type.?.elem_type;
-                    const int_val_vi_link = @as(i32, @intCast(raw_et_vi_link));
-                    tensor_dtype = @as(DataType, @enumFromInt(int_val_vi_link));
-                    found_in_value_info = true;
-                    break;
+                // Check if vi.name matches and is not null
+                if (vi.name) |vi_name| {
+                    if (std.mem.eql(u8, vi_name, name)) {
+                        // Safely access type and tensor_type
+                        if (vi.type) |t| {
+                            if (t.tensor_type) |tt| {
+                                const raw_et_vi_link = tt.elem_type;
+                                const int_val_vi_link = @as(i32, @intCast(raw_et_vi_link));
+                                tensor_dtype = @as(DataType, @enumFromInt(int_val_vi_link));
+                                found_in_value_info = true;
+                                // Found the type, exit the loop
+                                break;
+                            }
+                        }
+                        // Break if name matches, even if type info wasn't found/complete
+                        break;
+                    }
                 }
             }
-            // Also check graph outputs
+            // Also check graph outputs if not found in value_info
             if (!found_in_value_info) {
                 // Finally check graph outputs
                 for (graph.outputs) |graph_output| {
-                    if (std.mem.eql(u8, graph_output.name.?, name)) {
-                        const raw_et_out = graph_output.type.?.tensor_type.?.elem_type;
-                        const int_val_out = @as(i32, @intCast(raw_et_out));
-                        tensor_dtype = @as(DataType, @enumFromInt(int_val_out));
-                        break;
+                    // Check if graph_output.name matches and is not null
+                    if (graph_output.name) |output_name| {
+                        if (std.mem.eql(u8, output_name, name)) {
+                            // Safely access type and tensor_type
+                            if (graph_output.type) |t| {
+                                if (t.tensor_type) |tt| {
+                                    const raw_et_out = tt.elem_type;
+                                    const int_val_out = @as(i32, @intCast(raw_et_out));
+                                    tensor_dtype = @as(DataType, @enumFromInt(int_val_out));
+                                    // Found the type, exit the loop
+                                    break;
+                                }
+                            }
+                            // Break if name matches, even if type info wasn't found/complete
+                            break;
+                        }
                     }
                 }
             }
@@ -322,7 +351,9 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *Graph
         }
 
         if (tensor_dtype == .UNDEFINED) {
-            std.debug.print("\nWARNING: Could not determine dtype for tensor '{s}' (Node: {s}). Defaulting to UNDEFINED.", .{ name, nodeProto.name orelse "unnamed" });
+            std.debug.print("\nWARNING: Could not determine dtype for tensor '{s}' (Node: {s}). Defaulting to FLOAT.", .{ name, nodeProto.name orelse "unnamed" });
+            // Assign a default type instead of leaving it undefined
+            tensor_dtype = .FLOAT;
             // Optionally return an error here if type is mandatory
             // return error.DataTypeNotFoundForTensor;
         }
