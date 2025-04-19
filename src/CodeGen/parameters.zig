@@ -132,8 +132,6 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
         writeArrayData(writer, u64, d) catch return error.u64DataUnavailable;
     } else if (t.uint16_data) |d| {
         writeArrayData(writer, u16, d) catch return error.u16DataUnavailable;
-    } else if (t.int8_data) |d| {
-        writeArrayData(writer, i8, d) catch return error.i8DataUnavailable;
     } else if (t.raw_data) |raw| {
         // Handle raw data based on data_type
         switch (t.data_type) {
