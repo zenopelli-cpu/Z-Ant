@@ -90,22 +90,22 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
             //set the output as ready
             try utils.setOutputsReady(node_ptr, &globals.tensorHashMap);
             // Free tensors whose last use occurred in this op
-            for (node_ptr.inputs.items) |input_opt| {
-                if (input_opt) |input| {
-                    const name = input.name;
-                    const san = try utils.getSanitizedName(name);
-                    const rem = globals.decrementUseCount(name);
-                    if (rem == 0) {
-                        // Only free LINK tensors (intermediate results)
-                        if (input.tag == globals.TensorTag.LINK) {
-                            _ = try writer.print(
-                                \\
-                                \\    tensor_{s}.deinit();
-                            , .{san});
-                        }
-                    }
-                }
-            }
+            // for (node_ptr.inputs.items) |input_opt| {
+            //     if (input_opt) |input| {
+            //         const name = input.name;
+            //         const san = try utils.getSanitizedName(name);
+            //         const rem = globals.decrementUseCount(name);
+            //         if (rem == 0) {
+            //             // Only free LINK tensors (intermediate results)
+            //             if (input.tag == globals.TensorTag.LINK) {
+            //                 _ = try writer.print(
+            //                     \\
+            //                     \\    tensor_{s}.deinit();
+            //                 , .{san});
+            //             }
+            //         }
+            //     }
+            // }
         }
         iteration += 1;
     }
