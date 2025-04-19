@@ -112,9 +112,7 @@ fn write_FBA(writer: std.fs.File.Writer) !void {
         try writer.writeAll(
             \\
             \\
-            \\ // Dynamic allocation: GeneralPurposeAllocator
-            \\ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-            \\ const allocator = gpa.allocator();
+            \\ // Dynamic allocation: RawCAllocator
         );
     } else {
         // Use fixed buffer allocator for static allocations

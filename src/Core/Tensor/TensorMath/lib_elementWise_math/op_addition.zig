@@ -35,9 +35,63 @@ pub fn add_bias(comptime T: anytype, tensor: *Tensor(T), bias: *Tensor(T)) !void
     }
 }
 
+// Helper function to calculate the broadcasted shape
+fn calculate_broadcasted_shape(alloc: std.mem.Allocator, shape1_in: []const usize, shape2_in: []const usize) ![]usize {
+    const rank1 = shape1_in.len;
+    const rank2 = shape2_in.len;
+    const max_rank = @max(rank1, rank2);
+
+    // Use temporary allocator for intermediate shapes if needed, actual output shape uses provided allocator
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const tmp_alloc = gpa.allocator();
+
+    // Allocate padded shapes based on max_rank
+    const shape1_padded = try tmp_alloc.alloc(usize, max_rank);
+    defer tmp_alloc.free(shape1_padded);
+    const shape2_padded = try tmp_alloc.alloc(usize, max_rank);
+    defer tmp_alloc.free(shape2_padded);
+
+    // Initialize padded shapes with 1s
+    @memset(shape1_padded, 1);
+    @memset(shape2_padded, 1);
+
+    // Copy original shapes from right to left
+    var i: usize = 0;
+    while (i < rank1) : (i += 1) {
+        shape1_padded[max_rank - rank1 + i] = shape1_in[i];
+    }
+    i = 0;
+    while (i < rank2) : (i += 1) {
+        shape2_padded[max_rank - rank2 + i] = shape2_in[i];
+    }
+
+    // Special check: If shape2_in is 1D, try to find a matching dimension in shape1_in
+    // This logic needs refinement if we want the bias-like auto-detection.
+    // For now, stick to standard broadcasting rules based on padded shapes.
+    // TODO: Revisit the bias-like dimension matching logic if needed.
+
+    // Allocate output shape using the main allocator
+    const out_shape = try alloc.alloc(usize, max_rank);
+
+    // Verify shapes and calculate output shape
+    for (0..max_rank) |dim| {
+        if (shape1_padded[dim] != shape2_padded[dim] and shape1_padded[dim] != 1 and shape2_padded[dim] != 1) {
+            // Need to free out_shape before returning error
+            alloc.free(out_shape);
+            std.debug.print("Incompatible broadcast shapes at dim {}: {} vs {}\n", .{ dim, shape1_padded[dim], shape2_padded[dim] }); // DEBUG PRINT
+            return TensorMathError.IncompatibleBroadcastShapes;
+        }
+        out_shape[dim] = @max(shape1_padded[dim], shape2_padded[dim]);
+    }
+
+    return out_shape;
+}
+
 pub fn sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *const Tensor(inputType), t2: *const Tensor(inputType)) !Tensor(outputType) {
     // CHECKS:
-    if (t1.size != t2.size) return TensorMathError.InputTensorDifferentSize;
+    // Size check removed here, handled by broadcasting logic or simple case
+    // if (t1.size != t2.size) return TensorMathError.InputTensorDifferentSize; // Removed check
 
     if (@bitSizeOf(outputType) <= 16) { // quantized
         if (@bitSizeOf(outputType) <= (@bitSizeOf(inputType) * 2)) return TensorMathError.TooSmallOutputType;
@@ -45,17 +99,39 @@ pub fn sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
         if (@bitSizeOf(outputType) < @bitSizeOf(inputType)) return TensorMathError.TooSmallOutputType;
     }
 
-    // Create output tensor initialized to zero
-    var out_tensor = try Tensor(outputType).fromShape(t1.allocator, t2.shape);
+    // Create output tensor: Calculate shape *first* if broadcasting might occur
+    var out_tensor: Tensor(outputType) = undefined;
+    var allocated_shape: ?[]usize = null; // To hold shape if allocated by calculate_broadcasted_shape
+
+    if (std.mem.eql(usize, t1.shape, t2.shape)) {
+        // Simple case: shapes are identical
+        out_tensor = try Tensor(outputType).fromShape(t1.allocator, t1.shape); // Use t1 or t2 shape
+    } else {
+        // Broadcasting case: calculate the correct output shape
+        const broadcasted_shape = try calculate_broadcasted_shape(t1.allocator, t1.shape, t2.shape);
+        // Store the allocated shape so we can free it *later*
+        allocated_shape = broadcasted_shape;
+        // Tensor.fromShape should copy the shape, but we keep broadcasted_shape alive until after lean_sum_tensors
+        out_tensor = try Tensor(outputType).fromShape(t1.allocator, broadcasted_shape);
+        // DO NOT free broadcasted_shape here with defer. Free it after lean_sum_tensors.
+    }
 
     try lean_sum_tensors(inputType, outputType, t1, t2, &out_tensor);
 
+    // Free the broadcasted shape *after* lean_sum_tensors is done, if it was allocated.
+    if (allocated_shape) |shape_mem| {
+        t1.allocator.free(shape_mem);
+    }
+
     return out_tensor;
 }
+
 // --------- lean SUM
 pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *const Tensor(inputType), t2: *const Tensor(inputType), outputTensor: *Tensor(outputType)) !void {
-
-    // Simple case: same size tensors
+    // std.debug.print("\nINFO: Summing tensors with sizes: {d}, {d}\n", .{ t1.size, t2.size }); // DEBUG PRINT
+    // std.debug.print("\nINFO: t1 shape: {any}, t2 shape: {any}\n", .{ t1.shape, t2.shape }); // DEBUG PRINT
+    // std.debug.print("\nINFO: outputTensor shape: {any}\n", .{outputTensor.shape}); // DEBUG PRINT
+    // // Simple case: same size tensors
     if (t1.size == t2.size) {
         // Use unrolled loop for small sizes to avoid SIMD overhead
         if (t1.size <= 8) {
@@ -126,22 +202,6 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
         defer pkg_allocator.free(indices);
     }
 
-    // Special check: If t2 is 1D, try to find a matching dimension in t1
-    var t2_target_dim: ?usize = null;
-    if (rank2 == 1 and rank1 > 1) {
-        const bias_len = t2.shape[0];
-        for (0..rank1) |d| {
-            if (t1.shape[d] == bias_len) {
-                // Found a matching dimension. Assume this is the target for bias addition.
-                // Align t2's dimension to this t1 dimension.
-                // The dimension index needs to be relative to max_rank padding.
-                t2_target_dim = max_rank - rank1 + d;
-                //std.debug.print("\nINFO: Detected 1D t2 (size {}) matching t1 dim {} (at max_rank index {})\n", .{ bias_len, d, t2_target_dim.? });
-                break;
-            }
-        }
-    }
-
     // Initialize padded shapes with 1s before copying
     @memset(shape1, 1);
     @memset(shape2, 1);
@@ -152,29 +212,29 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
         shape1[max_rank - rank1 + i] = t1.shape[i];
     }
 
-    // Setup shape2: Special case for bias-like addition, otherwise copy from right-to-left
-    if (t2_target_dim) |target_d| {
-        // Special bias case: shape2 is all 1s except at target_d
-        shape2[target_d] = t2.shape[0];
-    } else {
-        // Original logic: copy t2 shape from right-to-left
-        i = 0; // Reset i
-        while (i < rank2) : (i += 1) {
-            shape2[max_rank - rank2 + i] = t2.shape[i];
-        }
+    // Setup shape2: Original logic: copy t2 shape from right-to-left
+    i = 0; // Reset i
+    while (i < rank2) : (i += 1) {
+        shape2[max_rank - rank2 + i] = t2.shape[i];
     }
 
-    // Verify shapes and calculate output shape (DEBUG print included)
-    //std.debug.print("\nBroadcasting Sum - Prepared shape1: {any}, shape2: {any}\n", .{ shape1, shape2 }); // DEBUG PRINT
-    for (0..max_rank) |dim| {
-        if (shape1[dim] != shape2[dim] and shape1[dim] != 1 and shape2[dim] != 1) {
-            std.debug.print("Incompatible broadcast shapes at dim {}: {} vs {}\n", .{ dim, shape1[dim], shape2[dim] }); // DEBUG PRINT
-            return TensorMathError.IncompatibleBroadcastShapes;
-        }
-        outputTensor.shape[dim] = @max(shape1[dim], shape2[dim]);
+    // --- START WORKAROUND for potentially truncated outputTensor.shape ---
+    // Reconstruct the full output shape based on max_rank, assuming leading 1s were dropped.
+    var stack_full_out_shape: [4]usize = undefined;
+    const full_output_shape_slice = if (max_rank <= 4) stack_full_out_shape[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    if (max_rank > 4) {
+        defer pkg_allocator.free(full_output_shape_slice);
     }
 
-    // Calculate strides from right to left
+    const output_rank_diff = max_rank - outputTensor.shape.len;
+    if (output_rank_diff > 0) {
+        @memset(full_output_shape_slice[0..output_rank_diff], 1); // Pad with leading 1s
+    }
+    @memcpy(full_output_shape_slice[output_rank_diff..], outputTensor.shape);
+    // std.debug.print("DEBUG: Original output shape: {any}, Reconstructed full shape: {any}\\n", .{ outputTensor.shape, full_output_shape_slice });
+    // --- END WORKAROUND ---
+
+    // Calculate strides from right to left using the reconstructed full shape
     var stride: usize = 1;
     i = max_rank;
     while (i > 0) {
@@ -182,7 +242,8 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
         out_strides[i] = stride;
         strides1[i] = if (shape1[i] > 1) stride else 0;
         strides2[i] = if (shape2[i] > 1) stride else 0;
-        stride *= outputTensor.shape[i];
+        // Use the reconstructed shape here
+        stride *= full_output_shape_slice[i]; // Use reconstructed shape
     }
 
     // Perform addition with broadcasting
