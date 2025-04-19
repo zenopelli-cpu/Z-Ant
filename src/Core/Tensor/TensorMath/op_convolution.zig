@@ -1575,46 +1575,19 @@ pub fn convInteger_lean(
         if (@typeInfo(T2).int.signedness == .signed and @typeInfo(T2).int.bits != 8) return error.InvalidDataType;
     }
 
-    // if (x.shape.len != 4 or w.shape.len != 4) {
-    //     return TensorMathError.InvalidDimensions; // Expect 4D input and weight
-    // }
-
-    // --- Handle 3D input shape by assuming batch size = 1 --- (Copied from OnnxConvLean)
-    var actual_input_shape: [4]usize = undefined;
-    var x_ptr = x; // Use original pointer unless adjusted
-    var temp_x_tensor: ?Tensor(T1) = null; // Optional tensor for adjusted shape
-
-    if (x.shape.len == 3) {
-        // Assume batch size is 1 if input is 3D (C, H, W)
-        actual_input_shape[0] = 1;
-        actual_input_shape[1] = x.shape[0]; // Channels
-        actual_input_shape[2] = x.shape[1]; // Height
-        actual_input_shape[3] = x.shape[2]; // Width
-
-        // Create a temporary tensor using fromArray - this allocates and copies
-        // NOTE: Ensure pkg_allocator is available here, might need to import if not already
-        const temp_tensor = try Tensor(T1).fromArray(&pkg_allocator, x.data, &actual_input_shape);
-        temp_x_tensor = temp_tensor; // Assign to the optional field
-        x_ptr = &temp_x_tensor.?; // Point to the temporary tensor
-
-    } else if (x.shape.len == 4) {
-        @memcpy(&actual_input_shape, x.shape[0..4]);
-    } else {
+    // --- Input Shape Handling (Allow 3D or 4D) ---
+    if (x.shape.len != 3 and x.shape.len != 4) {
         return TensorMathError.InvalidDimensions; // Expect 3D or 4D input
     }
-    // Defer deinitialization if a temporary tensor was created
-    defer if (temp_x_tensor) |*t| t.deinit(); // Deinit only if temp_x_tensor is not null
-
     if (w.shape.len != 4) {
         return TensorMathError.InvalidDimensions; // Expect 4D weight
     }
-    // --- End Shape Adjustment ---
 
-    // --- Get Dimensions (Use actual_input_shape) ---
-    const batch_size = actual_input_shape[0];
-    const in_channels = actual_input_shape[1]; // C
-    const in_height = actual_input_shape[2];
-    const in_width = actual_input_shape[3];
+    // --- Get Dimensions (Handle 3D/4D input) ---
+    const batch_size: usize = if (x.shape.len == 4) x.shape[0] else 1;
+    const in_channels: usize = if (x.shape.len == 4) x.shape[1] else x.shape[0]; // C
+    const in_height: usize = if (x.shape.len == 4) x.shape[2] else x.shape[1]; // H
+    const in_width: usize = if (x.shape.len == 4) x.shape[3] else x.shape[2]; // W
 
     const num_filters = w.shape[0]; // M (total output channels)
     const kernel_channels_per_group = w.shape[1]; // C/g
@@ -1779,7 +1752,7 @@ pub fn convInteger_lean(
     const out_batch_stride = num_filters * @as(usize, @intCast(out_c_stride)); // Cast isize to usize
 
     // --- Pointers to Data Start ---
-    const x_ptr_data = x_ptr.data.ptr; // Use x_ptr which points to potentially temporary tensor data
+    const x_ptr_data = x.data.ptr; // Use x which points to potentially temporary tensor data
     const w_ptr = w.data.ptr;
     const y_ptr = output.data.ptr; // Output data pointer
 

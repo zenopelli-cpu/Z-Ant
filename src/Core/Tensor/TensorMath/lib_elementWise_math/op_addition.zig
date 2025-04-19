@@ -36,7 +36,7 @@ pub fn add_bias(comptime T: anytype, tensor: *Tensor(T), bias: *Tensor(T)) !void
 }
 
 // Helper function to calculate the broadcasted shape
-fn calculate_broadcasted_shape(alloc: std.mem.Allocator, shape1_in: []const usize, shape2_in: []const usize) ![]usize {
+fn calculate_broadcasted_shape(alloc: *const std.mem.Allocator, shape1_in: []const usize, shape2_in: []const usize) ![]usize {
     const rank1 = shape1_in.len;
     const rank2 = shape2_in.len;
     const max_rank = @max(rank1, rank2);
