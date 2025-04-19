@@ -1,7 +1,7 @@
 const std = @import("std");
 const zant = @import("zant");
 
-const TensorWrapper = zant.core.tensorWrapper.TensorWrapper;
+const TW = @import("../../../src/Core/Tensor/TensorWrapper.zig"); // TODO fix import
 const Tensor = zant.core.tensor.Tensor;
 const TensorError = zant.utils.error_handler.TensorError;
 const pkgAllocator = zant.utils.allocator.allocator;
@@ -18,10 +18,24 @@ test "TensorWrapper CreateWrapper test" {
     defer tensor.deinit();
 
     // wrap the classic tensor
-    // var tensorWrapper = try TensorWrapper(@TypeOf(tensor), f64).createWrapper(&tensor);
-    var tensorWrapper = try tensor.initWrapper();
+    // version 1
+    //var tensorWrapper = try TW.TensorWrapper(@TypeOf(tensor), f64).createWrapper(&tensor);
+    // version 2
+    //var tensorWrapper = try tensor.initWrapper();
+    // version 3
+    const WrapperType = TW.TensorWrapper(@TypeOf(tensor), f64);
+    var tensorWrapper = try WrapperType.createWrapper(&tensor);
+    
+    var tensorCopy = tensorWrapper.copy();
+    defer tensorCopy.deinit();
+    tensorCopy.printMultidim();
+
     defer tensorWrapper.deinit();
 
-    // test
-    expect(tensorWrapper != null);
+    // test wrapped tensor size
+    expect(tensor.getSize() == tensorWrapper.getSize());
 }
+
+// pub fn initWrapper() TensorWrapper(@TypeOf(@This()), f64) {
+//     return TensorWrapper(@TypeOf(@This()), f64).createWrapper(&@This());
+// }

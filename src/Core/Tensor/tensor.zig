@@ -10,6 +10,9 @@ const std = @import("std");
 const zant = @import("../../zant.zig");
 const TensorWrapper = zant.core.tensorWrapper.TensorWrapper;
 
+//const TensorWrapper = @import("TensorWrapper.zig"); // TODO: fix import
+const TW = @import("TensorWrapper.zig");
+
 const tMath = math_standard;
 const error_handler = zant.utils.error_handler;
 const TensorError = error_handler.TensorError;
@@ -46,10 +49,6 @@ pub fn Tensor(comptime T: type) type {
             };
         }
 
-        pub fn initWrapper() TensorWrapper(@TypeOf(@This()), T) {
-            return TensorWrapper(@TypeOf(@This()), T).createWrapper(&@This());
-        }
-
         ///Free all the possible allocation, use it every time you create a new Tensor ( defer yourTensor.deinit() )
         pub fn deinit(self: *@This()) void {
             if (self.owns_memory) {
@@ -62,6 +61,10 @@ pub fn Tensor(comptime T: type) type {
                     self.shape = &[_]usize{};
                 }
             }
+        }
+
+        pub fn initWrapper(self: *@This()) !TW.TensorWrapper(@TypeOf(self.*), T) {
+            return TW.TensorWrapper(@TypeOf(self.*), T).createWrapper(self);
         }
 
         ///Given a multidimensional array with its shape, returns the equivalent Tensor.
