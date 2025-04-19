@@ -79,12 +79,11 @@ test "Error when input tensors have different sizes" {
     var shape1 = [_]usize{ 2, 2 }; // 2x2 matrix
     var shape2 = [_]usize{ 3, 2 }; // 3x2 matrix
     var t1 = try Tensor(f32).fromArray(&allocator, &inputArray, &shape1);
+    defer t1.deinit();
     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
+    defer t2.deinit();
 
     try std.testing.expectError(TensorMathError.InputTensorDifferentSize, TensMath.sum_tensors(f32, f64, &t1, &t2));
-
-    t1.deinit();
-    t2.deinit();
 }
 
 test "add bias" {

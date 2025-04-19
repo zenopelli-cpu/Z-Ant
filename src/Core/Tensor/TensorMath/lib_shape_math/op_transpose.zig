@@ -196,26 +196,31 @@ pub fn transpose_onnx(comptime T: type, input: *Tensor(T), perm: ?[]const usize)
 /// Lean version of transpose_onnx that operates on an existing output tensor
 /// Handles implicit broadcasting if the permutation length is greater than the input rank.
 //TODO SHAPETRACKER we'll gonna love you
+//Pass allocator until we have a shape tracker
 pub fn transpose_onnx_lean(
     comptime T: type,
     input: *Tensor(T),
     perm: ?[]const usize,
     output: *Tensor(T),
+    output_allocator: std.mem.Allocator,
 ) !void {
     const input_rank = input.shape.len;
     const perm_rank = if (perm) |p| p.len else input_rank; // Effective rank
-    const allocator = pkg_allocator; // Use a consistent allocator
+    // Use pkg_allocator for temporary internal calculations
+    const allocator = pkg_allocator;
 
     if (perm_rank == 0 and input_rank == 0) {
         // Handle scalar case (rank 0)
         if (output.size < 1) {
-            if (output.data.len > 0) allocator.free(output.data);
-            output.data = try allocator.alloc(T, 1);
+            // Use output_allocator to manage output tensor's memory
+            if (output.owns_memory and output.data.len > 0) output_allocator.free(output.data);
+            output.data = try output_allocator.alloc(T, 1);
+            output.owns_memory = true;
         }
         output.size = 1;
         if (input.size > 0) output.data[0] = input.data[0]; // Copy scalar value
-        // Output shape should be [] (handled by caller or later step)
-        return; // Scalar transpose is a no-op on data
+        // Output shape handling needs clarification for scalar case
+        return;
     }
 
     // -----------------------------
@@ -255,7 +260,7 @@ pub fn transpose_onnx_lean(
 
     // -----------------------------
     // 2) Create effective input shape and compute input strides
-    //    Input strides are based on *actual* input shape
+    //    (Uses 'allocator' for temporary effective_input_shape)
     // -----------------------------
     var effective_input_shape = try allocator.alloc(usize, perm_rank);
     defer allocator.free(effective_input_shape);
@@ -264,9 +269,7 @@ pub fn transpose_onnx_lean(
     for (0..leading_ones) |i| {
         effective_input_shape[i] = 1;
     }
-    if (input_rank > 0) {
-        @memcpy(effective_input_shape[leading_ones..], input.shape);
-    }
+    @memcpy(effective_input_shape[leading_ones..], input.shape);
 
     var input_strides = try allocator.alloc(usize, input_rank);
     defer allocator.free(input_strides);
@@ -284,7 +287,7 @@ pub fn transpose_onnx_lean(
 
     // -----------------------------
     // 3) Compute the output shape and output strides
-    //    Based on effective input shape and perm
+    //    (Uses 'allocator' for temporary output_shape and output_strides)
     // -----------------------------
     var output_shape = try allocator.alloc(usize, perm_rank);
     defer allocator.free(output_shape);
@@ -298,11 +301,12 @@ pub fn transpose_onnx_lean(
 
     // Check if output tensor needs resizing or shape update
     if (output.shape.len != perm_rank) {
-        if (output.owns_memory and output.shape.len > 0) allocator.free(output.shape);
-        // Note: We are taking ownership if we allocate shape
-        output.shape = try allocator.alloc(usize, perm_rank);
-        output.owns_memory = true; // Might need adjustment based on tensor logic
+        // Use output_allocator to manage output tensor's shape memory
+        if (output.owns_memory and output.shape.len > 0) output_allocator.free(output.shape);
+        output.shape = try output_allocator.alloc(usize, perm_rank);
+        output.owns_memory = true;
     }
+    // Copy calculated shape into output tensor's shape slice
     @memcpy(output.shape, output_shape);
 
     var output_strides = try allocator.alloc(usize, perm_rank);
@@ -314,36 +318,31 @@ pub fn transpose_onnx_lean(
         while (i > 0) {
             i -= 1;
             output_strides[i] = stride;
-            stride *= output_shape[i]; // Use calculated output shape
+            stride *= output.shape[i]; // Use output tensor's actual shape
         }
     }
 
     // -----------------------------
-    // 4) Allocate output data if needed
+    // 4) Allocate output data if needed, using output_allocator
     // -----------------------------
     const size_matches = (output.data.len == total_size);
 
     if (size_matches) {
-        // Size is correct, proceed using existing buffer (owned or unowned).
-        // Ownership status remains unchanged.
+        // Size is correct, proceed using existing buffer.
     } else {
-        // Size mismatch, reallocation is needed.
+        // Size mismatch, reallocation needed.
         if (!output.owns_memory) {
-            // Cannot reallocate an unowned buffer of the wrong size.
-            return error.OutputBufferWrongSize; // Require caller to provide correct buffer
+            return error.OutputBufferWrongSize;
         } else {
-            // Output owns memory, but it's the wrong size. Reallocate.
-            if (output.data.len > 0) { // Free only if there's something to free
-                allocator.free(output.data);
+            // Output owns memory, reallocate using output_allocator.
+            if (output.data.len > 0) {
+                output_allocator.free(output.data);
             }
-            // Allocate new data
             if (total_size > 0) {
-                output.data = try allocator.alloc(T, total_size);
-                // output.owns_memory remains true (still owns the new buffer)
+                output.data = try output_allocator.alloc(T, total_size);
             } else {
-                // Handle zero-size output after freeing
                 output.data = &[_]T{};
-                output.owns_memory = false; // Doesn't own the empty slice
+                output.owns_memory = false;
             }
         }
     }

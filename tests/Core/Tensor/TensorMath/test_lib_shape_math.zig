@@ -1185,7 +1185,7 @@ test "transpose_onnx basic operations" {
         defer output1.deinit();
 
         // Transpose without perm (should reverse dimensions)
-        try TensMath.transpose_onnx_lean(f32, &tensor1, null, &output1);
+        try TensMath.transpose_onnx_lean(f32, &tensor1, null, &output1, pkgAllocator.allocator);
 
         // Check shape
         try std.testing.expectEqual(@as(usize, 3), output1.shape[0]);
@@ -1235,7 +1235,7 @@ test "transpose_onnx basic operations" {
 
         // Transpose with perm [2, 1, 0]
         const perm = [_]usize{ 2, 1, 0 };
-        try TensMath.transpose_onnx_lean(f32, &tensor2, &perm, &output2);
+        try TensMath.transpose_onnx_lean(f32, &tensor2, &perm, &output2, pkgAllocator.allocator);
 
         // Check shape
         try std.testing.expectEqual(@as(usize, 3), output2.shape[0]);

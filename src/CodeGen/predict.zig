@@ -21,11 +21,13 @@ const ReadyTensor = globals.ReadyTensor;
 
 // Writes the computation function for predicting outputs
 pub inline fn writePredict(writer: std.fs.File.Writer, do_export: bool) !void {
-    //declare all the outputs of each node of the network
-    try write_outputsInitialization(writer);
-
-    //method to reset the tensors values
-    try write_outputsResetMethod(writer);
+    // Static initialization for output tensors if not using dynamic allocation
+    if (!codegen_options.dynamic) {
+        // declare all the outputs of each node of the network
+        try write_outputsInitialization(writer);
+        // method to reset the tensors values
+        try write_outputsResetMethod(writer);
+    }
 
     _ = try writer.print(
         \\
@@ -49,11 +51,13 @@ pub inline fn writePredict(writer: std.fs.File.Writer, do_export: bool) !void {
         , .{});
     }
 
-    _ = try writer.print(
-        \\
-        \\    // Reset all output tensors to zero before each prediction
-        \\    resetOutputTensors();
-    , .{});
+    if (!codegen_options.dynamic) {
+        _ = try writer.print(
+            \\
+            \\    // Reset all output tensors to zero before each prediction
+            \\    resetOutputTensors();
+        , .{});
+    }
 
     try write_checks(writer);
 
@@ -89,23 +93,19 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
             try writeOperation(writer, node_ptr);
             //set the output as ready
             try utils.setOutputsReady(node_ptr, &globals.tensorHashMap);
-            // Free tensors whose last use occurred in this op
-            // for (node_ptr.inputs.items) |input_opt| {
-            //     if (input_opt) |input| {
-            //         const name = input.name;
-            //         const san = try utils.getSanitizedName(name);
-            //         const rem = globals.decrementUseCount(name);
-            //         if (rem == 0) {
-            //             // Only free LINK tensors (intermediate results)
-            //             if (input.tag == globals.TensorTag.LINK) {
-            //                 _ = try writer.print(
-            //                     \\
-            //                     \\    tensor_{s}.deinit();
-            //                 , .{san});
-            //             }
-            //         }
-            //     }
-            // }
+            // Deallocate intermediate tensors after last use when dynamic allocation is enabled
+            if (codegen_options.dynamic) {
+                for (node_ptr.inputs.items) |input_opt| {
+                    if (input_opt) |input| {
+                        const name = input.name;
+                        const san = try utils.getSanitizedName(name);
+                        const rem = globals.decrementUseCount(name);
+                        if (rem == 0 and input.tag == globals.TensorTag.LINK) {
+                            _ = try writer.print("    tensor_{s}.deinit();", .{san});
+                        }
+                    }
+                }
+            }
         }
         iteration += 1;
     }
@@ -340,12 +340,34 @@ fn write_OutputTensor(writer: std.fs.File.Writer, output: *ReadyTensor, size: i6
     // --- END CHECK ---
 
     const type_str = try utils.getTypeString(output.dtype);
-    try writer.print(
-        \\
-        \\
-        \\var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {};
-        \\var tensor_{s} = Tensor({s}).fromConstBuffer( &allocator, &array_{s}, &shape_tensor_{s});
-    , .{ sanitized_name, size, type_str, type_str, size, sanitized_name, type_str, sanitized_name, sanitized_name });
+    if (codegen_options.dynamic) {
+        // Check if this is the final network output tensor
+        if (std.mem.eql(u8, output.name, globals.networkOutput.name)) {
+            // Network Output: Allocate but DO NOT defer free/deinit. Caller takes ownership.
+            _ = try writer.print(
+                \\
+                \\    // Allocate final network output buffer (caller owns this memory)
+                \\    var array_{s} = allocator.alloc({s}, {d}) catch return;
+                \\    var tensor_{s} = Tensor({s}).fromArray(&allocator, array_{s}, &shape_tensor_{s});
+                \\    // NOTE: No 'defer allocator.free(array_{s})' or 'defer tensor_{s}.deinit()'
+                \\    //       The pointer returned by predict() must be freed by the caller.
+            , .{ sanitized_name, type_str, size, sanitized_name, type_str, sanitized_name });
+        } else {
+            // Intermediate Tensor: Allocate AND defer free/deinit.
+            const code_str = try std.fmt.allocPrint(allocator,
+                \\    var array_{s} = allocator.alloc({s}, {d}) catch return;
+                \\    defer allocator.free(array_{s}); // Free intermediate array
+                \\    var tensor_{s} = Tensor({s}).fromArray(&allocator, array_{s}, &shape_tensor_{s});
+                \\    defer tensor_{s}.deinit(); // Deinit intermediate tensor struct
+            , .{ sanitized_name, type_str, size, sanitized_name, type_str, sanitized_name });
+            defer allocator.free(code_str);
+            try writer.writeAll(code_str);
+        }
+    } else {
+        // Static allocation: Use fromConstBuffer to allow mutation
+        try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};", .{ sanitized_name, size, type_str, type_str, size });
+        try writer.print("    var tensor_{s} = Tensor({s}).fromConstBuffer(&fba, &array_{s}, &shape_tensor_{s});", .{ sanitized_name, type_str, sanitized_name, sanitized_name });
+    }
 }
 
 fn write_outputsResetMethod(writer: std.fs.File.Writer) !void {
@@ -435,7 +457,7 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         \\    }}
         \\    
         \\    //converting the shape from [*]u32 to []usize
-        \\    const usized_shape: []usize = utils.u32ToUsize(input_shape, shape_len) catch return;
+        \\    const usized_shape: []usize = utils.u32ToUsize(allocator, input_shape, shape_len) catch return;
         \\    var tensor_{s} = Tensor(T).fromShape(&allocator, @constCast(usized_shape)) catch return;
         \\    defer allocator.free(usized_shape);
         \\    defer tensor_{s}.deinit();

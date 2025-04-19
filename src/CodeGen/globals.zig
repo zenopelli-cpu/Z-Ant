@@ -358,13 +358,38 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *Graph
             // --- START HEURISTIC FALLBACK FOR SHAPE TENSORS ---
             // If type is still undefined, check common shape tensor naming patterns
             if (tensor_dtype == .UNDEFINED) {
-                if (std.mem.endsWith(u8, name, "_shape") or std.mem.endsWith(u8, name, "_reshape_output")) {
-                    std.debug.print("\nINFO: Tensor '{s}' type is UNDEFINED. Defaulting to INT64 based on name pattern.", .{name});
+                if (std.mem.endsWith(u8, name, "_shape")) {
+                    std.debug.print("\nINFO: Tensor '{s}' type is UNDEFINED. Defaulting to INT64 based on name pattern (likely a shape tensor).", .{name});
                     tensor_dtype = .INT64; // Default to INT64 for likely shape tensors
                 }
             }
             // --- END HEURISTIC FALLBACK ---
         }
+
+        // --- START TYPE OVERRIDE FOR SPECIFIC OPS ---
+        if (std.mem.eql(u8, nodeProto.op_type, "DynamicQuantizeLinear")) {
+            if (nodeProto.output.len >= 3) { // Check if node has expected outputs
+                if (std.mem.eql(u8, name, nodeProto.output[0])) {
+                    std.debug.print("\nINFO: Overriding dtype for DynamicQuantizeLinear output y '{s}' to UINT8.", .{name});
+                    tensor_dtype = .UINT8; // y output is u8
+                } else if (std.mem.eql(u8, name, nodeProto.output[1])) {
+                    std.debug.print("\nINFO: Overriding dtype for DynamicQuantizeLinear output y_scale '{s}' to FLOAT.", .{name});
+                    tensor_dtype = .FLOAT; // y_scale output is f32
+                } else if (std.mem.eql(u8, name, nodeProto.output[2])) {
+                    std.debug.print("\nINFO: Overriding dtype for DynamicQuantizeLinear output y_zero_point '{s}' to UINT8.", .{name});
+                    tensor_dtype = .UINT8; // y_zero_point output is u8
+                }
+            }
+        }
+        // Add specific override for ConvInteger output type
+        else if (std.mem.eql(u8, nodeProto.op_type, "ConvInteger")) {
+            if (nodeProto.output.len > 0 and std.mem.eql(u8, name, nodeProto.output[0])) {
+                std.debug.print("\nINFO: Overriding dtype for ConvInteger output '{s}' to INT32.", .{name});
+                tensor_dtype = .INT32; // ConvInteger output is always i32
+            }
+        }
+        // Add overrides for other ops if needed (e.g., Cast might benefit too)
+        // --- END TYPE OVERRIDE FOR SPECIFIC OPS ---
 
         if (tensor_dtype == .UNDEFINED) {
             std.debug.print("\nWARNING: Could not determine dtype for tensor '{s}' (Node: {s}). Defaulting to FLOAT.", .{ name, nodeProto.name orelse "unnamed" });

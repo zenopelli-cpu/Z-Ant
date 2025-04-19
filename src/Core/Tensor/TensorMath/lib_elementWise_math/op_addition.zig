@@ -102,8 +102,8 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
     const max_rank = @max(rank1, rank2);
 
     // Use stack arrays for common tensor ranks (up to 4D)
-    var stack_shape1: [4]usize = [_]usize{1} ** 4;
-    var stack_shape2: [4]usize = [_]usize{1} ** 4;
+    var stack_shape1: [4]usize = undefined; // Initialize later
+    var stack_shape2: [4]usize = undefined;
     var stack_strides1: [4]usize = undefined;
     var stack_strides2: [4]usize = undefined;
     var stack_out_strides: [4]usize = undefined;
@@ -126,19 +126,49 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
         defer pkg_allocator.free(indices);
     }
 
-    // Copy original shapes from right to left
+    // Special check: If t2 is 1D, try to find a matching dimension in t1
+    var t2_target_dim: ?usize = null;
+    if (rank2 == 1 and rank1 > 1) {
+        const bias_len = t2.shape[0];
+        for (0..rank1) |d| {
+            if (t1.shape[d] == bias_len) {
+                // Found a matching dimension. Assume this is the target for bias addition.
+                // Align t2's dimension to this t1 dimension.
+                // The dimension index needs to be relative to max_rank padding.
+                t2_target_dim = max_rank - rank1 + d;
+                //std.debug.print("\nINFO: Detected 1D t2 (size {}) matching t1 dim {} (at max_rank index {})\n", .{ bias_len, d, t2_target_dim.? });
+                break;
+            }
+        }
+    }
+
+    // Initialize padded shapes with 1s before copying
+    @memset(shape1, 1);
+    @memset(shape2, 1);
+
+    // Copy original shape1 from right to left
     var i: usize = 0;
     while (i < rank1) : (i += 1) {
         shape1[max_rank - rank1 + i] = t1.shape[i];
     }
-    i = 0;
-    while (i < rank2) : (i += 1) {
-        shape2[max_rank - rank2 + i] = t2.shape[i];
+
+    // Setup shape2: Special case for bias-like addition, otherwise copy from right-to-left
+    if (t2_target_dim) |target_d| {
+        // Special bias case: shape2 is all 1s except at target_d
+        shape2[target_d] = t2.shape[0];
+    } else {
+        // Original logic: copy t2 shape from right-to-left
+        i = 0; // Reset i
+        while (i < rank2) : (i += 1) {
+            shape2[max_rank - rank2 + i] = t2.shape[i];
+        }
     }
 
-    // Verify shapes and calculate output shape
+    // Verify shapes and calculate output shape (DEBUG print included)
+    //std.debug.print("\nBroadcasting Sum - Prepared shape1: {any}, shape2: {any}\n", .{ shape1, shape2 }); // DEBUG PRINT
     for (0..max_rank) |dim| {
         if (shape1[dim] != shape2[dim] and shape1[dim] != 1 and shape2[dim] != 1) {
+            std.debug.print("Incompatible broadcast shapes at dim {}: {} vs {}\n", .{ dim, shape1[dim], shape2[dim] }); // DEBUG PRINT
             return TensorMathError.IncompatibleBroadcastShapes;
         }
         outputTensor.shape[dim] = @max(shape1[dim], shape2[dim]);
@@ -156,42 +186,35 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
     }
 
     // Perform addition with broadcasting
-    @memset(indices, 0);
+    // Use stack arrays for common tensor ranks (up to 4D) - indices were already allocated above
+    var stack_loop_indices: [4]usize = [_]usize{0} ** 4;
+    const loop_indices = if (max_rank <= 4) stack_loop_indices[0..max_rank] else indices; // Reuse allocated 'indices' if max_rank > 4
 
-    i = 0;
+    // Initialize loop_indices if using the stack allocation
+    if (max_rank <= 4) {
+        @memset(loop_indices, 0);
+    }
+
+    i = 0; // Reset i before the loop, don't redeclare
     while (i < outputTensor.size) : (i += 1) {
-        // Calculate indices for current position
+        // Calculate multi-dimensional indices for current output position 'i'
         var temp = i;
         for (0..max_rank) |dim| {
-            const idx = max_rank - 1 - dim;
-            indices[idx] = temp / out_strides[idx];
+            const idx = max_rank - 1 - dim; // Iterate dimensions from right-to-left
+            loop_indices[idx] = temp / out_strides[idx];
             temp = temp % out_strides[idx];
         }
 
-        // Calculate input indices considering broadcasting
+        // Calculate linear input indices (idx1, idx2) using multi-dimensional indices and strides
         var idx1: usize = 0;
         var idx2: usize = 0;
-
-        // For same shape tensors, use the same index calculation
-        if (std.mem.eql(usize, shape1, shape2)) {
-            idx1 = i;
-            idx2 = i;
-        } else {
-            // For broadcasting case
-            for (0..max_rank) |dim| {
-                const pos = indices[dim];
-                // For t1: if dimension is 1, don't increment index (broadcasting)
-                if (shape1[dim] > 1) {
-                    idx1 += pos * strides1[dim];
-                }
-                // For t2: if dimension is 1, don't increment index (broadcasting)
-                if (shape2[dim] > 1) {
-                    const t2_pos = pos % shape2[dim];
-                    idx2 += t2_pos * strides2[dim];
-                }
-            }
+        for (0..max_rank) |dim| {
+            // stridesN[dim] is 0 if shapeN[dim] is 1, handling broadcasting implicitly
+            idx1 += loop_indices[dim] * strides1[dim];
+            idx2 += loop_indices[dim] * strides2[dim];
         }
 
+        // Perform the addition
         outputTensor.data[i] = t1.data[idx1] + t2.data[idx2];
     }
 }

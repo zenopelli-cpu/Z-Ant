@@ -143,6 +143,7 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
             .DOUBLE => try writeRawData(writer, f64, raw),
             .UINT64 => try writeRawData(writer, u64, raw),
             .UINT16 => try writeRawData(writer, u16, raw),
+            .UINT8 => try writeRawData(writer, u8, raw),
             // TODO: Add other types as needed (e.g., FLOAT16, INT8, etc.)
             else => {
                 std.debug.print("\n[writeArray] Error: Unsupported raw data type {any} for tensor {s}", .{ t.data_type, name });

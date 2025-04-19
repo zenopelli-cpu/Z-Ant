@@ -21,6 +21,7 @@ pub fn build(b: *std.Build) void {
     };
 
     const target = b.resolveTargetQuery(target_query);
+
     const optimize = b.standardOptimizeOption(.{});
 
     // -------------------- Modules creation
@@ -102,6 +103,7 @@ pub fn build(b: *std.Build) void {
     codegen_options.addOption([]const u8, "shape", b.option([]const u8, "shape", "Input shape") orelse "");
     codegen_options.addOption([]const u8, "type", b.option([]const u8, "type", "Input type") orelse "f32");
     codegen_options.addOption(bool, "comm", b.option(bool, "comm", "Codegen with comments") orelse false);
+    codegen_options.addOption(bool, "dynamic", b.option(bool, "dynamic", "Dynamic allocation") orelse false);
     codeGen_exe.root_module.addOptions("codegen_options", codegen_options);
 
     // Install the executable.

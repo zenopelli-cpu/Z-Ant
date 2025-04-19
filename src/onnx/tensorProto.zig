@@ -170,13 +170,15 @@ pub const TensorProto = struct {
                         var int_reader = try reader.readLengthDelimited();
                         while (int_reader.hasMore()) {
                             const value = try int_reader.readVarint();
-                            const value32 = @as(u32, @intCast(value));
-                            try data.append(@bitCast(value32));
+                            const value64 = @as(u64, @intCast(value));
+                            const value32_truncated = @as(u32, @truncate(value64));
+                            try data.append(@bitCast(value32_truncated));
                         }
                     } else {
                         const value = try reader.readVarint();
-                        const value32 = @as(u32, @intCast(value));
-                        try data.append(@bitCast(value32));
+                        const value64 = @as(u64, @intCast(value));
+                        const value32_truncated = @as(u32, @truncate(value64));
+                        try data.append(@bitCast(value32_truncated));
                     }
                     tensor.int32_data = try data.toOwnedSlice();
                 },

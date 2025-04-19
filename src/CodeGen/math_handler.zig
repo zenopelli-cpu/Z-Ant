@@ -30,6 +30,27 @@ const globals = @import("globals.zig");
 /// This method map and write the ONNX operations with the Zant LeanTensorMath mathods
 /// Follow the link for details: https://onnx.ai/onnx/operators/?utm_source=chatgpt.com
 pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // Dynamic allocation of intermediate output tensors if requested
+    if (codegen_options.dynamic) {
+        for (node.outputs.items) |output| {
+            const san_name = try utils.getSanitizedName(output.name);
+            const type_str = try utils.getTypeString(output.dtype);
+            const dims = output.shape;
+            // Emit shape constant for this output
+            _ = try writer.print("    var shape_{s}  = [_]usize{{", .{san_name});
+            for (dims, 0..) |dim, i| {
+                if (i != 0) _ = try writer.print(", ", .{});
+                _ = try writer.print("{d}", .{dim});
+            }
+            _ = try writer.print("}};", .{});
+            // Allocate tensor on heap
+            _ = try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_{s}) catch return;", .{ san_name, type_str, san_name });
+            // Defer deinitialization ONLY if it's not the final network output
+            if (!std.mem.eql(u8, output.name, globals.networkOutput.name)) {
+                _ = try writer.print("    defer tensor_{s}.deinit();\n", .{san_name});
+            }
+        }
+    }
     if (codegen_options.comm) {
         try write_op_info(writer, node);
     }
@@ -1574,7 +1595,8 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         // Generate code to convert tensor data to isize slice
         try shape_slice_code.writer().print(
             \\    // Convert shape tensor data to isize slice
-            \\    const shape_slice_{s} = utils.sliceToIsizeSlice({s}.data); // Removed catch return
+            \\    // Pass the local allocator to the utils function
+            \\    const shape_slice_{s} = utils.sliceToIsizeSlice(allocator, {s}.data); // Removed catch return
             \\    defer allocator.free(shape_slice_{s}); // Free the runtime allocated slice
         , .{
             output_sanitized_name, // Use output name for uniqueness
@@ -1583,7 +1605,19 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         });
     }
 
-    // Generate the final call, adding '&' conditionally
+    const input_ready_tensor = globals.tensorHashMap.getPtr(node.inputs.items[0].?.name) orelse return error.TensorNotFound;
+    const input_type_string = try utils.getTypeString(input_ready_tensor.dtype);
+
+    // Pre-build complex arguments for the format string
+    const shape_slice_var_name = try std.fmt.allocPrint(allocator, "shape_slice_{s}", .{output_sanitized_name});
+    defer allocator.free(shape_slice_var_name);
+    const shape_slice_arg = try std.fmt.allocPrint(allocator, "{s}{s}", .{ if (shape_from_attr) "&" else "", shape_slice_var_name });
+    defer allocator.free(shape_slice_arg);
+
+    const output_tensor_arg = try std.fmt.allocPrint(allocator, "&tensor_{s}", .{output_sanitized_name});
+    defer allocator.free(output_tensor_arg);
+
+    // Generate the final call using pre-built arguments
     _ = try writer.print(
         \\
         \\
@@ -1591,20 +1625,20 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    {s} // Generated shape slice code
         \\
         \\    tensMath.reshape_lean(
-        \\        T,
+        \\        {s}, // Use actual input tensor type
         \\        @constCast(&{s}),
-        \\        {s}shape_slice_{s}, // Conditionally add '&'
-        \\        {},
-        \\        &tensor_{s}
+        \\        {s}, // Pre-built shape slice argument
+        \\        {s}, // Format boolean correctly
+        \\        {s}  // Pre-built output tensor argument
         \\    )
     , .{
-        node.nodeProto.name orelse "-",
-        shape_slice_code.items,
-        input_string,
-        if (shape_from_attr) "&" else "", // Add '&' if shape came from attribute
-        output_sanitized_name, // Name for shape_slice_ variable
-        allowzer0,
-        output_sanitized_name, // Name for tensor_ variable
+        node.nodeProto.name orelse "-", // Arg 1 for op name
+        shape_slice_code.items, // Arg 2 for shape code
+        input_type_string, // Arg 3 for input type
+        input_string, // Arg 4 for input tensor
+        shape_slice_arg, // Arg 5 for shape slice
+        if (allowzer0) "true" else "false", // Arg 6 for allowzero
+        output_tensor_arg, // Arg 7 for output tensor
     });
 }
 
@@ -2035,6 +2069,7 @@ inline fn write_transpose(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\        @constCast({s}), //input tensor
         \\        {s}, //perm
         \\        &tensor_{s}, //output tensor
+        \\        allocator, // pass the local allocator instance
         \\    )
     , .{
         tensor_A_string, // Input tensor

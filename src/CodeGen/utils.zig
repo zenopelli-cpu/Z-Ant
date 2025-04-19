@@ -400,7 +400,8 @@ pub inline fn sliceToUsizeSlice(slice: anytype) []usize {
     }
 }
 
-pub inline fn sliceToIsizeSlice(slice: anytype) []isize {
+// Modify signature to accept allocator
+pub inline fn sliceToIsizeSlice(alloc: std.mem.Allocator, slice: anytype) []isize {
     const T = @TypeOf(slice);
     const info = @typeInfo(T);
 
@@ -409,7 +410,8 @@ pub inline fn sliceToIsizeSlice(slice: anytype) []isize {
             const child = info.pointer.child;
             const child_info = @typeInfo(child);
 
-            var output = allocator.alloc(isize, slice.len) catch @panic("Out of memory in sliceToIsizeSlice");
+            // Use the passed allocator
+            var output = alloc.alloc(isize, slice.len) catch @panic("Out of memory in sliceToIsizeSlice");
             const maxIsize = std.math.maxInt(isize);
             const minIsize = std.math.minInt(isize);
 
@@ -452,8 +454,8 @@ pub fn i64ToI64ArrayString(values: []const i64) ![]const u8 {
     return res_string;
 }
 
-pub fn u32ToUsize(input: [*]u32, size: u32) ![]usize {
-    var output = try allocator.alloc(usize, size);
+pub fn u32ToUsize(alloc: std.mem.Allocator, input: [*]u32, size: u32) ![]usize {
+    var output = try alloc.alloc(usize, size);
 
     const maxUsize = std.math.maxInt(usize);
 
