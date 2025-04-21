@@ -16,10 +16,12 @@ oneOp model generator: ✅ if the oneOpModel is created, remember to add the onn
 |AveragePool| [AveragePool](https://onnx.ai/onnx/operators/onnx__AveragePool.html) | [op_pooling](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_pooling.zig) | ✅ | ✅ | ✅ |
 |BatchNormalization| [BatchNormalization](https://onnx.ai/onnx/operators/onnx__BatchNormalization.html) | [op_add](../src/Core/Tensor/TensorMath/op_batchNormalization.zig) | 🔶 | ✅ | ✅ |
 | convolution | [Conv](https://onnx.ai/onnx/operators/onnx__Conv.html) | [op_convolution.zig](../src/Core/Tensor/TensorMath/op_convolution.zig) | ✅ | ✅ | ✅ |
+|Elu| [Elu](https://onnx.ai/onnx/operators/onnx__Elu.html) | [op_elu](../src/Core/Tensor/TensorMath/op_elu.zig) | ✅ | ✅ | ✅ |
+|Flatten| [Flatten](https://onnx.ai/onnx/operators/onnx__Flatten.html) | [op_flatten](../src/Core/Tensor/TensorMath/lib_shape_math/op_flatten.zig) | ✅ | ✅ | ✅ |
 | gemm | [Gemm](https://onnx.ai/onnx/operators/onnx__Gemm.html) | [op_gemm](../src/Core/Tensor/TensorMath/op_gemm.zig) | ✅ | ✅ | ✅ |
 |Div| [Div](https://onnx.ai/onnx/operators/onnx__Div.html) |[op_div](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_division.zig) | ✅ | ✅ | ✅ |
 |Concat| [Concat](https://onnx.ai/onnx/operators/onnx__Concat.html)| [op_concat](../src/Core/Tensor/TensorMath/lib_shape_math/op_concatenate.zig) | ✅ | ✅ | ✅ |
-|ReduceMean| [ReduceMen](https://onnx.ai/onnx/operators/onnx__ReduceMean.html) | [op_ReduceMEan](../src/Core/Tensor/TensorMath/lib_reduction_math.zig) | ✅ | ✅ | ✅ |
+|ReduceMean| [ReduceMen](https://onnx.ai/onnx/operators/onnx__ReduceMean.html) | [op_ReduceMean](../src/Core/Tensor/TensorMath/lib_reduction_math.zig) | ✅ | ✅ | ✅ |
 |Ceil| [Ceil](https://onnx.ai/onnx/operators/onnx__Ceil.html) | [op_Ceil](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_ceil.zig) | ✅ | ✅ | ✅ |
 |Conv| [Conv](https://onnx.ai/onnx/operators/onnx__Conv.html) | [op_conv](../src/Core/Tensor/TensorMath/op_convolution.zig) | ✅ | ✅ | ✅ |
 |MaxPool| [MaxPool](https://onnx.ai/onnx/operators/onnx__MaxPool.html)   | [op_maxPool](../src/Core/Tensor/TensorMath/op_pooling.zig) | ✅ | ✅ | ✅ | Missing ceil param|

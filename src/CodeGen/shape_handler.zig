@@ -72,8 +72,12 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "DynamicQuantizeLinear")) {
         // https://onnx.ai/onnx/operators/onnx_aionnx_preview_training__DynamicQuantizeLinear.html
         try compute_dynamicQuantizeLinear_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Elu")) {
+        //https://onnx.ai/onnx/operators/onnx__Elu.html
+        try compute_elu_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Flatten")) {
-        return error.OperationWIP;
+        //https://onnx.ai/onnx/operators/onnx__Flatten.html
+        try compute_flatten_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
         try compute_gather_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gemm")) {
@@ -1022,6 +1026,24 @@ inline fn compute_tanh_output_shape(readyNode: *ReadyNode) !void {
     readyNode.outputs.items[0].shape = shape;
 }
 
+inline fn compute_elu_output_shape(readyNode: *ReadyNode) !void {
+    const input = readyNode.inputs.items[0] orelse {
+        return error.InputTensorIsNull;
+    };
+
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        const input_shape = input.shape;
+        std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+        shape = try utils.usizeSliceToI64Slice(try tensorMath.get_elu_output_shape(try utils.i64SliceToUsizeSlice(input_shape)));
+    }
+    readyNode.outputs.items[0].shape = shape;
+}
+
 inline fn compute_ceil_output_shape(readyNode: *ReadyNode) !void {
     std.debug.print("\n====== compute_ceil_output_shape node: {s}======", .{readyNode.nodeProto.name.?});
     const input = readyNode.inputs.items[0] orelse {
@@ -1408,6 +1430,47 @@ inline fn compute_mean_output_shape(readyNode: *ReadyNode) !void {
         const output_shape_usize = try tensorMath.get_mean_output_shape(input_shapes);
         shape = try utils.usizeSliceToI64Slice(@constCast(output_shape_usize));
     }
+    readyNode.outputs.items[0].shape = shape;
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_flatten_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_flatten_output_shape node: {s}======", .{readyNode.nodeProto.name orelse "(unnamed)"});
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        if (readyNode.inputs.items.len == 0) {
+            return error.EmptyInputList;
+        }
+        const input_shape_i64 = readyNode.inputs.items[0].?.shape;
+        std.debug.print("\n input_shape: []i64 = {any}", .{input_shape_i64});
+
+        var axis: i64 = 1; // Default ONNX
+        for (readyNode.nodeProto.attribute) |attr| {
+            if (std.mem.eql(u8, attr.name, "axis")) {
+                if (attr.type != AttributeType.INT) {
+                    std.debug.print("\n ERROR: Flatten 'axis' attribute has unexpected type {}", .{attr.type});
+                    return error.InvalidAttributeType;
+                }
+                axis = attr.i;
+                break;
+            }
+        }
+        std.debug.print("\n axis: {}", .{axis});
+
+        const input_shape_usize = try utils.i64SliceToUsizeSlice(input_shape_i64);
+        defer allocator.free(input_shape_usize);
+        std.debug.print("\n input_shape_usize: []usize = {any}", .{input_shape_usize});
+
+        const output_shape_usize = try tensorMath.get_flatten_output_shape(input_shape_usize, @intCast(axis));
+        //defer allocator.free(output_shape_usize); // Libera il risultato di get_flatten_output_shape
+        std.debug.print("\n output_shape_usize: []usize = {any}", .{output_shape_usize});
+
+        shape = try utils.usizeSliceToI64Slice(@constCast(output_shape_usize));
+    }
+
     readyNode.outputs.items[0].shape = shape;
     std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }

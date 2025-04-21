@@ -6,12 +6,15 @@ Concat
 Conv  
 Div  
 Div  
+Elu  
+Flatten
 Gather  
 Gemm  
 Identity  
 LeakyRelu  
 MatMul  
 MaxPool  
+Mean
 Mul  
 Relu  
 Reshape  
