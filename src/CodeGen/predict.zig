@@ -21,11 +21,13 @@ const ReadyTensor = globals.ReadyTensor;
 
 // Writes the computation function for predicting outputs
 pub inline fn writePredict(writer: std.fs.File.Writer, do_export: bool) !void {
-    //declare all the outputs of each node of the network
-    try write_outputsInitialization(writer);
-
-    //method to reset the tensors values
-    try write_outputsResetMethod(writer);
+    // Static initialization for output tensors if not using dynamic allocation
+    if (!codegen_options.dynamic) {
+        // declare all the outputs of each node of the network
+        try write_outputsInitialization(writer);
+        // method to reset the tensors values
+        try write_outputsResetMethod(writer);
+    }
 
     _ = try writer.print(
         \\
@@ -49,11 +51,13 @@ pub inline fn writePredict(writer: std.fs.File.Writer, do_export: bool) !void {
         , .{});
     }
 
-    _ = try writer.print(
-        \\
-        \\    // Reset all output tensors to zero before each prediction
-        \\    resetOutputTensors();
-    , .{});
+    if (!codegen_options.dynamic) {
+        _ = try writer.print(
+            \\
+            \\    // Reset all output tensors to zero before each prediction
+            \\    resetOutputTensors();
+        , .{});
+    }
 
     try write_checks(writer);
 
@@ -89,6 +93,19 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
             try writeOperation(writer, node_ptr);
             //set the output as ready
             try utils.setOutputsReady(node_ptr, &globals.tensorHashMap);
+            // Deallocate intermediate tensors after last use when dynamic allocation is enabled
+            if (codegen_options.dynamic) {
+                for (node_ptr.inputs.items) |input_opt| {
+                    if (input_opt) |input| {
+                        const name = input.name;
+                        const san = try utils.getSanitizedName(name);
+                        const rem = globals.decrementUseCount(name);
+                        if (rem == 0 and input.tag == globals.TensorTag.LINK) {
+                            _ = try writer.print("    tensor_{s}.deinit();", .{san});
+                        }
+                    }
+                }
+            }
         }
         iteration += 1;
     }
@@ -144,10 +161,11 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
                 const size = try write_OutputShape(
                     writer,
                     output,
+                    node,
                 );
                 try write_OutputTensor(
                     writer,
-                    output.name,
+                    output,
                     size,
                 );
             }
@@ -155,10 +173,35 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
     }
 }
 
-fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !i64 {
+fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor, node: *const ReadyNode) !i64 {
     if (@as(?*ReadyTensor, output) == null) return error.InvalidOutput;
-    const shape = output.shape;
+    const original_shape = output.shape;
     var size: i64 = 1;
+
+    // Check if it's a convolutional node
+    const op_type = node.nodeProto.op_type;
+    const is_conv = std.mem.eql(u8, op_type, "Conv") or std.mem.eql(u8, op_type, "ConvInteger");
+    const is_cast = std.mem.eql(u8, op_type, "Cast"); // Check for Cast node
+    const is_add = std.mem.eql(u8, op_type, "Add"); // Check for Add node
+
+    var shape_len_adj: usize = original_shape.len;
+    var needs_batch_dim: bool = false;
+
+    // Determine if a batch dimension needs to be added
+    if (is_conv and (original_shape.len == 0 or original_shape[0] != 1)) {
+        needs_batch_dim = true;
+        shape_len_adj += 1;
+    } else if (is_conv and original_shape.len > 0 and original_shape[0] == 1) {
+        // Already has batch dim 1, no change needed for conv
+    } else if (is_cast and original_shape.len == 3) { // Add check for Cast with 3 dims
+        needs_batch_dim = true;
+        shape_len_adj += 1;
+    } else if (is_add and original_shape.len == 3) { // Add check for Add with 3 dims
+        needs_batch_dim = true;
+        shape_len_adj += 1;
+    } else {
+        // Not a conv/cast/add node needing adjustment, or already has batch dim
+    }
 
     try writer.print(
         \\
@@ -166,15 +209,23 @@ fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor) !i64 {
         \\var shape_tensor_{s} : [{}]usize = [_]usize{{
     , .{
         try utils.getSanitizedName(output.name),
-        shape.len,
+        shape_len_adj, // Use adjusted length
     });
 
-    for (0..shape.len) |i| {
-        if (i > 0) try writer.print(",", .{});
+    var first_dim_written = false;
+    if (needs_batch_dim) {
+        try writer.print(" 1", .{}); // Add batch dimension of 1
+        size *= 1;
+        first_dim_written = true;
+    }
+
+    for (0..original_shape.len) |i| {
+        if (first_dim_written or i > 0) try writer.print(",", .{});
         try writer.print(
             \\ {}
-        , .{shape[i]});
-        size *= shape[i];
+        , .{original_shape[i]});
+        size *= original_shape[i];
+        first_dim_written = true; // Ensure comma is added after the first element (batch or original[0])
     }
 
     try writer.print(
@@ -230,10 +281,11 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
     }
 
     //const dataTypeString = try utils.getTypeString(tensor.data_type);
+    const type_str_const = try utils.getTypeString(tensor.data_type);
     try writer.print(
         \\
-        \\const array_{s} : [{d}]T = [_]T{{
-    , .{ sanitized_name, total_size });
+        \\const array_{s} : [{d}]{s} = [_]{s}{{
+    , .{ sanitized_name, total_size, type_str_const, type_str_const });
 
     // Write the actual data values
     if (tensor.float_data) |data| {
@@ -273,17 +325,49 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
     // Write tensor initialization using fromArray
     try writer.print(
         \\
-        \\const tensor_{s} = Tensor(T).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
-    , .{ sanitized_name, sanitized_name, sanitized_name });
+        \\const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
+    , .{ sanitized_name, type_str_const, sanitized_name, sanitized_name });
 }
 
-fn write_OutputTensor(writer: std.fs.File.Writer, name: []const u8, size: i64) !void {
-    const sanitized_name = try utils.getSanitizedName(name);
-    try writer.print(
-        \\
-        \\var array_{s}: [{}]T = [_]T{{0}} ** {};
-        \\var tensor_{s} = Tensor(T).fromConstBuffer( &allocator, &array_{s}, &shape_tensor_{s});
-    , .{ sanitized_name, size, size, sanitized_name, sanitized_name, sanitized_name });
+fn write_OutputTensor(writer: std.fs.File.Writer, output: *ReadyTensor, size: i64) !void {
+    const sanitized_name = try utils.getSanitizedName(output.name);
+
+    // --- ADD CHECK FOR UNDEFINED TYPE ---
+    if (output.dtype == .UNDEFINED) {
+        std.debug.print("\n\nCODEGEN ERROR: Attempted to generate output tensor '{s}' but its data type is UNDEFINED. Check ONNX graph analysis in globals.zig.\n\n", .{output.name});
+        return error.DataTypeNotAvailable; // Or a more specific error like CannotGenerateUndefinedType
+    }
+    // --- END CHECK ---
+
+    const type_str = try utils.getTypeString(output.dtype);
+    if (codegen_options.dynamic) {
+        // Check if this is the final network output tensor
+        if (std.mem.eql(u8, output.name, globals.networkOutput.name)) {
+            // Network Output: Allocate but DO NOT defer free/deinit. Caller takes ownership.
+            _ = try writer.print(
+                \\
+                \\    // Allocate final network output buffer (caller owns this memory)
+                \\    var array_{s} = allocator.alloc({s}, {d}) catch return;
+                \\    var tensor_{s} = Tensor({s}).fromArray(&allocator, array_{s}, &shape_tensor_{s});
+                \\    // NOTE: No 'defer allocator.free(array_{s})' or 'defer tensor_{s}.deinit()'
+                \\    //       The pointer returned by predict() must be freed by the caller.
+            , .{ sanitized_name, type_str, size, sanitized_name, type_str, sanitized_name });
+        } else {
+            // Intermediate Tensor: Allocate AND defer free/deinit.
+            const code_str = try std.fmt.allocPrint(allocator,
+                \\    var array_{s} = allocator.alloc({s}, {d}) catch return;
+                \\    defer allocator.free(array_{s}); // Free intermediate array
+                \\    var tensor_{s} = Tensor({s}).fromArray(&allocator, array_{s}, &shape_tensor_{s});
+                \\    defer tensor_{s}.deinit(); // Deinit intermediate tensor struct
+            , .{ sanitized_name, type_str, size, sanitized_name, type_str, sanitized_name });
+            defer allocator.free(code_str);
+            try writer.writeAll(code_str);
+        }
+    } else {
+        // Static allocation: Use fromConstBuffer to allow mutation
+        try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};", .{ sanitized_name, size, type_str, type_str, size });
+        try writer.print("    var tensor_{s} = Tensor({s}).fromConstBuffer(&fba, &array_{s}, &shape_tensor_{s});", .{ sanitized_name, type_str, sanitized_name, sanitized_name });
+    }
 }
 
 fn write_outputsResetMethod(writer: std.fs.File.Writer) !void {
@@ -373,7 +457,7 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         \\    }}
         \\    
         \\    //converting the shape from [*]u32 to []usize
-        \\    const usized_shape: []usize = utils.u32ToUsize(input_shape, shape_len) catch return;
+        \\    const usized_shape: []usize = utils.u32ToUsize(allocator, input_shape, shape_len) catch return;
         \\    var tensor_{s} = Tensor(T).fromShape(&allocator, @constCast(usized_shape)) catch return;
         \\    defer allocator.free(usized_shape);
         \\    defer tensor_{s}.deinit();

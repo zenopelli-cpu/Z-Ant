@@ -30,6 +30,7 @@ import os
 # LeakyRelu
 # Mul
 # Split
+# BatchNormalization
 
 def random_shape(rank, min_dim=1, max_dim=10):
     """Generates a random shape of length 'rank'."""
@@ -232,17 +233,47 @@ def generate_fuzz_model(op_name):
         init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
         initializers.append(init_tensor)
         rank = len(shape)
+        
+        # Generate pads tensor
         pads = [random.randint(0,2) for _ in range(2*rank)]
         out_shape = [shape[i] + pads[i] + pads[i+rank] for i in range(rank)]
         pads_tensor = helper.make_tensor(input_names[1], TensorProto.INT64, [len(pads)], pads)
         initializers.append(pads_tensor)
-        constant_value = 0.0
-        constant_tensor = helper.make_tensor(input_names[2], TensorProto.FLOAT, [], [constant_value])
-        initializers.append(constant_tensor)
+        
+        # Choose a mode
+        mode = random.choice(["constant", "reflect", "edge"])
+        node_inputs = [input_names[0], input_names[1]]
+        constant_value = None # Initialize to None
+
+        if mode == "constant":
+            constant_value = round(random.uniform(-1.0, 1.0), 2) # Random constant value
+            constant_tensor = helper.make_tensor(input_names[2], TensorProto.FLOAT, [], [constant_value])
+            initializers.append(constant_tensor)
+            node_inputs.append(input_names[2]) # Add constant_value input only for 'constant' mode
+        
+        # Create the Pad node with mode as attribute
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
-        node = helper.make_node(op_name, inputs=[input_names[0], input_names[1], input_names[2]], outputs=[output_names[0]],
-                                name=f"{op_name}_node")
-        metadata = {"input_shapes": [shape], "output_shapes": [out_shape], "pads": pads, "constant_value": constant_value}
+        node = helper.make_node(
+            op_name, 
+            inputs=node_inputs, 
+            outputs=[output_names[0]],
+            mode=mode, # Pass mode as an attribute
+            name=f"{op_name}_node_mode_{mode}"
+        )
+        
+        # Define input_info before using it
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+
+        metadata = {
+            "input_shapes": [shape], 
+            "output_shapes": [out_shape], 
+            "pads": pads, 
+            "mode": mode
+        }
+        # Only add constant_value to metadata if it was used
+        if constant_value is not None:
+            metadata["constant_value"] = constant_value
+            
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "Reshape":
@@ -618,7 +649,212 @@ def generate_fuzz_model(op_name):
             "auto_pad": "NOTSET"
         }
         return [input_info], output_info, [node], initializers, metadata
+    
+    elif op_name == "AveragePool":
+        N, C = 1, 1
+        H = 4
+        W = 4
+        input_shape = [N, C, H, W]
 
+        # Create input data with predictable values
+        data = np.zeros(input_shape, dtype=np.float32)
+        for i in range(H):
+            for j in range(W):
+                data[0, 0, i, j] = float(i * W + j + 1)
+
+        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, input_shape, data.flatten().tolist())
+        initializers.append(init_tensor)
+
+        # Randomized parameters
+        kernel_shape = [random.randint(2, 3), random.randint(2, 3)]
+        strides = [random.randint(1, 2), random.randint(1, 2)]
+        count_include_pad = random.choice([0, 1])  # 0 = False, 1 = True
+        auto_pad = random.choice(["NOTSET", "VALID", "SAME_UPPER", "SAME_LOWER"])  # Random auto_pad
+        if auto_pad == "NOTSET":
+            pads = [random.randint(0, 1) for _ in range(4)]
+        else:
+            pads = [0, 0, 0, 0]  # Default
+
+        # Output dimensions calculation
+        if auto_pad == "NOTSET":
+            # Standard calculation with explicit pads
+            H_out = ((H + pads[0] + pads[2] - kernel_shape[0]) // strides[0]) + 1
+            W_out = ((W + pads[1] + pads[3] - kernel_shape[1]) // strides[1]) + 1
+        elif auto_pad == "VALID":
+            # No padding
+            H_out = ((H - kernel_shape[0]) // strides[0]) + 1
+            W_out = ((W - kernel_shape[1]) // strides[1]) + 1
+        else:  # SAME_UPPER or SAME_LOWER
+            # Maintain output dimensions similar to input
+            H_out = int(np.ceil(H / strides[0]))
+            W_out = int(np.ceil(W / strides[1]))
+            # Calculate total padding (for reference, not used in the node)
+            pad_h = (H_out - 1) * strides[0] + kernel_shape[0] - H
+            pad_w = (W_out - 1) * strides[1] + kernel_shape[1] - W
+            pads = [pad_h // 2, pad_w // 2, pad_h - pad_h // 2, pad_w - pad_w // 2]  # Only for metadata
+
+        output_shape = [N, C, H_out, W_out]
+        if H_out <= 0 or W_out <= 0:
+            # Avoid invalid shapes
+            kernel_shape = [2, 2]  # Fallback
+            strides = [1, 1]
+            auto_pad = "NOTSET"
+            pads = [0, 0, 0, 0]
+            H_out = ((H + pads[0] + pads[2] - kernel_shape[0]) // strides[0]) + 1
+            W_out = ((W + pads[1] + pads[3] - kernel_shape[1]) // strides[1]) + 1
+            output_shape = [N, C, H_out, W_out]
+
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, output_shape)
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, input_shape)
+
+        node = helper.make_node(op_name, inputs=[input_names[0]], outputs=[output_names[0]],
+                                kernel_shape=kernel_shape,
+                                strides=strides,
+                                pads=pads,
+                                count_include_pad=count_include_pad,
+                                auto_pad=auto_pad,
+                                name=f"{op_name}node_k{kernel_shape}_s{strides}_p{pads}_c{count_include_pad}_ap{auto_pad}")
+
+        metadata = {
+            "input_shapes": [input_shape],
+            "output_shapes": [output_shape],
+            "kernel_shape": kernel_shape,
+            "strides": strides,
+            "pads": pads,
+            "auto_pad": auto_pad,
+            "count_include_pad": count_include_pad
+        }
+
+        return [input_info], output_info, [node], initializers, metadata
+    
+    elif op_name == "Mean":
+        num_inputs = random.randint(1, 5)
+        max_dims = 3 
+        
+        # 1. Generate a potential "output" shape first
+        output_shape = [random.randint(1, 4) for _ in range(max_dims)]
+
+        shapes = []
+        initializers = [] # Ensure initializers is defined here
+        
+        for i in range(num_inputs):
+            # 2. Derive compatible input shape from the output shape
+            current_shape = []
+            for dim_size in output_shape:
+                # Each dimension is either the same as output_shape or 1
+                current_shape.append(random.choice([1, dim_size]))
+            shapes.append(current_shape)
+
+            # data generation for each input tensor
+            data = np.random.randn(*current_shape).astype(np.float32)
+            tensor_name = input_names[i]
+            init_tensor = helper.make_tensor(tensor_name, TensorProto.FLOAT, current_shape, data.flatten().tolist())
+            initializers.append(init_tensor) # Now append to the locally defined list
+        
+        # The actual output shape is already determined by output_shape list
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, output_shape)
+        node = helper.make_node(
+            op_name,
+            inputs=[input_names[i] for i in range(num_inputs)],
+            outputs=[output_names[0]],
+            name=f"{op_name}_node_{num_inputs}_inputs"
+        )
+        
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shapes[0])
+        metadata = {
+            "input_shapes": shapes,
+            "output_shapes": [output_shape]
+        }
+        
+        return [input_info], output_info, [node], initializers, metadata
+
+    elif op_name == "Clip":
+        # Clip operator: clips values between min and max
+        shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
+        data = np.random.randn(*shape).astype(np.float32) * 10 # Scale data to have values outside typical clip range
+        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
+        initializers.append(init_tensor)
+
+        node_inputs = [input_names[0]]
+        min_val = None
+        max_val = None
+        clip_metadata = {}
+
+        # Randomly include min value
+        if random.choice([True, False]):
+            min_val = round(random.uniform(-5.0, 0.0), 2)
+            min_tensor = helper.make_tensor(input_names[1], TensorProto.FLOAT, [], [min_val])
+            initializers.append(min_tensor)
+            node_inputs.append(input_names[1])
+            clip_metadata["min_value"] = min_val
+            
+        # Randomly include max value
+        if random.choice([True, False]):
+            # Ensure max_val is greater than min_val if min_val exists
+            lower_bound_for_max = min_val if min_val is not None else 0.1
+            max_val = round(random.uniform(lower_bound_for_max, 5.0), 2) 
+            max_tensor_input_index = len(node_inputs) # Determine correct input index for max
+            max_tensor = helper.make_tensor(input_names[max_tensor_input_index], TensorProto.FLOAT, [], [max_val])
+            initializers.append(max_tensor)
+            node_inputs.append(input_names[max_tensor_input_index])
+            clip_metadata["max_value"] = max_val
+            
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, shape)
+        node = helper.make_node(op_name, inputs=node_inputs, outputs=[output_names[0]], 
+                                name=f"{op_name}_node")
+
+        # Define input_info before using it
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+        metadata = {"input_shapes": [shape], "output_shapes": [shape], **clip_metadata} # Merge clip specific metadata
+        return [input_info], output_info, [node], initializers, metadata
+    
+    elif op_name == "BatchNormalization":
+
+        # BatchNorm has 5 inputs: X, scale, B, mean, var
+        # Output shape is the same as input
+        shape = [1, random.randint(1, 4), random.randint(10, 50), random.randint(10, 50)]
+        C = shape[1]  # Number of channels (second dimension)
+
+        # Create input tensor
+        data_X = np.random.randn(*shape).astype(np.float32)
+        init_X = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data_X.flatten().tolist())
+
+        # scale (gamma), bias (beta), mean, var — all of shape [C]
+        scale = np.random.randn(C).astype(np.float32)
+        B = np.random.randn(C).astype(np.float32)
+        mean = np.random.randn(C).astype(np.float32)
+        var = np.abs(np.random.randn(C)).astype(np.float32)  # ensure variance is non-negative
+
+        init_scale = helper.make_tensor(input_names[1], TensorProto.FLOAT, [C], scale.tolist())
+        init_B = helper.make_tensor(input_names[2], TensorProto.FLOAT, [C], B.tolist())
+        init_mean = helper.make_tensor(input_names[3], TensorProto.FLOAT, [C], mean.tolist())
+        init_var = helper.make_tensor(input_names[4], TensorProto.FLOAT, [C], var.tolist())
+
+        initializers.extend([init_X, init_scale, init_B, init_mean, init_var])
+
+        epsilon = round(random.uniform(1e-5, 1e-2), 6)
+        momentum = round(random.uniform(0.8, 0.99), 3)
+
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, shape)
+
+        node = helper.make_node(
+            "BatchNormalization",
+            inputs=input_names[:5],
+            outputs=[output_names[0]],
+            epsilon=epsilon,
+            momentum=momentum,
+            name=f"{op_name}_node"
+        )
+
+        metadata = {
+            "input_shapes": [shape, [C], [C], [C], [C]],
+            "output_shapes": [shape],
+            "epsilon": epsilon,
+            "momentum": momentum
+        }
+
+        return [input_info], output_info, [node], initializers, metadata
     else:
         # Caso di fallback per operatori non gestiti esplicitamente
         shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
@@ -738,7 +974,8 @@ def load_supported_ops(filename="tests/CodeGen/Python-ONNX/available_operations.
         return [
             "LeakyRelu", "Relu", "Sigmoid", "Softmax", "Add", "Ceil", "Div", "Mul", "Sub", "Tanh",
             "Concat", "Gather", "Identity", "Neg", "Reshape", "Resize", "Slice", 
-            "Split", "Transpose", "Unsqueeze", "ReduceMean", "Conv", "MatMul", "Gemm", "MaxPool"
+            "Split", "Transpose", "Unsqueeze", "ReduceMean", "Conv", "MatMul", "Gemm", "MaxPool",
+            "Clip"
             # "Shape" removed from the list
         ]
 

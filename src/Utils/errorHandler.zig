@@ -49,7 +49,20 @@ pub const TensorMathError = error{
     InvalidPadding,
     InvalidAxes,
     OutputTensorWrongShape,
+    InvalidDataType,
+    MismatchedDataTypes,
     Overflow,
+    InvalidPaddingShape,
+    InvalidInput,
+    AxisOutOfRange,
+    UnsupportedMode,
+    InvalidPaddingSize,
+    UnexpectedError,
+    InputTensorNotScalar,
+    InvalidGroupParameter,
+    InvalidZeroPointShape,
+    OutputShapeMismatch,
+    ShapeMismatch,
 };
 
 /// Tensor errors
@@ -140,6 +153,9 @@ pub fn errorDetails(myError: anyerror) []const u8 {
         TensorMathError.DivisionError => "TensorMath: division error encountered",
         TensorMathError.InvalidPadding => "TensorMath: invalid padding mode or values",
         TensorMathError.InvalidAxes => "TensorMath: invalid axes",
+        TensorMathError.OutputTensorWrongShape => "TensorMath: output tensor has wrong shape",
+        TensorMathError.InvalidDataType => "TensorMath: invalid data type",
+        TensorMathError.MismatchedDataTypes => "TensorMath: mismatched data types between tensors",
 
         //TENSOR
         TensorError.TensorNotInitialized => "Tensor: tensor not initialized",

@@ -135,10 +135,10 @@ pub const GraphProto = struct {
                     try initializers.append(tensor_ptr);
                 },
                 10 => { // doc_string
-                    var str_reader = try reader.readLengthDelimited();
-                    _ = try str_reader.readString(reader.allocator);
+                    // The doc_string field is optional and not currently used.
+                    // Skip the field to avoid potential parsing errors and leaks.
+                    try reader.skipField(tag.wire_type);
                 },
-
                 11 => { // input
                     var input_reader = try reader.readLengthDelimited();
                     const input_ptr = try reader.allocator.create(ValueInfoProto);

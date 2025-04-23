@@ -20,6 +20,21 @@ const op_gather = @import("lib_shape_math/op_gather.zig");
 
 pub const gather = op_gather.gather;
 pub const gather_lean = op_gather.lean_gather;
+pub const get_gather_output_shape = op_gather.get_gather_output_shape;
+
+//--pads
+const op_pads = @import("lib_shape_math/op_pads.zig");
+
+pub const pads = op_pads.pads;
+pub const pads_lean = op_pads.pads_lean;
+pub const get_pads_output_shape = op_pads.get_pads_output_shape;
+pub const PadMode = op_pads.PadMode;
+
+//--clip
+const op_clip = @import("lib_elementWise_math/op_clip.zig");
+
+pub const clip = op_clip.clip;
+pub const clip_lean = op_clip.lean_clip;
 
 //--unsqueeze
 const op_unsqueeze = @import("lib_shape_math/op_unsqueeze.zig");
@@ -66,9 +81,14 @@ pub const get_split_output_shapes = op_split.get_split_output_shapes;
 pub const split_lean = op_split.split_lean;
 // ---------- importing matrix algebra methods ----------
 const op_mat_mul = @import("op_mat_mul.zig");
+
 //---matmul
 pub const mat_mul = op_mat_mul.mat_mul;
 pub const mat_mul_lean = op_mat_mul.lean_mat_mul;
+
+pub const blocked_mat_mul_lean = op_mat_mul.lean_blocked_mat_mul;
+
+pub const get_mat_mul_output_shape = op_mat_mul.get_mat_mul_output_shape;
 
 pub const dot_product_tensor_flat = op_mat_mul.dot_product_tensor_flat;
 
@@ -77,17 +97,37 @@ const op_gemm = @import("op_gemm.zig");
 pub const gemm = op_gemm.gemm;
 pub const gemm_lean = op_gemm.lean_gemm;
 
+//----------- importing standard mean method ----------
+const op_mean = @import("op_mean.zig");
+pub const mean_standard = op_mean.mean_standard;
+pub const mean_lean = op_mean.mean_lean;
+pub const get_mean_output_shape = op_mean.get_mean_output_shape;
+
+// ---------- importing standard Batch Normalization ----------
+const op_bachNorm = @import("op_batchNormalization.zig");
+pub const batchNormalization = op_bachNorm.batchNormalization;
+pub const batchNormalization_lean = op_bachNorm.batchNormalization_lean;
+pub const get_batchNormalization_output_shape = op_bachNorm.get_batchNormalization_output_shape;
+
+//CONV
+
+//----------- importing standard DynamicQuantizeLinear method ----------
+const op_DynamicQuantizeLinear = @import("op_DynamicQuantizeLinear.zig");
+pub const dynamicQuantizeLinear = op_DynamicQuantizeLinear.dynamicQuantizeLinear;
+pub const get_dynamicQuantizeLinear_output_shape = op_DynamicQuantizeLinear.get_dynamicQuantizeLinear_output_shape;
+pub const dynamicQuantizeLinear_lean = op_DynamicQuantizeLinear.dynamicQuantizeLinear_lean;
+
 // ---------- importing standard Convolution methods ----------
 const convolution_math_lib = @import("op_convolution.zig");
-pub const multidim_convolution_with_bias = convolution_math_lib.multidim_convolution_with_bias;
 pub const convolve_tensor_with_bias = convolution_math_lib.convolve_tensor_with_bias;
 pub const convolution_backward_biases = convolution_math_lib.convolution_backward_biases;
-pub const convolution_backward_weights = convolution_math_lib.convolution_backward_weights;
-pub const convolution_backward_input = convolution_math_lib.convolution_backward_input;
 pub const get_convolution_output_shape = convolution_math_lib.get_convolution_output_shape;
 pub const Conv = convolution_math_lib.OnnxConv;
 pub const conv_lean = convolution_math_lib.OnnxConvLean;
 pub const setLogFunctionC = convolution_math_lib.setLogFunctionC;
+//CONV INTEGER
+
+pub const convInteger_lean = convolution_math_lib.convInteger_lean;
 
 // ---------- importing standard Pooling methods ----------
 const pooling_math_lib = @import("op_pooling.zig");
@@ -101,6 +141,10 @@ pub const AutoPadType = pooling_math_lib.AutoPadType;
 pub const get_onnx_maxpool_output_shape = pooling_math_lib.get_onnx_maxpool_output_shape;
 pub const get_pooling_output_shape = pooling_math_lib.get_pooling_output_shape;
 pub const PoolingType = pooling_math_lib.PoolingType;
+
+pub const onnx_averagepool = pooling_math_lib.onnx_averagepool;
+pub const onnx_averagepool_lean = pooling_math_lib.lean_onnx_averagepool;
+pub const get_onnx_averagepool_output_shape = pooling_math_lib.get_onnx_averagepool_output_shape;
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -144,6 +188,7 @@ const mult = @import("lib_elementWise_math/op_multiplication.zig");
 pub const lean_matmul = op_mat_mul.lean_mat_mul;
 pub const mul = mult.mul;
 pub const mul_lean = mult.mul_lean;
+pub const get_mul_output_shape = mult.get_mul_output_shape;
 
 //--div
 const division = @import("lib_elementWise_math/op_division.zig");
@@ -151,16 +196,22 @@ const division = @import("lib_elementWise_math/op_division.zig");
 pub const div = division.div;
 pub const div_lean = division.div_lean;
 
+//cast
+const op_cast = @import("op_cast.zig");
+pub const cast_lean = op_cast.cast_lean;
+
 //--tanh
 const tanhy = @import("lib_elementWise_math/op_tanh.zig");
 pub const tanh = tanhy.tanh;
 pub const tanh_lean = tanhy.tanh_lean;
+pub const get_tanh_output_shape = tanhy.get_tanh_output_shape;
 
 //--ceil
 const Ceil = @import("lib_elementWise_math/op_ceil.zig");
 
 pub const ceil = Ceil.ceil;
 pub const ceil_lean = Ceil.ceil_lean;
+pub const get_ceil_output_shape = Ceil.get_ceil_output_shape;
 
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");
@@ -179,6 +230,7 @@ const op_leaky_relu = @import("lib_activation_function_math/op_leaky_reLU.zig");
 pub const leakyReLU = op_leaky_relu.leakyReLU;
 pub const leakyReLU_lean = op_leaky_relu.lean_leakyReLU;
 pub const leakyReLU_backward = op_leaky_relu.leakyReLU_backward;
+pub const get_leaky_relu_output_shape = op_leaky_relu.get_leaky_relu_output_shape;
 
 const op_sigmoid = @import("lib_activation_function_math/op_sigmoid.zig");
 
@@ -186,13 +238,14 @@ const op_sigmoid = @import("lib_activation_function_math/op_sigmoid.zig");
 pub const sigmoid = op_sigmoid.sigmoid;
 pub const sigmoid_lean = op_sigmoid.sigmoid_lean;
 pub const sigmoid_backward = op_sigmoid.sigmoid_backward;
-
+pub const get_sigmoid_output_shape = op_sigmoid.get_sigmoid_output_shape;
 //Softmax
 const op_softmax = @import("lib_activation_function_math/op_softmax.zig");
 
 pub const softmax = op_softmax.softmax;
 pub const softmax_lean = op_softmax.lean_softmax;
 pub const softmax_backward = op_softmax.softmax_backward;
+pub const get_longsoftmax_output_shape = op_softmax.get_longsoftmax_output_shape;
 
 //Transpose
 const op_Transpose = @import("lib_shape_math/op_transpose.zig");

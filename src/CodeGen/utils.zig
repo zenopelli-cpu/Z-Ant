@@ -159,7 +159,7 @@ pub fn getTensorShape(tensorName: []const u8) ?[]i64 {
 
 // Marks output tensors as ready for computation in all the graph
 pub fn setOutputsReady(completedNode: *ReadyNode, tensorHashMap: *std.StringHashMap(ReadyTensor)) !void {
-    std.debug.print("\n -----> set {s} outputs to ready", .{completedNode.nodeProto.name.?});
+    std.debug.print("\n -----> set {s} outputs to ready", .{completedNode.nodeProto.name orelse "(unnamed)"});
     completedNode.ready = true;
     for (completedNode.outputs.items) |ready_output_tensor| { //for each output tensor of the completed node
         var mutablePtr: *ReadyTensor = if (tensorHashMap.getPtr(ready_output_tensor.name)) |V_ptr| V_ptr else return error.keyNotAvailable;
@@ -400,7 +400,8 @@ pub inline fn sliceToUsizeSlice(slice: anytype) []usize {
     }
 }
 
-pub inline fn sliceToIsizeSlice(slice: anytype) []isize {
+// Modify signature to accept allocator
+pub inline fn sliceToIsizeSlice(alloc: std.mem.Allocator, slice: anytype) []isize {
     const T = @TypeOf(slice);
     const info = @typeInfo(T);
 
@@ -409,7 +410,8 @@ pub inline fn sliceToIsizeSlice(slice: anytype) []isize {
             const child = info.pointer.child;
             const child_info = @typeInfo(child);
 
-            var output = allocator.alloc(isize, slice.len) catch @panic("Out of memory in sliceToIsizeSlice");
+            // Use the passed allocator
+            var output = alloc.alloc(isize, slice.len) catch @panic("Out of memory in sliceToIsizeSlice");
             const maxIsize = std.math.maxInt(isize);
             const minIsize = std.math.minInt(isize);
 
@@ -452,8 +454,8 @@ pub fn i64ToI64ArrayString(values: []const i64) ![]const u8 {
     return res_string;
 }
 
-pub fn u32ToUsize(input: [*]u32, size: u32) ![]usize {
-    var output = try allocator.alloc(usize, size);
+pub fn u32ToUsize(alloc: std.mem.Allocator, input: [*]u32, size: u32) ![]usize {
+    var output = try alloc.alloc(usize, size);
 
     const maxUsize = std.math.maxInt(usize);
 
@@ -500,17 +502,20 @@ pub fn i64SliceToUsizeArrayString(values: []const i64) ![]const u8 {
 
 // ----------------- FILE MANAGEMENT -----------------
 // Copy file from src to dst
-pub fn copyFile(src: []const u8, dst: []const u8) !void {
-    const src_file = try std.fs.cwd().openFile(src, .{});
+pub fn copyFile(src_path: []const u8, dst_path: []const u8) !void {
+    var src_file = try std.fs.cwd().openFile(src_path, .{});
     defer src_file.close();
 
-    const dst_file = try std.fs.cwd().createFile(dst, .{});
+    var dst_file = try std.fs.cwd().createFile(dst_path, .{});
     defer dst_file.close();
 
-    const src_content: []const u8 = try src_file.readToEndAlloc(allocator, 1024 * 1024);
-    defer allocator.free(src_content);
-
-    try dst_file.writeAll(src_content);
+    // Use a buffer to copy in chunks
+    var buf: [4096]u8 = undefined;
+    while (true) {
+        const bytes_read = try src_file.read(&buf);
+        if (bytes_read == 0) break;
+        _ = try dst_file.write(buf[0..bytes_read]);
+    }
 }
 
 // Read the user_tests json file and return a list of test cases

@@ -14,15 +14,25 @@ pub fn tanh(comptime T: anytype, input: *Tensor(T)) !Tensor(T) {
     // Allocating output tensor with the same shape of the input
     var result = try Tensor(T).fromShape(input.allocator, input.shape);
 
-    tanh_lean(T, input, &result);
+    try tanh_lean(T, input, &result);
 
     return result;
 }
 
 // --------- lean TANH
-pub inline fn tanh_lean(comptime T: anytype, input: *Tensor(T), result: *Tensor(T)) void {
+pub inline fn tanh_lean(comptime T: anytype, input: *Tensor(T), result: *Tensor(T)) !void {
     // Compute tanh(x) for each element of the tensor
     for (0..input.size) |i| {
         result.data[i] = std.math.tanh(input.data[i]);
     }
+}
+
+pub inline fn get_tanh_output_shape(input_shape: []const usize) ![]usize {
+    // Allocate and copy the input shape
+    const output_shape = try zant.utils.allocator.allocator.alloc(usize, input_shape.len);
+    errdefer zant.utils.allocator.allocator.free(output_shape);
+
+    std.mem.copyForwards(usize, output_shape, input_shape);
+
+    return output_shape;
 }

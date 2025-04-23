@@ -9,6 +9,9 @@ const DataType = onnx.DataType;
 const TensorProto = onnx.TensorProto;
 const allocator = zant.utils.allocator.allocator;
 const codegen = @import("codegen.zig");
+// Access global codegen state and utilities
+const globals = codegen.globals;
+const utils = codegen.utils;
 const codeGenInitializers = codegen.parameters;
 const coddeGenPredict = codegen.predict;
 const codegen_options = @import("codegen_options");
@@ -103,18 +106,33 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
 }
 
 fn write_FBA(writer: std.fs.File.Writer) !void {
-    _ = try writer.print(
-        \\
-        \\
-        \\ var buf: [4096 * 10]u8 = undefined;
-        \\ var fba_state = @import("std").heap.FixedBufferAllocator.init(&buf);
-        \\ const fba = fba_state.allocator();
-    , .{});
+    // Select allocator strategy based on flag
+    if (codegen_options.dynamic) {
+        // Use heap-based dynamic allocation
+        try writer.writeAll(
+            \\
+            \\
+            \\ // Dynamic allocation: RawCAllocator
+        );
+    } else {
+        // Use fixed buffer allocator for static allocations
+        try writer.writeAll(
+            \\
+            \\
+            \\ // Static allocation: FixedBufferAllocator
+            \\ var buf: [4096 * 10]u8 = undefined;
+            \\ var fba_state = std.heap.FixedBufferAllocator.init(&buf);
+            \\ const fba = fba_state.allocator();
+            \\
+        );
+    }
 }
 
 fn write_type_T(writer: std.fs.File.Writer) !void {
-    _ = try writer.print( //TODO: get the type form the onnx model =^.^=
+    // Emit the tensor element type derived from the ONNX model input
+    const type_str = try utils.getTypeString(globals.networkInputDataType);
+    _ = try writer.print(
         \\
-        \\ const T = f32;
-    , .{});
+        \\ const T = {s};
+    , .{type_str});
 }

@@ -194,126 +194,233 @@ pub fn transpose_onnx(comptime T: type, input: *Tensor(T), perm: ?[]const usize)
 }
 
 /// Lean version of transpose_onnx that operates on an existing output tensor
+/// Handles implicit broadcasting if the permutation length is greater than the input rank.
 //TODO SHAPETRACKER we'll gonna love you
+//Pass allocator until we have a shape tracker
 pub fn transpose_onnx_lean(
     comptime T: type,
     input: *Tensor(T),
     perm: ?[]const usize,
     output: *Tensor(T),
+    output_allocator: std.mem.Allocator,
 ) !void {
-    // Validate rank
-    const rank = input.shape.len;
-    if (output.shape.len != rank) {
-        return error.InvalidRank; // or however you handle shape mismatch
+    const input_rank = input.shape.len;
+    const perm_rank = if (perm) |p| p.len else input_rank; // Effective rank
+    // Use pkg_allocator for temporary internal calculations
+    const allocator = pkg_allocator;
+
+    if (perm_rank == 0 and input_rank == 0) {
+        // Handle scalar case (rank 0)
+        if (output.size < 1) {
+            // Use output_allocator to manage output tensor's memory
+            if (output.owns_memory and output.data.len > 0) output_allocator.free(output.data);
+            output.data = try output_allocator.alloc(T, 1);
+            output.owns_memory = true;
+        }
+        output.size = 1;
+        if (input.size > 0) output.data[0] = input.data[0]; // Copy scalar value
+        // Output shape handling needs clarification for scalar case
+        return;
     }
 
     // -----------------------------
     // 1) Build the actual perm array
     // -----------------------------
-    var real_perm = try pkg_allocator.alloc(usize, rank);
-    defer pkg_allocator.free(real_perm);
+    var real_perm = try allocator.alloc(usize, perm_rank);
+    defer allocator.free(real_perm);
 
     if (perm) |p| {
         // Validate length
-        if (p.len != rank) return error.InvalidPermutation;
+        if (p.len != perm_rank) {
+            //std.debug.print("ERROR: transpose_onnx_lean perm.len = {}, perm_rank = {}. Should be equal.\\n", .{ p.len, perm_rank });
+            return error.InvalidPermutation;
+        }
+        if (input_rank > perm_rank) {
+            //std.debug.print("ERROR: transpose_onnx_lean input_rank ({}) > perm_rank ({}) not supported\\n", .{ input_rank, perm_rank });
+            return error.UnsupportedBroadcast;
+        }
 
-        // Validate that p is a valid permutation of [0..rank)
-        var used = try pkg_allocator.alloc(bool, rank);
-        defer pkg_allocator.free(used);
+        // Validate that p is a valid permutation of [0..perm_rank)
+        var used = try allocator.alloc(bool, perm_rank);
+        defer allocator.free(used);
         @memset(used, false);
 
         for (p) |idx| {
-            if (idx >= rank) return error.InvalidPermutation;
+            if (idx >= perm_rank) return error.InvalidPermutation;
             if (used[idx]) return error.InvalidPermutation;
             used[idx] = true;
         }
-        // Copy into real_perm
-        for (0..rank) |i| {
-            real_perm[i] = p[i];
-        }
+        @memcpy(real_perm, p);
     } else {
-        // If no perm given, ONNX says reverse the dimension order
-        for (0..rank) |i| {
-            real_perm[i] = rank - 1 - i;
+        // If no perm given, ONNX says reverse the dimension order for perm_rank
+        for (0..perm_rank) |i| {
+            real_perm[i] = perm_rank - 1 - i;
         }
     }
 
     // -----------------------------
-    // 2) Compute input strides
+    // 2) Create effective input shape and compute input strides
+    //    (Uses 'allocator' for temporary effective_input_shape)
     // -----------------------------
-    var input_strides = try pkg_allocator.alloc(usize, rank);
-    defer pkg_allocator.free(input_strides);
+    var effective_input_shape = try allocator.alloc(usize, perm_rank);
+    defer allocator.free(effective_input_shape);
 
-    var stride: usize = 1;
-    var i: usize = rank;
-    while (i > 0) {
-        i -= 1;
-        input_strides[i] = stride;
-        stride *= input.shape[i];
+    const leading_ones = if (perm_rank > input_rank) perm_rank - input_rank else 0;
+    for (0..leading_ones) |i| {
+        effective_input_shape[i] = 1;
+    }
+    @memcpy(effective_input_shape[leading_ones..], input.shape);
+
+    var input_strides = try allocator.alloc(usize, input_rank);
+    defer allocator.free(input_strides);
+
+    if (input_rank > 0) {
+        var stride: usize = 1;
+        var i: usize = input_rank;
+        while (i > 0) {
+            i -= 1;
+            input_strides[i] = stride;
+            // Use actual input shape for stride calculation
+            stride *= input.shape[i];
+        }
     }
 
     // -----------------------------
-    // 3) Compute the output shape
-    //    and output strides (row-major)
+    // 3) Compute the output shape and output strides
+    //    (Uses 'allocator' for temporary output_shape and output_strides)
     // -----------------------------
-    var output_shape = try pkg_allocator.alloc(usize, rank);
-    defer pkg_allocator.free(output_shape);
+    var output_shape = try allocator.alloc(usize, perm_rank);
+    defer allocator.free(output_shape);
 
-    // shape comes from perm
-    for (0..rank) |j| {
-        output_shape[j] = input.shape[real_perm[j]];
+    var total_size: usize = 1;
+    for (0..perm_rank) |j| {
+        const effective_input_dim_index = real_perm[j];
+        output_shape[j] = effective_input_shape[effective_input_dim_index];
+        total_size *= output_shape[j];
     }
 
-    var output_strides = try pkg_allocator.alloc(usize, rank);
-    defer pkg_allocator.free(output_strides);
+    // Check if output tensor needs resizing or shape update
+    if (output.shape.len != perm_rank) {
+        // Use output_allocator to manage output tensor's shape memory
+        if (output.owns_memory and output.shape.len > 0) output_allocator.free(output.shape);
+        output.shape = try output_allocator.alloc(usize, perm_rank);
+        output.owns_memory = true;
+    }
+    // Copy calculated shape into output tensor's shape slice
+    @memcpy(output.shape, output_shape);
 
-    stride = 1;
-    i = rank;
-    while (i > 0) {
-        i -= 1;
-        output_strides[i] = stride;
-        stride *= output_shape[i];
+    var output_strides = try allocator.alloc(usize, perm_rank);
+    defer allocator.free(output_strides);
+
+    if (perm_rank > 0) {
+        var stride: usize = 1;
+        var i: usize = perm_rank;
+        while (i > 0) {
+            i -= 1;
+            output_strides[i] = stride;
+            stride *= output.shape[i]; // Use output tensor's actual shape
+        }
     }
 
     // -----------------------------
-    // 4) Allocate output data if needed
+    // 4) Allocate output data if needed, using output_allocator
     // -----------------------------
-    const total_size = stride; // product of all dims
-    if (output.data.len != total_size) {
-        // free old data if needed
-        if (output.data.len > 0) pkg_allocator.free(output.data);
-        output.data = try pkg_allocator.alloc(T, total_size);
+    const size_matches = (output.data.len == total_size);
+
+    if (size_matches) {
+        // Size is correct, proceed using existing buffer.
+    } else {
+        // Size mismatch, reallocation needed.
+        if (!output.owns_memory) {
+            return error.OutputBufferWrongSize;
+        } else {
+            // Output owns memory, reallocate using output_allocator.
+            if (output.data.len > 0) {
+                output_allocator.free(output.data);
+            }
+            if (total_size > 0) {
+                output.data = try output_allocator.alloc(T, total_size);
+            } else {
+                output.data = &[_]T{};
+                output.owns_memory = false;
+            }
+        }
     }
     output.size = total_size;
 
-    // Copy shape into output
-    @memcpy(output.shape, output_shape);
-
     // -----------------------------
     // 5) Fill output by iterating over all output coords
+    //    Map output coords -> effective input coords -> actual input index
     // -----------------------------
-    // We'll do a simple nested‐index iteration by flattening the output coordinate.
-    // Then we un‐flatten to get [o0, o1, ..., o_{rank-1}].
     const out_data = output.data;
     const in_data = input.data;
 
-    for (0..total_size) |flat_out_idx| {
-        // Convert flat_out_idx -> array of indices in [o0, o1, ...]
-        var tmp = flat_out_idx;
-        var out_coord = try pkg_allocator.alloc(usize, rank);
-        defer pkg_allocator.free(out_coord);
+    if (total_size == 0) return; // Handle empty tensor case
 
-        // Unflatten in row-major order
-        for (0..rank) |d| {
-            out_coord[d] = tmp / output_strides[d];
-            tmp %= output_strides[d];
+    // Optimization: If it's just a copy (no permutation or broadcasting)
+    var is_simple_copy = (perm_rank == input_rank);
+    if (is_simple_copy) {
+        for (0..perm_rank) |i| {
+            if (real_perm[i] != i) {
+                is_simple_copy = false;
+                break;
+            }
+        }
+    }
+    if (is_simple_copy) {
+        @memcpy(out_data, in_data[0..total_size]);
+        return;
+    }
+
+    // Calculate inverse permutation: maps effective input dim -> output dim
+    var inv_perm = try allocator.alloc(usize, perm_rank);
+    defer allocator.free(inv_perm);
+    for (0..perm_rank) |i| inv_perm[real_perm[i]] = i;
+
+    var out_coord = try allocator.alloc(usize, perm_rank);
+    defer allocator.free(out_coord);
+
+    for (0..total_size) |flat_out_idx| {
+        // Unflatten flat_out_idx -> out_coord [o0, o1, ...]
+        var tmp = flat_out_idx;
+        for (0..perm_rank) |d| {
+            if (output_strides[d] == 0) { // Avoid division by zero for dims of size 1
+                out_coord[d] = 0;
+            } else {
+                out_coord[d] = tmp / output_strides[d];
+                tmp %= output_strides[d];
+            }
         }
 
-        // Now map output coords back to input coords via perm
+        // Map output coords to actual input index
         var in_idx: usize = 0;
-        for (0..rank) |d| {
-            const input_dim_index = real_perm[d]; // which input dimension
-            in_idx += out_coord[d] * input_strides[input_dim_index];
+        var current_stride_idx = input_rank - 1;
+        for (0..perm_rank) |eff_in_dim_rev| { // Iterate effective dims reverse (perm_rank-1 down to 0)
+            const eff_in_dim = perm_rank - 1 - eff_in_dim_rev;
+
+            // Find the corresponding output dimension using inverse perm
+            const out_dim = inv_perm[eff_in_dim];
+            const coord = out_coord[out_dim];
+
+            // Only add to in_idx if it corresponds to an actual input dimension
+            if (eff_in_dim >= leading_ones) {
+                if (current_stride_idx < input_rank) { // Boundary check
+                    // Use the stride for the *actual* input dimension
+                    in_idx += coord * input_strides[current_stride_idx];
+                    if (current_stride_idx > 0) {
+                        current_stride_idx -= 1;
+                    } else if (current_stride_idx == 0) {
+                        // Avoid wrapping below zero for usize
+                        current_stride_idx = input_rank; // Signal we are done with strides
+                    }
+                } else {
+                    // This case might indicate an issue if coord != 0 for a broadcasted dim
+                    // For now, assume coord is 0 if eff_in_dim < leading_ones
+                }
+            }
+        }
+        if (in_idx >= input.size) {
+            return error.IndexOutOfBounds; // Or another appropriate error
         }
 
         // Do the copy
@@ -322,39 +429,63 @@ pub fn transpose_onnx_lean(
 }
 
 /// Calculate the output shape for an ONNX transpose operation without performing the transpose
+/// Handles implicit broadcasting if the permutation length is greater than the input rank.
 pub fn get_transpose_output_shape(input_shape: []const usize, perm: ?[]const usize) ![]usize {
-    const rank = input_shape.len;
+    const input_rank = input_shape.len;
+    const perm_rank = if (perm) |p| p.len else input_rank; // Effective rank
 
-    // Validate perm if provided
+    // Allocate space for the permutation array
+    var real_perm = try pkg_allocator.alloc(usize, perm_rank);
+    defer pkg_allocator.free(real_perm);
+
+    // Validate perm if provided and build real_perm
     if (perm) |p| {
-        if (p.len != rank) return error.InvalidPermutation;
+        if (p.len != perm_rank) {
+            // This case should technically not happen if perm_rank is derived from p.len, but good practice
+            std.debug.print("ERROR: perm length mismatch internal logic! p.len={} perm_rank={}\\n", .{ p.len, perm_rank });
+            return error.InvalidPermutation;
+        }
 
-        // Validate that p is a valid permutation of [0..rank)
-        var used = try pkg_allocator.alloc(bool, rank);
+        // Validate that p is a valid permutation of [0..perm_rank)
+        var used = try pkg_allocator.alloc(bool, perm_rank);
         defer pkg_allocator.free(used);
         @memset(used, false);
 
         for (p) |idx| {
-            if (idx >= rank) return error.InvalidPermutation;
+            if (idx >= perm_rank) return error.InvalidPermutation;
             if (used[idx]) return error.InvalidPermutation;
             used[idx] = true;
         }
+        @memcpy(real_perm, p);
+    } else {
+        // If no perm given, reverse the dimension order for perm_rank
+        for (0..perm_rank) |i| {
+            real_perm[i] = perm_rank - 1 - i;
+        }
     }
 
+    // Create effective input shape (with leading 1s for broadcasting)
+    var effective_input_shape = try pkg_allocator.alloc(usize, perm_rank);
+    defer pkg_allocator.free(effective_input_shape);
+
+    const leading_ones = if (perm_rank > input_rank) perm_rank - input_rank else 0;
+    for (0..leading_ones) |i| {
+        effective_input_shape[i] = 1;
+    }
+    @memcpy(effective_input_shape[leading_ones..], input_shape);
+
     // Allocate output shape array
-    var output_shape = try pkg_allocator.alloc(usize, rank);
+    var output_shape = try pkg_allocator.alloc(usize, perm_rank);
     errdefer pkg_allocator.free(output_shape);
 
-    // Fill output shape based on permutation
-    if (perm) |p| {
-        for (0..rank) |i| {
-            output_shape[i] = input_shape[p[i]];
+    // Fill output shape based on permuting the effective_input_shape
+    for (0..perm_rank) |i| {
+        const input_dim_index = real_perm[i];
+        if (input_dim_index >= perm_rank) { // Sanity check
+            std.debug.print("ERROR: real_perm[{}]={} is out of bounds for perm_rank={}\\n", .{ i, input_dim_index, perm_rank });
+            return error.InvalidPermutation;
         }
-    } else {
-        // If no perm given, reverse the dimension order
-        for (0..rank) |i| {
-            output_shape[i] = input_shape[rank - 1 - i];
-        }
+        output_shape[i] = effective_input_shape[input_dim_index];
     }
 
     return output_shape;

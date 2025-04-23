@@ -106,6 +106,8 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, t: *TensorProto, nam
 /// - `t`: The tensor initializer.
 /// - `name`: The sanitized name of the tensor.
 pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []const u8) !void {
+    std.debug.print("\n[writeArray] Processing tensor: {s}, DataType: {any}", .{ name, t.data_type });
+
     const dataTypeString: []const u8 = try utils.getTypeString(t.data_type);
 
     var size: i64 = 1;
@@ -114,7 +116,7 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
     }
     try writer.print(
         \\
-        \\const array_{s} : [{d}]{s} = [_]{s}{{ 
+        \\const array_{s} : [{d}]{s} linksection(".rodata") = [_]{s}{{
     , .{ name, size, dataTypeString, dataTypeString });
 
     // Select appropriate data storage format
@@ -128,11 +130,60 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
         writeArrayData(writer, f64, d) catch return error.f64DataUnavailable;
     } else if (t.uint64_data) |d| {
         writeArrayData(writer, u64, d) catch return error.u64DataUnavailable;
-    } else return error.DataTypeNotAvailable;
+    } else if (t.uint16_data) |d| {
+        writeArrayData(writer, u16, d) catch return error.u16DataUnavailable;
+    } else if (t.raw_data) |raw| {
+        // Handle raw data based on data_type
+        switch (t.data_type) {
+            .FLOAT => try writeRawData(writer, f32, raw),
+            .FLOAT16 => try writeRawData(writer, f16, raw),
+            .INT32 => try writeRawData(writer, i32, raw),
+            .INT8 => try writeRawData(writer, i8, raw),
+            .INT64 => try writeRawData(writer, i64, raw),
+            .DOUBLE => try writeRawData(writer, f64, raw),
+            .UINT64 => try writeRawData(writer, u64, raw),
+            .UINT16 => try writeRawData(writer, u16, raw),
+            .UINT8 => try writeRawData(writer, u8, raw),
+            // TODO: Add other types as needed (e.g., FLOAT16, INT8, etc.)
+            else => {
+                std.debug.print("\n[writeArray] Error: Unsupported raw data type {any} for tensor {s}", .{ t.data_type, name });
+                std.log.err("Unsupported raw data type: {any}", .{t.data_type});
+                return error.DataTypeNotAvailable;
+            },
+        }
+    } else {
+        std.debug.print("\n[writeArray] Error: No recognized data field (float_data, int_data, raw_data, etc.) found for tensor {s} with DataType {any}", .{ name, t.data_type });
+        return error.DataTypeNotAvailable;
+    }
 
     try writer.print(
         \\}} ;
     , .{});
+}
+
+/// Writes an array of tensor data from a raw byte slice.
+/// Reads values one by one respecting alignment.
+fn writeRawData(writer: std.fs.File.Writer, comptime T: type, raw_data: []const u8) !void {
+    const elem_size = @sizeOf(T);
+    const num_elements = raw_data.len / elem_size;
+
+    // Ensure raw_data length is a multiple of element size
+    if (raw_data.len % elem_size != 0) {
+        std.log.err("Raw data length {d} is not a multiple of element size {d} for type {any}", .{ raw_data.len, elem_size, T });
+        return error.InvalidRawDataLength;
+    }
+
+    for (0..num_elements) |i| {
+        const offset = i * elem_size;
+        const value = std.mem.bytesToValue(T, raw_data[offset .. offset + elem_size]);
+
+        if (i > 0) try writer.print(
+            \\,
+        , .{});
+        try writer.print(
+            \\ {}
+        , .{value});
+    }
 }
 
 /// Writes an array of tensor data.
