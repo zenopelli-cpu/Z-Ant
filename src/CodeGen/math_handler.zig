@@ -904,7 +904,6 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    
         \\    const usize_slice_{s} = utils.sliceToUsizeSlice({s}.data);
         \\    var usize_tensor_{s} = Tensor(usize).fromConstBuffer(&allocator, usize_slice_{s}, {s}.shape);
-        \\    defer usize_tensor_{s}.deinit();
         \\    defer allocator.free(usize_slice_{s});
         \\    
     , .{
@@ -913,7 +912,6 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         indices_name, //usize_tensor_
         indices_name, //usize_slice_
         indices_tensor_string, //tensor_.shape
-        indices_name, //usize_tensor_.deinit
         indices_name, //usize_slice_ for free
     });
 
@@ -2489,22 +2487,13 @@ inline fn write_split(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\        if (size_to_copy > 0) {{
         \\            @memcpy(output_ptrs_{0s}[i].data[0..size_to_copy], src.data[0..size_to_copy]);
         \\        }}
-        \\
-        \\        // Update the shape if needed
-        \\        if (!output_ptrs_{0s}[i].owns_memory) {{
-        \\            // Shape is pre-allocated statically, just update if needed
-        \\            const shape_size_to_copy = @min(src.shape.len, output_ptrs_{0s}[i].shape.len);
-        \\            if (shape_size_to_copy > 0) {{
-        \\                @memcpy(output_ptrs_{0s}[i].shape[0..shape_size_to_copy], src.shape[0..shape_size_to_copy]);
-        \\            }}
-        \\        }} else {{
-        \\            // This is a dynamically allocated shape, replace it
-        \\            if (output_ptrs_{0s}[i].shape.len > 0) {{
-        \\                allocator.free(output_ptrs_{0s}[i].shape);
-        \\            }}
-        \\            output_ptrs_{0s}[i].shape = allocator.dupe(usize, src.shape) catch @panic("Out of memory");
+        \\     
+        \\        // Shape is pre-allocated statically, just update if needed
+        \\        const shape_size_to_copy = @min(src.shape.len, output_ptrs_{0s}[i].shape.len);
+        \\        if (shape_size_to_copy > 0) {{
+        \\            @memcpy(output_ptrs_{0s}[i].shape[0..shape_size_to_copy], src.shape[0..shape_size_to_copy]);
         \\        }}
-        \\
+        \\        
         \\        // Update the size
         \\        output_ptrs_{0s}[i].size = src.size;
         \\    }}

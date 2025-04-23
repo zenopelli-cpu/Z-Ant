@@ -39,7 +39,6 @@ pub fn transpose2D(comptime T: type, t: *Tensor(T)) !Tensor(T) {
         .size = t.size,
         .shape = tensorShape,
         .allocator = allocator,
-        .owns_memory = true,
     };
 }
 
@@ -176,7 +175,6 @@ pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T
         .size = total,
         .shape = newShape,
         .allocator = &pkg_allocator,
-        .owns_memory = true,
     };
 }
 
@@ -213,9 +211,7 @@ pub fn transpose_onnx_lean(
         // Handle scalar case (rank 0)
         if (output.size < 1) {
             // Use output_allocator to manage output tensor's memory
-            if (output.owns_memory and output.data.len > 0) output_allocator.free(output.data);
             output.data = try output_allocator.alloc(T, 1);
-            output.owns_memory = true;
         }
         output.size = 1;
         if (input.size > 0) output.data[0] = input.data[0]; // Copy scalar value
@@ -302,9 +298,7 @@ pub fn transpose_onnx_lean(
     // Check if output tensor needs resizing or shape update
     if (output.shape.len != perm_rank) {
         // Use output_allocator to manage output tensor's shape memory
-        if (output.owns_memory and output.shape.len > 0) output_allocator.free(output.shape);
         output.shape = try output_allocator.alloc(usize, perm_rank);
-        output.owns_memory = true;
     }
     // Copy calculated shape into output tensor's shape slice
     @memcpy(output.shape, output_shape);
@@ -331,19 +325,15 @@ pub fn transpose_onnx_lean(
         // Size is correct, proceed using existing buffer.
     } else {
         // Size mismatch, reallocation needed.
-        if (!output.owns_memory) {
-            return error.OutputBufferWrongSize;
+
+        // Output owns memory, reallocate using output_allocator.
+        if (output.data.len > 0) {
+            output_allocator.free(output.data);
+        }
+        if (total_size > 0) {
+            output.data = try output_allocator.alloc(T, total_size);
         } else {
-            // Output owns memory, reallocate using output_allocator.
-            if (output.data.len > 0) {
-                output_allocator.free(output.data);
-            }
-            if (total_size > 0) {
-                output.data = try output_allocator.alloc(T, total_size);
-            } else {
-                output.data = &[_]T{};
-                output.owns_memory = false;
-            }
+            output.data = &[_]T{};
         }
     }
     output.size = total_size;

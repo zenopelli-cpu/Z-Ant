@@ -28,7 +28,6 @@ pub fn Tensor(comptime T: type) type {
         size: usize, //dimension of the tensor, equal to data.len
         shape: []usize, //defines the multidimensional structure of the tensor
         allocator: *const std.mem.Allocator, //allocator used in the memory initialization of the tensor
-        owns_memory: bool, //whether this tensor owns its memory and should free it
 
         ///Method used to initialize an undefined Tensor. It just set the allocator.
         /// More usefull methods are:
@@ -41,21 +40,18 @@ pub fn Tensor(comptime T: type) type {
                 .size = 0,
                 .shape = &[_]usize{},
                 .allocator = allocator,
-                .owns_memory = true,
             };
         }
 
         ///Free all the possible allocation, use it every time you create a new Tensor ( defer yourTensor.deinit() )
         pub fn deinit(self: *@This()) void {
-            if (self.owns_memory) {
-                if (self.data.len > 0) {
-                    self.allocator.free(self.data);
-                    self.data = &[_]T{};
-                }
-                if (self.shape.len > 0) {
-                    self.allocator.free(self.shape);
-                    self.shape = &[_]usize{};
-                }
+            if (self.data.len > 0) {
+                self.allocator.free(self.data);
+                self.data = &[_]T{};
+            }
+            if (self.shape.len > 0) {
+                self.allocator.free(self.shape);
+                self.shape = &[_]usize{};
             }
         }
 
@@ -87,7 +83,6 @@ pub fn Tensor(comptime T: type) type {
                 .size = total_size,
                 .shape = tensorShape,
                 .allocator = allocator,
-                .owns_memory = true,
             };
         }
 
@@ -132,7 +127,6 @@ pub fn Tensor(comptime T: type) type {
                 .size = total_size,
                 .shape = tensorShape,
                 .allocator = allocator,
-                .owns_memory = true,
             };
         }
 
@@ -145,7 +139,6 @@ pub fn Tensor(comptime T: type) type {
                 .size = data.len,
                 .shape = @constCast(shape),
                 .allocator = allocator,
-                .owns_memory = false,
             };
         }
 
@@ -471,7 +464,6 @@ pub fn Tensor(comptime T: type) type {
                 .shape = try self.allocator.dupe(usize, slice_shape),
                 .size = new_size,
                 .allocator = self.allocator,
-                .owns_memory = true,
             };
 
             _ = &new_tensor;
