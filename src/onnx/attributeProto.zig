@@ -176,7 +176,7 @@ pub const AttributeProto = struct {
                 },
                 3 => { // single int (i)
                     const value = try reader.readVarint();
-                    attr.i = @intCast(value);
+                    attr.i = @bitCast(value);
                     attr.type = .INT;
                 },
                 4 => { // single string (s)

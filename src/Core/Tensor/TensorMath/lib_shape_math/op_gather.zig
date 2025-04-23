@@ -19,7 +19,22 @@ pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), se
         return TensorError.InvalidRank;
     }
 
-    const output_shape = try get_gather_output_shape(T, data, indices, selected_axis);
+    // Validate that the axis is within the tensor's dimensions
+    const number_dimensions: isize = @intCast(data.shape.len);
+    if (selected_axis >= number_dimensions or selected_axis < -1 * number_dimensions) {
+        return TensorError.InvalidAxis;
+    }
+
+    const axis: usize = @intCast(if (selected_axis < 0) number_dimensions + selected_axis else selected_axis);
+    // All index values must be within bounds [0, s-1] where s is the length of the chosen axis
+    for (0..indices.size) |i| {
+        if (indices.data[i] >= data.shape[axis] or indices.data[i] < 0) {
+            return TensorError.IndexOutOfBounds;
+        }
+    }
+
+    const output_shape = try get_gather_output_shape(data.shape, indices.shape, selected_axis);
+    defer pkg_allocator.free(output_shape);
 
     // Create output tensor
     var output = try Tensor(T).fromShape(&pkg_allocator, output_shape);
@@ -33,11 +48,6 @@ pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), se
 /// Lean version of gather
 /// NOTE: (IMPORTANT FOR CODE GEN) according to onnx standard, values in indices tensor can be negative and if so they are converted to positive values by adding the size of the axis pointed dimension of the data tensor. For performance and code clarity reasons (check + double casting) we support only positive indices instead, remove this note and edit "discrepancies from the standard onnx" if this is changed in the future.
 pub fn lean_gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), selected_axis: isize, output: *Tensor(T)) !void {
-    //std.debug.print("\n[GATHER] Input shape: {any}", .{data.shape});
-    //std.debug.print("\n[GATHER] Input data: {any}", .{data.data});
-    //std.debug.print("\n[GATHER] Indices shape: {any}", .{indices.shape});
-    //std.debug.print("\n[GATHER] Indices data: {any}", .{indices.data});
-    //std.debug.print("\n[GATHER] Selected axis: {d}", .{selected_axis});
 
     //If axis is negative, convert it to a positive index
     const number_dimensions: isize = @intCast(data.shape.len);
@@ -73,19 +83,16 @@ pub fn lean_gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize
 
             // Perform the data copy using std.mem.copy
             @memcpy(output.data[output_offset .. output_offset + inner_size], data.data[data_offset .. data_offset + inner_size]);
-
-            //std.debug.print("[GATHER DEBUG] Copied data: ", .{});
-            //for (data.data[data_offset .. data_offset + inner_size]) |val| {
-            //std.debug.print("{d} ", .{val});
-            // }
-            //std.debug.print("\n", .{});
         }
     }
-    //std.debug.print("\n[GATHER] Output shape: {any}", .{output.shape});
-    //std.debug.print("\n[GATHER] Output data: {any}\n", .{output.data});
 }
 
 pub fn get_gather_output_shape(input_shape: []const usize, indices_shape: []const usize, selected_axis: isize) ![]usize {
+
+    // Scalar data tensor is not allowed
+    if (input_shape.len == 0) {
+        return TensorError.InvalidRank;
+    }
 
     // Validate that the axis is within the tensor's dimensions
     const number_dimensions: isize = @intCast(input_shape.len);

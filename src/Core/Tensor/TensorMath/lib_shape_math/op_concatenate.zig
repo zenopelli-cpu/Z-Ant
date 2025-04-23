@@ -109,9 +109,7 @@ pub fn concatenate_lean(comptime T: type, allocator: *const std.mem.Allocator, t
         // Clean up any reshaped tensors we created
         if (need_reshape) {
             for (modified_tensors) |*tensor| {
-                if (tensor.owns_memory) {
-                    tensor.deinit();
-                }
+                tensor.deinit();
             }
         }
         allocator.free(modified_tensors);
@@ -141,11 +139,8 @@ pub fn concatenate_lean(comptime T: type, allocator: *const std.mem.Allocator, t
                 }
 
                 // Create a new tensor with the reshaped dimensions
-                var reshaped_tensor = try Tensor(T).fromArray(allocator, tensor.data, new_shape);
-                reshaped_tensor.owns_memory = true;
-
                 // Replace the original tensor in our working copy
-                modified_tensors[i] = reshaped_tensor;
+                modified_tensors[i] = try Tensor(T).fromArray(allocator, tensor.data, new_shape);
             }
         }
     }
