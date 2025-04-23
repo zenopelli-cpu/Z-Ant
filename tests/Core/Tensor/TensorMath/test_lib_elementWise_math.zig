@@ -83,7 +83,7 @@ test "Error when input tensors have different sizes" {
     var t2 = try Tensor(f32).fromArray(&allocator, &inputArray2, &shape2);
     defer t2.deinit();
 
-    try std.testing.expectError(TensorMathError.InputTensorDifferentSize, TensMath.sum_tensors(f32, f64, &t1, &t2));
+    try std.testing.expectError(TensorMathError.IncompatibleBroadcastShapes, TensMath.sum_tensors(f32, f64, &t1, &t2));
 }
 
 test "add bias" {
