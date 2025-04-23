@@ -86,8 +86,10 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_div(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "DynamicQuantizeLinear")) {
         try write_dynamicQuantizeLinear(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Elu")) {
+        try write_elu(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Flatten")) {
-        try writer.writeAll("// Handle Flatten\n");
+        try write_flatten(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gather")) {
         try write_gather(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gemm")) {
@@ -1527,6 +1529,103 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    tensMath.ReLU_lean(T, {s}, &tensor_{s})
     , .{
         tensor_A_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_elu(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Elu.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input tensor
+    // OUTPUTS:
+    //      - Y (heterogeneous) - T: Output tensor
+    // ATTRIBUTES:
+    //      - alpha - FLOAT (default is '1.0'): Coefficient of ELU operator
+
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    }
+
+    const tensor_type = try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[0].?.name).?.tensorProto.?.data_type);
+
+    // alpha attribute
+    var alpha: f32 = 1.0;
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "alpha")) {
+            if (attr.type != AttributeType.FLOAT) {
+                return error.InvalidAttributeType;
+            }
+            alpha = attr.f;
+        }
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.elu_lean(
+        \\        {s}, // type
+        \\        {s}, // input
+        \\        &tensor_{s}, // output
+        \\        {d} // alpha
+        \\    )
+    , .{
+        tensor_type,
+        input_tensor_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+        alpha,
+    });
+}
+
+inline fn write_flatten(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Flatten.html
+    // INPUTS:
+    //      - data (heterogeneous) - T: Input tensor of any shape.
+    // OUTPUTS:
+    //      - output (heterogeneous) - T: Output tensor with shape [outer_dim, inner_dim].
+    // ATTRIBUTES:
+    //      - axis - INT (default is '1'): Indicate up to which input dimension should be flattened.
+
+    //----create tensor_input_string
+    var tensor_input_string: []u8 = undefined;
+    defer allocator.free(tensor_input_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    }
+
+    const tensor_type = try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[0].?.name).?.tensorProto.?.data_type);
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.flatten_lean(
+        \\        {s}, // type
+        \\        {s}, // input
+        \\        &tensor_{s}, // output
+        \\    )
+    , .{
+        tensor_type,
+        tensor_input_string,
         try utils.getSanitizedName(node.outputs.items[0].name),
     });
 }
