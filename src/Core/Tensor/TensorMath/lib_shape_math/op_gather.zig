@@ -19,50 +19,7 @@ pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), se
         return TensorError.InvalidRank;
     }
 
-    // Validate that the axis is within the tensor's dimensions
-    const number_dimensions: isize = @intCast(data.shape.len);
-    if (selected_axis >= number_dimensions or selected_axis < -1 * number_dimensions) {
-        return TensorError.InvalidAxis;
-    }
-
-    // If axis is negative, convert it to a positive index
-    const axis: usize = @intCast(if (selected_axis < 0) number_dimensions + selected_axis else selected_axis);
-
-    // All index values must be within bounds [0, s-1] where s is the length of the chosen axis
-    for (0..indices.size) |i| {
-        if (indices.data[i] >= data.shape[axis] or indices.data[i] < 0) {
-            return TensorError.IndexOutOfBounds;
-        }
-    }
-
-    // Calculate the shape of the output tensor:
-    // [data.shape[0..axis], indices.shape..., data.shape[axis+1..]]
-    const output_shape_len = data.shape.len + indices.shape.len - 1;
-    const output_shape = try pkg_allocator.alloc(usize, output_shape_len);
-    defer pkg_allocator.free(output_shape);
-    errdefer pkg_allocator.free(output_shape);
-
-    // Copy the dimensions before the axis
-    for (0..axis) |i| {
-        output_shape[i] = data.shape[i];
-    }
-
-    // Copy indices shape
-    var indices_idx: usize = 0;
-    while (indices_idx < indices.shape.len) : (indices_idx += 1) {
-        output_shape[axis + indices_idx] = indices.shape[indices_idx];
-    }
-
-    // Copy the dimensions after the axis
-    for (axis + 1..data.shape.len) |i| {
-        output_shape[axis + indices.shape.len + (i - axis - 1)] = data.shape[i];
-    }
-
-    // Calculate total size
-    var total_size: usize = 1;
-    for (output_shape) |dim| {
-        total_size *= dim;
-    }
+    const output_shape = try get_gather_output_shape(T, data, indices, selected_axis);
 
     // Create output tensor
     var output = try Tensor(T).fromShape(&pkg_allocator, output_shape);
@@ -129,10 +86,6 @@ pub fn lean_gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize
 }
 
 pub fn get_gather_output_shape(input_shape: []const usize, indices_shape: []const usize, selected_axis: isize) ![]usize {
-    // Scalar data tensor is not allowed
-    if (input_shape.len == 0) {
-        return TensorError.InvalidRank;
-    }
 
     // Validate that the axis is within the tensor's dimensions
     const number_dimensions: isize = @intCast(input_shape.len);
