@@ -386,7 +386,7 @@ pub fn Tensor(comptime T: type) type {
 
                 // Use result to prevent optimization
                 if (result == 0) {
-                    std.debug.print("Benchmark result: {}\n", .{result});
+                    std.log.info("Benchmark result: {}\n", .{result});
                 }
             }
 
@@ -404,7 +404,7 @@ pub fn Tensor(comptime T: type) type {
 
                 // Use result to prevent optimization
                 if (result == 0) {
-                    std.debug.print("Benchmark result: {}\n", .{result});
+                    std.log.info("Benchmark result: {}\n", .{result});
                 }
             }
 
@@ -543,24 +543,24 @@ pub fn Tensor(comptime T: type) type {
         /// Prints all the possible details of a tensor.
         /// Very usefull in debugging.
         pub fn info(self: *@This()) void {
-            std.debug.print("\ntensor infos: ", .{});
-            std.debug.print("\n  data type:{}", .{@TypeOf(self.data[0])});
-            std.debug.print("\n  size:{}", .{self.size});
-            std.debug.print("\n shape.len:{} shape: [ ", .{self.shape.len});
+            std.log.debug("\ntensor infos: ", .{});
+            std.log.debug("\n  data type:{}", .{@TypeOf(self.data[0])});
+            std.log.debug("\n  size:{}", .{self.size});
+            std.log.debug("\n shape.len:{} shape: [ ", .{self.shape.len});
             for (0..self.shape.len) |i| {
-                std.debug.print("{} ", .{self.shape[i]});
+                std.log.debug("{} ", .{self.shape[i]});
             }
-            std.debug.print("] ", .{});
+            std.log.debug("] ", .{});
             //self.print();
         }
 
         /// Prints all the array self.data in an array.
         pub fn print(self: *@This()) void {
-            std.debug.print("\n  tensor data: ", .{});
+            std.log.debug("\n  tensor data: ", .{});
             for (0..self.size) |i| {
-                std.debug.print("{} ", .{self.data[i]});
+                std.log.debug("{} ", .{self.data[i]});
             }
-            std.debug.print("\n", .{});
+            std.log.debug("\n", .{});
         }
 
         /// Print the Tensor() to console in a more readable way.
@@ -572,29 +572,29 @@ pub fn Tensor(comptime T: type) type {
         fn _printMultidimHelper(self: *@This(), offset: usize, idx: usize) void {
             // Print opening bracket with a number of tab that is equals to idx
             for (0..idx) |_| {
-                std.debug.print("    ", .{});
+                std.log.debug("    ", .{});
             }
-            std.debug.print("[", .{});
+            std.log.debug("[", .{});
 
             if (idx == self.shape.len - 1) {
                 for (0..self.shape[self.shape.len - 1]) |i| {
                     const local_idx = offset + i;
-                    std.debug.print("{}, ", .{self.data[local_idx]});
+                    std.log.debug("{}, ", .{self.data[local_idx]});
                 }
-                std.debug.print("],\n", .{});
+                std.log.debug("],\n", .{});
             } else {
-                std.debug.print("\n", .{});
+                std.log.debug("\n", .{});
                 for (0..self.shape[idx]) |i| {
                     self._printMultidimHelper(offset + self.shape[idx + 1] * i, idx + 1);
                 }
-                std.debug.print("\n", .{});
+                std.log.debug("\n", .{});
 
                 for (0..idx) |_| {
-                    std.debug.print("    ", .{});
+                    std.log.debug("    ", .{});
                 }
-                std.debug.print("]", .{});
+                std.log.debug("]", .{});
                 if (idx != 0) {
-                    std.debug.print(",\n", .{});
+                    std.log.debug(",\n", .{});
                 }
             }
         }

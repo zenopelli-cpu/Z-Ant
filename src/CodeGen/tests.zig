@@ -55,7 +55,7 @@ pub fn writeTestFile(model_name: []const u8, model_path: []const u8) !void {
     const test_file_path = try std.fmt.allocPrint(allocator, "{s}test_{s}.zig", .{ model_path, model_name });
 
     try utils.copyFile("tests/CodeGen/test_model.template.zig", test_file_path);
-    std.debug.print("\n\nGenerated test file: {s}\n", .{test_file_path});
+    std.log.info("\n\nGenerated test file: {s}\n", .{test_file_path});
 
     // Copy user test file into the generated test file
     if (codegen_options.user_tests.len > 0) {
@@ -72,7 +72,7 @@ pub fn writeSlimTestFile(model_name: []const u8, model_path: []const u8) !void {
     const test_file_path = try std.fmt.allocPrint(allocator, "{s}test_{s}.zig", .{ model_path, model_name });
 
     try utils.copyFile("tests/CodeGen/test_model.slim.template.zig", test_file_path);
-    std.debug.print("\n\nGenerated test file: {s}\n", .{test_file_path});
+    std.log.info("\n\nGenerated test file: {s}\n", .{test_file_path});
 
     try writeModelOptionsFile(model_name, model_path);
 }

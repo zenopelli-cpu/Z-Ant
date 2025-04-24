@@ -7,7 +7,7 @@ const allocator = pkgAllocator.allocator;
 const model = @import("model_options.zig");
 
 test "Static Library - Random data Prediction Test" {
-    std.debug.print("\n     test: Static Library - {s} Random data Prediction Test\n", .{model.name});
+    std.log.scoped(.test_minst).info("\n     test: Static Library - {s} Random data Prediction Test\n", .{model.name});
 
     var input_shape = model.input_shape;
 
@@ -45,7 +45,7 @@ test "Static Library - Random data Prediction Test" {
     const LogFn = fn ([*c]u8) callconv(.C) void;
     const logFn: LogFn = struct {
         fn log(msg: [*c]u8) callconv(.C) void {
-            std.debug.print("{s}", .{msg});
+            std.log.scoped(.test_minst).debug("{s}", .{msg});
         }
     }.log;
 
@@ -60,11 +60,11 @@ test "Static Library - Random data Prediction Test" {
         &result,
     );
 
-    std.debug.print("\nPrediction done without erorrs:\n", .{});
+    std.log.scoped(.test_minst).info("\nPrediction done without erorrs:\n", .{});
 }
 
 test "Static Library - Wrong Input Shape" {
-    std.debug.print("\n     test: Static Library - {s} Wrong Input Shape\n", .{model.name});
+    std.log.scoped(.test_minst).info("\n     test: Static Library - {s} Wrong Input Shape\n", .{model.name});
 
     // Test with wrong input shape
 
@@ -112,7 +112,7 @@ test "Static Library - Wrong Input Shape" {
 }
 
 test "Static Library - Empty Input" {
-    std.debug.print("\n     test: Static Library - {s} Empty Input\n", .{model.name});
+    std.log.scoped(.test_minst).info("\n     test: Static Library - {s} Empty Input\n", .{model.name});
 
     // Test with empty input
     var input_data = [_]f32{};
@@ -128,7 +128,7 @@ test "Static Library - Empty Input" {
 }
 
 test "Static Library - Wrong Number of Dimensions" {
-    std.debug.print("\n     test: Static Library - {s} Wrong Number of Dimensions\n", .{model.name});
+    std.log.scoped(.test_minst).info("\n     test: Static Library - {s} Wrong Number of Dimensions\n", .{model.name});
 
     const model_input_shape = model.input_shape;
 
@@ -138,7 +138,7 @@ test "Static Library - Wrong Number of Dimensions" {
     }
 
     // Test with wrong number of dimensions
-    
+
     var input_shape = [_]u32{input_data_size}; // Should be 4D but only 1D
 
     var input_data = try allocator.alloc(f32, input_data_size);
@@ -162,7 +162,7 @@ test "Static Library - Wrong Number of Dimensions" {
 // TODO: Implement the following tests
 
 // test "Static Library - User Prediction Test" {
-//     std.debug.print("\n     test: Static Library - {s} User Prediction Test\n", .{model.name});
+//     std.log.scoped(.test_minst).info("\n     test: Static Library - {s} User Prediction Test\n", .{model.name});
 
 //     var input_shape = model.input_shape;
 
@@ -200,7 +200,7 @@ test "Static Library - Wrong Number of Dimensions" {
 //     const LogFn = fn ([*c]u8) callconv(.C) void;
 //     const logFn: LogFn = struct {
 //         fn log(msg: [*c]u8) callconv(.C) void {
-//             std.debug.print("{s}", .{msg});
+//             std.log.scoped(.test_minst).debug("{s}", .{msg});
 //         }
 //     }.log;
 
@@ -215,6 +215,6 @@ test "Static Library - Wrong Number of Dimensions" {
 //         &result,
 //     );
 
-//     std.debug.print("\nPrediction results:\n", .{});
-//     std.debug.print("{} ", .{result[0]});
+//     std.log.scoped(.test_minst).debug("\nPrediction results:\n", .{});
+//     std.log.scoped(.test_minst).debug("{} ", .{result[0]});
 // }

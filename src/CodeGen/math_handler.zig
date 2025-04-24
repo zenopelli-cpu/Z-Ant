@@ -10,6 +10,8 @@ const ModelOnnx = onnx.ModelProto;
 const DataType = onnx.DataType;
 const allocator = zant.utils.allocator.allocator;
 
+const mathHandler_log = std.log.scoped(.mathHandler);
+
 // --- proto libs
 const TensorProto = onnx.TensorProto;
 const NodeProto = onnx.NodeProto;
@@ -586,7 +588,7 @@ inline fn write_concat(writer: std.fs.File.Writer, node: *ReadyNode) !void {
                 \\
                 \\    // Special case for concatenation along axis 0 with different ranks
                 \\    // This requires custom handling as the standard concatenate function expects same rank
-                \\    std.debug.print("\\nWarning: Concatenating tensors with different ranks along axis 0\\n", .{{}});
+                \\    mathHandler_log.warn("\\nWarning: Concatenating tensors with different ranks along axis 0\\n", .{{}});
                 \\
                 \\    // Create a list of tensors to concatenate
                 \\    var concat_tensor_list_{s} = [_]Tensor(T){{
@@ -789,7 +791,7 @@ inline fn write_constant(writer: std.fs.File.Writer, node: *ReadyNode) !void {
                 \\    // Sparse tensor constants are not yet fully supported
                 \\    // Creating a placeholder tensor for sparse_value
                 \\    tensor_{s} = Tensor(T).initScalar(&allocator, 0) catch return;
-                \\    std.debug.print("Warning: sparse_value attribute used but not fully supported\\n", .{{}});
+                \\    mathHandler_log.warn("Warning: sparse_value attribute used but not fully supported\\n", .{{}});
             , .{output_name});
             return;
         }
@@ -1061,7 +1063,7 @@ inline fn write_matmul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // Get type information for tensor B to estimate element size
     const input_B_name = node.inputs.items[1].?.name;
     const ready_tensor_B = globals.tensorHashMap.getPtr(input_B_name) orelse {
-        std.debug.print("Error: Tensor '{s}' not found in globals.tensorHashMap for MatMul.\n", .{input_B_name});
+        mathHandler_log.warn("Error: Tensor '{s}' not found in globals.tensorHashMap for MatMul.\n", .{input_B_name});
         return error.TensorNotFound;
     };
 
@@ -1078,18 +1080,18 @@ inline fn write_matmul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             .UINT8 => @sizeOf(u8),
             // Add other supported types as needed
             else => blk: {
-                std.debug.print("Warning: Unsupported DataType '{any}' for MatMul input B '{s}'. Assuming f32 size.\n", .{ data_type, input_B_name });
+                mathHandler_log.warn("Warning: Unsupported DataType '{any}' for MatMul input B '{s}'. Assuming f32 size.\n", .{ data_type, input_B_name });
                 break :blk 4;
             },
         };
     } else {
         // Fallback if tensorProto is null - log a warning
-        std.debug.print("Warning: TensorProto for MatMul input B '{s}' is null. Assuming f32 size for width calculation.\n", .{input_B_name});
+        mathHandler_log.warn("Warning: TensorProto for MatMul input B '{s}' is null. Assuming f32 size for width calculation.\n", .{input_B_name});
     }
 
     const b_dims = node.inputs.items[1].?.shape.len;
     if (b_dims == 0) {
-        std.debug.print("Error: MatMul input B '{s}' has zero dimensions.\n", .{input_B_name});
+        mathHandler_log.warn("Error: MatMul input B '{s}' has zero dimensions.\n", .{input_B_name});
         return error.InvalidShape; // Avoid panic on empty shape
     }
 
@@ -1250,7 +1252,7 @@ inline fn write_averagePool(writer: std.fs.File.Writer, node: *ReadyNode) !void 
     //      - pads - INTS: Padding for each spatial axis
     //      - strides - INTS: Stride along each spatial axis (default 1)
 
-    std.debug.print("DEBUG: write_averagePool called for node: {s}\n", .{node.nodeProto.name orelse "unnamed"});
+    mathHandler_log.debug("DEBUG: write_averagePool called for node: {s}\n", .{node.nodeProto.name orelse "unnamed"});
 
     var auto_pad: []const u8 = "NOTSET";
     var ceil_mode: i64 = 0;
@@ -1677,7 +1679,7 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else {
         // Shape from input tensor
         if (node.inputs.items.len < 2) {
-            std.debug.print("ERROR: Reshape node '{s}' requires a 'shape' attribute or a second input tensor, but neither was found during code generation.", .{node.nodeProto.name orelse "-"});
+            mathHandler_log.warn("ERROR: Reshape node '{s}' requires a 'shape' attribute or a second input tensor, but neither was found during code generation.", .{node.nodeProto.name orelse "-"});
             return error.ShapeNotFound;
         }
         const shape_input_tensor = node.inputs.items[1].?;
@@ -3047,16 +3049,16 @@ inline fn write_cast(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             // Fallback to tensorProto if dtype is not set
             source_type = tp.data_type;
         } else {
-            std.debug.print("Error: Could not determine source type for Cast input '{s}' from either dtype or tensorProto\n", .{node.inputs.items[0].?.name});
+            mathHandler_log.warn("Error: Could not determine source type for Cast input '{s}' from either dtype or tensorProto\n", .{node.inputs.items[0].?.name});
             return error.DataTypeNotFound; // Or another appropriate error
         }
     } else {
-        std.debug.print("Error: Cast input tensor '{s}' not found in map\n", .{node.inputs.items[0].?.name});
+        mathHandler_log.warn("Error: Cast input tensor '{s}' not found in map\n", .{node.inputs.items[0].?.name});
         return error.TensorNotFound; // Or another appropriate error
     }
 
     if (source_type == DataType.UNDEFINED) {
-        std.debug.print("Error: Determined source type for Cast input '{s}' is UNDEFINED\n", .{node.inputs.items[0].?.name});
+        mathHandler_log.warn("Error: Determined source type for Cast input '{s}' is UNDEFINED\n", .{node.inputs.items[0].?.name});
         return error.DataTypeNotFound;
     }
     // --- End safe source type retrieval ---

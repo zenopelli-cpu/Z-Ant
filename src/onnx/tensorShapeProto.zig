@@ -5,6 +5,8 @@ const AttributeType = @import("onnx.zig").AttributeType;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.tensorProto);
+
 //https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L700
 //The struct Dimension is not present, instead the dimensions are saved inside .dims
 //TAGS:
@@ -45,7 +47,7 @@ pub const TensorShapeProto = struct {
                         dim.dim_param = try reader.readString(reader.allocator);
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for Dimension\n\n ", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for Dimension\n\n ", .{tag});
                         try reader.skipField(tag.wire_type);
                     },
                 }
@@ -58,24 +60,24 @@ pub const TensorShapeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            std.debug.print("{s}------------- DIMENSION\n", .{space});
+            onnx_log.debug("{s}------------- DIMENSION\n", .{space});
 
             if (self.dim_value) |value| {
-                std.debug.print("{s}Dim Value: {}\n", .{ space, value });
+                onnx_log.debug("{s}Dim Value: {}\n", .{ space, value });
             } else {
-                std.debug.print("{s}Dim Value: (none)\n", .{space});
+                onnx_log.debug("{s}Dim Value: (none)\n", .{space});
             }
 
             if (self.dim_param) |param| {
-                std.debug.print("{s}Dim Param: {s}\n", .{ space, param });
+                onnx_log.debug("{s}Dim Param: {s}\n", .{ space, param });
             } else {
-                std.debug.print("{s}Dim Param: (none)\n", .{space});
+                onnx_log.debug("{s}Dim Param: (none)\n", .{space});
             }
 
             if (self.denotation) |d| {
-                std.debug.print("{s}Denotation: {s}\n", .{ space, d });
+                onnx_log.debug("{s}Denotation: {s}\n", .{ space, d });
             } else {
-                std.debug.print("{s}Denotation: (none)\n", .{space});
+                onnx_log.debug("{s}Denotation: (none)\n", .{space});
             }
         }
     };
@@ -113,7 +115,7 @@ pub const TensorShapeProto = struct {
                     try dims_list.append(dim_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorShapeProto\n\n ", .{tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for TensorShapeProto\n\n ", .{tag});
                     try reader.skipField(tag.wire_type);
                 },
             }
@@ -136,20 +138,19 @@ pub const TensorShapeProto = struct {
         const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
             return;
         };
-        std.debug.print("{s}------------- SHAPE\n", .{space});
+        onnx_log.debug("{s}------------- SHAPE\n", .{space});
 
-        std.debug.print("{s}Shape: [", .{space});
-        for (self.shape, 0..) |dim, i| {
-            if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{}", .{dim});
+        onnx_log.debug("{s}Shape: [", .{space});
+        for (self.shape) |dim| {
+            onnx_log.debug("{}", .{dim});
         }
-        std.debug.print("]\n", .{});
+        onnx_log.debug("]\n", .{});
 
         if (self.dims.len != 0) {
-            std.debug.print("{s}Dimensions:\n", .{space});
+            onnx_log.debug("{s}Dimensions:\n", .{space});
             for (self.dims) |d| d.print(space);
         } else {
-            std.debug.print("{s}Dimensions: (none)\n", .{space});
+            onnx_log.debug("{s}Dimensions: (none)\n", .{space});
         }
     }
 };

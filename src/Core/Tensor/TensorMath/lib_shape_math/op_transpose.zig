@@ -97,13 +97,13 @@ fn transpose(comptime T: type, t: *Tensor(T), perms: []usize) !Tensor(T) {
 
 /// Given a 4D tensor it returns the tensor with the last 2 dimensions transposed. Operates on both data and shape, does not modify self, used by gemm.
 pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T) {
-    //std.debug.print("\n[DEBUG] transposeLastTwo:", .{});
-    //std.debug.print("\n  Input tensor shape: ", .{});
-    //for (tensor.shape) |s| std.debug.print("{d} ", .{s});
+    //std.log.debug("\n[DEBUG] transposeLastTwo:", .{});
+    //std.log.debug("\n  Input tensor shape: ", .{});
+    //for (tensor.shape) |s| std.log.debug("{d} ", .{s});
 
     // Verifying correct shape
     if (tensor.shape.len != 2 and tensor.shape.len != 4) {
-        //std.debug.print("\n  Error: Expected 2D or 4D tensor, got {d}D", .{tensor.shape.len});
+        //std.log.debug("\n  Error: Expected 2D or 4D tensor, got {d}D", .{tensor.shape.len});
         return TensorMathError.InputTensorsWrongShape;
     }
 
@@ -134,15 +134,15 @@ pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T
         newShape[3] = rows;
     }
 
-    //std.debug.print("\n  Rows: {d}, Cols: {d}, Total: {d}", .{ rows, cols, total });
-    //std.debug.print("\n  New shape: ", .{});
-    //for (newShape) |s| std.debug.print("{d} ", .{s});
+    //std.log.debug("\n  Rows: {d}, Cols: {d}, Total: {d}", .{ rows, cols, total });
+    //std.log.debug("\n  New shape: ", .{});
+    //for (newShape) |s| std.log.debug("{d} ", .{s});
 
     // Create a non-const copy of the input data using pkg_allocator
     const outData = try pkg_allocator.alloc(T, total);
     errdefer pkg_allocator.free(outData);
 
-    //std.debug.print("\n  Transposing data...", .{});
+    //std.log.debug("\n  Transposing data...", .{});
 
     if (tensor.shape.len == 2) {
         // Simple 2D transpose - Fixed indexing
@@ -168,7 +168,7 @@ pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T
         }
     }
 
-    //std.debug.print("\n  Transpose complete", .{});
+    //std.log.debug("\n  Transpose complete", .{});
 
     return Tensor(T){
         .data = outData,
@@ -228,11 +228,11 @@ pub fn transpose_onnx_lean(
     if (perm) |p| {
         // Validate length
         if (p.len != perm_rank) {
-            //std.debug.print("ERROR: transpose_onnx_lean perm.len = {}, perm_rank = {}. Should be equal.\\n", .{ p.len, perm_rank });
+            //std.log.debug("ERROR: transpose_onnx_lean perm.len = {}, perm_rank = {}. Should be equal.\\n", .{ p.len, perm_rank });
             return error.InvalidPermutation;
         }
         if (input_rank > perm_rank) {
-            //std.debug.print("ERROR: transpose_onnx_lean input_rank ({}) > perm_rank ({}) not supported\\n", .{ input_rank, perm_rank });
+            //std.log.debug("ERROR: transpose_onnx_lean input_rank ({}) > perm_rank ({}) not supported\\n", .{ input_rank, perm_rank });
             return error.UnsupportedBroadcast;
         }
 
@@ -432,7 +432,7 @@ pub fn get_transpose_output_shape(input_shape: []const usize, perm: ?[]const usi
     if (perm) |p| {
         if (p.len != perm_rank) {
             // This case should technically not happen if perm_rank is derived from p.len, but good practice
-            std.debug.print("ERROR: perm length mismatch internal logic! p.len={} perm_rank={}\\n", .{ p.len, perm_rank });
+            std.log.warn("ERROR: perm length mismatch internal logic! p.len={} perm_rank={}\\n", .{ p.len, perm_rank });
             return error.InvalidPermutation;
         }
 
@@ -472,7 +472,7 @@ pub fn get_transpose_output_shape(input_shape: []const usize, perm: ?[]const usi
     for (0..perm_rank) |i| {
         const input_dim_index = real_perm[i];
         if (input_dim_index >= perm_rank) { // Sanity check
-            std.debug.print("ERROR: real_perm[{}]={} is out of bounds for perm_rank={}\\n", .{ i, input_dim_index, perm_rank });
+            std.log.warn("ERROR: real_perm[{}]={} is out of bounds for perm_rank={}\\n", .{ i, input_dim_index, perm_rank });
             return error.InvalidPermutation;
         }
         output_shape[i] = effective_input_shape[input_dim_index];
