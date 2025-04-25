@@ -80,6 +80,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Flatten")) {
         //https://onnx.ai/onnx/operators/onnx__Flatten.html
         try compute_flatten_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Floor")) {
+        //https://onnx.ai/onnx/operators/onnx__Floor.html
+        try compute_floor_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
         try compute_gather_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gemm")) {
@@ -100,8 +103,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
         //https://onnx.ai/onnx/operators/onnx__Neg.html
         try compute_neg_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "OneHot")) {
-        // TODO
-        return error.OperationWIP;
+        //https://onnx.ai/onnx/operators/onnx__OneHot.html
+        try compute_oneHot_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Pad")) {
         //https://onnx.ai/onnx/operators/onnx__Pad.html
         try compute_pads_output_shape(readyNode);
@@ -436,6 +439,93 @@ inline fn compute_gemm_output_shape(readyNode: *ReadyNode) !void {
     }
 
     readyNode.outputs.items[0].shape = shape;
+}
+
+inline fn compute_oneHot_output_shape(readyNode: *ReadyNode) !void {
+    std.debug.print("\n====== compute_oneHot_output_shape node: {s} ======\n", .{readyNode.nodeProto.name orelse "(unnamed)"});
+
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        // Verifica che ci siano esattamente 3 input: indices, depth, values
+        if (readyNode.inputs.items.len != 3) {
+            std.debug.print("\n ERROR: OneHot expects exactly 3 inputs, got {d}\n", .{readyNode.inputs.items.len});
+            return error.InvalidNumberOfInputs;
+        }
+
+        const indices = readyNode.inputs.items[0].?;
+        const depth_tensor = readyNode.inputs.items[1].?;
+        const values = readyNode.inputs.items[2].?;
+
+        std.debug.print("\n indices_shape: []i64 = {any}", .{indices.shape});
+        std.debug.print("\n depth_shape: []i64 = {any}", .{depth_tensor.shape});
+        std.debug.print("\n values_shape: []i64 = {any}", .{values.shape});
+
+        // Verifica che depth sia uno scalare (forma [] o [1])
+        const depth_shape_i64 = depth_tensor.shape;
+        const effective_depth_shape_i64 = if (depth_shape_i64.len == 0) &[_]i64{1} else depth_shape_i64;
+        if (effective_depth_shape_i64.len > 1 or effective_depth_shape_i64[0] != 1) {
+            std.debug.print("\n ERROR: depth must be a scalar, got shape {any}\n", .{effective_depth_shape_i64});
+            return error.InvalidDepthShape;
+        }
+
+        // Verifica che values abbia forma [2]
+        const values_shape_i64 = values.shape;
+        const effective_values_shape_i64 = if (values_shape_i64.len == 0) &[_]i64{1} else values_shape_i64;
+        if (effective_values_shape_i64.len != 1 or effective_values_shape_i64[0] != 2) {
+            std.debug.print("\n ERROR: values must have shape [2], got shape {any}\n", .{effective_values_shape_i64});
+            return error.InvalidValuesShape;
+        }
+
+        // Estrai il valore di depth
+        var depth: i64 = undefined;
+        if (depth_tensor.tensorProto != null and depth_tensor.tensorProto.?.int64_data != null) {
+            depth = depth_tensor.tensorProto.?.int64_data.?[0];
+        } else if (depth_tensor.tensorProto != null and depth_tensor.tensorProto.?.raw_data != null) {
+            const raw = depth_tensor.tensorProto.?.raw_data.?;
+            if (raw.len < @sizeOf(i64)) {
+                std.debug.print("\n ERROR: depth raw_data is too small to contain an i64\n", .{});
+                return error.InvalidDepthData;
+            }
+            depth = std.mem.readInt(i64, raw[0..@sizeOf(i64)], .little);
+        } else {
+            std.debug.print("\n ERROR: depth tensorProto is missing valid data\n", .{});
+            return error.DepthDataMissing;
+        }
+
+        // Verifica che depth sia positivo
+        if (depth <= 0) {
+            std.debug.print("\n ERROR: depth must be positive, got {d}\n", .{depth});
+            return error.InvalidDepthValue;
+        }
+
+        // Estrai l'attributo axis (default: -1)
+        var axis: i64 = -1;
+        for (readyNode.nodeProto.attribute) |attr| {
+            if (std.mem.eql(u8, attr.name, "axis")) {
+                if (attr.type != AttributeType.INT) {
+                    std.debug.print("\n ERROR: axis attribute must be INT, got type {any}\n", .{attr.type});
+                    return error.InvalidAttributeType;
+                }
+                axis = attr.i;
+                break;
+            }
+        }
+
+        const indices_shape_i64 = indices.shape;
+        const indices_shape_usize = try utils.i64SliceToUsizeSlice(indices_shape_i64);
+        defer allocator.free(indices_shape_usize);
+
+        const output_shape_usize = try tensorMath.get_oneHot_output_shape(indices_shape_usize, depth, axis);
+        defer allocator.free(output_shape_usize);
+
+        shape = try utils.usizeSliceToI64Slice(output_shape_usize);
+    }
+
+    readyNode.outputs.items[0].shape = shape;
+    std.debug.print("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
 }
 
 inline fn compute_mul_output_shape(readyNode: *ReadyNode) !void {
@@ -1024,6 +1114,24 @@ inline fn compute_tanh_output_shape(readyNode: *ReadyNode) !void {
         Codegen_log.info("\n input_shape: []i64 = {any}", .{input_shape});
 
         shape = try utils.usizeSliceToI64Slice(try tensorMath.get_tanh_output_shape(try utils.i64SliceToUsizeSlice(input_shape)));
+    }
+    readyNode.outputs.items[0].shape = shape;
+}
+
+inline fn compute_floor_output_shape(readyNode: *ReadyNode) !void {
+    const input = readyNode.inputs.items[0] orelse {
+        return error.InputTensorIsNull;
+    };
+
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        const input_shape = input.shape;
+        std.debug.print("\n input_shape: []i64 = {any}", .{input_shape});
+
+        shape = try utils.usizeSliceToI64Slice(try tensorMath.get_floor_output_shape(try utils.i64SliceToUsizeSlice(input_shape)));
     }
     readyNode.outputs.items[0].shape = shape;
 }

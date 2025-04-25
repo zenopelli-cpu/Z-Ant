@@ -672,3 +672,30 @@ test "clip f32 large tensor with SIMD" {
 
     try std.testing.expectEqualSlices(f32, expected_data, output.data);
 }
+
+test "floor_standard - basic case with special values" {
+    std.debug.print("\n     test: floor_standard - basic case with special values\n", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Input
+    var input_array = [_]f32{ 1.7, -2.3, 3.0, 0.0, -0.0, std.math.nan(f32), std.math.inf(f32), -std.math.inf(f32) };
+    var shape = [_]usize{8};
+    var input = try Tensor(f32).fromArray(&allocator, &input_array, &shape);
+    defer input.deinit();
+
+    // Floor
+    var result = try TensMath.floor(f32, &input);
+    defer result.deinit();
+
+    // Expected output
+    const expected = [_]f32{ 1.0, -3.0, 3.0, 0.0, -0.0, std.math.nan(f32), std.math.inf(f32), -std.math.inf(f32) };
+    try std.testing.expectEqual(expected.len, result.data.len);
+    for (expected, result.data) |exp, res| {
+        if (std.math.isNan(exp)) {
+            try std.testing.expect(std.math.isNan(res));
+        } else {
+            try std.testing.expectEqual(exp, res);
+        }
+    }
+    try std.testing.expectEqualSlices(usize, &shape, result.shape);
+}

@@ -8,6 +8,7 @@ Div
 Div  
 Elu  
 Flatten
+Floor
 Gather  
 Gemm  
 Identity  
@@ -16,6 +17,7 @@ MatMul
 MaxPool  
 Mean
 Mul  
+OneHot
 Relu  
 Reshape  
 Sigmoid  
