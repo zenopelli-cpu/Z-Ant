@@ -6,6 +6,8 @@ const StringStringEntryProto = @import("onnx.zig").StringStringEntryProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.valueInfo);
+
 //https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L193
 //TAGS:
 //  - 1 : name, string
@@ -65,7 +67,7 @@ pub const ValueInfoProto = struct {
                     try metadataList.append(ssep_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for ValueInfoProto", .{tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for ValueInfoProto", .{tag});
                     return error.TagNotAvailable;
                 },
             }
@@ -79,28 +81,28 @@ pub const ValueInfoProto = struct {
         const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
             return;
         };
-        std.debug.print("{s}------------- VALUEINFO \n", .{space});
+        onnx_log.debug("{s}------------- VALUEINFO \n", .{space});
 
         if (self.name) |n| {
-            std.debug.print("{s}Name: {s}\n", .{ space, n });
+            onnx_log.debug("{s}Name: {s}\n", .{ space, n });
         } else {
-            std.debug.print("{s}Name: (none)\n", .{space});
+            onnx_log.debug("{s}Name: (none)\n", .{space});
         }
 
         if (self.type) |t| {
-            std.debug.print("{s}Type:\n", .{space});
+            onnx_log.debug("{s}Type:\n", .{space});
             t.print(space);
         } else {
-            std.debug.print("{s}Type: (none)\n", .{space});
+            onnx_log.debug("{s}Type: (none)\n", .{space});
         }
 
         if (self.doc_string) |doc| {
-            std.debug.print("{s}Doc: {s}\n", .{ space, doc });
+            onnx_log.debug("{s}Doc: {s}\n", .{ space, doc });
         } else {
-            std.debug.print("{s}Doc: (none)\n", .{space});
+            onnx_log.debug("{s}Doc: (none)\n", .{space});
         }
 
-        std.debug.print("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
+        onnx_log.debug("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
         for (self.metadata_props) |mp| {
             mp.print(space);
         }

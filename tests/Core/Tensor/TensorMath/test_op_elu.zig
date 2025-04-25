@@ -6,8 +6,10 @@ const Tensor = zant.core.tensor.Tensor;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 const TensMath = zant.core.tensor.math_standard;
 
+const tests_log = std.log.scoped(.test_elu);
+
 test "elu_standard - basic case" {
-    std.debug.print("\n     test: elu_standard - basic case", .{});
+    tests_log.info("\n     test: elu_standard - basic case", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{3};
     var inputArray = [_]f32{ 1.0, -2.0, 0.0 };
@@ -26,7 +28,7 @@ test "elu_standard - basic case" {
 }
 
 test "elu_standard - different alpha" {
-    std.debug.print("\n     test: elu_standard - different alpha", .{});
+    tests_log.info("\n     test: elu_standard - different alpha", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{3};
     var inputArray = [_]f32{ 1.0, -2.0, 0.0 };
@@ -45,7 +47,7 @@ test "elu_standard - different alpha" {
 }
 
 test "elu_standard - single element" {
-    std.debug.print("\n     test: elu_standard - single element", .{});
+    tests_log.info("\n     test: elu_standard - single element", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{1};
     var inputArray = [_]f32{-1.0};
@@ -64,7 +66,7 @@ test "elu_standard - single element" {
 }
 
 test "elu_standard - empty tensor" {
-    std.debug.print("\n     test: elu_standard - empty tensor", .{});
+    tests_log.info("\n     test: elu_standard - empty tensor", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{0};
 
@@ -79,7 +81,7 @@ test "elu_standard - empty tensor" {
 }
 
 test "elu_standard - invalid type" {
-    std.debug.print("\n     test: elu_standard - invalid type", .{});
+    tests_log.info("\n     test: elu_standard - invalid type", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{3};
     var inputArray = [_]i32{ 1, -2, 0 };
@@ -89,12 +91,12 @@ test "elu_standard - invalid type" {
 
     try std.testing.expectError(TensorMathError.InvalidDataType, TensMath.elu(i32, &input, 1.0));
     _ = TensMath.elu(i32, &input, 1.0) catch |err| {
-        std.debug.print("\n     Error: {s}", .{zant.utils.error_handler.errorDetails(err)});
+        tests_log.warn("\n     Error: {s}", .{zant.utils.error_handler.errorDetails(err)});
     };
 }
 
 test "elu_standard - non 1D input" {
-    std.debug.print("\n     test: elu_standard - non 1D input", .{});
+    tests_log.info("\n     test: elu_standard - non 1D input", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{ 2, 2 };
     var inputArray = [_]f32{ 1.0, -2.0, 0.0, 1.0 };
@@ -104,6 +106,6 @@ test "elu_standard - non 1D input" {
 
     try std.testing.expectError(TensorMathError.InvalidInput, TensMath.elu(f32, &input, 1.0));
     _ = TensMath.elu(f32, &input, 1.0) catch |err| {
-        std.debug.print("\n     Error: {s}", .{zant.utils.error_handler.errorDetails(err)});
+        tests_log.warn("\n     Error: {s}", .{zant.utils.error_handler.errorDetails(err)});
     };
 }

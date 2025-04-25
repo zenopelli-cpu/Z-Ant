@@ -64,7 +64,7 @@ pub fn lean_gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize
         inner_size *= data.shape[i];
     }
 
-    //std.debug.print("[GATHER DEBUG] Outer size: {d}, Inner size: {d}, Indices size: {d}\n", .{ outer_size, inner_size, indices_size });
+    //std.log.debug("[GATHER DEBUG] Outer size: {d}, Inner size: {d}, Indices size: {d}\n", .{ outer_size, inner_size, indices_size });
 
     // Iterate over each "outer" segment
     for (0..outer_size) |outer_idx| {
@@ -79,7 +79,7 @@ pub fn lean_gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize
             // Calculate the starting offset in the output tensor
             const output_offset = (outer_idx * indices_size + idx) * inner_size;
 
-            //std.debug.print("[GATHER DEBUG] Outer idx: {d}, Gather idx: {d}, Data offset: {d}, Output offset: {d}\n", .{ outer_idx, gather_idx, data_offset, output_offset });
+            //std.log.debug("[GATHER DEBUG] Outer idx: {d}, Gather idx: {d}, Data offset: {d}, Output offset: {d}\n", .{ outer_idx, gather_idx, data_offset, output_offset });
 
             // Perform the data copy using std.mem.copy
             @memcpy(output.data[output_offset .. output_offset + inner_size], data.data[data_offset .. data_offset + inner_size]);

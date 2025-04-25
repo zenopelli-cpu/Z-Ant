@@ -5,6 +5,8 @@ const protobuf = @import("protobuf.zig");
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.tensorAnnotation);
+
 // https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L536
 //
 //TAG:
@@ -42,14 +44,14 @@ pub const TensorAnnotation = struct {
                     tensor.tensor_name = str;
                 },
                 2 => {
-                    std.debug.print("\n ................ TensorAnnotation READING  quant_parameter_tensor_names", .{});
+                    onnx_log.info("\n ................ TensorAnnotation READING  quant_parameter_tensor_names", .{});
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
                     try tensorNamesList.append(ssep_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for AttributeProto\n\n ", .{tensor_tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for AttributeProto\n\n ", .{tensor_tag});
                     try reader.skipField(tensor_tag.wire_type);
                 },
             }
@@ -64,15 +66,15 @@ pub const TensorAnnotation = struct {
             return;
         };
 
-        std.debug.print("{s}------------- TensorAnnotation\n", .{space});
+        onnx_log.debug("{s}------------- TensorAnnotation\n", .{space});
 
         if (self.tensor_name) |n| {
-            std.debug.print("{s}Tensor Name: {s}\n", .{ space, n });
+            onnx_log.debug("{s}Tensor Name: {s}\n", .{ space, n });
         } else {
-            std.debug.print("{s}Tensor Name: (none)\n", .{space});
+            onnx_log.debug("{s}Tensor Name: (none)\n", .{space});
         }
 
-        std.debug.print("{s}quant_parameter_tensor_names (key, value) [{}]: \n", .{ space, self.quant_parameter_tensor_names.len });
+        onnx_log.debug("{s}quant_parameter_tensor_names (key, value) [{}]: \n", .{ space, self.quant_parameter_tensor_names.len });
         for (self.quant_parameter_tensor_names) |mp| {
             mp.print(space);
         }

@@ -6,6 +6,8 @@ const TensorShapeProto = @import("onnx.zig").TensorShapeProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.typeProto);
+
 //https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L719
 //TAG oneof:
 //  - 1: tensor_type, type: TypeProto.Tensor
@@ -51,7 +53,7 @@ pub const TypeProto = struct {
                         tensor.shape = shape_ptr;
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
                         try reader.skipField(tag.wire_type);
                     },
                 }
@@ -64,15 +66,15 @@ pub const TypeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            std.debug.print("{s}------------- TENSOR_TYPE\n", .{space});
+            onnx_log.debug("{s}------------- TENSOR_TYPE\n", .{space});
 
-            std.debug.print("{s}Element Type: {}\n", .{ space, self.elem_type });
+            onnx_log.debug("{s}Element Type: {}\n", .{ space, self.elem_type });
 
             if (self.shape) |s| {
-                std.debug.print("{s}Shape:\n", .{space});
+                onnx_log.debug("{s}Shape:\n", .{space});
                 s.print(space);
             } else {
-                std.debug.print("{s}Shape: (none)\n", .{space});
+                onnx_log.debug("{s}Shape: (none)\n", .{space});
             }
         }
     };
@@ -107,7 +109,7 @@ pub const TypeProto = struct {
                         // sequence.elem_type = elem_type_ptr;
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for ", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for ", .{tag});
                         unreachable;
                     },
                 }
@@ -120,13 +122,13 @@ pub const TypeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            std.debug.print("{s}------------- SEQUENCE\n", .{space});
+            onnx_log.debug("{s}------------- SEQUENCE\n", .{space});
 
             if (self.elem_type) |t| {
-                std.debug.print("{s}Element Type:\n", .{space});
+                onnx_log.debug("{s}Element Type:\n", .{space});
                 t.print(space);
             } else {
-                std.debug.print("{s}Element Type: (none)\n", .{space});
+                onnx_log.debug("{s}Element Type: (none)\n", .{space});
             }
         }
     };
@@ -166,7 +168,7 @@ pub const TypeProto = struct {
                         // map.value_type = value_ptr;
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
                         unreachable;
                     },
                 }
@@ -179,15 +181,15 @@ pub const TypeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            std.debug.print("{s}------------- MAP\n", .{space});
+            onnx_log.debug("{s}------------- MAP\n", .{space});
 
-            std.debug.print("{s}Key Type: {}\n", .{ space, self.key_type });
+            onnx_log.debug("{s}Key Type: {}\n", .{ space, self.key_type });
 
             if (self.value_type) |v| {
-                std.debug.print("{s}Value Type:\n", .{space});
+                onnx_log.debug("{s}Value Type:\n", .{space});
                 v.print(space);
             } else {
-                std.debug.print("{s}Value Type: (none)\n", .{space});
+                onnx_log.debug("{s}Value Type: (none)\n", .{space});
             }
         }
     };
@@ -229,7 +231,7 @@ pub const TypeProto = struct {
                         sparse_tensor.shape = shape_ptr;
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
                         unreachable;
                     },
                 }
@@ -242,14 +244,14 @@ pub const TypeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            std.debug.print("{s}------------- SparseTensor\n", .{space});
-            std.debug.print("{s}Element Type: {}\n", .{ space, self.elem_type });
+            onnx_log.debug("{s}------------- SparseTensor\n", .{space});
+            onnx_log.debug("{s}Element Type: {}\n", .{ space, self.elem_type });
 
             if (self.shape) |s| {
-                std.debug.print("{s}Shape:\n", .{space});
+                onnx_log.debug("{s}Shape:\n", .{space});
                 s.print(space);
             } else {
-                std.debug.print("{s}Shape: (none)\n", .{space});
+                onnx_log.debug("{s}Shape: (none)\n", .{space});
             }
         }
     };
@@ -284,7 +286,7 @@ pub const TypeProto = struct {
                         //opt.elem_type = elm_ptr;
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
                         unreachable;
                     },
                 }
@@ -297,12 +299,12 @@ pub const TypeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            std.debug.print("{s}------------- OPTIONAL\n", .{space});
+            onnx_log.debug("{s}------------- OPTIONAL\n", .{space});
             if (self.elem_type) |t| {
-                std.debug.print("{s}Element Type:\n", .{space});
+                onnx_log.debug("{s}Element Type:\n", .{space});
                 t.print(space);
             } else {
-                std.debug.print("{s}Element Type: (none)\n", .{space});
+                onnx_log.debug("{s}Element Type: (none)\n", .{space});
             }
         }
     };
@@ -388,7 +390,7 @@ pub const TypeProto = struct {
                     typeProto.optional_type = opt_ptr;
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TypeProto", .{tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for TypeProto", .{tag});
                     try reader.skipField(tag.wire_type);
                 },
             }
@@ -402,47 +404,47 @@ pub const TypeProto = struct {
             return;
         };
 
-        std.debug.print("{s}------------- TYPE\n", .{space});
+        onnx_log.debug("{s}------------- TYPE\n", .{space});
 
         if (self.tensor_type) |t| {
-            std.debug.print("{s}Tensor Type:\n", .{space});
+            onnx_log.debug("{s}Tensor Type:\n", .{space});
             t.print(space);
         } else {
-            std.debug.print("{s}Tensor Type: (none)\n", .{space});
+            onnx_log.debug("{s}Tensor Type: (none)\n", .{space});
         }
 
         if (self.sequence_type) |s| {
-            std.debug.print("{s}Sequence Type:\n", .{space});
+            onnx_log.debug("{s}Sequence Type:\n", .{space});
             s.print(space);
         } else {
-            std.debug.print("{s}Sequence Type: (none)\n", .{space});
+            onnx_log.debug("{s}Sequence Type: (none)\n", .{space});
         }
 
         if (self.map_type) |m| {
-            std.debug.print("{s}Map Type:\n", .{space});
+            onnx_log.debug("{s}Map Type:\n", .{space});
             m.print(space);
         } else {
-            std.debug.print("{s}Map Type: (none)\n", .{space});
+            onnx_log.debug("{s}Map Type: (none)\n", .{space});
         }
 
         if (self.sparse_tensor_type) |st| {
-            std.debug.print("{s}Sparse Tensor Type:\n", .{space});
+            onnx_log.debug("{s}Sparse Tensor Type:\n", .{space});
             st.print(space);
         } else {
-            std.debug.print("{s}Sparse Tensor Type: (none)\n", .{space});
+            onnx_log.debug("{s}Sparse Tensor Type: (none)\n", .{space});
         }
 
         if (self.optional_type) |o| {
-            std.debug.print("{s}Optional Type:\n", .{space});
+            onnx_log.debug("{s}Optional Type:\n", .{space});
             o.print(space);
         } else {
-            std.debug.print("{s}Optional Type: (none)\n", .{space});
+            onnx_log.debug("{s}Optional Type: (none)\n", .{space});
         }
 
         if (self.denotation) |d| {
-            std.debug.print("{s}Denotation: {s}\n", .{ space, d });
+            onnx_log.debug("{s}Denotation: {s}\n", .{ space, d });
         } else {
-            std.debug.print("{s}Denotation: (none)\n", .{space});
+            onnx_log.debug("{s}Denotation: (none)\n", .{space});
         }
     }
 };

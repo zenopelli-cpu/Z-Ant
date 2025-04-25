@@ -9,6 +9,8 @@ const Segment = @import("segment.zig").Segment;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.tensorProto);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L503
 //TAGS:
 //  - 1 : dims, repeated int64
@@ -248,7 +250,7 @@ pub const TensorProto = struct {
                     try metaDataList.append(ssep_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
                     try reader.skipField(tag.wire_type);
                 },
             }
@@ -263,115 +265,108 @@ pub const TensorProto = struct {
 
         return tensor;
     }
-
     pub fn print(self: *TensorProto, padding: ?[]const u8) void {
         const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
             return;
         };
 
-        std.debug.print("{s}------------- TENSOR\n", .{space});
+        onnx_log.info("{s}------------- TENSOR\n", .{space});
 
         if (self.name) |n| {
-            std.debug.print("{s}Name: {s}\n", .{ space, n });
+            onnx_log.info("{s}Name: {s}\n", .{ space, n });
         } else {
-            std.debug.print("{s}Name: (none)\n", .{space});
+            onnx_log.info("{s}Name: (none)\n", .{space});
         }
 
         if (self.segment) |segment| {
-            std.debug.print("{s}Segment:\n", .{space});
+            onnx_log.debug("{s}Segment:\n", .{space});
             segment.print(space);
         }
 
-        std.debug.print("{s}Data Type: {any}\n", .{ space, self.data_type });
+        onnx_log.debug("{s}Data Type: {any}\n", .{ space, self.data_type });
 
-        std.debug.print("{s}Dims: [", .{space});
-        for (self.dims, 0..) |dim, i| {
-            if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{}", .{dim});
+        onnx_log.debug("{s}Dims: [", .{space});
+        for (
+            self.dims,
+        ) |dim| {
+            onnx_log.debug("{}", .{dim});
         }
-        std.debug.print("]\n", .{});
+        onnx_log.debug("]\n", .{});
 
         if (self.raw_data) |raw| {
-            std.debug.print("{s}Raw Data: {} bytes\n", .{ space, raw.len });
+            onnx_log.debug("{s}Raw Data: {} bytes\n", .{ space, raw.len });
         }
 
         if (self.float_data) |data| {
-            std.debug.print("{s}Float Data: [", .{space});
+            onnx_log.debug("{s}Float Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{data[i]});
+                onnx_log.debug("{}", .{data[i]});
             }
-            if (data.len >= 10) std.debug.print(", ... ", .{});
-            std.debug.print("]\n", .{});
+            if (data.len >= 10) onnx_log.debug(", ... ", .{});
+            onnx_log.debug("]\n", .{});
         }
 
         if (self.int32_data) |data| {
-            std.debug.print("{s}Int32 Data: [", .{space});
+            onnx_log.debug("{s}Int32 Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{data[i]});
+                onnx_log.debug("{}", .{data[i]});
             }
-            if (data.len >= 10) std.debug.print(", ... ", .{});
-            std.debug.print("]\n", .{});
+            if (data.len >= 10) onnx_log.debug(", ... ", .{});
+            onnx_log.debug("]\n", .{});
         }
 
         if (self.int64_data) |data| {
-            std.debug.print("{s}Int64 Data: [", .{space});
+            onnx_log.debug("{s}Int64 Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{data[i]});
+                onnx_log.debug("{}", .{data[i]});
             }
-            if (data.len >= 10) std.debug.print(", ... ", .{});
-            std.debug.print("]\n", .{});
+            if (data.len >= 10) onnx_log.debug(", ... ", .{});
+            onnx_log.debug("]\n", .{});
         }
 
         if (self.double_data) |data| {
-            std.debug.print("{s}Double Data: [", .{space});
+            onnx_log.debug("{s}Double Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{data[i]});
+                onnx_log.debug("{}", .{data[i]});
             }
-            if (data.len >= 10) std.debug.print(", ... ", .{});
-            std.debug.print("]\n", .{});
+            if (data.len >= 10) onnx_log.debug(", ... ", .{});
+            onnx_log.debug("]\n", .{});
         }
 
         if (self.uint64_data) |data| {
-            std.debug.print("{s}UInt64 Data: [", .{space});
+            onnx_log.debug("{s}UInt64 Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{data[i]});
+                onnx_log.debug("{}", .{data[i]});
             }
-            if (data.len >= 10) std.debug.print(", ... ", .{});
-            std.debug.print("]\n", .{});
+            if (data.len >= 10) onnx_log.debug(", ... ", .{});
+            onnx_log.debug("]\n", .{});
         }
 
         if (self.uint16_data) |data| {
-            std.debug.print("{s}UInt16 Data: [", .{space});
+            onnx_log.debug("{s}UInt16 Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{data[i]});
+                onnx_log.debug("{}", .{data[i]});
             }
-            if (data.len >= 10) std.debug.print(", ... ", .{});
-            std.debug.print("]\n", .{});
+            if (data.len >= 10) onnx_log.debug(", ... ", .{});
+            onnx_log.debug("]\n", .{});
         }
 
         if (self.string_data) |data| {
-            std.debug.print("  String Data: [", .{});
-            for (data, 0..) |val, i| {
-                if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("\"{s}\"", .{val});
+            onnx_log.debug("  String Data: [", .{});
+            for (data) |val| {
+                onnx_log.debug("\"{s}\"", .{val});
             }
-            std.debug.print("]\n", .{});
+            onnx_log.debug("]\n", .{});
         }
 
-        std.debug.print("{s}External Data (key, value) [{}]: \n", .{ space, self.external_data.len });
+        onnx_log.debug("{s}External Data (key, value) [{}]: \n", .{ space, self.external_data.len });
         for (self.external_data) |ex| {
             ex.print(space);
         }
 
-        std.debug.print("{s}Data Location: {any}\n", .{ space, self.data_location });
+        onnx_log.debug("{s}Data Location: {any}\n", .{ space, self.data_location });
 
-        std.debug.print("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
+        onnx_log.debug("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
         for (self.metadata_props) |mp| {
             mp.print(space);
         }
@@ -441,7 +436,7 @@ pub const TensorProto = struct {
                 self.uint16_data = typed_data;
             },
             else => {
-                std.debug.print("\n Data type conversion not supported for {s}, keeping raw data \n", .{@tagName(data_type)});
+                onnx_log.warn("\n Data type conversion not supported for {s}, keeping raw data \n", .{@tagName(data_type)});
                 // If conversion is not supported, we keep the raw_data.
                 // We need to prevent the deferred free.
                 free_raw_data = false;
