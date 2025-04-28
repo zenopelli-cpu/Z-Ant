@@ -128,7 +128,7 @@ pub const setLogFunctionC = convolution_math_lib.setLogFunctionC;
 //CONV INTEGER
 
 pub const convInteger_lean = convolution_math_lib.convInteger_lean;
-
+pub const lowerConv2d = convolution_math_lib.lowerConv2d;
 // ---------- importing standard Pooling methods ----------
 const pooling_math_lib = @import("op_pooling.zig");
 pub const pool_tensor = pooling_math_lib.pool_tensor;

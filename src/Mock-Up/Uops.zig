@@ -109,7 +109,7 @@ pub const Any = union(enum) {
 
     // ── 2 · 5  NEW ──────────────────────────────────────
     /// Carries **both** the logical shape and the per-dimensional strides
-    /// (stride == 0 means “broadcast this dimension”).
+    /// (stride == 0 means "broadcast this dimension").
     view_meta: struct { // • used by VIEW
         shape: []const usize,
         strides: []const isize,
@@ -152,7 +152,7 @@ pub const UOpBuilder = struct {
 
     /// Push that dupes `src` safely.
     pub fn push(self: *UOpBuilder, op: UOpType, dt: DType, src: []const usize, arg: ?Any) usize {
-        const id = self.list.len;
+        const id = self.list.items.len;
         const copy = if (src.len == 0)
             &[_]usize{} // empty slice → static, no alloc
         else
