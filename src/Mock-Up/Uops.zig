@@ -85,20 +85,35 @@ pub const UOpType = enum {
 // 2. Any – single-slot, type-safe payload attached to `UOp.arg`
 // ─────────────────────────────────────────────────────────────────────────────
 pub const Any = union(enum) {
-    // 2.1 Scalar immediates
+    // ── 2 · 1  Scalar immediates ────────────────────────────────────────
     int: usize,
     float: f32,
     bool: bool,
 
-    // 2.2 Tiny metadata blobs
-    label: []const u8, // buffer/debug name
+    // ── 2 · 2  Tiny metadata blobs ──────────────────────────────────────
+    label: []const u8,
     shape: []const usize, // runtime shape vector
 
-    // 2.3 Control-flow helpers
-    loop_bounds: struct { start: usize, end: usize },
+    // ── 2 · 3  Control–flow helpers ─────────────────────────────────────
+    loop_bounds: struct { // • used by RANGE / ENDRANGE
+        start: usize,
+        end: usize,
+    },
 
-    // 2.4 Addressing info
-    mem_info: struct { base: []const u8, offset: usize, stride: usize },
+    // ── 2 · 4  Addressing info ──────────────────────────────────────────
+    mem_info: struct { // • used by GEP
+        base: []const u8,
+        offset: usize,
+        stride: usize,
+    },
+
+    // ── 2 · 5  NEW ──────────────────────────────────────
+    /// Carries **both** the logical shape and the per-dimensional strides
+    /// (stride == 0 means “broadcast this dimension”).
+    view_meta: struct { // • used by VIEW
+        shape: []const usize,
+        strides: []const isize,
+    },
 
     // 👉  add more variants when a new op requires metadata
 };
