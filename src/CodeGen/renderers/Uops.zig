@@ -123,6 +123,17 @@ pub const Any = union(enum) {
 // ─────────────────────────────────────────────────────────────────────────────
 pub const DType = enum { f32, i32, i8, bool };
 
+pub const DTypeInfo = struct {
+    pub fn asString(dtype: DType) []const u8 {
+        return switch (dtype) {
+            .f32 => "f32",
+            .i32 => "i32",
+            .i8 => "i8",
+            .bool => "bool",
+        };
+    }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. UOp – ONE single-assignment micro-op stored in a linear slice
 // ─────────────────────────────────────────────────────────────────────────────
