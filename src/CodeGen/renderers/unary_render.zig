@@ -3,12 +3,12 @@ const UOp = @import("Uops.zig").UOp;
 const DTypeInfo = @import("Uops.zig").DTypeInfo;
 
 pub fn render(allocator: std.mem.Allocator, writer: anytype, uop: UOp) !void {
-    if (uop.op != .MAX and uop.op != .MIN) {
+    if (uop.op != .EXP2 and uop.op != .NEG) {
         return error.InvalidOperation;
     }
 
     //minimal Max and min are only attainable from two variables, not more or less.
-    if (uop.src.len != 2) {
+    if (uop.src.len != 1) {
         return error.InvalidOperandCount;
     }
 
@@ -21,8 +21,8 @@ pub fn render(allocator: std.mem.Allocator, writer: anytype, uop: UOp) !void {
     const type_str = DTypeInfo.asString(uop.dtype);
 
     switch (uop.op) {
-        .EXP2 => try writer.print("const {s} = @as({s}, {s}) * @as({s}, {s});", .{ result_var, type_str, first_var, type_str, first_var}),
-        .NEG  => try writer.print("const {s} = @as({s},-{s});",                 .{ result_var, type_str, first_var}),
+        .EXP2 => try writer.print("const {s} = @as({s}, {s}) * @as({s}, {s});\n", .{ result_var, type_str, first_var, type_str, first_var}),
+        .NEG  => try writer.print("const {s} = @as({s},-{s});\n",                 .{ result_var, type_str, first_var}),
         else => unreachable,
     }
 }
