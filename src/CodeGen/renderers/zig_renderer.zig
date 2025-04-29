@@ -3,6 +3,7 @@ const UOp = @import("Uops.zig").UOp;
 const UOpType = @import("Uops.zig").UOpType;
 
 const ArithmeticRender = @import("arithmetic_render.zig");
+const ReduceRender = @import("reduce_render.zig");
 
 pub fn ZigRenderer(comptime WriterType: type) type {
     return struct {
@@ -20,10 +21,11 @@ pub fn ZigRenderer(comptime WriterType: type) type {
             // Cleanup if needed
         }
 
-        pub fn render(self: *@This(), uops: []const UOp) !void {
+        pub fn render(self: *@This(), uops: []UOp) !void {
             for (uops) |uop| {
                 switch (uop.op) {
                     .ADD, .SUB, .MUL, .FDIV => try ArithmeticRender.render(self.allocator, self.writer, uop),
+                    .REDUCE_ADD, .REDUCE_MAX => try ReduceRender.render(self.allocator, self.writer, uop),
                     else => {
                         try std.fmt.format(self.writer, "unknown op {d}\n", .{uop.id});
                     },
@@ -42,14 +44,14 @@ test "Arithemtic operations" {
     var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
     defer renderer.deinit();
 
-    const uops = &.{
-        UOp{ .id = 0, .op = .ADD, .dtype = .f32, .src = &[_]usize{ 1, 2 }, .arg = null },
-        UOp{ .id = 1, .op = .SUB, .dtype = .f32, .src = &[_]usize{ 3, 4 }, .arg = null },
-        UOp{ .id = 2, .op = .MUL, .dtype = .f32, .src = &[_]usize{ 5, 6 }, .arg = null },
-        UOp{ .id = 3, .op = .FDIV, .dtype = .f32, .src = &[_]usize{ 7, 8 }, .arg = null },
+    var uops = [_]UOp{
+        .{ .id = 0, .op = .ADD, .dtype = .f32, .src = &.{ 1, 2 }, .arg = null },
+        .{ .id = 1, .op = .SUB, .dtype = .f32, .src = &.{ 3, 4 }, .arg = null },
+        .{ .id = 2, .op = .MUL, .dtype = .f32, .src = &.{ 5, 6 }, .arg = null },
+        .{ .id = 3, .op = .FDIV, .dtype = .f32, .src = &.{ 7, 8 }, .arg = null },
     };
 
-    try renderer.render(uops);
+    try renderer.render(&uops);
 
     const expected =
         \\const t0 = @as(f32, t1) + @as(f32, t2);
@@ -59,6 +61,36 @@ test "Arithemtic operations" {
         \\
     ;
     const actual = try buffer.toOwnedSlice();
+    defer allocator.free(actual);
+
+    try std.testing.expectEqualSlices(u8, expected, actual);
+}
+
+test "Reduce operations" {
+    const allocator = std.testing.allocator;
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+
+    const Writer = @TypeOf(buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    defer renderer.deinit();
+
+    var uops = [_]UOp{
+        .{ .id = 0, .op = .REDUCE_ADD, .dtype = .f32, .src = &.{0}, .arg = null },
+        .{ .id = 1, .op = .REDUCE_MAX, .dtype = .f32, .src = &.{1}, .arg = null },
+    };
+
+    try renderer.render(&uops);
+
+    const expected =
+        \\const vec0: @Vector(t0.len, f32) = t0;
+        \\const t0: f32 = @reduce(.Add, vec0);
+        \\const vec1: @Vector(t1.len, f32) = t1;
+        \\const t1: f32 = @reduce(.Max, vec1);
+        \\
+    ;
+    const actual = try buffer.toOwnedSlice();
+
     defer allocator.free(actual);
 
     try std.testing.expectEqualSlices(u8, expected, actual);
