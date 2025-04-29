@@ -26,6 +26,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                 switch (uop.op) {
                     .ADD, .SUB, .MUL, .FDIV => try ArithmeticRender.render(self.allocator, self.writer, uop),
                     .REDUCE_ADD, .REDUCE_MAX => try ReduceRender.render(self.allocator, self.writer, uop),
+                    
                     else => {
                         try std.fmt.format(self.writer, "unknown op {d}\n", .{uop.id});
                     },
