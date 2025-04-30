@@ -171,8 +171,6 @@ pub inline fn div_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), re
     }
 }
 
-
-
 /// https://onnx.ai/onnx/operators/onnx__Div.html
 pub fn lowerDiv(
     b: *UOpBuilder,
@@ -183,7 +181,7 @@ pub fn lowerDiv(
     strideB: []const isize,
     out_dtype: DType, // promoted element type
 ) usize { // returns id of result buffer
-    
+
     // ── Set-up phase ────────────────────────────────────────────────────
     _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
     _ = b.push(.SHAPE, .i32, &.{B_id}, null); // b_shape  (dbg only)
@@ -200,16 +198,16 @@ pub fn lowerDiv(
 
     const id_range = b.push(.RANGE, .u16, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = nelem } });
 
-    const id_gepA = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info = .{ .base = "A_bcast", .offset = 0, .stride = 1 } });
+    const id_gepA = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
 
-    const id_gepB = b.push(.GEP, out_dtype, &.{ id_viewB, id_range }, Any{ .mem_info = .{ .base = "B_bcast", .offset = 0, .stride = 1 } });
+    const id_gepB = b.push(.GEP, out_dtype, &.{ id_viewB, id_range }, Any{ .mem_info = .{ .base = id_viewB, .offset = 0, .stride = 1 } });
 
     const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
     const id_loadB = b.push(.LOAD, out_dtype, &.{id_gepB}, null);
 
     const id_div = b.push(.FDIV, out_dtype, &.{ id_loadA, id_loadB }, null);
 
-    const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = "O", .offset = 0, .stride = 1 } });
+    const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
 
     _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_div }, null);
 

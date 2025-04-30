@@ -48,13 +48,13 @@ pub fn lowerCast(
     // ── 3. Flat loop over all elements --------------------------------
     const id_rng = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = nelem } });
 
-    const id_pX = b.push(.GEP, to_dtype, &.{ id_viewX, id_rng }, Any{ .mem_info = .{ .base = "X", .offset = 0, .stride = 1 } });
+    const id_pX = b.push(.GEP, to_dtype, &.{ id_viewX, id_rng }, Any{ .mem_info = .{ .base = id_viewX, .offset = 0, .stride = 1 } });
 
     const id_vX = b.push(.LOAD, to_dtype, &.{id_pX}, null);
 
     const id_vY = b.push(.CAST, to_dtype, &.{id_vX}, Any{ .cast_meta = .{ .to = to_dtype, .saturate = saturate } });
 
-    const id_pY = b.push(.GEP, to_dtype, &.{ id_Y, id_rng }, Any{ .mem_info = .{ .base = "Y", .offset = 0, .stride = 1 } });
+    const id_pY = b.push(.GEP, to_dtype, &.{ id_Y, id_rng }, Any{ .mem_info = .{ .base = id_Y, .offset = 0, .stride = 1 } });
 
     _ = b.push(.STORE, to_dtype, &.{ id_pY, id_vY }, null);
 

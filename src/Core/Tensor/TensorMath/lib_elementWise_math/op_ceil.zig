@@ -50,16 +50,14 @@ pub fn get_ceil_output_shape(input_shape: []const usize) ![]usize {
     return output_shape;
 }
 
-
 /// https://onnx.ai/onnx/operators/onnx__Ceil.html
-
 pub fn lowerCeil(
     b: *UOpBuilder,
     A_id: usize, // input-tensor SSA ids
     out_shape: []const usize,
     out_dtype: DType, // promoted element type
 ) usize { // returns id of result buffer
-    
+
     // ── Set-up phase ────────────────────────────────────────────────────
     _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
 
@@ -73,13 +71,13 @@ pub fn lowerCeil(
 
     const id_range = b.push(.RANGE, .u16, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = nelem } });
 
-    const id_gepA = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info = .{ .base = "A_bcast", .offset = 0, .stride = 1 } });
+    const id_gepA = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
 
     const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
 
-    const id_ceil = b.push(.CLIP, out_dtype, &.{ id_loadA }, null);
+    const id_ceil = b.push(.CLIP, out_dtype, &.{id_loadA}, null);
 
-    const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = "O", .offset = 0, .stride = 1 } });
+    const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
 
     _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_ceil }, null);
 

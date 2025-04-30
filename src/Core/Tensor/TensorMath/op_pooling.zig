@@ -1099,7 +1099,7 @@ pub fn lowerMaxPool2d(
 
     _ = b.push(.IF, .bool, &.{in_bounds}, null);
 
-    const pX = b.push(.GEP, out_dtype, &.{ id_viewX, n, c, ih, iw }, Any{ .mem_info = .{ .base = "X", .offset = 0, .stride = 1 } });
+    const pX = b.push(.GEP, out_dtype, &.{ id_viewX, n, c, ih, iw }, Any{ .mem_info = .{ .base = id_viewX, .offset = 0, .stride = 1 } });
 
     const x = b.push(.LOAD, out_dtype, &.{pX}, null);
     _ = b.push(.MAX, out_dtype, &.{ acc, x }, null);
@@ -1111,7 +1111,7 @@ pub fn lowerMaxPool2d(
     _ = b.push(.ENDRANGE, .bool, &.{kh}, null);
 
     // ── write result ----------------------------------------------------
-    const pY = b.push(.GEP, out_dtype, &.{ id_Y, n, c, oh, ow }, Any{ .mem_info = .{ .base = "Y", .offset = 0, .stride = 1 } });
+    const pY = b.push(.GEP, out_dtype, &.{ id_Y, n, c, oh, ow }, Any{ .mem_info = .{ .base = id_Y, .offset = 0, .stride = 1 } });
 
     _ = b.push(.STORE, out_dtype, &.{ pY, acc }, null);
 

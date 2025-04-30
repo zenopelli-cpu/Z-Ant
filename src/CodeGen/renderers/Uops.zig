@@ -102,7 +102,7 @@ pub const Any = union(enum) {
 
     // ── 2 · 4  Addressing info ──────────────────────────────────────────
     mem_info: struct { // • used by GEP
-        base: []const u8,
+        base: usize,
         offset: usize,
         stride: usize,
     },

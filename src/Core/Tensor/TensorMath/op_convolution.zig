@@ -1960,9 +1960,9 @@ pub fn lowerConv2d(
     const iw_idx = b.push(.SUB, .i32, &.{ iw_base, padL }, null);
 
     // ---- GEPs for current X and W elements ------------------------
-    const id_gepX = b.push(.GEP, out_dtype, &.{ id_viewX, n, ic_all, ih_idx, iw_idx }, Any{ .mem_info = .{ .base = "X", .offset = 0, .stride = 1 } });
+    const id_gepX = b.push(.GEP, out_dtype, &.{ id_viewX, n, ic_all, ih_idx, iw_idx }, Any{ .mem_info = .{ .base = id_viewX, .offset = 0, .stride = 1 } });
 
-    const id_gepW = b.push(.GEP, out_dtype, &.{ id_viewW, oc_idx, ic, kh, kw }, Any{ .mem_info = .{ .base = "W", .offset = 0, .stride = 1 } });
+    const id_gepW = b.push(.GEP, out_dtype, &.{ id_viewW, oc_idx, ic, kh, kw }, Any{ .mem_info = .{ .base = id_viewW, .offset = 0, .stride = 1 } });
 
     // ---- Multiply & accumulate  acc += x*w ------------------------
     const id_x = b.push(.LOAD, out_dtype, &.{id_gepX}, null);
@@ -1975,7 +1975,7 @@ pub fn lowerConv2d(
     _ = b.push(.ENDRANGE, .bool, &.{ic}, null);
 
     // ── 6. Write output pixel ------------------------------------------
-    const id_gepY = b.push(.GEP, out_dtype, &.{ id_Y, n, oc_idx, oh, ow }, Any{ .mem_info = .{ .base = "Y", .offset = 0, .stride = 1 } });
+    const id_gepY = b.push(.GEP, out_dtype, &.{ id_Y, n, oc_idx, oh, ow }, Any{ .mem_info = .{ .base = id_Y, .offset = 0, .stride = 1 } });
 
     _ = b.push(.STORE, out_dtype, &.{ id_gepY, id_acc }, null);
 
