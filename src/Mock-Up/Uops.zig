@@ -140,6 +140,7 @@ pub const UOp = struct {
         if (self.arg) |a| try w.print("  arg={any}", .{a});
         try w.print("\n", .{});
     }
+
 };
 
 pub const UOpBuilder = struct {
