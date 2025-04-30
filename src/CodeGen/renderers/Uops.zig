@@ -115,6 +115,11 @@ pub const Any = union(enum) {
         strides: []const isize,
     },
 
+    cast_meta: struct {
+        to: DType, // target scalar type
+        saturate: bool, // obey float-8 saturation tables (opset-23 attr)
+    },
+
     // 👉  add more variants when a new op requires metadata
 };
 

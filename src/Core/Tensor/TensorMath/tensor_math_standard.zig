@@ -202,6 +202,9 @@ pub const div_lean = division.div_lean;
 const op_cast = @import("op_cast.zig");
 pub const cast_lean = op_cast.cast_lean;
 
+const op_lower_cast = @import("Op_Lowering/lower_cast.zig");
+pub const lowerCast = op_lower_cast.lowerCast;
+
 //--tanh
 const tanhy = @import("lib_elementWise_math/op_tanh.zig");
 pub const tanh = tanhy.tanh;
