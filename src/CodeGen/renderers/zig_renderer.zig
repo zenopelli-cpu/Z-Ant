@@ -7,6 +7,7 @@ const ArithmeticRender = @import("arithmetic_render.zig");
 const ReduceRender = @import("reduce_render.zig");
 const ConditionalRender = @import("conditional_render.zig");
 const UnaryRender = @import("unary_render.zig");
+const GepRender = @import("gep_render.zig");
 
 pub fn ZigRenderer(comptime WriterType: type) type {
     return struct {
@@ -31,6 +32,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                     .REDUCE_ADD, .REDUCE_MAX => try ReduceRender.render(self.allocator, self.writer, uop),
                     .MAX, .MIN => try ConditionalRender.render(self.allocator, self.writer, uop),
                     .EXP2, .NEG => try UnaryRender.render(self.allocator, self.writer, uop),
+                    .GEP => try GepRender.render(self.allocator, self.writer, uop),
                     else => {
                         try std.fmt.format(self.writer, "unknown op {d}\n", .{uop.id});
                     },

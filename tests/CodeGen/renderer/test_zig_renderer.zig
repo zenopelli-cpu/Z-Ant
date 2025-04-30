@@ -129,3 +129,29 @@ test "Unary Operations" {
 
     try std.testing.expectEqualSlices(u8, expected, actual);
 }
+
+test "Gep operation" {
+    std.debug.print("Running zig renderer gep test \n", .{});
+    const allocator = std.testing.allocator;
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+
+    const writer = buffer.writer();
+
+    const Writer = @TypeOf(buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, writer);
+    defer renderer.deinit();
+
+    var uops = [_]UOp{
+        .{ .id = 12345, .op = .GEP, .dtype = .f32, .src = &.{ 111, 222 }, .arg = .{ .mem_info = .{ .base = 12345, .offset = 13, .stride = 2 } } },
+    };
+
+    try renderer.render(&uops);
+
+    const actual = try buffer.toOwnedSlice();
+    defer allocator.free(actual);
+
+    const expected = "const t12345 = 12345 + (13 + (t111[t222] * 2)) * @as(usize, @sizeOf(f32));\n";
+
+    try std.testing.expectEqualStrings(actual, expected);
+}
