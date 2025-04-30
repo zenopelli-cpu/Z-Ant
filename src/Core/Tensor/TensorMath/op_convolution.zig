@@ -11,7 +11,7 @@ const blocked_mat_mul = op_mat_mul.blocked_mat_mul;
 const op_padding = @import("lib_shape_math/op_padding.zig");
 const addPaddingAndDilation = op_padding.addPaddingAndDilation;
 const op_transpose = @import("lib_shape_math/op_transpose.zig");
-const Uops = @import("../../../Mock-Up/Uops.zig");
+const Uops = zant.uops;
 
 const UOpBuilder = Uops.UOpBuilder;
 const DType = Uops.DType;

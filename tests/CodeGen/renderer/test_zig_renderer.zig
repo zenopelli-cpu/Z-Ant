@@ -1,8 +1,9 @@
 const std = @import("std");
+const zant = @import("zant");
 const codegen = @import("codegen");
 const Renderer = codegen.renderer;
-const UOp = codegen.UOps.UOp;
-const UOpType = codegen.UOps.UOpType;
+const UOp = zant.uops.UOp;
+const UOpType = zant.uops.UOpType;
 
 const ZigRenderer = Renderer.ZigRenderer;
 

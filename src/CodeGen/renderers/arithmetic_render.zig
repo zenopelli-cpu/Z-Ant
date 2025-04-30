@@ -1,6 +1,7 @@
 const std = @import("std");
-const UOp = @import("Uops.zig").UOp;
-const DTypeInfo = @import("Uops.zig").DTypeInfo;
+const zant = @import("zant");
+const UOp = zant.uops.UOp;
+const DTypeInfo = zant.uops.DTypeInfo;
 
 pub fn render(allocator: std.mem.Allocator, writer: anytype, uop: UOp) !void {
     if (uop.op != .ADD and uop.op != .SUB and uop.op != .MUL and uop.op != .FDIV and uop.op != .POW) {

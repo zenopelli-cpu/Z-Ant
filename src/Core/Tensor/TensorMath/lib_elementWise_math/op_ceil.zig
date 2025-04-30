@@ -4,7 +4,7 @@ const pkg_allocator = zant.utils.allocator.allocator;
 
 const Tensor = zant.core.tensor.Tensor; // Import Tensor type
 
-const Uops = @import("../../../../Mock-Up/Uops.zig");
+const Uops = zant.uops;
 const UOpBuilder = Uops.UOpBuilder;
 const DType = Uops.DType;
 const Any = Uops.Any;

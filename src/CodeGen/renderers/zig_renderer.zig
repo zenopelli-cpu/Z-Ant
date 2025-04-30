@@ -1,6 +1,7 @@
 const std = @import("std");
-const UOp = @import("Uops.zig").UOp;
-const UOpType = @import("Uops.zig").UOpType;
+const zant = @import("zant");
+const UOp = zant.uops.UOp;
+const UOpType = zant.uops.UOpType;
 
 const ArithmeticRender = @import("arithmetic_render.zig");
 const ReduceRender = @import("reduce_render.zig");

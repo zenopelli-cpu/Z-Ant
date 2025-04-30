@@ -5,7 +5,7 @@ const TensMath = zant.core.tensor.math_standard;
 const Tensor = zant.core.tensor.Tensor;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 
-const Uops = zant.Uops;
+const Uops = zant.uops;
 const UOpBuilder = Uops.UOpBuilder;
 const DType = Uops.DType;
 const Any = Uops.Any;

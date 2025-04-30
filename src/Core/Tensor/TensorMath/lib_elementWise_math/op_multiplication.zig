@@ -7,7 +7,7 @@ const error_handler = zant.utils.error_handler;
 const TensorError = error_handler.TensorError;
 const TensorMathError = error_handler.TensorMathError;
 
-const Uops = @import("../../../../Mock-Up/Uops.zig");
+const Uops = zant.uops;
 const UOpBuilder = Uops.UOpBuilder;
 const DType = Uops.DType;
 const Any = Uops.Any;

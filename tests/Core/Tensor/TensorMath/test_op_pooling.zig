@@ -6,7 +6,7 @@ const Tensor = zant.core.tensor.Tensor;
 const PoolingType = zant.core.tensor.math_standard.PoolingType;
 const AutoPadType = zant.core.tensor.math_standard.AutoPadType;
 
-const Uops = zant.Uops;
+const Uops = zant.uops;
 const UOpBuilder = Uops.UOpBuilder;
 const DType = Uops.DType;
 const Any = Uops.Any;
