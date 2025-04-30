@@ -27,7 +27,7 @@ pub inline fn get_scale_factor(comptime T: type, comptime U: type, minFloat: T, 
     const num_elements = (1 << @bitSizeOf(U)) - 1; // 2^b - 1 values
     const denom: T = @as(T, @floatFromInt(num_elements));
 
-    return num/denom;
+    return num / denom;
 }
 
 pub inline fn get_zero_point(comptime T: type, comptime U: type, scale: T, minFloat: T) U {
@@ -42,16 +42,50 @@ pub inline fn get_zero_point(comptime T: type, comptime U: type, scale: T, minFl
 /// scale factor, zero point, minInt/maxInt (aka the integer grid limits)
 pub fn quantize_tensor(comptime T: type, comptime U: type, input: *Tensor(T), output: *Tensor(U), scale: T, zero: U, minInt: U, maxInt: U) void {
     for (input.data, 0..) |val, i| {
-        // quantize every val
+        // quantize each val
         output.data[i] = clamp(T, U, val, scale, zero, minInt, maxInt);
     }
 }
 
-fn dequantize_tensor(comptime T: type, comptime U: type, input: *Tensor(U), output: *Tensor(T), scale: T, zero: U) void {
-    for (input.data, 0..) |val, i| {
-        // dequantize every val
-        output.data[i] = scale * (val - zero);
+/// This function quantizes the input tensor, using the given parameters:
+/// scale factor, zero point, minInt/maxInt (aka the integer grid limits)
+/// Returns the quantized array.
+/// The caller is responsible for freeing the returned array.
+pub fn quantize_array(comptime T: type, comptime U: type, inputArray: []const T, scale: T, zero: U, minInt: U, maxInt: U) []U {
+    var output: []U = try std.heap.page_allocator.alloc(U, inputArray.len);
+
+    for (inputArray, 0..) |val, i| {
+        // quantize each val
+        output[i] = clamp(T, U, val, scale, zero, minInt, maxInt);
     }
+
+    return output;
+}
+
+/// This function dequantizes the input tensor, using the given parameters:
+/// scale factor, zero point.
+/// The output tensor is the dequantized version of the input tensor.
+pub fn dequantize_tensor(comptime T: type, comptime U: type, input: *Tensor(U), output: *Tensor(T), scale: T, zero: U) void {
+    for (input.data, 0..) |val, i| {
+        // dequantize each val
+        const correctedVal: isize = @as(isize, val) - @as(isize, zero);
+        output.data[i] = scale * @as(T, @floatFromInt(correctedVal));
+    }
+}
+
+/// This function dequantizes the input array, using the given parameters: 
+/// the current unquantized type T, the quantized output type U, the input array, the scale factor, the zero point.
+/// The caller is responsible for freeing the returned array.
+pub fn dequantize_array(comptime T: type, comptime U: type, inputArray: []const U, scale: T, zero: U) []T {
+    var output: []T = try std.heap.page_allocator.alloc(T, inputArray.len);
+
+    for (inputArray, 0..) |val, i| {
+        // dequantize each val
+        const correctedVal: isize = @as(isize, val) - @as(isize, zero);
+        output[i] = scale * @as(T, @floatFromInt(correctedVal));
+    }
+
+    return output;
 }
 
 /// This function quantizes the input tensor using min/max method
@@ -90,11 +124,58 @@ pub fn minmax_quant(comptime T: type, comptime U: type, scheme: quantScheme, inp
     quantize_tensor(T, U, input, output, scale, zero, minInt, maxInt);
 }
 
-/// this function computes the forbenius norm of the difference between two tensors
+/// This function quantizes the input array using min/max method.
+/// Returns a tuple with the result quantized array, scale factor, zero point.
+pub fn minmax_array_quant(comptime T: type, comptime U: type, scheme: quantScheme, input: []const T) struct { quantizedArray: []U, scale: T, zero: U } {
+    var minFloat: T = input.data[0];
+    var maxFloat: T = input.data[0];
+
+    // compute the min and max value if the input tensor
+    for (input.data[1..]) |val| {
+        if (minFloat > val)
+            minFloat = val;
+        if (maxFloat < val)
+            maxFloat = val;
+    }
+
+    // compute minInt and maxInt
+    var minInt: U = undefined;
+    var maxInt: U = undefined;
+
+    if (@typeInfo(U).int.signedness == .signed) {
+        minInt = @as(U, -(1 << (@bitSizeOf(U) - 1))); // minInt = - 2^(b-1)
+        maxInt = @as(U, (1 << (@bitSizeOf(U) - 1)) - 1); // maxInt = 2^(b-1) - 1
+    } else {
+        minInt = 0; // minInt = 0
+        maxInt = @as(U, (1 << @bitSizeOf(U)) - 1); // maxInt = 2^b - 1
+    }
+
+    const scale: T = get_scale_factor(T, U, minFloat, maxFloat);
+
+    var zero: U = undefined;
+    switch (scheme) {
+        quantScheme.SYMM => zero = 0,
+        quantScheme.ASYM => zero = get_zero_point(T, U, scale, minFloat),
+    }
+
+    const immutableZero: U = zero;
+    const immutableMinInt: U = minInt;
+    const immutableMaxInt: U = maxInt;
+    return struct {
+        quantizedArray: []U = quantize_array(T, U, input, scale, immutableZero, immutableMinInt, immutableMaxInt),
+        scale: T = scale,
+        zero: U = immutableZero,
+    };
+}
+
+/// This function computes the forbenius norm of the difference between two tensors.
+/// (forbenius form: square root of the sum of the squared differences)
+/// Note: the data types of the two tensors must be the same.
 pub fn compute_MSE_norm(comptime T: type, comptime U: type, tensor1: *Tensor(T), tensor2: *Tensor(U)) T {
     var sum: T = 0;
     for (tensor1.data, 0..) |val, i| {
-        sum = @abs((val - @as(T, @floatFromInt(tensor2.data[i]))) * (val - @as(T, @floatFromInt(tensor2.data[i]))));
+        // sum = @abs((val - @as(T, @floatFromInt(tensor2.data[i]))) * (val - @as(T, @floatFromInt(tensor2.data[i]))));
+        sum = @abs((val - tensor2.data[i]) * (val - tensor2.data[i]));
     }
     return @sqrt(sum);
 }
@@ -147,7 +228,7 @@ pub fn MSE_grid_search_quant(comptime T: type, comptime U: type, scheme: quantSc
         // quantize
         quantize_tensor(T, U, input, output, candidateScale, candidateZero, minInt, maxInt);
 
-        // compute mse between original input tensor and the quantized one
+        // compute mse between original input tensor and the quantized one // TODO should compute mse between original and dequantized tensor
         const mseCandidate: T = compute_MSE_norm(T, U, input, output);
 
         // update parameters, if mse has improved

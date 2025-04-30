@@ -1,33 +1,33 @@
 const std = @import("std");
 const zant = @import("zant");
 const quant = zant.core.quantization;
-const quant_debug = zant.core.quant_debug;
+const quant_debug = zant.core.quantization_debug;
 const Tensor = zant.core.tensor.Tensor;
 const pkgAllocator = zant.utils.allocator;
 
 const testing = std.testing;
 
-test "MSE norm" {
-    std.debug.print("\n    test: MSE tensor norm computation", .{});
-    var inputArray: [2][3]f32 = [_][3]f32{
-        [_]f32{ -0.5, 0.8, -0.46 },
-        [_]f32{ 0.234, 0.3435, -0.231 },
-    };
-    var shape: [2]usize = [_]usize{ 2, 3 };
-    var inputTensor = try Tensor(f32).fromArray(&pkgAllocator.allocator, &inputArray, &shape);
+// test "MSE norm" {
+//     std.debug.print("\n    test: MSE tensor norm computation", .{});
+//     var inputArray: [2][3]f32 = [_][3]f32{
+//         [_]f32{ -0.5, 0.8, -0.46 },
+//         [_]f32{ 0.234, 0.3435, -0.231 },
+//     };
+//     var shape: [2]usize = [_]usize{ 2, 3 };
+//     var inputTensor = try Tensor(f32).fromArray(&pkgAllocator.allocator, &inputArray, &shape);
 
-    defer inputTensor.deinit();
+//     defer inputTensor.deinit();
 
-    var outputArray: [2][3]u8 = [_][3]u8{
-        [_]u8{ 0, 255, 20 },
-        [_]u8{ 195, 225, 55 },
-    };
-    var outputTensor = try Tensor(u8).fromArray(&pkgAllocator.allocator, &outputArray, &shape);
-    defer outputTensor.deinit();
+//     var outputArray: [2][3]u8 = [_][3]u8{
+//         [_]u8{ 0, 255, 20 },
+//         [_]u8{ 195, 225, 55 },
+//     };
+//     var outputTensor = try Tensor(u8).fromArray(&pkgAllocator.allocator, &outputArray, &shape);
+//     defer outputTensor.deinit();
 
-    std.debug.print("\n --> MSE : {}\n", .{quant.compute_MSE_norm(f32, u8, &inputTensor, &outputTensor)});
+//     std.debug.print("\n --> MSE : {}\n", .{quant.compute_MSE_norm(f32, u8, &inputTensor, &outputTensor)});
 
-}
+// }
 
 // asymmetric quantization
 
@@ -49,7 +49,6 @@ test "asymm signed range grid limits test" {
     quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.ASYM, &inputTensor, &outputTensor);
     outputTensor.printMultidim();
 
-    std.debug.print("\n --> MSE : {}\n", .{quant.compute_MSE_norm(f32, u8, &inputTensor, &outputTensor)});
     try testing.expectEqual(0, outputTensor.get(0));
     try testing.expectEqual(255, outputTensor.get(1));
 }
@@ -72,7 +71,6 @@ test "asymm unsigned range grid limits test" {
     quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.ASYM, &inputTensor, &outputTensor);
     outputTensor.printMultidim();
 
-    std.debug.print("\n --> MSE : {}\n", .{quant.compute_MSE_norm(f32, u8, &inputTensor, &outputTensor)});
     try testing.expectEqual(0, outputTensor.get(0));
     try testing.expectEqual(255, outputTensor.get(1));
 }
@@ -97,7 +95,6 @@ test "symm signed range grid limits test" {
     quant_debug.debug_minmax_quant(f32, i8, quant_debug.quantScheme.SYMM, &inputTensor, &outputTensor);
     outputTensor.printMultidim();
 
-    std.debug.print("\n --> MSE : {}\n", .{quant.compute_MSE_norm(f32, i8, &inputTensor, &outputTensor)});
     try testing.expectEqual(127, outputTensor.get(1));
     try testing.expectEqual(0, outputTensor.get(4));
 }
@@ -120,7 +117,6 @@ test "symm unsigned range grid limits test (0 as min)" {
     quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.SYMM, &inputTensor, &outputTensor);
     outputTensor.printMultidim();
 
-    std.debug.print("\n --> MSE : {}\n", .{quant.compute_MSE_norm(f32, u8, &inputTensor, &outputTensor)});
     try testing.expectEqual(0, outputTensor.get(0));
     try testing.expectEqual(255, outputTensor.get(1));
 }
@@ -143,7 +139,39 @@ test "symm unsigned range grid limits test (with negative val)" {
     quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.SYMM, &inputTensor, &outputTensor);
     outputTensor.printMultidim();
 
-    std.debug.print("\n --> MSE : {}\n", .{quant.compute_MSE_norm(f32, u8, &inputTensor, &outputTensor)});
     try testing.expectEqual(0, outputTensor.get(0));
     try testing.expectEqual(0, outputTensor.get(3));
+}
+
+// dequantizazion tests
+
+test "array dequantization test" {
+    std.debug.print("\n    test: array dequantization\n", .{});
+
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 0, 255, 8, },
+        [_]u8{ 144, 165, 53, },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+    var inputTensor = try Tensor(u8).fromArray(&pkgAllocator.allocator, &inputArray, &shape);
+    defer inputTensor.deinit();
+    std.debug.print("\n --> input tensor (quantized tensor): \n", .{});
+    inputTensor.printMultidim();
+
+    var outputTensor = try Tensor(f32).fromShape(&pkgAllocator.allocator, &shape);
+    defer outputTensor.deinit();
+
+    quant.dequantize_tensor(f32, u8, &inputTensor, &outputTensor, 0.005, 98);
+    std.debug.print("\n --> dequantized tensor: \n", .{});
+    outputTensor.printMultidim();
+
+    var originalArray: [2][3]f32 = [_][3]f32{
+        [_]f32{ -0.5, 0.8, -0.46 },
+        [_]f32{ 0.234, 0.3435, -0.231 },
+    };
+    var originalTensor = try Tensor(f32).fromArray(&pkgAllocator.allocator, &originalArray, &shape);
+    defer originalTensor.deinit();
+    std.debug.print("\n --> original tensor: \n", .{});
+    originalTensor.printMultidim();
+    std.debug.print("\n --> MSE : {}\n", .{quant.compute_MSE_norm(f32, f32, &originalTensor, &outputTensor)});
 }

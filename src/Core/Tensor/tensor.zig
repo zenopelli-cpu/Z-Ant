@@ -8,10 +8,7 @@ pub const math_standard = @import("TensorMath/tensor_math_standard.zig");
 
 const std = @import("std");
 const zant = @import("../../zant.zig");
-const TensorWrapper = zant.core.tensorWrapper.TensorWrapper;
-
-//const TensorWrapper = @import("TensorWrapper.zig"); // TODO: fix import
-const TW = @import("TensorWrapper.zig");
+const quant = zant.core.quantization;
 
 const tMath = math_standard;
 const error_handler = zant.utils.error_handler;
@@ -24,15 +21,48 @@ pub fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {
     log_function = func;
 }
 
+pub const TensorType = enum {
+    Tensor,
+    QuantTensor,
+    ClusterTensor,
+    null,
+};
+
+// Funzione per QuantDetails struct con tipi corretti
+// pub fn QuantDetails(comptime unquantizedType: type, comptime quantizedType: type) type {
+//     return struct {
+//         tensorType: TensorType,
+//         scale_factor: unquantizedType,
+//         zero_point: quantizedType, // or usize
+//     };
+// }
+
 ///Class Tensor.
 ///Return a generic type structure
 pub fn Tensor(comptime T: type) type {
+    const QuantDetails = struct {
+        tensorType: TensorType,
+        scale_factor: f32, // hardcoded data type
+        zero_point: usize,
+    };
+
+    const ClusterDetails = struct {
+        tensorType: TensorType,
+    };
+
+    const TensorDetails = union(enum) {
+        none,
+        quant: QuantDetails,
+        cluster: ClusterDetails,
+    };
+
     return struct {
         data: []T, //contains all the data of the tensor in a monodimensional array
         size: usize, //dimension of the tensor, equal to data.len
         shape: []usize, //defines the multidimensional structure of the tensor
         allocator: *const std.mem.Allocator, //allocator used in the memory initialization of the tensor
         owns_memory: bool, //whether this tensor owns its memory and should free it
+        details: TensorDetails, //union with the details of the tensor (quantization, clustering, etc.)
 
         ///Method used to initialize an undefined Tensor. It just set the allocator.
         /// More usefull methods are:
@@ -46,25 +76,18 @@ pub fn Tensor(comptime T: type) type {
                 .shape = &[_]usize{},
                 .allocator = allocator,
                 .owns_memory = true,
+                .details = TensorDetails{
+                    .none = {},
+                },
             };
         }
 
         ///Free all the possible allocation, use it every time you create a new Tensor ( defer yourTensor.deinit() )
         pub fn deinit(self: *@This()) void {
-            if (self.owns_memory) {
-                if (self.data.len > 0) {
-                    self.allocator.free(self.data);
-                    self.data = &[_]T{};
-                }
-                if (self.shape.len > 0) {
-                    self.allocator.free(self.shape);
-                    self.shape = &[_]usize{};
-                }
-            }
-        }
-
-        pub fn initWrapper(self: *@This()) !TW.TensorWrapper(@TypeOf(self.*), T) {
-            return TW.TensorWrapper(@TypeOf(self.*), T).createWrapper(self);
+            self.allocator.free(self.data);
+            self.data = &[_]T{};
+            self.allocator.free(self.shape);
+            self.shape = &[_]usize{};
         }
 
         ///Given a multidimensional array with its shape, returns the equivalent Tensor.
@@ -96,6 +119,9 @@ pub fn Tensor(comptime T: type) type {
                 .shape = tensorShape,
                 .allocator = allocator,
                 .owns_memory = true,
+                .details = TensorDetails{
+                    .none = {},
+                },
             };
         }
 
@@ -141,6 +167,9 @@ pub fn Tensor(comptime T: type) type {
                 .shape = tensorShape,
                 .allocator = allocator,
                 .owns_memory = true,
+                .details = TensorDetails{
+                    .none = {},
+                },
             };
         }
 
@@ -153,9 +182,80 @@ pub fn Tensor(comptime T: type) type {
                 .size = data.len,
                 .shape = @constCast(shape),
                 .allocator = allocator,
-                .owns_memory = false,
+                .owns_memory = true,
+                .details = TensorDetails{
+                    .none = {},
+                },
             };
         }
+
+        ///------------------------------------------------------------------------------------------------------------------------------------------------------------
+        ///-----------------------------------------------------------------Quantization and Clustering----------------------------------------------------------------
+        ///------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        /// Given a multidimensional array with its shape, the quantized output type, the scale factor and zero point, returns the equivalent quantized Tensor.
+        /// Note: the type T (Tensor parameter) should be the quantized output data type.
+        pub fn fromArrayQuantized(allocator: *const std.mem.Allocator, inputArray: anytype, shape: []usize, scale_factor: f32, comptime outputType: type, zero_point: usize,) !Tensor(outputType) {
+
+            // Calculate total size based on shape
+            var total_size: usize = 1;
+            for (shape) |dim| {
+                total_size *= dim;
+            }
+
+            // Allocate memory for tensor shape
+            const tensorShape = try allocator.alloc(usize, shape.len);
+            @memcpy(tensorShape, shape);
+
+            // Allocate memory for tensor data
+            const tensorData = try allocator.alloc(T, total_size);
+
+            // Flatten the input array into tensor data
+            _ = flattenArray(T, inputArray, tensorData, 0);
+
+            // Return the new tensor
+            return @This(){
+                .data = tensorData,
+                .size = total_size,
+                .shape = tensorShape,
+                .allocator = allocator,
+                .owns_memory = true,
+                .details = TensorDetails{
+                    .quant = QuantDetails{
+                        .tensorType = TensorType.QuantTensor,
+                        .scale_factor = scale_factor,
+                        .zero_point = zero_point,
+                    },
+                },
+            };
+        }
+
+        /// Quantizes this Tensor to the outputType.
+        /// Returns the quantized Tensor.
+        pub fn quantize(self: *@This(), allocator: *const std.mem.Allocator, comptime outputType: type, scheme: quant.quantScheme) !Tensor(outputType) {
+            scheme = quant.quantScheme.ASYM; // asymm hardcoded
+
+            // quantization (get outputArray, scaleFactor, zeroPoint) // minmax quantization "hardcoded"
+            const result = quant.minmax_array_quant(T, outputType, scheme, self.data);
+
+            return fromArrayQuantized(allocator, result.quantizedArray, self.shape, result.scale, outputType, result.zero);
+        }
+
+        //TODO to be tested
+        /// Dequantizes this Tensor to the outputType.
+        /// Returns the dequantized Tensor.
+        // pub fn dequantize(self: *@This(), allocator: *const std.mem.Allocator, comptime outputType: type) !Tensor(outputType) {
+        //     // dequantization
+        //     if(self.details != TensorDetails.quant) {
+        //         return error.TensorNotQuantized;
+        //     }
+        //     const scale = self.details.quant.scale_factor;
+        //     const zero = self.details.quant.zero_point;
+        //     // TODO use getters
+        //     const result = quant.dequantize_array(outputType, T, self.data, scale, @as(T, @intCast(zero)));
+
+        //     return Tensor(outputType).fromArray(allocator, result, self.shape);
+        // }
 
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------
         ///--------------------------------------------------------------------------getters and setters---------------------------------------------------------------
@@ -200,6 +300,42 @@ pub fn Tensor(comptime T: type) type {
         pub fn set_at(self: *@This(), indices: []const usize, value: T) !void {
             const idx = try self.flatten_index(indices);
             return self.set(idx, value);
+        }
+
+        //TODO to be tested
+        /// Returns the quantization scale factor of the quantized tensor.
+        /// Errors:
+        ///     - error.TensorNotQuantized;
+        pub fn get_scale_factor(self: *@This()) !f32 {
+            // if (self.details != TensorDetails.quant) {
+            //     return error.TensorNotQuantized;
+            // }
+            // const q = try self.details.quant.*;
+            // return q.scale_factor;
+            switch(self.details) {
+                .quant => |quantDetails| {
+                    return quantDetails.scale_factor;
+                },
+                else => return error.TensorNotQuantized,
+            }
+        }
+
+        //TODO to be tested
+        /// Returns the quantization zero point of the quantized tensor.
+        /// Errors:
+        ///     - error.TensorNotQuantized;
+        pub fn get_zero_point(self: *@This()) !usize {
+            // if (self.details != TensorDetails.quant) {
+            //     return error.TensorNotQuantized;
+            // }
+            // const q = try self.details.quant.*;
+            // return q.zero_point;
+            switch(self.details) {
+                .quant => |quantDetails| {
+                    return quantDetails.zero_point;
+                },
+                else => return error.TensorNotQuantized,
+            }
         }
 
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------

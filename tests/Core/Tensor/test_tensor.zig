@@ -25,6 +25,46 @@ test "init() test" {
     try std.testing.expect(&allocator == tensor.allocator);
 }
 
+test "fromArrayQuantized() test" {
+    std.debug.print("\n     test: fromArrayQuantized() ", .{});
+    const allocator = pkgAllocator.allocator;
+    const inputArray: [2][2]i8 = [_][2]i8{
+        [_]i8{ 1, 2, },
+        [_]i8{ 4, 5 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 2 };
+    var tensor = try Tensor(i8).fromArrayQuantized(&allocator, &inputArray, &shape, 0.1, i8, 2);
+    defer tensor.deinit();
+
+    switch(tensor.details) {
+        .quant => |*quantDetails| {
+            try std.testing.expect(quantDetails.*.scale_factor == 0.1);
+            try std.testing.expect(quantDetails.*.zero_point == 2);
+        },
+        else => unreachable,
+    }
+}
+
+//TODO wip
+// test "dequantize() test" {
+//     std.debug.print("\n     test: dequantize() ", .{});
+//     const allocator = pkgAllocator.allocator;
+//     var inputArray: [2][3]u8 = [_][3]u8{
+//         [_]u8{ 0, 255, 8, },
+//         [_]u8{ 144, 165, 53, },
+//     };
+//     var shape: [2]usize = [_]usize{ 2, 3 };
+//     var inputTensor = try Tensor(u8).fromArrayQuantized(&pkgAllocator.allocator, &inputArray, &shape, 0.005, u8, 98);
+//     defer inputTensor.deinit();
+//     std.debug.print("\n --> input tensor (quantized tensor): \n", .{});
+//     inputTensor.printMultidim();
+
+//     var outputTensor = try inputTensor.dequantize(&allocator, f32);
+//     defer outputTensor.deinit();
+//     std.debug.print("\n --> dequantized tensor: \n", .{});
+//     outputTensor.printMultidim();
+// }
+
 test "initialization fromShape" {
     std.debug.print("\n     test:initialization fromShape", .{});
     const allocator = pkgAllocator.allocator;
