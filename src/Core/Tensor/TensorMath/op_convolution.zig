@@ -1970,7 +1970,9 @@ pub fn lowerConv2d(
     _ = b.push(.MULACC, out_dtype, &.{ id_acc, id_x, id_w }, null);
 
     // close reduction loops                                            ↓↓↓
-    for (.{ kw, kh, ic }) |rloop| _ = b.push(.ENDRANGE, .bool, &.{rloop}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{kw}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{kh}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{ic}, null);
 
     // ── 6. Write output pixel ------------------------------------------
     const id_gepY = b.push(.GEP, out_dtype, &.{ id_Y, n, oc_idx, oh, ow }, Any{ .mem_info = .{ .base = "Y", .offset = 0, .stride = 1 } });
@@ -1978,7 +1980,11 @@ pub fn lowerConv2d(
     _ = b.push(.STORE, out_dtype, &.{ id_gepY, id_acc }, null);
 
     // close outer loops (reverse order)                               ↓↓↓
-    for (.{ ow, oh, mop, g, n }) |oloop| _ = b.push(.ENDRANGE, .bool, &.{oloop}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{ow}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{oh}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{mop}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{g}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{n}, null);
 
     return id_Y; // SSA id of the produced output tensor Y
 }

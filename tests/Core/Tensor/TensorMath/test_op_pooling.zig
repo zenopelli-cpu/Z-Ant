@@ -6,6 +6,67 @@ const Tensor = zant.core.tensor.Tensor;
 const PoolingType = zant.core.tensor.math_standard.PoolingType;
 const AutoPadType = zant.core.tensor.math_standard.AutoPadType;
 
+const Uops = zant.Uops;
+const UOpBuilder = Uops.UOpBuilder;
+const DType = Uops.DType;
+const Any = Uops.Any;
+const lowerMaxPool2d = zant.core.tensor.math_standard.lowerMaxPool2d;
+
+test "lowerMaxPool2d - print UOps sequence" {
+    std.debug.print("\n     test: lowerMaxPool2d - print UOps sequence\n", .{});
+
+    const test_allocator = pkgAllocator.allocator;
+    var b = UOpBuilder.init(test_allocator);
+    defer b.deinit();
+
+    // Create dummy input tensor
+    var input_shape: [4]usize = [_]usize{ 1, 1, 5, 5 };
+    var inputArray: [1][1][5][5]f32 = [_][1][5][5]f32{
+        [_][5][5]f32{
+            [_][5]f32{
+                [_]f32{ 1, 1, 1, 1, 1 },
+                [_]f32{ 1, 1, 1, 1, 1 },
+                [_]f32{ 1, 1, 1, 1, 1 },
+                [_]f32{ 1, 1, 1, 1, 1 },
+                [_]f32{ 1, 1, 1, 1, 1 },
+            },
+        },
+    };
+
+    var input_tensor = try Tensor(f32).fromArray(&test_allocator, &inputArray, &input_shape);
+    defer input_tensor.deinit();
+
+    const X_id = b.push(.DEFINE_GLOBAL, .f32, &.{}, Any{ .shape = &input_shape });
+
+    // Define output shape and other parameters for max pooling
+    const out_shape = [_]usize{ 1, 1, 3, 3 }; // With 2x2 kernel and stride 1, output is (5-2+1)x(5-2+1)
+    const in_stride = [_]isize{ 25, 25, 5, 1 }; // Strides for 1x1x5x5 tensor in row-major format
+    const pads = [_]usize{ 0, 0 }; // No padding
+    const strides_hw = [_]usize{ 1, 1 }; // Stride of 1 in height and width
+    const dil_hw = [_]usize{ 1, 1 }; // No dilation
+    const kHW = [_]usize{ 2, 2 }; // 2x2 kernel
+
+    // Call lowerMaxPool2d
+    _ = lowerMaxPool2d(
+        &b,
+        X_id,
+        &out_shape,
+        &in_stride,
+        pads,
+        strides_hw,
+        dil_hw,
+        kHW,
+        .f32,
+        false,
+    );
+
+    // Print the generated UOps sequence
+    std.debug.print("\nUOps sequence for MaxPool2d:\n", .{});
+    for (b.list.items, 0..) |op, i| {
+        std.debug.print("{d:3}: {s}\n", .{ i, @tagName(op.op) });
+    }
+}
+
 test "Pooling 2D" {
     std.debug.print("\n     test: Pooling 2D\n", .{});
 
