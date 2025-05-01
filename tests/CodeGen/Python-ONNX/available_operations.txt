@@ -23,4 +23,5 @@ Slice
 Split  
 Sub  
 Tanh
-Transpose  
+Transpose
+Squeeze

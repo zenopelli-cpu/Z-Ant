@@ -80,6 +80,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Flatten")) {
         //https://onnx.ai/onnx/operators/onnx__Flatten.html
         try compute_flatten_output_shape(readyNode);
+    } else if (std.mem.equl(u8, ReadyNode.nodeProto.op_type, "Squeeze")) {
+        //https://onnx.ai/onnx/operators/onnx__Squeeze.html
+        try compute_squeeze_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
         try compute_gather_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gemm")) {
@@ -1468,6 +1471,37 @@ inline fn compute_flatten_output_shape(readyNode: *ReadyNode) !void {
 
         const output_shape_usize = try tensorMath.get_flatten_output_shape(input_shape_usize, @intCast(axis));
         //defer allocator.free(output_shape_usize); // Libera il risultato di get_flatten_output_shape
+        Codegen_log.debug("\n output_shape_usize: []usize = {any}", .{output_shape_usize});
+
+        shape = try utils.usizeSliceToI64Slice(@constCast(output_shape_usize));
+    }
+
+    readyNode.outputs.items[0].shape = shape;
+    Codegen_log.info("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_squeeze_output_shape(readyNode: *ReadyNode) !void {
+    Codegen_log.info("\n====== compute_squeeze_output_shape node: {s}======", .{readyNode.nodeProto.name orelse "(unnamed)"});
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        if (readyNode.inputs.items.len == 0) {
+            return error.EmptyInputList;
+        }
+
+        const input_shape_i64 = readyNode.inputs.items[0].?.shape;
+        Codegen_log.info("\n input_shape: []i64 = {any}", .{input_shape_i64});
+
+        const input_shape_usize = try utils.i64SliceToUsizeSlice(input_shape_i64);
+        defer allocator.free(input_shape_usize);
+        Codegen_log.debug("\n input_shape_usize: []usize = {any}", .{input_shape_usize});
+
+        const maybe_axes = utils.getAttributeList_i64(readyNode.nodeProto, "axes");
+        Codegen_log.debug("\n squeeze axes: {?[]i64} = {any}", .{maybe_axes});
+
+        const output_shape_usize = try tensorMath.get_squeeze_output_shape(input_shape_usize, maybe_axes);
         Codegen_log.debug("\n output_shape_usize: []usize = {any}", .{output_shape_usize});
 
         shape = try utils.usizeSliceToI64Slice(@constCast(output_shape_usize));
