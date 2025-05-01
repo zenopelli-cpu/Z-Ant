@@ -155,3 +155,31 @@ test "Gep operation" {
 
     try std.testing.expectEqualStrings(actual, expected);
 }
+
+test "Control flow operations" {
+    std.debug.print("Running zig renderer range/endrange test \n", .{});
+    const allocator = std.testing.allocator;
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+
+    const Writer = @TypeOf(buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    defer renderer.deinit();
+
+    var uops = [_]UOp{
+        .{ .id = 0, .op = .RANGE,    .dtype = .f32, .src = &.{ 0 }, .arg = .{ .loop_bounds = .{ .start = 0, .end = 10 } } },
+        .{ .id = 1, .op = .ENDRANGE, .dtype = .f32, .src = &.{ 0 }, .arg =  null},
+    };
+
+    try renderer.render(&uops);
+
+    const expected =
+        \\for(@as(f32,0)..@as(f32,10))|t0|{
+        \\} //ending range from id t0
+        \\
+    ;
+    const actual = try buffer.toOwnedSlice();
+    defer allocator.free(actual);
+
+    try std.testing.expectEqualSlices(u8, expected, actual);
+}
