@@ -168,7 +168,7 @@ test "Control flow operations" {
 
     var uops = [_]UOp{
         .{ .id = 0, .op = .RANGE,    .dtype = .f32, .src = &.{ 0 }, .arg = .{ .loop_bounds = .{ .start = 0, .end = 10 } } },
-        .{ .id = 1, .op = .ENDRANGE, .dtype = .f32, .src = &.{ 0 }, .arg = .{ .loop_bounds = .{ .start = 0, .end = 10 } } },
+        .{ .id = 1, .op = .ENDRANGE, .dtype = .f32, .src = &.{ 0 }, .arg =  null},
     };
 
     try renderer.render(&uops);
