@@ -14,18 +14,18 @@ pub fn render(allocator: std.mem.Allocator, writer: anytype, uop: UOp) !void {
 
     const type_str = DTypeInfo.asString(uop.dtype);
 
-    const range_start = try std.fmt.allocPrint(allocator, "@as({d},{d})", .{ type_str, uop.arg.?.loop_bounds.start });
+    const range_start = try std.fmt.allocPrint(allocator, "@as({s},{d})", .{ type_str, uop.arg.?.loop_bounds.start });
     defer allocator.free(range_start);
 
-    const range_end = try std.fmt.allocPrint(allocator, "@as({d},{d})", .{ type_str, uop.arg.?.loop_bounds.end });
-    defer allocator.free(range_start);
+    const range_end = try std.fmt.allocPrint(allocator, "@as({s},{d})", .{ type_str, uop.arg.?.loop_bounds.end });
+    defer allocator.free(range_end);
 
     const index_name = try std.fmt.allocPrint(allocator, "t{d}", .{ uop.src[0] });
     defer allocator.free(index_name);
 
     switch (uop.op) {
-        .RANGE  =>   try writer.print("for({d}..{d})|{d}|{\n", .{range_start, range_end, index_name}),
-        .ENDRANGE => try writer.print("} //ending range from id {d}\n", .{ index_name }),
+        .RANGE  =>   try writer.print("for({s}..{s})|{s}|{{\n", .{range_start, range_end, index_name}),
+        .ENDRANGE => try writer.print("}} //ending range from id {s}\n", .{ index_name }),
         else => unreachable,
     }
 }
