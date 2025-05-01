@@ -12,15 +12,15 @@ const NodeProto = zant.onnx.NodeProto;
 pub const GraphZant = @import("graphZant.zig").GraphZant;
 pub const NodeZant = @import("nodeZant.zig").NodeZant;
 
-pub fn init(modelProto: ModelProto) *GraphZant {
-    const graphProto = modelProto.graph;
+//pub fn init(modelProto: ModelProto) *GraphZant {
+//const graphProto = modelProto.graph;
 
-    //given the onnx model iterate over all nodes
-    for (graphProto.nodes) |nodeProto| {
+//given the onnx model iterate over all nodes
+//for (graphProto.nodes) |nodeProto| {
 
-        //create all the new NodeZant
+//create all the new NodeZant
 
-        //for each node search for the child_node
+//for each node search for the child_node
 
-    }
-}
+//}
+//}
