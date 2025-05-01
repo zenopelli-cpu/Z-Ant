@@ -3,6 +3,7 @@ const zant = @import("zant");
 const onnx = zant.onnx;
 const allocator = zant.utils.allocator.allocator;
 const Tensor = zant.core.Tensor;
+const Op_union = @import("op_union/op_union.zig");
 
 //--- proto structure
 const NodeProto = zant.onnx.NodeProto;
@@ -10,6 +11,7 @@ const NodeProto = zant.onnx.NodeProto;
 pub const NodeZant = struct {
     name: ?[]const u8, //name of the node
     op_type: []const u8, //onnx name of the operation, see here: https://onnx.ai/onnx/operators/
+    op: Op_union, // contains all the information of the operation
     next: std.ArrayList(*NodeZant), // points to the following nodes
 
     nodeProto: *NodeProto,
@@ -20,6 +22,7 @@ pub const NodeZant = struct {
         return NodeZant{
             .name = nodeProto.name.?,
             .op_type = nodeProto.op_type,
+            .op = Op_union.init(nodeProto),
             .next = try std.ArrayList(*NodeZant).init(allocator),
             .nodeProto = nodeProto,
             .ready = false,
