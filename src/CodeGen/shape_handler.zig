@@ -88,6 +88,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gemm")) {
         //https://onnx.ai/onnx/operators/onnx__Gemm.html
         try compute_gemm_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gelu")) {
+        //https://onnx.ai/onnx/operators/onnx__Gelu.html
+        try compute_gelu_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LeakyRelu")) {
         try compute_leaky_relu_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "LogSoftmax")) {
@@ -1114,6 +1117,24 @@ inline fn compute_tanh_output_shape(readyNode: *ReadyNode) !void {
         Codegen_log.info("\n input_shape: []i64 = {any}", .{input_shape});
 
         shape = try utils.usizeSliceToI64Slice(try tensorMath.get_tanh_output_shape(try utils.i64SliceToUsizeSlice(input_shape)));
+    }
+    readyNode.outputs.items[0].shape = shape;
+}
+
+inline fn compute_gelu_output_shape(readyNode: *ReadyNode) !void {
+    const input = readyNode.inputs.items[0] orelse {
+        return error.InputTensorIsNull;
+    };
+
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        const input_shape = input.shape;
+        Codegen_log.info("\n input_shape: []i64 = {any}", .{input_shape});
+
+        shape = try utils.usizeSliceToI64Slice(try tensorMath.get_gelu_output_shape(try utils.i64SliceToUsizeSlice(input_shape)));
     }
     readyNode.outputs.items[0].shape = shape;
 }
