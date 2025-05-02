@@ -152,7 +152,7 @@ pub const UOp = struct {
     /// Pretty-print for REPL / unit tests
     pub fn dump(self: UOp, w: anytype) !void {
         try w.print("{d:>3}  {s}", .{ self.id, @tagName(self.op) });
-        if (self.src.len > 0) try w.print("  src={}", .{self.src});
+        if (self.src.len > 0) try w.print("  src={any}", .{self.src});
         if (self.arg) |a| try w.print("  arg={any}", .{a});
         try w.print("\n", .{});
     }
