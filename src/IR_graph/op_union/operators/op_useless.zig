@@ -13,14 +13,10 @@ const TensorProto = onnx.TensorProto;
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 
-pub const Sub = struct {
-    input: f32,
-
-    pub fn init(nodeProto: *NodeProto) !Sub {
+pub const Useless = struct {
+    pub fn init(nodeProto: *NodeProto) !Useless {
         _ = nodeProto; //"details" will be a onnx struct
-        return Sub{
-            .input = 10,
-        };
+        return Useless{};
     }
 
     pub fn get_output_shape() []usize {
@@ -28,7 +24,7 @@ pub const Sub = struct {
         return res;
     }
 
-    pub fn print(self: Sub) void {
+    pub fn print(self: Useless) void {
         std.debug.print("\n SUB:\n {any}", .{self});
     }
 };

@@ -1,35 +1,40 @@
 const std = @import("std");
-const zant = @import("zant");
+const zant = @import("../../zant.zig");
 const onnx = zant.onnx;
 const NodeProto = onnx.NodeProto;
 
 const allocator = std.heap.page_allocator;
-const op = @import("operators/operators.zig");
+pub const operators = @import("operators/operators.zig");
 
 pub const Op_union = union(enum) {
-    add: op.Add,
-    sub: op.Sub,
-    conv: op.Conv,
+    add: operators.Add,
+    sub: operators.Sub,
+    conv: operators.Conv,
+    useless: operators.Useless,
 
-    pub fn init(nodeProto: NodeProto) !Op_union {
+    pub fn init(nodeProto: *NodeProto) !Op_union {
         const op_type = nodeProto.op_type;
 
         if (std.mem.indexOf(u8, op_type, "Add")) |_| {
             return Op_union{
-                .add = op.Add.init(nodeProto),
+                .add = try operators.Add.init(nodeProto),
             };
         } else if (std.mem.indexOf(u8, op_type, "Sub")) |_| {
             return Op_union{
-                .sub = op.Sub.init(nodeProto),
+                .sub = try operators.Sub.init(nodeProto),
             };
         } else if (std.mem.indexOf(u8, op_type, "Conv")) |_| {
             return Op_union{
-                .conv = op.Conv.init(nodeProto),
+                .conv = try operators.Conv.init(nodeProto),
             };
         } else {
             std.debug.print("\n\nERROR: init() is not available for {s} operator!! \n\n", .{op_type});
-            return error.OpNotAvailable;
+            //return error.OpNotAvailable;
         }
+
+        return Op_union{
+            .useless = try operators.Useless.init(nodeProto),
+        };
     }
 
     pub fn get_output_shape(self: Op_union) []usize {

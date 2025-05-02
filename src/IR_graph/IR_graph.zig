@@ -1,26 +1,39 @@
 const std = @import("std");
-const zant = @import("zant");
-const onnx = zant.onnx;
-const ModelProto = onnx.ModelProto;
+const zant = @import("../zant.zig");
+
 const allocator = zant.utils.allocator.allocator;
 const Tensor = zant.core.Tensor;
 
-//--- protos
-const GraphProto = zant.onnx.GraphProto;
-const NodeProto = zant.onnx.NodeProto;
+//--- protos ---
+const onnx = zant.onnx;
+const ModelProto = onnx.ModelProto;
+const GraphProto = onnx.GraphProto;
 
-pub const GraphZant = @import("graphZant.zig").GraphZant;
-pub const NodeZant = @import("nodeZant.zig").NodeZant;
+//--- zant ---
+pub const graphZant_lib = @import("graphZant.zig");
+pub const GraphZant = graphZant_lib.GraphZant;
 
-//pub fn init(modelProto: ModelProto) *GraphZant {
-//const graphProto = modelProto.graph;
+pub const NodeZant_lib = @import("nodeZant.zig");
+pub const NodeZant = NodeZant_lib.NodeZant;
 
-//given the onnx model iterate over all nodes
-//for (graphProto.nodes) |nodeProto| {
+pub const tensorZant_lib = @import("tensorZant.zig");
+pub const TensorZant = tensorZant_lib.TensorZant;
 
-//create all the new NodeZant
+pub const operators = @import("op_union/op_union.zig").operators;
 
-//for each node search for the child_node
+pub fn init(modelProto: *ModelProto) !GraphZant {
 
-//}
-//}
+    //initialize the tensor hash map
+    try tensorZant_lib.initialize_tensorZantMap(modelProto);
+
+    //check
+    const graphProto = try if (modelProto.graph) |graph| graph else error.GraphNotAvailable;
+
+    //initialize the graphZant
+    var graphZant = try GraphZant.init(graphProto);
+
+    //constructing the graph
+    try graphZant.build_graph();
+
+    return graphZant;
+}

@@ -1,5 +1,17 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
+const zant = @import("../../../zant.zig");
+
+// --- onnx ---
+const onnx = zant.onnx;
+const ModelProto = onnx.ModelProto;
+const GraphProto = onnx.GraphProto;
+const NodeProto = onnx.NodeProto;
+const TensorProto = onnx.TensorProto;
+
+// --- zant ---
+const tensorZant = @import("../../tensorZant.zig");
+const TensorZant = tensorZant.TensorZant;
 
 // https://onnx.ai/onnx/operators/onnx__Add.html
 // INPUTS:
@@ -7,14 +19,20 @@ const allocator = std.heap.page_allocator;
 //      - B (heterogeneous) - T: Second operand.
 // OUTPUTS:
 //      - C (heterogeneous) - T: Result, has same element type as two inputs.
+pub const Add = struct {
+    input_A: *TensorZant,
+    input_B: *TensorZant,
+    output_C: *TensorZant,
 
-const Add = struct {
-    input: f32,
+    pub fn init(nodeProto: *NodeProto) !Add {
+        const input_A = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_A_notFound;
+        const input_B = if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_B_notFound;
+        const output_C = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_C_notFound;
 
-    pub fn init(details: []const u8) Add {
-        _ = details; //"details" will be a onnx struct
         return Add{
-            .input = 90,
+            .input_A = input_A,
+            .input_B = input_B,
+            .output_C = output_C,
         };
     }
 

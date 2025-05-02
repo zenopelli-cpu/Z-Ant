@@ -1,13 +1,25 @@
 const std = @import("std");
+const zant = @import("../../../zant.zig");
 const allocator = std.heap.page_allocator;
 
-const Conv = struct {
+// --- onnx ---
+const onnx = zant.onnx;
+const ModelProto = onnx.ModelProto;
+const GraphProto = onnx.GraphProto;
+const NodeProto = onnx.NodeProto;
+const TensorProto = onnx.TensorProto;
+
+// --- zant ---
+const tensorZant = @import("../../tensorZant.zig");
+const TensorZant = tensorZant.TensorZant;
+
+pub const Conv = struct {
     input: f32,
     kernel: f16,
     padding: []usize,
 
-    pub fn init(details: []const u8) Conv {
-        _ = details; //"details" will be a onnx struct
+    pub fn init(nodeProto: *NodeProto) !Conv {
+        _ = nodeProto; //"details" will be a onnx struct
         // Define the padding array
         const padding_array = @constCast(&[_]usize{ 5, 6, 7, 8 });
 

@@ -1,5 +1,5 @@
 const std = @import("std");
-const zant = @import("zant");
+const zant = @import("../zant.zig");
 const onnx = zant.onnx;
 const allocator = zant.utils.allocator.allocator;
 const Tensor = zant.core.Tensor;
@@ -17,7 +17,7 @@ pub const GraphZant = struct {
     pub fn init(graphProto: *GraphProto) !GraphZant {
         return GraphZant{
             .name = graphProto.name.?,
-            .nodes = try std.ArrayList(*NodeZant).init(allocator),
+            .nodes = std.ArrayList(*NodeZant).init(allocator),
             .graphProto = graphProto,
         };
     }
@@ -36,24 +36,23 @@ pub const GraphZant = struct {
     pub fn build_graph(self: *GraphZant) !void {
 
         // create all the nodes
-        for (self.graphProto.node) |nodeProto| {
-            const node = try NodeZant.init(nodeProto);
+        for (self.graphProto.nodes) |nodeProto| {
+            var node = try NodeZant.init(nodeProto);
             try self.nodes.append(&node);
         }
 
         //hashmap for the outputs for the producers
-
-        var output_map = std.AutoHashMap([]const u8, *NodeZant).init(allocator);
+        var output_map = std.StringHashMap(*NodeZant).init(allocator);
 
         //populate the output map with the nodes
-        for (self.nodes) |node| {
+        for (self.nodes.items) |node| {
             for (node.nodeProto.output) |output| {
                 try output_map.put(output, node);
             }
         }
 
         // use the hashmap to find the producers of the inputs
-        for (self.nodes) |customer| {
+        for (self.nodes.items) |customer| {
             for (customer.nodeProto.input) |input| {
                 const producer = output_map.get(input);
                 if (producer) |p| {

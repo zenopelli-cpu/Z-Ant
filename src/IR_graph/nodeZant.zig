@@ -4,7 +4,7 @@ const zant = @import("../zant.zig");
 const onnx = zant.onnx;
 const allocator = zant.utils.allocator.allocator;
 const Tensor = zant.core.tensor.Tensor;
-const Op_union = @import("op_union/op_union.zig");
+const Op_union = @import("op_union/op_union.zig").Op_union;
 
 //--- proto structure
 const NodeProto = zant.onnx.NodeProto;
@@ -26,8 +26,8 @@ pub const NodeZant = struct {
         return NodeZant{
             .name = nodeProto.name.?,
             .op_type = nodeProto.op_type,
-            .op = Op_union.init(nodeProto),
-            .next = try std.ArrayList(*NodeZant).init(allocator),
+            .op = try Op_union.init(nodeProto),
+            .next = std.ArrayList(*NodeZant).init(allocator),
             .nodeProto = nodeProto,
             .ready = false,
         };
@@ -41,72 +41,5 @@ pub const NodeZant = struct {
     /// Adds a new node to the next list.
     pub fn add_next(self: *NodeZant, next_node: *NodeZant) !void {
         try self.next.append(next_node);
-    }
-
-    pub fn ProtoTensor2Tensor(T: type, proto: TensorProto) !Tensor(T) {
-        // Type Check
-        if (!isMatchingType(T, proto.data_type)) {
-            return error.InvalidDataType;
-        }
-
-        // Allocate shape array
-        var shape = try allocator.alloc(usize, proto.dims.len);
-        for (proto.dims, 0..) |dim, i| {
-            if (dim < 0) {
-                return error.NegativeDimension;
-            }
-            shape[i] = @intCast(dim);
-        }
-
-        // Compute total size
-        var size: usize = 1;
-        for (shape) |dim| {
-            size *= dim;
-        }
-
-        // Allocate data array
-        var data = try allocator.alloc(T, size);
-        // Fill data
-        if (proto.raw_data) |raw| {
-            // Fill from raw_data
-            const needed_bytes = size * @sizeOf(T);
-            if (raw.len != needed_bytes) {
-                return error.RawDataSizeMismatch;
-            }
-        } else {
-            // Fill from typed fields
-            if (T == f32) {
-                data = proto.float_data.?;
-            }
-            if (T == i32) {
-                data = proto.int32_data.?;
-            }
-            if (T == i64) {
-                data = proto.int64_data.?;
-            }
-            if (T == f64) {
-                data = proto.double_data.?;
-            }
-        }
-
-        // Return the Tensor
-        return Tensor(T){
-            .data = data,
-            .size = size,
-            .shape = shape,
-            .allocator = &allocator,
-        };
-    }
-
-    fn isMatchingType(comptime T: type, data_type: DataType) bool {
-        return switch (data_type) {
-            .FLOAT => T == f32,
-            .INT32 => T == i32,
-            .INT64 => T == i64,
-            .DOUBLE => T == f64,
-            .UINT64 => T == u64,
-            .UINT16 => T == u16,
-            else => false,
-        };
     }
 };

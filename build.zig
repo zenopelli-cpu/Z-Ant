@@ -21,7 +21,6 @@ pub fn build(b: *std.Build) void {
     };
 
     const target = b.resolveTargetQuery(target_query);
-
     const optimize = b.standardOptimizeOption(.{});
 
     // -------------------- Modules creation
@@ -29,9 +28,14 @@ pub fn build(b: *std.Build) void {
     const zant_mod = b.createModule(.{ .root_source_file = b.path("src/zant.zig") });
     zant_mod.addOptions("build_options", build_options);
 
-    //************************************************UNIT TESTS************************************************
     const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/CodeGen/codegen.zig") });
     codeGen_mod.addImport("zant", zant_mod);
+
+    const IR_mod = b.createModule(.{ .root_source_file = b.path("src/IR_graph/IR_graph.zig") });
+    IR_mod.addImport("zant", zant_mod);
+    IR_mod.addImport("codegen", codeGen_mod);
+
+    //************************************************UNIT TESTS************************************************
 
     // Define unified tests for the project.
     const unit_tests = b.addTest(.{
@@ -43,6 +47,7 @@ pub fn build(b: *std.Build) void {
 
     unit_tests.root_module.addImport("zant", zant_mod);
     unit_tests.root_module.addImport("codegen", codeGen_mod);
+    unit_tests.root_module.addImport("IR_graph", IR_mod);
 
     unit_tests.linkLibC();
 
