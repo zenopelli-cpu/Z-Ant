@@ -183,3 +183,34 @@ test "Control flow operations" {
 
     try std.testing.expectEqualSlices(u8, expected, actual);
 }
+
+test "Rendering memory operations" {
+    std.debug.print("Running zig renderer memory uops test \n", .{});
+    const allocator = std.testing.allocator;
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+
+    const Writer = @TypeOf(buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    defer renderer.deinit();
+
+    var uops = [_]UOp{
+        .{ .id = 0, .op = .DEFINE_GLOBAL,    .dtype = .f32, .src = &.{ 0 }, .arg = .{ .int = 10 }},
+        .{ .id = 1, .op = .LOAD, .dtype = .f32, .src = &.{ 0 }, .arg =  null},
+        .{ .id = 2, .op = .STORE, .dtype = .f32, .src = &.{ 0, 1 }, .arg =  null},
+    };
+
+    try renderer.render(&uops);
+
+    const expected =
+        \\const t0 = try allocator.alloc(f32, 10);
+        \\defer allocator.free(t0);
+        \\const t1 = *t0;
+        \\*t0 = t1;
+        \\
+    ;
+    const actual = try buffer.toOwnedSlice();
+    defer allocator.free(actual);
+
+    try std.testing.expectEqualSlices(u8, expected, actual);
+}
