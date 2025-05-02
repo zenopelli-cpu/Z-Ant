@@ -8,7 +8,7 @@ pub fn render(allocator: std.mem.Allocator, writer: anytype, uop: UOp) !void {
         return error.InvalidOperation;
     }
 
-    if (uop.src.len != 1 and uop.op == .DEFINE_GLOBAL and uop.arg.?.label == null) {
+    if (uop.src.len != 1 and uop.op == .DEFINE_GLOBAL) {
         return error.InvalidOperandCount;
     }
 
@@ -24,19 +24,17 @@ pub fn render(allocator: std.mem.Allocator, writer: anytype, uop: UOp) !void {
     switch(uop.op){
         .DEFINE_GLOBAL => {
             const type_str = DTypeInfo.asString(uop.dtype);
-            const allocation_name = try std.fmt.allocPrint(allocator, "{s}", .{uop.arg.?.label});
-            defer allocator.free(allocation_name);   
 
             const allocation_size = try std.fmt.allocPrint(allocator, "{d}", .{uop.arg.?.int});
             defer allocator.free(allocation_size); 
 
-            try writer.print("const {s} = try allocator.alloc({s}, {s});\ndefer allocator.free({s});\n", .{allocation_name, type_str, allocation_size, allocation_name});
+            try writer.print("const t{d} = try allocator.alloc({s}, {s});\ndefer allocator.free(t{d});\n", .{uop.id, type_str, allocation_size, uop.id});
         },
         .STORE => {
-            try writer.print("*t{d} = t{d}\n", .{uop.src[0], uop.src[1]});
+            try writer.print("*t{d} = t{d};\n", .{uop.src[0], uop.src[1]});
         },
         .LOAD => {
-            try writer.print("const t{d} = *t{d}\n", .{uop.id, uop.src[0]});
+            try writer.print("const t{d} = *t{d};\n", .{uop.id, uop.src[0]});
         },
         else => unreachable,
     }
