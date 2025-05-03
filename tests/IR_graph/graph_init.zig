@@ -15,9 +15,9 @@ test "parsing mnist-8 graphZant" {
     defer graphZant.deinit();
 
     //USELESS SHIT FOR DEBUG
-    std.debug.print("__HASH MAP__", .{});
+    std.debug.print("__HASH_MAP__", .{});
     var it = zant.IR_graph.tensorZant_lib.tensorMap.iterator();
     while (it.next()) |entry| {
-        std.debug.print("Key: {s}, Value.ty: {any}\n", .{ entry.key_ptr.*, entry.value_ptr });
+        std.debug.print("Key: {s}, Value.ty: {s}\n", .{ entry.key_ptr.*, entry.value_ptr.name });
     }
 }
