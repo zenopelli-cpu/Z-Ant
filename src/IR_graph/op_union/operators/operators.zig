@@ -4,6 +4,7 @@ pub const BatchNormalization = @import("op_batchNormalization.zig").BatchNormali
 pub const Conv = @import("op_conv.zig").Conv;
 pub const Elu = @import("op_elu.zig").Elu;
 pub const Flatten = @import("op_flatten.zig").Flatten;
+pub const Gemm = @import("op_gemm.zig").Gemm;
 
 pub const Sub = @import("op_sub.zig").Sub;
 
