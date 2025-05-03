@@ -90,6 +90,6 @@ pub const AveragePool = struct {
     }
 
     pub fn print(self: AveragePool) void { // TODO
-        std.debug.print("\n ADD:\n {any}", .{self});
+        std.debug.print("\n AveragePool:\n {any}", .{self});
     }
 };

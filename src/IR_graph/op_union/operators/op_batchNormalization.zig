@@ -80,6 +80,6 @@ pub const BatchNormalization = struct {
     }
 
     pub fn print(self: BatchNormalization) void { // TODO
-        std.debug.print("\n ADD:\n {any}", .{self});
+        std.debug.print("\n BatchNormalization:\n {any}", .{self});
     }
 };

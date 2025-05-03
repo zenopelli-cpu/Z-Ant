@@ -3,6 +3,7 @@ pub const AveragePool = @import("op_averagePool.zig").AveragePool;
 pub const BatchNormalization = @import("op_batchNormalization.zig").BatchNormalization;
 pub const Conv = @import("op_conv.zig").Conv;
 pub const Elu = @import("op_elu.zig").Elu;
+pub const Flatten = @import("op_flatten.zig").Flatten;
 
 pub const Sub = @import("op_sub.zig").Sub;
 
