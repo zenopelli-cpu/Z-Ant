@@ -8,6 +8,7 @@ pub const Gemm = @import("op_gemm.zig").Gemm;
 pub const Div = @import("op_div.zig").Div;
 pub const Concat = @import("op_concat.zig").Concat;
 pub const ReduceMean = @import("op_reduceMean.zig").ReduceMean;
+pub const Ceil = @import("op_ceil.zig").Ceil;
 
 pub const Sub = @import("op_sub.zig").Sub;
 
