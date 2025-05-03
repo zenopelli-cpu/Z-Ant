@@ -13,12 +13,43 @@ const tMath = math_standard;
 const error_handler = zant.utils.error_handler;
 const TensorError = error_handler.TensorError;
 const ArgumentError = error_handler.ArgumentError;
+const TensorProto = zant.onnx.TensorProto;
 
 pub var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
 
 pub fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {
     log_function = func;
 }
+
+pub const TensorKind = enum {
+    f32,
+    i32,
+    i64,
+    f64,
+    u64,
+    u16,
+};
+
+pub const AnyTensor = union(TensorKind) {
+    f32: Tensor(f32),
+    i32: Tensor(i32),
+    i64: Tensor(i64),
+    f64: Tensor(f64),
+    u64: Tensor(u64),
+    u16: Tensor(u16),
+
+    pub fn getTensorFromAny(self: AnyTensor, proto: TensorProto) !Tensor(anyopaque) {
+        return switch (proto.data_type) {
+            .UINT64 => self.u64,
+            .UINT16 => self.u16,
+            .INT64 => self.i64,
+            .INT32 => self.i32,
+            .FLOAT => self.f32,
+            .DOUBLE => self.f64,
+            else => return error.UnsupportedDataType,
+        };
+    }
+};
 
 ///Class Tensor.
 ///Return a generic type structure

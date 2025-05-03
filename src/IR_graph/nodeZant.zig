@@ -4,6 +4,7 @@ const zant = @import("../zant.zig");
 const onnx = zant.onnx;
 const allocator = zant.utils.allocator.allocator;
 const Tensor = zant.core.tensor.Tensor;
+pub const AnyTensor = zant.core.tensor.AnyTensor;
 const Op_union = @import("op_union/op_union.zig").Op_union;
 
 //--- proto structure
@@ -43,7 +44,7 @@ pub const NodeZant = struct {
         try self.next.append(next_node);
     }
 
-    pub fn protoTensor2Tensor(comptime T: anytype, proto: TensorProto) !Tensor(T) {
+    pub fn protoTensor2Tensor(proto: TensorProto) !AnyTensor {
         // Allocate shape array
         var shape = try allocator.alloc(usize, proto.dims.len);
         for (proto.dims, 0..) |dim, i| {
@@ -54,26 +55,27 @@ pub const NodeZant = struct {
         }
         defer allocator.free(shape);
 
-        var tensor = try Tensor(T).init(&allocator);
         if (proto.float_data) |float_data| {
-            tensor = try Tensor(T).fromArray(&allocator, float_data, shape);
+            const tensor = try Tensor(f32).fromArray(&allocator, float_data, shape);
+            return AnyTensor{ .f32 = tensor };
         } else if (proto.int32_data) |int32_data| {
-            tensor = try Tensor(T).fromArray(&allocator, int32_data, shape);
+            const tensor = try Tensor(i32).fromArray(&allocator, int32_data, shape);
+            return AnyTensor{ .i32 = tensor };
         } else if (proto.int64_data) |int64_data| {
-            tensor = try Tensor(T).fromArray(&allocator, int64_data, shape);
+            const tensor = try Tensor(i64).fromArray(&allocator, int64_data, shape);
+            return AnyTensor{ .i64 = tensor };
         } else if (proto.double_data) |double_data| {
-            tensor = try Tensor(T).fromArray(&allocator, double_data, shape);
+            const tensor = try Tensor(f64).fromArray(&allocator, double_data, shape);
+            return AnyTensor{ .f64 = tensor };
         } else if (proto.uint64_data) |uint64_data| {
-            tensor = try Tensor(T).fromArray(&allocator, uint64_data, shape);
+            const tensor = try Tensor(u64).fromArray(&allocator, uint64_data, shape);
+            return AnyTensor{ .u64 = tensor };
         } else if (proto.uint16_data) |uint16_data| {
-            tensor = try Tensor(T).fromArray(&allocator, uint16_data, shape);
-        } else if (proto.raw_data) |raw_data| {
-            tensor = try parseRawData(T, shape, raw_data);
+            const tensor = try Tensor(u16).fromArray(&allocator, uint16_data, shape);
+            return AnyTensor{ .u16 = tensor };
         } else {
             return error.UnsupportedDataType;
         }
-
-        return tensor;
     }
 
     fn parseRawData(comptime T: type, shape: []usize, raw_data: []const u8) !Tensor(T) {
