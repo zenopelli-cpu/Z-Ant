@@ -5,6 +5,8 @@ pub const Conv = @import("op_conv.zig").Conv;
 pub const Elu = @import("op_elu.zig").Elu;
 pub const Flatten = @import("op_flatten.zig").Flatten;
 pub const Gemm = @import("op_gemm.zig").Gemm;
+pub const Div = @import("op_div.zig").Div;
+pub const Concat = @import("op_concat.zig").Concat;
 
 pub const Sub = @import("op_sub.zig").Sub;
 
