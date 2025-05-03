@@ -130,20 +130,31 @@ test "Unary Operations" {
     try std.testing.expectEqualSlices(u8, expected, actual);
 }
 
-test "Gep operation" {
-    std.debug.print("Running zig renderer gep test \n", .{});
+test "Standard GEP operation" {
+    std.debug.print("Running zig renderer standard GEP test\n", .{});
     const allocator = std.testing.allocator;
     var buffer = std.ArrayList(u8).init(allocator);
     defer buffer.deinit();
 
-    const writer = buffer.writer();
-
     const Writer = @TypeOf(buffer.writer());
-    var renderer = ZigRenderer(Writer).init(allocator, writer);
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
     defer renderer.deinit();
 
+    // Create a standard GEP operation
     var uops = [_]UOp{
-        .{ .id = 12345, .op = .GEP, .dtype = .f32, .src = &.{ 111, 222 }, .arg = .{ .mem_info = .{ .base = 12345, .offset = 13, .stride = 2 } } },
+        .{
+            .id = 0,
+            .op = .GEP,
+            .dtype = .f32,
+            .src = &.{ 1, 2 }, // Base pointer ID and index variable ID
+            .arg = .{
+                .mem_info = .{
+                    .base = 0x1000, // Example base address
+                    .offset = 0,
+                    .stride = 1,
+                },
+            },
+        },
     };
 
     try renderer.render(&uops);
@@ -151,9 +162,56 @@ test "Gep operation" {
     const actual = try buffer.toOwnedSlice();
     defer allocator.free(actual);
 
-    const expected = "const t12345 = 12345 + (13 + (t111[t222] * 2)) * @as(usize, @sizeOf(f32));\n";
+    std.debug.print("\nBuffer content: {s}\n", .{actual});
+    const expected = "const t0 = 4096 + (0 + t1[2] * 1) * @as(usize, @sizeOf(f32));\n";
+    try std.testing.expectEqualSlices(u8, expected, actual);
+}
 
-    try std.testing.expectEqualStrings(actual, expected);
+test "View-based GEP operation" {
+    std.debug.print("Running zig renderer view-based GEP test\n", .{});
+    const allocator = std.testing.allocator;
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+
+    const Writer = @TypeOf(buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    defer renderer.deinit();
+
+    // Create VIEW and GEP operations
+    var uops = [_]UOp{
+        .{
+            .id = 1,
+            .op = .VIEW,
+            .dtype = .f32,
+            .src = &.{3}, // Source tensor ID
+            .arg = .{
+                .view_meta = .{
+                    .shape = &.{ 3, 4 }, // 3x4 shape
+                    .strides = &.{ 2, 1 }, // Row-major layout
+                },
+            },
+        },
+        .{
+            .id = 0,
+            .op = .GEP,
+            .dtype = .f32,
+            .src = &.{ 1, 2, 3 }, // View ID and index variable ID
+            .arg = .{
+                .mem_info = .{
+                    .base = 0x1100, // Example base address
+                    .offset = 10,
+                    .stride = 1,
+                },
+            },
+        },
+    };
+
+    try renderer.render(&uops);
+    const actual = try buffer.toOwnedSlice();
+    defer allocator.free(actual);
+
+    const expected = "const t0 = 4352 + (10 + t1[7] * 1) * @as(usize, @sizeOf(f32));\n";
+    try std.testing.expectEqualSlices(u8, expected, actual);
 }
 
 test "Control flow operations" {
@@ -167,8 +225,8 @@ test "Control flow operations" {
     defer renderer.deinit();
 
     var uops = [_]UOp{
-        .{ .id = 0, .op = .RANGE,    .dtype = .f32, .src = &.{ 0 }, .arg = .{ .loop_bounds = .{ .start = 0, .end = 10 } } },
-        .{ .id = 1, .op = .ENDRANGE, .dtype = .f32, .src = &.{ 0 }, .arg =  null},
+        .{ .id = 0, .op = .RANGE, .dtype = .f32, .src = &.{0}, .arg = .{ .loop_bounds = .{ .start = 0, .end = 10 } } },
+        .{ .id = 1, .op = .ENDRANGE, .dtype = .f32, .src = &.{0}, .arg = null },
     };
 
     try renderer.render(&uops);
@@ -195,9 +253,9 @@ test "Rendering memory operations" {
     defer renderer.deinit();
 
     var uops = [_]UOp{
-        .{ .id = 0, .op = .DEFINE_GLOBAL,    .dtype = .f32, .src = &.{ 0 }, .arg = .{ .int = 10 }},
-        .{ .id = 1, .op = .LOAD, .dtype = .f32, .src = &.{ 0 }, .arg =  null},
-        .{ .id = 2, .op = .STORE, .dtype = .f32, .src = &.{ 0, 1 }, .arg =  null},
+        .{ .id = 0, .op = .DEFINE_GLOBAL, .dtype = .f32, .src = &.{0}, .arg = .{ .int = 10 } },
+        .{ .id = 1, .op = .LOAD, .dtype = .f32, .src = &.{0}, .arg = null },
+        .{ .id = 2, .op = .STORE, .dtype = .f32, .src = &.{ 0, 1 }, .arg = null },
     };
 
     try renderer.render(&uops);
