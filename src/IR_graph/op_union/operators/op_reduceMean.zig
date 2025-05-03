@@ -32,7 +32,7 @@ pub const ReduceMean = struct {
 
     pub fn init(nodeProto: *NodeProto) !ReduceMean {
         const data = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
-        const axes = if (nodeProto.inputs.len > 1) if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.axes_notFound else null;
+        const axes = if (nodeProto.input.len > 1) if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.axes_notFound else null;
         const reduced = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
         var keepdims: bool = true;

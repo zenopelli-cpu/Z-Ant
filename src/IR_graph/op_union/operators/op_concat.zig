@@ -27,13 +27,14 @@ pub const Concat = struct {
     axis: i64, // default = 1,
 
     pub fn init(nodeProto: *NodeProto) !Concat {
-        const inputs = std.ArrayList(*TensorZant).init(allocator);
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
         const concat_result = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.concat_result_notFound;
 
-        for (nodeProto.inputs.items) |input| {
-            inputs.append(if (tensorZant.tensorMap.getPtr(input)) |ptr| ptr else return error.concat_result_notFound);
+        for (nodeProto.input) |input| {
+            const ptr = if (tensorZant.tensorMap.getPtr(input)) |ptr| ptr else return error.concat_result_notFound;
+            try inputs.append(ptr);
         }
-        var axis: f32 = 1.0;
+        var axis: i64 = 1.0;
 
         for (nodeProto.attribute) |attr| {
             if (std.mem.eql(u8, attr.name, "axis")) {

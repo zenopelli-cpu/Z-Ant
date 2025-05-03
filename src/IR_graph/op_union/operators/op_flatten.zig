@@ -30,7 +30,7 @@ pub const Flatten = struct {
         const data = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
         const output = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
-        var axis: f32 = 1.0;
+        var axis: i64 = 1.0;
 
         for (nodeProto.attribute) |attr| {
             if (std.mem.eql(u8, attr.name, "axis")) {

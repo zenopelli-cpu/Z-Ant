@@ -31,7 +31,7 @@ const TensorZant = tensorZant.TensorZant;
 pub const Conv = struct {
     input_X: *TensorZant,
     input_W: *TensorZant,
-    input_B: *TensorZant,
+    input_B: ?*TensorZant,
     output_Y: *TensorZant,
     //attributes:
     auto_pad: []const u8,
@@ -44,7 +44,7 @@ pub const Conv = struct {
     pub fn init(nodeProto: *NodeProto) !Conv {
         const input_X = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
         const input_W = if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_W_notFound;
-        const input_B = if (tensorZant.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_B_notFound;
+        const input_B = if (nodeProto.input.len > 2) if (tensorZant.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_B_notFound else null;
         const output_Y = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
         var auto_pad: []const u8 = "NOTSET";

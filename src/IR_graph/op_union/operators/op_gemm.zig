@@ -28,7 +28,7 @@ const TensorZant = tensorZant.TensorZant;
 
 pub const Gemm = struct {
     input_A: *TensorZant,
-    input_B_name: *TensorZant,
+    input_B: *TensorZant,
     input_C: ?*TensorZant,
     output: *TensorZant,
     //attributes:
@@ -40,7 +40,7 @@ pub const Gemm = struct {
     pub fn init(nodeProto: *NodeProto) !Gemm {
         const input_A = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_A_notFound;
         const input_B = if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_B_notFound;
-        const input_C = if (nodeProto.inputs.items.len == 3) if (tensorZant.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_C_notFound else null;
+        const input_C = if (nodeProto.input.len > 2) if (tensorZant.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_C_notFound else null;
         const output = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
         var alpha: f32 = 1.0;
