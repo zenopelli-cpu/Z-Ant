@@ -17,7 +17,7 @@ oneOp model generator: ✅ if the oneOpModel is created, remember to add the onn
 |BatchNormalization| [BatchNormalization](https://onnx.ai/onnx/operators/onnx__BatchNormalization.html) | [op_add](../src/Core/Tensor/TensorMath/op_batchNormalization.zig) | 🔶 | ✅ | ✅ |
 | convolution | [Conv](https://onnx.ai/onnx/operators/onnx__Conv.html) | [op_convolution.zig](../src/Core/Tensor/TensorMath/op_convolution.zig) | ✅ | ✅ | ✅ |
 |Elu| [Elu](https://onnx.ai/onnx/operators/onnx__Elu.html) | [op_elu](../src/Core/Tensor/TensorMath/op_elu.zig) | ✅ | ✅ | ✅ |
-|Flatten| [Flatten](https://onnx.ai/onnx/operators/onnx__Flatten.html) | [op_flatten](../src/Core/Tensor/TensorMath/lib_shape_math/op_flatten.zig) | ✅ | ✅ | ✅ |
+|Flatten| [Flatten](https://onnx.ai/onnx/operators/onnx__Flatten.html) | [op_flatten](../src/Core/Tensor/TensorMath/lib_shape_math/op_flatten.zig) | ✅ | ✅ | ✅ | missing axis attribute
 | gemm | [Gemm](https://onnx.ai/onnx/operators/onnx__Gemm.html) | [op_gemm](../src/Core/Tensor/TensorMath/op_gemm.zig) | ✅ | ✅ | ✅ |
 |Div| [Div](https://onnx.ai/onnx/operators/onnx__Div.html) |[op_div](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_division.zig) | ✅ | ✅ | ✅ |
 |Concat| [Concat](https://onnx.ai/onnx/operators/onnx__Concat.html)| [op_concat](../src/Core/Tensor/TensorMath/lib_shape_math/op_concatenate.zig) | ✅ | ✅ | ✅ |

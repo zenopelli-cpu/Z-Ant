@@ -43,6 +43,7 @@ pub const GraphZant = struct {
 
         //hashmap for the outputs for the producers
         var output_map = std.StringHashMap(*NodeZant).init(allocator);
+        defer output_map.deinit();
 
         //populate the output map with the nodes
         for (self.nodes.items) |node| {
