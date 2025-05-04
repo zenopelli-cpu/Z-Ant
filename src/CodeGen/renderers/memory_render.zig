@@ -44,7 +44,13 @@ pub fn render(
             // Use variable names directly
             // Get the type string for the pointer cast
             const ptr_type_str = DTypeInfo.asString(uop.dtype);
-            try writer.print("@as(*{s}, @ptrFromInt({s})).* = {s}[0]; // STORE (uop {d})\n", .{ ptr_type_str, gep_addr_var, value_var, uop.id });
+            // Store the scalar value directly, not index [0]
+            try writer.print("    @as(*{s}, @ptrFromInt({s})).* = {s}; // STORE (uop {d})\n", .{
+                ptr_type_str,
+                gep_addr_var,
+                value_var, // Use the scalar variable directly
+                uop.id,
+            });
             // Old scalar assumption:
             // try writer.print("{s}[0] = {s}; // STORE (uop {d})\n", .{ gep_addr_var, value_var, uop.id });
             // Original line:
@@ -63,11 +69,16 @@ pub fn render(
             // Use variable names directly
             // Get the type string for the pointer cast
             const ptr_type_str = DTypeInfo.asString(uop.dtype);
-            try writer.print("{s}[0] = @as(*const {s}, @ptrFromInt({s})).*; // LOAD (uop {d})\n", .{ result_var, ptr_type_str, gep_addr_var, uop.id });
-            // Old scalar assumption:
-            // try writer.print("{s}[0] = {s}[0]; // LOAD (uop {d})\n", .{ result_var, gep_addr_var, uop.id });
-            // Original line:
-            // try writer.print("const {s} = @as(*const {s}, @ptrFromInt({s})).*;\n", .{ result_var, type_str, gep_addr_var });
+            // Declare a VAR scalar variable, not const, to allow reassignment in loops
+            try writer.print("    var {s}: {s} = @as(*const {s}, @ptrFromInt({s})).*; // LOAD (uop {d})\n", .{
+                result_var,
+                ptr_type_str, // Added type here for var declaration
+                ptr_type_str,
+                gep_addr_var,
+                uop.id,
+            });
+            // Silence "never mutated" warning by taking address
+            try writer.print("    _ = &{s};\n", .{result_var});
         },
         // Added CONST handling
         .CONST => {
@@ -102,8 +113,16 @@ pub fn render(
             // };
             // defer allocator.free(val_str);
 
-            // Assign the formatted value from bufPrint
-            try writer.print("{s}[0] = ({s})({s}); // CONST (uop {d})\n", .{ result_var, type_str, val_str, uop.id });
+            // Declare a VAR scalar variable, not const
+            try writer.print("    var {s}: {s} = ({s})({s}); // CONST (uop {d})\n", .{
+                result_var,
+                type_str, // Added type here for var declaration
+                type_str,
+                val_str,
+                uop.id,
+            });
+            // Silence "never mutated" warning by taking address
+            try writer.print("    _ = &{s};\n", .{result_var});
         },
         else => unreachable,
     }

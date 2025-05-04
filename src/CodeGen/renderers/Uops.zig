@@ -168,18 +168,42 @@ pub const UOpBuilder = struct {
     }
 
     /// Push that dupes `src` safely.
+    /// NEW: Also dupes arg.view_meta.shape and arg.view_meta.strides for VIEW ops.
     pub fn push(self: *UOpBuilder, op: UOpType, dt: DType, src: []const usize, arg: ?Any) usize {
         const id = self.list.items.len;
-        const copy = if (src.len == 0)
+
+        // Duplicate src slice
+        const src_copy = if (src.len == 0)
             &[_]usize{} // empty slice → static, no alloc
         else
             self.alloc.dupe(usize, src) catch unreachable;
 
-        self.list.append(.{ .id = id, .op = op, .dtype = dt, .src = copy, .arg = arg }) catch unreachable;
+        // Handle arg duplication based on op type
+        var final_arg = arg;
+        if (arg) |arg_val| {
+            // Use switch for type-safe union payload access
+            if (op == .VIEW) {
+                switch (arg_val) {
+                    .view_meta => |vm| {
+                        // Duplicate shape and strides for VIEW ops
+                        const shape_copy = if (vm.shape.len == 0) &[_]usize{} else self.alloc.dupe(usize, vm.shape) catch unreachable;
+                        const strides_copy = if (vm.strides.len == 0) &[_]isize{} else self.alloc.dupe(isize, vm.strides) catch unreachable;
+                        // Create a new Any with the copied slices
+                        final_arg = Any{ .view_meta = .{ .shape = shape_copy, .strides = strides_copy } };
+                    },
+                    else => {}, // VIEW op with unexpected arg type? Ignore for now.
+                }
+            }
+            // Add other cases here if other ops have args needing duplication
+            // else if (op == .SOME_OTHER_OP) { ... }
+        }
+
+        // Append the UOp with copied src and potentially copied arg contents
+        self.list.append(.{ .id = id, .op = op, .dtype = dt, .src = src_copy, .arg = final_arg }) catch unreachable;
         return id;
     }
 
-    /// Transfer ownership of the slice (caller must later free each src*)
+    /// Transfer ownership of the slice (caller must later free each src* AND specific arg* payloads)
     pub fn toOwnedSlice(self: *UOpBuilder) ![]UOp {
         const owned_slice = try self.list.toOwnedSlice();
         // Reset the builder's list to prevent double-free in deinit
@@ -188,17 +212,31 @@ pub const UOpBuilder = struct {
     }
 
     /// Free every `src` slice + the array buffer itself.
+    /// NEW: Also frees duplicated arg payloads (currently only view_meta shape/strides).
     pub fn deinit(self: *UOpBuilder) void {
         std.debug.print("DEBUG: UOpBuilder.deinit freeing {d} uops\n", .{self.list.items.len});
-        for (self.list.items) |uop|
-            // Only free if src is not the static empty slice
-            // Check both length and potentially pointer address if necessary
+        for (self.list.items) |uop| {
+            // Free src (only if non-empty)
             if (uop.src.len > 0) {
-                // Add more robust check if needed, e.g. compare ptr to static empty slice ptr?
-                // const empty_slice_ptr = @ptrToInt(&[_]usize{});
-                // if (@ptrToInt(uop.src.ptr) != empty_slice_ptr) { ... }
                 self.alloc.free(@constCast(uop.src));
-            };
+            }
+            // Free duplicated arg payloads (only if non-null and relevant type)
+            if (uop.arg) |arg_val| {
+                // Use switch for type-safe union payload access
+                if (uop.op == .VIEW) {
+                    switch (arg_val) {
+                        .view_meta => |vm| {
+                            // Only free if non-empty
+                            if (vm.shape.len > 0) self.alloc.free(@constCast(vm.shape));
+                            if (vm.strides.len > 0) self.alloc.free(@constCast(vm.strides));
+                        },
+                        else => {}, // VIEW op with unexpected arg type? Ignore.
+                    }
+                }
+                // Add else if for other duplicated args
+                // else if (uop.op == .SOME_OTHER_OP) { ... }
+            }
+        }
         self.list.deinit();
     }
 };

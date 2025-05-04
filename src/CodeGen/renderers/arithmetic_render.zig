@@ -25,15 +25,16 @@ pub fn render(
 
     const type_str = DTypeInfo.asString(uop.dtype);
 
+    // Generate declaration for the result variable
     switch (uop.op) {
-        .ADD => try writer.print("{s}[0] = {s}[0] + {s}[0]; // ADD (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
-        .SUB => try writer.print("{s}[0] = {s}[0] - {s}[0]; // SUB (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
-        .MUL => try writer.print("{s}[0] = {s}[0] * {s}[0]; // MUL (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
-        .FDIV => try writer.print("{s}[0] = {s}[0] / {s}[0]; // FDIV (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
-        .POW => try writer.print("{s}[0] = std.math.pow({s}, {s}[0], {s}[0]); // POW (uop {d})\n", .{ result_var, type_str, lhs_var, rhs_var, uop.id }),
-        .MAX => try writer.print("{s}[0] = @max({s}[0], {s}[0]); // MAX (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
-        .MIN => try writer.print("{s}[0] = @min({s}[0], {s}[0]); // MIN (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
-        .CMPLT => try writer.print("{s}[0] = ({s}[0] < {s}[0]); // CMPLT (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
+        .ADD => try writer.print("    const {s} = {s} + {s}; // ADD (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
+        .SUB => try writer.print("    const {s} = {s} - {s}; // SUB (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
+        .MUL => try writer.print("    const {s} = {s} * {s}; // MUL (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
+        .FDIV => try writer.print("    const {s} = {s} / {s}; // FDIV (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
+        .POW => try writer.print("    const {s} = std.math.pow({s}, {s}, {s}); // POW (uop {d})\n", .{ result_var, type_str, lhs_var, rhs_var, uop.id }),
+        .MAX => try writer.print("    const {s} = @max({s}, {s}); // MAX (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
+        .MIN => try writer.print("    const {s} = @min({s}, {s}); // MIN (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
+        .CMPLT => try writer.print("    const {s} = ({s} < {s}); // CMPLT (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
         else => unreachable,
     }
 }
