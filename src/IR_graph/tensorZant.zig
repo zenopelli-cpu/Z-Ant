@@ -1,6 +1,7 @@
 const std = @import("std");
 const zant = @import("../zant.zig");
 const Tensor = zant.core.tensor.Tensor;
+pub const AnyTensor = zant.core.tensor.AnyTensor;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -63,72 +64,39 @@ pub const TensorZant = struct {
         _ = self;
     }
 
-    // pub fn protoTensor2Tensor(T: type, proto: TensorProto) !Tensor(T) {
-    //     // Type Check
-    //     if (!isMatchingType(T, proto.data_type)) {
-    //         return error.InvalidDataType;
-    //     }
+    pub fn protoTensor2Tensor(proto: TensorProto) !AnyTensor {
+        // Allocate shape array
+        var shape = try allocator.alloc(usize, proto.dims.len);
+        for (proto.dims, 0..) |dim, i| {
+            if (dim < 0) {
+                return error.NegativeDimension;
+            }
+            shape[i] = @intCast(dim);
+        }
+        defer allocator.free(shape);
 
-    //     // Allocate shape array
-    //     var shape = try allocator.alloc(usize, proto.dims.len);
-    //     for (proto.dims, 0..) |dim, i| {
-    //         if (dim < 0) {
-    //             return error.NegativeDimension;
-    //         }
-    //         shape[i] = @intCast(dim);
-    //     }
-
-    //     // Compute total size
-    //     var size: usize = 1;
-    //     for (shape) |dim| {
-    //         size *= dim;
-    //     }
-
-    //     // Allocate data array
-    //     var data = try allocator.alloc(T, size);
-    //     // Fill data
-    //     if (proto.raw_data) |raw| {
-    //         // Fill from raw_data
-    //         const needed_bytes = size * @sizeOf(T);
-    //         if (raw.len != needed_bytes) {
-    //             return error.RawDataSizeMismatch;
-    //         }
-    //     } else {
-    //         // Fill from typed fields
-    //         if (T == f32) {
-    //             data = proto.float_data.?;
-    //         }
-    //         if (T == i32) {
-    //             data = proto.int32_data.?;
-    //         }
-    //         if (T == i64) {
-    //             data = proto.int64_data.?;
-    //         }
-    //         if (T == f64) {
-    //             data = proto.double_data.?;
-    //         }
-    //     }
-
-    //     // Return the Tensor
-    //     return Tensor(T){
-    //         .data = data,
-    //         .size = size,
-    //         .shape = shape,
-    //         .allocator = &allocator,
-    //     };
-    // }
-
-    // fn isMatchingType(comptime T: type, data_type: DataType) bool {
-    //     return switch (data_type) {
-    //         .FLOAT => T == f32,
-    //         .INT32 => T == i32,
-    //         .INT64 => T == i64,
-    //         .DOUBLE => T == f64,
-    //         .UINT64 => T == u64,
-    //         .UINT16 => T == u16,
-    //         else => false,
-    //     };
-    // }
+        if (proto.float_data) |float_data| {
+            const tensor = try Tensor(f32).fromArray(&allocator, float_data, shape);
+            return AnyTensor{ .f32 = @constCast(&tensor) };
+        } else if (proto.int32_data) |int32_data| {
+            const tensor = try Tensor(i32).fromArray(&allocator, int32_data, shape);
+            return AnyTensor{ .i32 = @constCast(&tensor) };
+        } else if (proto.int64_data) |int64_data| {
+            const tensor = try Tensor(i64).fromArray(&allocator, int64_data, shape);
+            return AnyTensor{ .i64 = @constCast(&tensor) };
+        } else if (proto.double_data) |double_data| {
+            const tensor = try Tensor(f64).fromArray(&allocator, double_data, shape);
+            return AnyTensor{ .f64 = @constCast(&tensor) };
+        } else if (proto.uint64_data) |uint64_data| {
+            const tensor = try Tensor(u64).fromArray(&allocator, uint64_data, shape);
+            return AnyTensor{ .u64 = @constCast(&tensor) };
+        } else if (proto.uint16_data) |uint16_data| {
+            const tensor = try Tensor(u16).fromArray(&allocator, uint16_data, shape);
+            return AnyTensor{ .u16 = @constCast(&tensor) };
+        } else {
+            return error.UnsupportedDataType;
+        }
+    }
 };
 
 // ----------------------- HASH MAP -----------------------

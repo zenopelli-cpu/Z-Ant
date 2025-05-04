@@ -4,7 +4,6 @@ const zant = @import("../zant.zig");
 const onnx = zant.onnx;
 const allocator = zant.utils.allocator.allocator;
 const Tensor = zant.core.tensor.Tensor;
-pub const AnyTensor = zant.core.tensor.AnyTensor;
 const Op_union = @import("op_union/op_union.zig").Op_union;
 
 //--- proto structure
@@ -43,54 +42,5 @@ pub const NodeZant = struct {
     /// Adds a new node to the next list.
     pub fn add_next(self: *NodeZant, next_node: *NodeZant) !void {
         try self.next.append(next_node);
-    }
-
-    pub fn protoTensor2Tensor(proto: TensorProto) !AnyTensor {
-        // Allocate shape array
-        var shape = try allocator.alloc(usize, proto.dims.len);
-        for (proto.dims, 0..) |dim, i| {
-            if (dim < 0) {
-                return error.NegativeDimension;
-            }
-            shape[i] = @intCast(dim);
-        }
-        defer allocator.free(shape);
-
-        if (proto.float_data) |float_data| {
-            const tensor = try Tensor(f32).fromArray(&allocator, float_data, shape);
-            return AnyTensor{ .f32 = tensor };
-        } else if (proto.int32_data) |int32_data| {
-            const tensor = try Tensor(i32).fromArray(&allocator, int32_data, shape);
-            return AnyTensor{ .i32 = tensor };
-        } else if (proto.int64_data) |int64_data| {
-            const tensor = try Tensor(i64).fromArray(&allocator, int64_data, shape);
-            return AnyTensor{ .i64 = tensor };
-        } else if (proto.double_data) |double_data| {
-            const tensor = try Tensor(f64).fromArray(&allocator, double_data, shape);
-            return AnyTensor{ .f64 = tensor };
-        } else if (proto.uint64_data) |uint64_data| {
-            const tensor = try Tensor(u64).fromArray(&allocator, uint64_data, shape);
-            return AnyTensor{ .u64 = tensor };
-        } else if (proto.uint16_data) |uint16_data| {
-            const tensor = try Tensor(u16).fromArray(&allocator, uint16_data, shape);
-            return AnyTensor{ .u16 = tensor };
-        } else {
-            return error.UnsupportedDataType;
-        }
-    }
-
-    fn parseRawData(comptime T: type, shape: []usize, raw_data: []const u8) !Tensor(T) {
-        const elem_size = @sizeOf(T);
-        const num_elements = raw_data.len / elem_size;
-
-        var result = try allocator.alloc(T, num_elements);
-        defer allocator.free(result);
-
-        for (0..num_elements) |i| {
-            const offset = i * elem_size;
-            result[i] = std.mem.bytesToValue(T, raw_data[offset .. offset + elem_size]);
-        }
-
-        return Tensor(T).fromArray(&allocator, result, shape);
     }
 };

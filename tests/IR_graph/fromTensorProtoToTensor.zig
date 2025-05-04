@@ -8,7 +8,7 @@ const allocator = zant.utils.allocator.allocator;
 const TensorProto = zant.onnx.TensorProto;
 const Tensor = zant.core.tensor.Tensor;
 
-const protoTensor2Tensor = zant.IR_graph.NodeZant.protoTensor2Tensor;
+const protoTensor2Tensor = zant.IR_graph.TensorZant.protoTensor2Tensor;
 
 // Test for raw data not available
 test "ProtoTensor2Tensor: float32 parsing" {
@@ -39,16 +39,14 @@ test "ProtoTensor2Tensor: float32 parsing" {
     var anyTensor = try protoTensor2Tensor(proto);
     defer anyTensor.deinit();
 
-    var tensor = try anyTensor.getTensorFromAny(proto);
-    defer tensor.deinit();
     // test size
-    try testing.expectEqual(@as(usize, 4), try tensor.size);
+    try testing.expectEqual(@as(usize, 4), anyTensor.f32.size);
     // test data
-    try testing.expectEqual(1.0, tensor.data[0]);
-    try testing.expectEqual(2.0, tensor.data[1]);
-    try testing.expectEqual(3.0, tensor.data[2]);
-    try testing.expectEqual(4.0, tensor.data[3]);
+    try testing.expectEqual(1.0, anyTensor.f32.data[0]);
+    try testing.expectEqual(2.0, anyTensor.f32.data[1]);
+    try testing.expectEqual(3.0, anyTensor.f32.data[2]);
+    try testing.expectEqual(4.0, anyTensor.f32.data[3]);
     // test shape
-    try testing.expectEqual(2, tensor.shape[0]);
-    try testing.expectEqual(2, tensor.shape[1]);
+    try testing.expectEqual(2, anyTensor.f32.shape[0]);
+    try testing.expectEqual(2, anyTensor.f32.shape[1]);
 }

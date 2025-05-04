@@ -21,32 +21,35 @@ pub fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {
     log_function = func;
 }
 
-pub const TensorKind = enum {
-    f32,
-    i32,
-    i64,
-    f64,
-    u64,
-    u16,
-};
+pub const AnyTensor = union(enum) {
+    i64: *Tensor(i64),
+    f64: *Tensor(f64),
+    u64: *Tensor(u64),
 
-pub const AnyTensor = union(TensorKind) {
-    f32: Tensor(f32),
-    i32: Tensor(i32),
-    i64: Tensor(i64),
-    f64: Tensor(f64),
-    u64: Tensor(u64),
-    u16: Tensor(u16),
+    f32: *Tensor(f32),
+    i32: *Tensor(i32),
+    u32: *Tensor(u32),
 
-    pub fn getTensorFromAny(self: AnyTensor, proto: TensorProto) !Tensor(anyopaque) {
-        return switch (proto.data_type) {
-            .UINT64 => self.u64,
-            .UINT16 => self.u16,
-            .INT64 => self.i64,
-            .INT32 => self.i32,
-            .FLOAT => self.f32,
-            .DOUBLE => self.f64,
-            else => return error.UnsupportedDataType,
+    f16: *Tensor(f16),
+    i16: *Tensor(i16),
+    u16: *Tensor(u16),
+
+    i8: *Tensor(i8),
+    u8: *Tensor(u8),
+
+    pub fn deinit(self: AnyTensor) void {
+        return switch (self) {
+            .i64 => |t| t.deinit(),
+            .f64 => |t| t.deinit(),
+            .u64 => |t| t.deinit(),
+            .f32 => |t| t.deinit(),
+            .i32 => |t| t.deinit(),
+            .u32 => |t| t.deinit(),
+            .f16 => |t| t.deinit(),
+            .i16 => |t| t.deinit(),
+            .u16 => |t| t.deinit(),
+            .i8 => |t| t.deinit(),
+            .u8 => |t| t.deinit(),
         };
     }
 };
