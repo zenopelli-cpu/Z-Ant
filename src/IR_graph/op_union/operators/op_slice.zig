@@ -1,0 +1,58 @@
+const std = @import("std");
+const allocator = std.heap.page_allocator;
+const zant = @import("../../../zant.zig");
+
+// --- onnx ---
+const onnx = zant.onnx;
+const NodeProto = onnx.NodeProto;
+const TensorProto = onnx.TensorProto;
+
+// --- zant ---
+const tensorZant = @import("../../tensorZant.zig");
+const TensorZant = tensorZant.TensorZant;
+
+// https://onnx.ai/onnx/operators/onnx__Slice.html
+// INPUTS:
+//      - input (heterogeneous) - T: Tensor of data to extract slices from.
+//      - starts (heterogeneous) - T1: 1-D tensor of starting indices of corresponding axis in `axes`.
+//      - ends (heterogeneous) - T1: 1-D tensor of ending indices (exclusive) of corresponding axis in `axes`.
+//      - axes (heterogeneous) - T1: 1-D tensor of axes that `starts` and `ends` apply to.
+//      - steps (heterogeneous) - T1: 1-D tensor of slice step of corresponding axis in `axes`.
+// OUTPUTS:
+//      - output (heterogeneous) - T: Sliced data tensor.
+
+pub const Slice = struct {
+    input: *TensorZant,
+    starts: *TensorZant,
+    ends: *TensorZant,
+    axes: *TensorZant,
+    steps: *TensorZant,
+    output: *TensorZant,
+
+    pub fn init(nodeProto: *NodeProto) !Slice {
+        const input = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
+        const starts = if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_X_notFound;
+        const ends = if (tensorZant.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_X_notFound;
+        const output = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
+
+        const axes = if (tensorZant.tensorMap.getPtr(nodeProto.input[4])) |ptr| ptr else return error.input_X_notFound;
+        const steps = if (tensorZant.tensorMap.getPtr(nodeProto.input[5])) |ptr| ptr else return error.input_X_notFound;
+
+        return Slice{
+            .input = input,
+            .starts = starts,
+            .ends = ends,
+            .axes = axes,
+            .steps = steps,
+            .output = output,
+        };
+    }
+
+    pub fn get_output_shape(self: Slice) []usize {
+        return self.output.shape;
+    }
+
+    pub fn print(self: Slice) void {
+        std.debug.print("\n Slice: {any}", .{self});
+    }
+};
