@@ -4,6 +4,9 @@ const codegen = @import("codegen");
 const Renderer = codegen.renderer;
 const UOp = zant.uops.UOp;
 const UOpType = zant.uops.UOpType;
+const Tensor = zant.core.tensor.Tensor;
+
+const sum_tensors = zant.core.tensor.math_standard.sum_tensors;
 
 const ZigRenderer = Renderer.ZigRenderer;
 const lowerAdd = zant.core.tensor.math_standard.lowerAdd;
