@@ -126,7 +126,7 @@ pub const Any = union(enum) {
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. DType – minimalist scalar element types
 // ─────────────────────────────────────────────────────────────────────────────
-pub const DType = enum { f32, i32, i8, bool };
+pub const DType = enum { f32, i32, i8, bool, u16 };
 
 pub const DTypeInfo = struct {
     pub fn asString(dtype: DType) []const u8 {
@@ -135,6 +135,7 @@ pub const DTypeInfo = struct {
             .i32 => "i32",
             .i8 => "i8",
             .bool => "bool",
+            .u16 => "u16",
         };
     }
 };
@@ -180,13 +181,24 @@ pub const UOpBuilder = struct {
 
     /// Transfer ownership of the slice (caller must later free each src*)
     pub fn toOwnedSlice(self: *UOpBuilder) ![]UOp {
-        return self.list.toOwnedSlice();
+        const owned_slice = try self.list.toOwnedSlice();
+        // Reset the builder's list to prevent double-free in deinit
+        self.list = std.ArrayList(UOp).init(self.alloc);
+        return owned_slice;
     }
 
     /// Free every `src` slice + the array buffer itself.
     pub fn deinit(self: *UOpBuilder) void {
+        std.debug.print("DEBUG: UOpBuilder.deinit freeing {d} uops\n", .{self.list.items.len});
         for (self.list.items) |uop|
-            if (uop.src.len > 0) self.alloc.free(@constCast(uop.src));
+            // Only free if src is not the static empty slice
+            // Check both length and potentially pointer address if necessary
+            if (uop.src.len > 0) {
+                // Add more robust check if needed, e.g. compare ptr to static empty slice ptr?
+                // const empty_slice_ptr = @ptrToInt(&[_]usize{});
+                // if (@ptrToInt(uop.src.ptr) != empty_slice_ptr) { ... }
+                self.alloc.free(@constCast(uop.src));
+            };
         self.list.deinit();
     }
 };
