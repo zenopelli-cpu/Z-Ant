@@ -11,7 +11,11 @@ const blocked_mat_mul = op_mat_mul.blocked_mat_mul;
 const op_padding = @import("lib_shape_math/op_padding.zig");
 const addPaddingAndDilation = op_padding.addPaddingAndDilation;
 const op_transpose = @import("lib_shape_math/op_transpose.zig");
+const Uops = zant.uops;
 
+const UOpBuilder = Uops.UOpBuilder;
+const DType = Uops.DType;
+const Any = Uops.Any;
 // CONVOLVE -----------------------------------------------------------------------------------------------------------------------
 
 /// Multidim Conv
@@ -1832,4 +1836,155 @@ pub fn convInteger_lean(
             } // oh
         } // f (filter loop)
     } // b (batch loop)
+}
+
+//--------------------------------------------------------------------------
+// lowerConv2d  ―  emit UOps for a (possibly grouped) 2-D convolution
+//
+// ─── Host pre-pass (executes **before** calling this routine) ────────────
+//  1. Shapes
+//        X : (N, C,  H,  W)          W : (M, C, kH, kW)
+//  2. Attributes   pads=[padT,padL,padB,padR],  strides=[strH,strW],
+//                  dilations=[dilH,dilW],  group = G    (defaults 0/1/1/1)
+//  3. Per-group sizes
+//        Cʹ = C / G          Mʹ = M / G
+//  4. Output spatial size
+//        OH = ⌊(H+padT+padB − dilH·(kH−1) − 1)/strH⌋ + 1
+//        OW = ⌊(W+padL+padR − dilW·(kW−1) − 1)/strW⌋ + 1
+//  5. Stride vectors   (elements, not bytes)
+//        in_stride = [C·H·W,  H·W,  W, 1]
+//        w_stride  = [Cʹ·kH·kW, kH·kW, kW, 1]
+//  6. DType promotion (ONNX rules) → out_dtype
+//
+//  The pre-computed numbers are passed verbatim as arguments below.
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+// lowerConv2d  ―  emit a micro–op slice that performs a (possibly grouped)
+//                 2-D convolution using the UOp vocabulary.
+//
+// HOST-SIDE PRE­PASS  (executes *before* you call this routine)
+// ──────────────────────────────────────────────────────────────────────────
+//  1. Gather shapes
+//        X : (N, C,  H,  W)          W : (M, C, kH, kW)
+//  2. Read attributes                pads[4], strides[2], dilations[2], G
+//  3. Per-group channel counts        C′ = C / G       M′ = M / G
+//  4. Output size
+//        OH = ⌊(H+padT+padB − dilH·(kH−1) − 1)/strH⌋ + 1
+//        OW = ⌊(W+padL+padR − dilW·(kW−1) − 1)/strW⌋ + 1
+//  5. Element-stride vectors (row-major NCHW)
+//        in_stride = [C·H·W,  H·W,  W, 1]
+//        w_stride  = [C′·kH·kW, kH·kW, kW, 1]
+//  6. ONNX type-promotion → `out_dtype`
+//
+//  All those *numbers* are passed as parameters below.  The IR we emit is
+//  therefore fully determined and contains **no dynamic shape logic**.
+//--------------------------------------------------------------------------
+
+pub fn lowerConv2d(
+    b: *UOpBuilder,
+    X_id: usize, // SSA id of input  X
+    W_id: usize, // SSA id of weights W
+    out_shape: []const usize, // [N, M, OH, OW]
+    in_stride: []const isize, // X: stride vec (len 4)
+    w_stride: []const isize, // W: stride vec (len 4)
+    group: usize, // number of groups G
+    pads: [2]usize, // {padT, padL}
+    strides_hw: [2]usize, // {strideH, strideW}
+    dil_hw: [2]usize, // {dilH, dilW}
+    kHW: [2]usize, // {kH, kW}
+    C_per_grp: usize, // C′  in-channels per group
+    M_per_grp: usize, // M′  out-channels per group
+    out_dtype: DType,
+) usize {
+
+    // ── Tiny helpers to reduce boilerplate ────────────────────────────
+    const r = struct {
+        fn rng(bi: *UOpBuilder, end: usize) usize { // RANGE 0..end-1
+            return bi.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = end } });
+        }
+        fn kconst(bi: *UOpBuilder, v: usize) usize { // CONST <v>
+            return bi.push(.CONST, .i32, &.{}, Any{ .int = v });
+        }
+    };
+
+    // ── 1. Compile-time constants (pads, strides, …)  →  CONST UOps ----
+    const padT = r.kconst(b, pads[0]);
+    const padL = r.kconst(b, pads[1]);
+    const strH = r.kconst(b, strides_hw[0]);
+    const strW = r.kconst(b, strides_hw[1]);
+    const dilH = r.kconst(b, dil_hw[0]);
+    const dilW = r.kconst(b, dil_hw[1]);
+    const Cg = r.kconst(b, C_per_grp); // C′  (used in g*C′+ic)
+    const Mg = r.kconst(b, M_per_grp); // M′  (used in g*M′+m′)
+
+    // ── 2. Logical views for X and W  (no data copies) -----------------
+    const id_viewX = b.push(.VIEW, out_dtype, &.{X_id}, Any{ .view_meta = .{ .shape = &.{ out_shape[0], C_per_grp * group, out_shape[2], out_shape[3] }, .strides = in_stride } });
+
+    const id_viewW = b.push(.VIEW, out_dtype, &.{W_id}, Any{ .view_meta = .{ .shape = &.{ M_per_grp * group, C_per_grp, kHW[0], kHW[1] }, .strides = w_stride } });
+
+    // Output buffer
+    const id_Y = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
+
+    // ── 3. Outer loops  n · g · m′ · oh · ow  --------------------------
+    const n = r.rng(b, out_shape[0]); // batch
+    const g = r.rng(b, group); // group id
+    const mop = r.rng(b, M_per_grp); // m′   (out-chan inside group)
+    const oh = r.rng(b, out_shape[2]); // output row
+    const ow = r.rng(b, out_shape[3]); // output col
+
+    // --- fused index  oc = g*M′ + m′   (for output & W)
+    const gMulMg = b.push(.MUL, .i32, &.{ g, Mg }, null);
+    const oc_idx = b.push(.ADD, .i32, &.{ gMulMg, mop }, null);
+
+    // ── 4. Accumulator register (one per output element) ---------------
+    const id_acc = b.push(.DEFINE_ACC, out_dtype, &.{}, null);
+
+    // ── 5. Reduction loops  ic · kh · kw  ------------------------------
+    const ic = r.rng(b, C_per_grp); // in-chan inside group
+    const kh = r.rng(b, kHW[0]); // kernel row
+    const kw = r.rng(b, kHW[1]); // kernel col
+
+    // g*C′ + ic   → all-channel idx into X
+    const gMulCg = b.push(.MUL, .i32, &.{ g, Cg }, null);
+    const ic_all = b.push(.ADD, .i32, &.{ gMulCg, ic }, null);
+
+    // Input spatial coords (ih, iw) with stride, dilation, padding
+    const ohMulStr = b.push(.MUL, .i32, &.{ oh, strH }, null);
+    const khMulDil = b.push(.MUL, .i32, &.{ kh, dilH }, null);
+    const ih_base = b.push(.ADD, .i32, &.{ ohMulStr, khMulDil }, null);
+    const ih_idx = b.push(.SUB, .i32, &.{ ih_base, padT }, null);
+
+    const owMulStr = b.push(.MUL, .i32, &.{ ow, strW }, null);
+    const kwMulDil = b.push(.MUL, .i32, &.{ kw, dilW }, null);
+    const iw_base = b.push(.ADD, .i32, &.{ owMulStr, kwMulDil }, null);
+    const iw_idx = b.push(.SUB, .i32, &.{ iw_base, padL }, null);
+
+    // ---- GEPs for current X and W elements ------------------------
+    const id_gepX = b.push(.GEP, out_dtype, &.{ id_viewX, n, ic_all, ih_idx, iw_idx }, Any{ .mem_info = .{ .base = id_viewX, .offset = 0, .stride = 1 } });
+
+    const id_gepW = b.push(.GEP, out_dtype, &.{ id_viewW, oc_idx, ic, kh, kw }, Any{ .mem_info = .{ .base = id_viewW, .offset = 0, .stride = 1 } });
+
+    // ---- Multiply & accumulate  acc += x*w ------------------------
+    const id_x = b.push(.LOAD, out_dtype, &.{id_gepX}, null);
+    const id_w = b.push(.LOAD, out_dtype, &.{id_gepW}, null);
+    _ = b.push(.MULACC, out_dtype, &.{ id_acc, id_x, id_w }, null);
+
+    // close reduction loops                                            ↓↓↓
+    _ = b.push(.ENDRANGE, .bool, &.{kw}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{kh}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{ic}, null);
+
+    // ── 6. Write output pixel ------------------------------------------
+    const id_gepY = b.push(.GEP, out_dtype, &.{ id_Y, n, oc_idx, oh, ow }, Any{ .mem_info = .{ .base = id_Y, .offset = 0, .stride = 1 } });
+
+    _ = b.push(.STORE, out_dtype, &.{ id_gepY, id_acc }, null);
+
+    // close outer loops (reverse order)                               ↓↓↓
+    _ = b.push(.ENDRANGE, .bool, &.{ow}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{oh}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{mop}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{g}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{n}, null);
+
+    return id_Y; // SSA id of the produced output tensor Y
 }

@@ -6,6 +6,8 @@ const TensMath = zant.core.tensor.math_standard;
 const Tensor = zant.core.tensor.Tensor;
 const TensorError = zant.utils.error_handler.TensorError;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
+const Uops = zant.uops;
+const lowerCast = zant.core.tensor.math_standard.lowerCast;
 
 test "Sum two tensors on CPU architecture" {
     std.debug.print("\n     test: Sum two tensors on CPU architecture", .{});
@@ -670,4 +672,42 @@ test "clip f32 large tensor with SIMD" {
     defer output.deinit(); // This will free input_data
 
     try std.testing.expectEqualSlices(f32, expected_data, output.data);
+}
+
+test "lowerCast - print UOps sequence" {
+    std.debug.print("\n     test: lowerCast - print UOps sequence\n", .{});
+
+    const test_allocator = pkgAllocator.allocator;
+    var b = Uops.UOpBuilder.init(test_allocator);
+    defer b.deinit();
+
+    var input_shape: [2]usize = [_]usize{ 2, 3 };
+    var inputArray: [2][3]f32 = [_][3]f32{
+        [_]f32{ 1.0, 2.0, 3.0 },
+        [_]f32{ 4.0, 5.0, 6.0 },
+    };
+
+    var input_tensor = try Tensor(f32).fromArray(&test_allocator, &inputArray, &input_shape);
+    defer input_tensor.deinit();
+
+    const X_id = b.push(.DEFINE_GLOBAL, .f32, &.{}, Uops.Any{ .shape = &input_shape });
+
+    const stride = [_]isize{ 3, 1 }; // Strides for 2x3 tensor in row-major format
+    const to_dtype = Uops.DType.i32; // Target data type to cast to
+    const saturate = true; // Use saturation during casting
+
+    // Call lowerCast
+    _ = lowerCast(
+        &b,
+        X_id,
+        &input_shape,
+        &stride,
+        to_dtype,
+        saturate,
+    );
+
+    std.debug.print("\nUOps sequence for Cast:\n", .{});
+    for (b.list.items, 0..) |op, i| {
+        std.debug.print("{d:3}: {s}\n", .{ i, @tagName(op.op) });
+    }
 }

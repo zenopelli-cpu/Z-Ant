@@ -128,7 +128,7 @@ pub const setLogFunctionC = convolution_math_lib.setLogFunctionC;
 //CONV INTEGER
 
 pub const convInteger_lean = convolution_math_lib.convInteger_lean;
-
+pub const lowerConv2d = convolution_math_lib.lowerConv2d;
 // ---------- importing standard Pooling methods ----------
 const pooling_math_lib = @import("op_pooling.zig");
 pub const pool_tensor = pooling_math_lib.pool_tensor;
@@ -142,6 +142,8 @@ pub const get_onnx_maxpool_output_shape = pooling_math_lib.get_onnx_maxpool_outp
 pub const get_pooling_output_shape = pooling_math_lib.get_pooling_output_shape;
 pub const PoolingType = pooling_math_lib.PoolingType;
 
+pub const lowerMaxPool2d = pooling_math_lib.lowerMaxPool2d;
+
 pub const onnx_averagepool = pooling_math_lib.onnx_averagepool;
 pub const onnx_averagepool_lean = pooling_math_lib.lean_onnx_averagepool;
 pub const get_onnx_averagepool_output_shape = pooling_math_lib.get_onnx_averagepool_output_shape;
@@ -153,6 +155,9 @@ pub const mean = reduction_math_lib.mean;
 pub const reduce_mean = reduction_math_lib.reduce_mean;
 pub const reduce_mean_lean = reduction_math_lib.lean_reduce_mean;
 pub const get_reduce_mean_output_shape = reduction_math_lib.get_reduce_mean_output_shape;
+const op_lower_reduceMean = @import("Op_Lowering/lower_reduceMean.zig");
+pub const lowerReduceMean = op_lower_reduceMean.lowerReduceMean;
+
 // ---------- importing standard Element-Wise math ----------
 const add = @import("lib_elementWise_math/op_addition.zig");
 //--add bias
@@ -163,12 +168,14 @@ pub const sum_tensors_lean = add.lean_sum_tensors;
 //--sum tensor list
 pub const sum_tensor_list = add.sum_tensor_list;
 pub const sum_tensor_list_lean = add.lean_sum_tensor_list;
+pub const lowerAdd = add.lowerAdd;
+
 //--sub
 const sub = @import("lib_elementWise_math/op_subtraction.zig");
 
 pub const sub_tensors = sub.sub_tensors;
 pub const sub_tensors_lean = sub.lean_sub_tensors;
-
+pub const lowerSub = sub.lowerSub;
 //--shape
 const op_shape = @import("lib_shape_math/op_shape.zig");
 pub const shape_onnx = op_shape.shape_onnx;
@@ -189,7 +196,7 @@ pub const lean_matmul = op_mat_mul.lean_mat_mul;
 pub const mul = mult.mul;
 pub const mul_lean = mult.mul_lean;
 pub const get_mul_output_shape = mult.get_mul_output_shape;
-
+pub const lowerMatMul = op_mat_mul.lowerMatMul;
 //--div
 const division = @import("lib_elementWise_math/op_division.zig");
 
@@ -199,6 +206,9 @@ pub const div_lean = division.div_lean;
 //cast
 const op_cast = @import("op_cast.zig");
 pub const cast_lean = op_cast.cast_lean;
+
+const op_lower_cast = @import("Op_Lowering/lower_cast.zig");
+pub const lowerCast = op_lower_cast.lowerCast;
 
 //--tanh
 const tanhy = @import("lib_elementWise_math/op_tanh.zig");
