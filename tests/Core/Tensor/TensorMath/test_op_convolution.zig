@@ -5,12 +5,6 @@ const TensMath = zant.core.tensor.math_standard;
 const Tensor = zant.core.tensor.Tensor;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 
-const Uops = zant.uops;
-const UOpBuilder = Uops.UOpBuilder;
-const DType = Uops.DType;
-const Any = Uops.Any;
-const lowerConv2d = zant.core.tensor.math_standard.lowerConv2d;
-
 test "Convolution 4D Input with 2x2x2x2 Kernel shape" {
     std.debug.print("\n     test: Convolution 4D Input with 2x2x2x2 Kernel shape\n", .{});
 
@@ -533,79 +527,5 @@ test "OnnxConv - all padding modes and features" {
         for (result.data) |val| {
             try std.testing.expectEqual(@as(f32, 5), val);
         }
-    }
-}
-
-test "lowerConv2d - print UOps sequence" {
-    std.debug.print("\n     test: lowerConv2d - print UOps sequence\n", .{});
-
-    const allocator = pkgAllocator.allocator;
-    var b = UOpBuilder.init(allocator);
-    defer b.deinit();
-
-    // Create dummy tensors
-    var input_shape: [4]usize = [_]usize{ 1, 1, 5, 5 };
-    var inputArray: [1][1][5][5]f32 = [_][1][5][5]f32{
-        [_][5][5]f32{
-            [_][5]f32{
-                [_]f32{ 1, 1, 1, 1, 1 },
-                [_]f32{ 1, 1, 1, 1, 1 },
-                [_]f32{ 1, 1, 1, 1, 1 },
-                [_]f32{ 1, 1, 1, 1, 1 },
-                [_]f32{ 1, 1, 1, 1, 1 },
-            },
-        },
-    };
-
-    var kernel_shape: [4]usize = [_]usize{ 1, 1, 3, 3 };
-    var kernelArray: [1][1][3][3]f32 = [_][1][3][3]f32{
-        [_][3][3]f32{
-            [_][3]f32{
-                [_]f32{ 1, 1, 1 },
-                [_]f32{ 1, 1, 1 },
-                [_]f32{ 1, 1, 1 },
-            },
-        },
-    };
-
-    var input_tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &input_shape);
-    defer input_tensor.deinit();
-    var kernel_tensor = try Tensor(f32).fromArray(&allocator, &kernelArray, &kernel_shape);
-    defer kernel_tensor.deinit();
-
-    const X_id = b.push(.DEFINE_GLOBAL, .f32, &.{}, Any{ .shape = &input_shape });
-    const W_id = b.push(.DEFINE_GLOBAL, .f32, &.{}, Any{ .shape = &kernel_shape });
-
-    const out_shape = [_]usize{ 1, 1, 3, 3 };
-    const in_stride = [_]isize{ 25, 25, 5, 1 };
-    const w_stride = [_]isize{ 9, 9, 3, 1 };
-    const group = 1;
-    const pads = [_]usize{ 0, 0 };
-    const strides_hw = [_]usize{ 1, 1 };
-    const dil_hw = [_]usize{ 1, 1 };
-    const kHW = [_]usize{ 3, 3 };
-    const C_per_grp = 1;
-    const M_per_grp = 1;
-
-    _ = lowerConv2d(
-        &b,
-        X_id,
-        W_id,
-        &out_shape,
-        &in_stride,
-        &w_stride,
-        group,
-        pads,
-        strides_hw,
-        dil_hw,
-        kHW,
-        C_per_grp,
-        M_per_grp,
-        .f32,
-    );
-
-    std.debug.print("\nUOps sequence:\n", .{});
-    for (b.list.items, 0..) |op, i| {
-        std.debug.print("{d:3}: {s}\n", .{ i, @tagName(op.op) });
     }
 }
