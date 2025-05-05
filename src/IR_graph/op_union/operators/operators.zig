@@ -1,15 +1,22 @@
 pub const Add = @import("op_add.zig").Add;
 pub const AveragePool = @import("op_averagePool.zig").AveragePool;
 pub const BatchNormalization = @import("op_batchNormalization.zig").BatchNormalization;
+pub const Ceil = @import("op_ceil.zig").Ceil;
+pub const Concat = @import("op_concat.zig").Concat;
 pub const Conv = @import("op_conv.zig").Conv;
+pub const Div = @import("op_div.zig").Div;
 pub const Elu = @import("op_elu.zig").Elu;
 pub const Flatten = @import("op_flatten.zig").Flatten;
+pub const Gather = @import("op_gather.zig").Gather;
 pub const Gemm = @import("op_gemm.zig").Gemm;
-pub const Div = @import("op_div.zig").Div;
-pub const Concat = @import("op_concat.zig").Concat;
+pub const Identity = @import("op_identity.zig").Identity;
+pub const LeakyRelu = @import("op_leakyRelu.zig").LeakyRelu;
+pub const MatMul = @import("op_matmul.zig").MatMul;
+pub const MaxPool = @import("op_maxPool.zig").MaxPool;
+pub const Mul = @import("op_mul.zig").Mul;
+pub const Neg = @import("op_neg.zig").Neg;
 pub const ReduceMean = @import("op_reduceMean.zig").ReduceMean;
-pub const Ceil = @import("op_ceil.zig").Ceil;
-
+pub const Relu = @import("op_relu.zig").Relu;
+pub const Reshape = @import("op_reshape.zig").Reshape;
 pub const Sub = @import("op_sub.zig").Sub;
-
 pub const Useless = @import("op_useless.zig").Useless;

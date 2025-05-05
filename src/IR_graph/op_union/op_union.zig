@@ -68,6 +68,42 @@ pub const Op_union = union(enum) {
             return Op_union{
                 .reduceMean = try operators.ReduceMean.init(nodeProto),
             };
+        } else if (std.mem.indexOf(u8, op_type, "MaxPool")) |_| {
+            return Op_union{
+                .maxPool = try operators.MaxPool.init(nodeProto),
+            };
+        } else if (std.mem.indexOf(u8, op_type, "MatMul")) |_| {
+            return Op_union{
+                .matMul = try operators.MatMul.init(nodeProto),
+            };
+        } else if (std.mem.indexOf(u8, op_type, "LeakyRelu")) |_| {
+            return Op_union{
+                .leakyRelu = try operators.LeakyRelu.init(nodeProto),
+            };
+        } else if (std.mem.indexOf(u8, op_type, "Neg")) |_| {
+            return Op_union{
+                .neg = try operators.Neg.init(nodeProto),
+            };
+        } else if (std.mem.indexOf(u8, op_type, "Relu")) |_| {
+            return Op_union{
+                .relu = try operators.Relu.init(nodeProto),
+            };
+        } else if (std.mem.indexOf(u8, op_type, "Reshape")) |_| {
+            return Op_union{
+                .reshape = try operators.Reshape.init(nodeProto),
+            };
+        } else if (std.mem.indexOf(u8, op_type, "Gather")) |_| {
+            return Op_union{
+                .gather = try operators.Gather.init(nodeProto),
+            };
+        } else if (std.mem.indexOf(u8, op_type, "Identity")) |_| {
+            return Op_union{
+                .identity = try operators.Identity.init(nodeProto),
+            };
+        } else if (std.mem.indexOf(u8, op_type, "Mul")) |_| {
+            return Op_union{
+                .mul = try operators.Mul.init(nodeProto),
+            };
         } else {
             std.debug.print("\n\nERROR: init() is not available for {s} operator!! \n\n", .{op_type});
             return Op_union{

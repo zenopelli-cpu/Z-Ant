@@ -21,12 +21,12 @@ const TensorZant = tensorZant.TensorZant;
 // ATTRIBUTES:
 //      - alpha (float) - coefficent of leakage. Default is 0.01.
 
-pub const Mul = struct {
+pub const LeakyRelu = struct {
     input_X: *TensorZant,
     output_Y: *TensorZant,
     alpha: f32 = 0.01, // default value
 
-    pub fn init(nodeProto: *NodeProto) !Mul {
+    pub fn init(nodeProto: *NodeProto) !LeakyRelu {
         const input_X = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
         const output_Y = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
@@ -37,20 +37,20 @@ pub const Mul = struct {
             }
         }
 
-        return Mul{
+        return LeakyRelu{
             .input_X = input_X,
             .output_Y = output_Y,
             .alpha = alpha,
         };
     }
 
-    pub fn get_output_shape(self: Mul) []usize { // TODO
+    pub fn get_output_shape(self: LeakyRelu) []usize { // TODO
         const res: []usize = [_]usize{ 0, 0, 1, 1 };
         res[0] += self.input_X;
         return res;
     }
 
-    pub fn print(self: Mul) void {
+    pub fn print(self: LeakyRelu) void {
         std.debug.print("\n LeakyRelu:\n {any}", .{self});
     }
 };
