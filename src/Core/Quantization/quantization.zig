@@ -2,14 +2,17 @@ const std = @import("std");
 const zant = @import("../../zant.zig");
 const Tensor = zant.core.tensor.Tensor;
 
+const pkgAllocator = zant.utils.allocator;
+const TensorError = zant.utils.error_handler.TensorError;
+
 pub const quantScheme = enum {
     SYMM,
     ASYM,
 };
 
 // ========== auxiliary functions
-pub fn clamp(comptime T: type, comptime U: type, value: T, scale: T, zero: U, minInt: U, maxInt: U) U {
-    const roundedVal: T = @round(value / scale + zero);
+pub fn clamp(comptime T: type, comptime U: type, value: T, scale: T, zero: isize, minInt: U, maxInt: U) U {
+    const roundedVal: T = @round(value / scale + @as(T, @floatFromInt(zero)));
 
     if (roundedVal <= @as(T, @floatFromInt(minInt)))
         return minInt;
@@ -30,17 +33,17 @@ pub inline fn get_scale_factor(comptime T: type, comptime U: type, minFloat: T, 
     return num / denom;
 }
 
-pub inline fn get_zero_point(comptime T: type, comptime U: type, scale: T, minFloat: T) U {
+pub inline fn get_zero_point(comptime T: type, scale: T, minFloat: T) isize {
     const zeroPointFloat: T = -minFloat / scale;
 
-    return zeroPointFloat;
+    return @as(isize, @intFromFloat(zeroPointFloat));
 }
 
 // ========== quantization
 
 /// This function quantizes the input tensor, using the given parameters:
 /// scale factor, zero point, minInt/maxInt (aka the integer grid limits)
-pub fn quantize_tensor(comptime T: type, comptime U: type, input: *Tensor(T), output: *Tensor(U), scale: T, zero: U, minInt: U, maxInt: U) void {
+pub fn quantize_tensor(comptime T: type, comptime U: type, input: *Tensor(T), output: *Tensor(U), scale: T, zero: isize, minInt: U, maxInt: U) void {
     for (input.data, 0..) |val, i| {
         // quantize each val
         output.data[i] = clamp(T, U, val, scale, zero, minInt, maxInt);
@@ -51,8 +54,8 @@ pub fn quantize_tensor(comptime T: type, comptime U: type, input: *Tensor(T), ou
 /// scale factor, zero point, minInt/maxInt (aka the integer grid limits)
 /// Returns the quantized array.
 /// The caller is responsible for freeing the returned array.
-pub fn quantize_array(comptime T: type, comptime U: type, inputArray: []const T, scale: T, zero: U, minInt: U, maxInt: U) []U {
-    var output: []U = try std.heap.page_allocator.alloc(U, inputArray.len);
+pub fn quantize_array(comptime T: type, comptime U: type, inputArray: anytype, scale: T, zero: isize, minInt: U, maxInt: U) ![]U {
+    var output = try pkgAllocator.allocator.alloc(U, inputArray.len);
 
     for (inputArray, 0..) |val, i| {
         // quantize each val
@@ -65,7 +68,7 @@ pub fn quantize_array(comptime T: type, comptime U: type, inputArray: []const T,
 /// This function dequantizes the input tensor, using the given parameters:
 /// scale factor, zero point.
 /// The output tensor is the dequantized version of the input tensor.
-pub fn dequantize_tensor(comptime T: type, comptime U: type, input: *Tensor(U), output: *Tensor(T), scale: T, zero: U) void {
+pub fn dequantize_tensor(comptime T: type, comptime U: type, input: *Tensor(U), output: *Tensor(T), scale: T, zero: isize) void {
     for (input.data, 0..) |val, i| {
         // dequantize each val
         const correctedVal: isize = @as(isize, val) - @as(isize, zero);
@@ -76,8 +79,8 @@ pub fn dequantize_tensor(comptime T: type, comptime U: type, input: *Tensor(U), 
 /// This function dequantizes the input array, using the given parameters: 
 /// the current unquantized type T, the quantized output type U, the input array, the scale factor, the zero point.
 /// The caller is responsible for freeing the returned array.
-pub fn dequantize_array(comptime T: type, comptime U: type, inputArray: []const U, scale: T, zero: U) []T {
-    var output: []T = try std.heap.page_allocator.alloc(T, inputArray.len);
+pub fn dequantize_array(comptime T: type, comptime U: type, inputArray: []const U, scale: T, zero: isize) ![]T {
+    var output = try pkgAllocator.allocator.alloc(T, inputArray.len);
 
     for (inputArray, 0..) |val, i| {
         // dequantize each val
@@ -115,10 +118,10 @@ pub fn minmax_quant(comptime T: type, comptime U: type, scheme: quantScheme, inp
 
     const scale: T = get_scale_factor(T, U, minFloat, maxFloat);
 
-    var zero: U = undefined;
+    var zero: isize = undefined;
     switch (scheme) {
         quantScheme.SYMM => zero = 0,
-        quantScheme.ASYM => zero = get_zero_point(T, U, scale, minFloat),
+        quantScheme.ASYM => zero = get_zero_point(T, scale, minFloat),
     }
 
     quantize_tensor(T, U, input, output, scale, zero, minInt, maxInt);
@@ -126,12 +129,12 @@ pub fn minmax_quant(comptime T: type, comptime U: type, scheme: quantScheme, inp
 
 /// This function quantizes the input array using min/max method.
 /// Returns a tuple with the result quantized array, scale factor, zero point.
-pub fn minmax_array_quant(comptime T: type, comptime U: type, scheme: quantScheme, input: []const T) struct { quantizedArray: []U, scale: T, zero: U } {
-    var minFloat: T = input.data[0];
-    var maxFloat: T = input.data[0];
+pub fn minmax_array_quant(comptime T: type, comptime U: type, scheme: quantScheme, input: anytype) !struct { quantizedArray: []U, scale: T, zero: isize } {
+    var minFloat: T = input[0];
+    var maxFloat: T = input[0];
 
     // compute the min and max value if the input tensor
-    for (input.data[1..]) |val| {
+    for (input[1..]) |val| {
         if (minFloat > val)
             minFloat = val;
         if (maxFloat < val)
@@ -152,19 +155,18 @@ pub fn minmax_array_quant(comptime T: type, comptime U: type, scheme: quantSchem
 
     const scale: T = get_scale_factor(T, U, minFloat, maxFloat);
 
-    var zero: U = undefined;
+    var zero: isize = undefined;
     switch (scheme) {
         quantScheme.SYMM => zero = 0,
-        quantScheme.ASYM => zero = get_zero_point(T, U, scale, minFloat),
+        quantScheme.ASYM => zero = get_zero_point(T, scale, minFloat),
     }
 
-    const immutableZero: U = zero;
-    const immutableMinInt: U = minInt;
-    const immutableMaxInt: U = maxInt;
-    return struct {
-        quantizedArray: []U = quantize_array(T, U, input, scale, immutableZero, immutableMinInt, immutableMaxInt),
-        scale: T = scale,
-        zero: U = immutableZero,
+    const quantizedArray: []U = try quantize_array(T, U, input, scale, zero, minInt, maxInt);
+    const immutableZero: isize = zero;
+    return .{
+        .quantizedArray = quantizedArray,
+        .scale = scale,
+        .zero = immutableZero,
     };
 }
 

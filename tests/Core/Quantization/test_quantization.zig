@@ -1,11 +1,21 @@
 const std = @import("std");
 const zant = @import("zant");
 const quant = zant.core.quantization;
-const quant_debug = zant.core.quantization_debug;
+// const quant_debug = zant.core.quantization_debug;
 const Tensor = zant.core.tensor.Tensor;
 const pkgAllocator = zant.utils.allocator;
 
 const testing = std.testing;
+
+test "getZeroPoint" {
+    std.debug.print("\n    test: getZeroPoint\n", .{});
+    const scale: f32 = 0.005098;
+    const minFloat: f32 = -0.5;
+    
+    const zeroPoint: u8 = quant.get_zero_point(f32, scale, minFloat);
+    std.debug.print("\n --> zero point (f32): {}\n", .{zeroPoint});
+    try testing.expectEqual(98, zeroPoint);
+}
 
 // test "MSE norm" {
 //     std.debug.print("\n    test: MSE tensor norm computation", .{});
@@ -46,7 +56,8 @@ test "asymm signed range grid limits test" {
     var outputTensor = try Tensor(u8).fromShape(&pkgAllocator.allocator, &shape);
     defer outputTensor.deinit();
 
-    quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.ASYM, &inputTensor, &outputTensor);
+    // quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.ASYM, &inputTensor, &outputTensor);
+    quant.minmax_quant(f32, u8, quant.quantScheme.ASYM, &inputTensor, &outputTensor);
     outputTensor.printMultidim();
 
     try testing.expectEqual(0, outputTensor.get(0));
@@ -68,7 +79,8 @@ test "asymm unsigned range grid limits test" {
     var outputTensor = try Tensor(u8).fromShape(&pkgAllocator.allocator, &shape);
     defer outputTensor.deinit();
 
-    quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.ASYM, &inputTensor, &outputTensor);
+    //quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.ASYM, &inputTensor, &outputTensor);
+    quant.minmax_quant(f32, u8, quant.quantScheme.ASYM, &inputTensor, &outputTensor);
     outputTensor.printMultidim();
 
     try testing.expectEqual(0, outputTensor.get(0));
@@ -92,7 +104,8 @@ test "symm signed range grid limits test" {
     var outputTensor = try Tensor(i8).fromShape(&pkgAllocator.allocator, &shape);
     defer outputTensor.deinit();
 
-    quant_debug.debug_minmax_quant(f32, i8, quant_debug.quantScheme.SYMM, &inputTensor, &outputTensor);
+    // quant_debug.debug_minmax_quant(f32, i8, quant_debug.quantScheme.SYMM, &inputTensor, &outputTensor);
+    quant.minmax_quant(f32, i8, quant.quantScheme.SYMM, &inputTensor, &outputTensor);
     outputTensor.printMultidim();
 
     try testing.expectEqual(127, outputTensor.get(1));
@@ -114,7 +127,8 @@ test "symm unsigned range grid limits test (0 as min)" {
     var outputTensor = try Tensor(u8).fromShape(&pkgAllocator.allocator, &shape);
     defer outputTensor.deinit();
 
-    quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.SYMM, &inputTensor, &outputTensor);
+    // quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.SYMM, &inputTensor, &outputTensor);
+    quant.minmax_quant(f32, u8, quant.quantScheme.SYMM, &inputTensor, &outputTensor);
     outputTensor.printMultidim();
 
     try testing.expectEqual(0, outputTensor.get(0));
@@ -136,7 +150,8 @@ test "symm unsigned range grid limits test (with negative val)" {
     var outputTensor = try Tensor(u8).fromShape(&pkgAllocator.allocator, &shape);
     defer outputTensor.deinit();
 
-    quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.SYMM, &inputTensor, &outputTensor);
+    // quant_debug.debug_minmax_quant(f32, u8, quant_debug.quantScheme.SYMM, &inputTensor, &outputTensor);
+    quant.minmax_quant(f32, u8, quant.quantScheme.SYMM, &inputTensor, &outputTensor);
     outputTensor.printMultidim();
 
     try testing.expectEqual(0, outputTensor.get(0));

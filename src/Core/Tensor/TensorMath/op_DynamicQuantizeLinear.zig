@@ -35,6 +35,7 @@ pub fn dynamicQuantizeLinear(x: *Tensor(f32)) ![]*Tensor(anyopaque) {
         .data = y_data,
         .size = y_data.len,
         .owns_memory = true, // This function allocates memory
+        .details = .none,
     };
 
     const y_scale_data = try x.allocator.alloc(f32, Tensor(f32).calculateSize(output_shapes[1]));
@@ -45,6 +46,7 @@ pub fn dynamicQuantizeLinear(x: *Tensor(f32)) ![]*Tensor(anyopaque) {
         .data = y_scale_data,
         .size = y_scale_data.len,
         .owns_memory = true,
+        .details = .none,
     };
 
     const y_zero_point_data = try x.allocator.alloc(u8, Tensor(u8).calculateSize(output_shapes[2]));
@@ -55,6 +57,7 @@ pub fn dynamicQuantizeLinear(x: *Tensor(f32)) ![]*Tensor(anyopaque) {
         .data = y_zero_point_data,
         .size = y_zero_point_data.len,
         .owns_memory = true,
+        .details = .none,
     };
 
     // 3. Call the lean implementation

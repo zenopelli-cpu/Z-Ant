@@ -8,6 +8,8 @@ pub const quantScheme = enum {
     ASYM,
 };
 
+// TODO quantization_debug.zig is useless as of now
+
 // ========== auxiliary functions
 
 pub fn clamp_debug(comptime T: type, comptime U: type, value: T, scale: T, zero: T, minInt: U, maxInt: U) U {
@@ -47,7 +49,8 @@ pub inline fn get_zero_point(comptime T: type, scale: T, minFloat: T) T {
 fn quantize_tensor_debug(comptime T: type, comptime U: type, input: *Tensor(T), output: *Tensor(U), scale: T, zero: T, minInt: U, maxInt: U) void {
     for (input.data, 0..) |val, i| {
         // quantize every val
-        output.data[i] = clamp_debug(T, U, val, scale, zero, minInt, maxInt);
+        // output.data[i] = clamp_debug(T, U, val, scale, zero, minInt, maxInt);
+        output.data[i] = quant.clamp(T, U, val, scale, zero, minInt, maxInt);
     }
 }
 

@@ -40,6 +40,7 @@ pub fn transpose2D(comptime T: type, t: *Tensor(T)) !Tensor(T) {
         .shape = tensorShape,
         .allocator = allocator,
         .owns_memory = true,
+        .details = .none,
     };
 }
 
@@ -177,6 +178,7 @@ pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T
         .shape = newShape,
         .allocator = &pkg_allocator,
         .owns_memory = true,
+        .details = .none,
     };
 }
 
