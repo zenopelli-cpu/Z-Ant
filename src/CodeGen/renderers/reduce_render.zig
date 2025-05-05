@@ -1,33 +1,33 @@
 const std = @import("std");
 const zant = @import("zant");
 const UOp = zant.uops.UOp;
+const UOpType = zant.uops.UOpType;
 const DTypeInfo = zant.uops.DTypeInfo;
 
-pub fn render(allocator: std.mem.Allocator, writer: anytype, uop: UOp) !void {
-    if (uop.op != .REDUCE_ADD and uop.op != .REDUCE_MAX) {
+pub fn render(
+    allocator: std.mem.Allocator,
+    writer: anytype,
+    uop: UOp,
+    ptr_map: *const std.AutoHashMap(usize, []const u8),
+) !void {
+    _ = allocator;
+    // Validate operation type
+
+    const supported_ops = [_]UOpType{ .REDUCE_ADD, .REDUCE_MAX };
+
+    if (!std.mem.containsAtLeast(UOpType, &supported_ops, 1, &[_]UOpType{uop.op})) {
         return error.InvalidOperation;
     }
 
+    // Validate operand count
     if (uop.src.len != 1) {
         return error.InvalidOperandCount;
     }
 
-    const result_var = try std.fmt.allocPrint(allocator, "t{d}", .{uop.id});
-    defer allocator.free(result_var);
-
-    const input_var = try std.fmt.allocPrint(allocator, "t{d}", .{uop.src[0]});
-    defer allocator.free(input_var);
-
+    // Get variable names directly from ptr_map instead of formatting them
+    const result_var = ptr_map.get(uop.id) orelse return error.VariableNotFound;
+    const input_var = ptr_map.get(uop.src[0]) orelse return error.VariableNotFound;
     const type_str = DTypeInfo.asString(uop.dtype);
-
-    // Vector size
-    const vec_size = try std.mem.join(allocator, ".", &.{ input_var, "len" });
-    defer allocator.free(vec_size);
-    // Vector definition
-    try writer.print(
-        \\const vec{d}: @Vector({s}, {s}) = {s};
-        \\
-    , .{ uop.id, vec_size, type_str, input_var });
 
     // Operation mapping
     const op_str = switch (uop.op) {
@@ -36,6 +36,10 @@ pub fn render(allocator: std.mem.Allocator, writer: anytype, uop: UOp) !void {
         else => unreachable,
     };
 
-    // Final reduction line
-    try writer.print("const {s}: {s} = @reduce({s}, vec{d});\n", .{ result_var, type_str, op_str, uop.id });
+    // Write vector definition and reduction in one step
+    try writer.print(
+        \\const vec{d}: @Vector({s}.len, {s}) = {s};
+        \\const {s}: {s} = @reduce({s}, vec{d});
+        \\
+    , .{ uop.id, input_var, type_str, input_var, result_var, type_str, op_str, uop.id });
 }

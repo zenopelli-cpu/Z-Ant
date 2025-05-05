@@ -4,6 +4,8 @@ const UOp = zant.uops.UOp;
 const DTypeInfo = zant.uops.DTypeInfo;
 
 pub fn render(allocator: std.mem.Allocator, writer: anytype, uop: UOp) !void {
+    @compileLog("Warning: 'Conditional' operations are not implemented yet. 'IF ENDIF'");
+
     if (uop.op != .MAX and uop.op != .MIN) {
         return error.InvalidOperation;
     }
@@ -25,8 +27,8 @@ pub fn render(allocator: std.mem.Allocator, writer: anytype, uop: UOp) !void {
     const type_str = DTypeInfo.asString(uop.dtype);
 
     switch (uop.op) {
-        .MAX => try writer.print("const {s} = if(@as({s},{s}) > @as({s},{s})) @as({s},{s}) else @as({s},{s});\n", .{ result_var, type_str, first_var, type_str, second_var, type_str, first_var, type_str, second_var}),
-        .MIN => try writer.print("const {s} = if(@as({s},{s}) < @as({s},{s})) @as({s},{s}) else @as({s},{s});\n", .{ result_var, type_str, first_var, type_str, second_var, type_str, first_var, type_str, second_var}),
+        .MAX => try writer.print("const {s} = if(@as({s},{s}) > @as({s},{s})) @as({s},{s}) else @as({s},{s});\n", .{ result_var, type_str, first_var, type_str, second_var, type_str, first_var, type_str, second_var }),
+        .MIN => try writer.print("const {s} = if(@as({s},{s}) < @as({s},{s})) @as({s},{s}) else @as({s},{s});\n", .{ result_var, type_str, first_var, type_str, second_var, type_str, first_var, type_str, second_var }),
         else => unreachable,
     }
 }
