@@ -20,15 +20,15 @@ const TensorZant = tensorZant.TensorZant;
 // ATTRIBUTES:
 //      - axis - INT (default is '0'): Indicate up to which input dimension should be split.
 //      - num_outputs - INT: Number of outputs
-pub const split = struct {
+pub const Split = struct {
     input: *TensorZant,
-    split: *TensorZant,
+    split: ?*TensorZant,
     output_Y: *TensorZant,
     //attributes:
     axis: i64 = 0, // default = 0,
 
-    pub fn init(nodeProto: *NodeProto) !split {
-        const input_X = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
+    pub fn init(nodeProto: *NodeProto) !Split {
+        const input = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
         const splitTensor = if (nodeProto.input.len > 1) if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.axes_notFound else null;
         const output_Y = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
@@ -40,19 +40,19 @@ pub const split = struct {
             }
         }
 
-        return split{
-            .input_X = input_X,
+        return Split{
+            .input = input,
             .split = splitTensor,
             .output_Y = output_Y,
             .axis = axis,
         };
     }
 
-    pub fn get_output_shape(self: split) []usize {
+    pub fn get_output_shape(self: Split) []usize {
         return self.output_Y.shape;
     }
 
-    pub fn print(self: split) void {
+    pub fn print(self: Split) void {
         std.debug.print("\n Split: {any}", .{self});
     }
 };

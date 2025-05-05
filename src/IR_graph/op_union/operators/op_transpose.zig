@@ -32,7 +32,7 @@ pub const Transpose = struct {
         const output_Y = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
         // Get the perm attribute if it exists
-        var perm: []const u8 = null;
+        var perm: []usize = undefined;
         for (nodeProto.attribute) |attr| {
             if (std.mem.eql(u8, attr.name, "perm")) {
                 if (attr.type == onnx.AttributeType.INTS) {

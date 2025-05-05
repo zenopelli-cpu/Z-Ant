@@ -12,7 +12,6 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const globals = @import("../../globals.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Resize.html
 // INPUTS:
@@ -54,11 +53,12 @@ pub const Resize = struct {
         const input_X = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
 
         // ---- optional inputs
-        const input_roi = if (nodeProto.input.len >= 2) if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else null;
-        const input_scales = if (nodeProto.input.len >= 3) if (tensorZant.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else null;
-        const input_sizes = if (nodeProto.input.len >= 4) if (tensorZant.tensorMap.getPtr(nodeProto.input[3])) |ptr| ptr else null;
+        const input_roi: ?*TensorZant = if (nodeProto.input.len >= 2) if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_X_notFound else null;
+        const input_scales: ?*TensorZant = if (nodeProto.input.len >= 3) if (tensorZant.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_roi_notFound else null;
+        const input_sizes: ?*TensorZant = if (nodeProto.input.len >= 4) if (tensorZant.tensorMap.getPtr(nodeProto.input[3])) |ptr| ptr else return error.input_sizes_notFound else null;
 
         const output_Y = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
+
         // ---- ATTRIBUTES from NodeProto
         var antialias: i64 = 0;
         var axes: []i64 = &[_]i64{};
