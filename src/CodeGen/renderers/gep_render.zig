@@ -31,7 +31,94 @@ fn emitTerm(w: anytype, expr: []const u8, stride: usize, first: *bool) !void {
     first.* = false;
 }
 
-/// --------  MAIN entry  ---------------------------------------------------
+/// Builds an expression for 1D linear index into a view based on shape and strides
+fn buildLinearIndexExpr(
+    w: anytype,
+    idx_expr: []const u8,
+    shape: []const usize,
+    strides: []const isize,
+) !void {
+    if (shape.len == 1) {
+        // Contiguous or broadcast vector
+        var first_term = true;
+        try emitTerm(w, idx_expr, @as(usize, @intCast(strides[0])), &first_term);
+        if (first_term) try w.print("0", .{});
+    } else if (shape.len == 2) {
+        const cols = shape[1];
+        const s_row = strides[0];
+        const s_col = strides[1];
+        try w.print(
+            "((({s}/{d})*{d})+(({s}%{d})*{d}))",
+            .{ idx_expr, cols, s_row, idx_expr, cols, s_col },
+        );
+    } else {
+        return RendererError.RankMismatch;
+    }
+}
+
+/// Builds an offset expression for multidimensional index
+fn buildMultiDimExpr(
+    w: anytype,
+    alloc: std.mem.Allocator,
+    ptr_map: *std.AutoHashMap(usize, []const u8),
+    sources: []const usize,
+    strides: []const isize,
+) !void {
+    var first = true;
+    for (sources[1..], 0..) |id, ax| {
+        const idx_expr = try castIndex(alloc, ptr_map, id);
+        try emitTerm(w, idx_expr, @as(usize, @intCast(strides[ax])), &first);
+    }
+    if (first) try w.print("0", .{});
+}
+
+/// Gets base pointer name, handling slices vs raw pointers
+fn getBasePointer(
+    alloc: std.mem.Allocator,
+    base_id: usize,
+    buffer_map: *std.AutoHashMap(usize, BufferInfo),
+    ptr_map: *std.AutoHashMap(usize, []const u8),
+) ![]const u8 {
+    if (buffer_map.get(base_id)) |bi| {
+        // For slices (inputs/outputs), append .ptr
+        if (bi.is_input or std.mem.startsWith(u8, bi.name, "output_")) {
+            return std.fmt.allocPrint(alloc, "{s}.ptr", .{bi.name});
+        }
+        return bi.name; // Internal buffers are already pointers
+    } else if (ptr_map.get(base_id)) |p| {
+        return p; // Raw pointers from ptr_map
+    }
+    return RendererError.VarMissing;
+}
+
+/// Handles raw buffer offset calculation (no VIEW)
+fn handleRawBuffer(
+    w: anytype,
+    alloc: std.mem.Allocator,
+    ptr_map: *std.AutoHashMap(usize, []const u8),
+    buffer_map: *std.AutoHashMap(usize, BufferInfo),
+    base_id: usize,
+    sources: []const usize,
+) !void {
+    const nd = sources.len - 1;
+
+    if (nd == 1) {
+        const e = try castIndex(alloc, ptr_map, sources[1]);
+        try w.print("{s}", .{e});
+    } else if (nd == 2) {
+        const info = buffer_map.get(base_id) orelse return RendererError.VarMissing;
+        if (info.shape.len < 2) return RendererError.RankMismatch;
+
+        const cols = info.shape[info.shape.len - 1];
+        const r_exp = try castIndex(alloc, ptr_map, sources[1]);
+        const c_exp = try castIndex(alloc, ptr_map, sources[2]);
+        try w.print("(({s}*{d})+{s})", .{ r_exp, cols, c_exp });
+    } else {
+        return RendererError.RankMismatch;
+    }
+}
+
+/// Main entry point for rendering GEP operations
 pub fn render(
     alloc: std.mem.Allocator,
     writer: anytype,
@@ -40,111 +127,51 @@ pub fn render(
     buffer_map: *std.AutoHashMap(usize, BufferInfo),
     ptr_map: *std.AutoHashMap(usize, []const u8),
 ) !void {
-    // only GEPs handled here
+    // Validate operation type
     if (uop.op != .GEP) return RendererError.InvalidOp;
     if (uop.arg == null) return RendererError.NoAny;
+
     var arena = std.heap.ArenaAllocator.init(alloc);
     defer arena.deinit();
-    const aalloc = arena.allocator();
-    // ------------------------------------------------------------------ //
-    // 1. base pointer name                                               //
-    // ------------------------------------------------------------------ //
+    const temp_alloc = arena.allocator();
 
-    // 1) Determine base pointer name (fix for slice vs pointer)
+    // Get base pointer
     const base_id = uop.src[0];
-    var base_ptr: []const u8 = undefined;
+    const base_ptr = try getBasePointer(temp_alloc, base_id, buffer_map, ptr_map);
 
-    if (buffer_map.get(base_id)) |bi| {
-        // bi.name is a slice (e.g. input_0), so for inputs/outputs append .ptr
-        if (bi.is_input or std.mem.startsWith(u8, bi.name, "output_")) {
-            // allocate in the existing arena
-            base_ptr = try std.fmt.allocPrint(aalloc, "{s}.ptr", .{bi.name});
-        } else {
-            // internal buffers (addr_, acc_) are already pointers
-            base_ptr = bi.name;
-        }
-    } else if (ptr_map.get(base_id)) |p| {
-        // temporaries from ptr_map (like addr_3) are already raw pointers
-        base_ptr = p;
-    } else {
-        return RendererError.VarMissing;
-    }
-
-    // ------------------------------------------------------------------ //
-    // 2. build element-offset expression                                 //
-    // ------------------------------------------------------------------ //
-
-    var list = std.ArrayList(u8).init(aalloc);
+    // Build element-offset expression
+    var list = std.ArrayList(u8).init(temp_alloc);
     const w = list.writer();
 
     if (view_map.get(base_id)) |vinfo| {
         const shape = vinfo.arg.view_meta.shape;
         const strides = vinfo.arg.view_meta.strides;
 
-        // (a) 1-D linear index into the view  --------------------------
+        if (shape.len != strides.len or shape.len == 0)
+            return RendererError.RankMismatch;
+
+        // Handle 1-D linear indexing
         if (uop.src.len == 2) {
-            if (shape.len != strides.len) return RendererError.RankMismatch;
-            if (shape.len == 0) return RendererError.RankMismatch;
-
-            const idx_expr = try castIndex(aalloc, ptr_map, uop.src[1]);
-
-            // special-case rank-1 and rank-2 (enough for the tests)
-            if (shape.len == 1) {
-                // contiguous or broadcast vector
-                var first_term = true;
-                try emitTerm(w, idx_expr, @as(usize, @intCast(strides[0])), &first_term);
-            } else if (shape.len == 2) {
-                const cols = shape[1];
-                const s_row = strides[0];
-                const s_col = strides[1];
-                // (i/cols)*s_row + (i%cols)*s_col
-                try w.print(
-                    "((({s}/{d})*{d})+(({s}%{d})*{d}))",
-                    .{ idx_expr, cols, s_row, idx_expr, cols, s_col },
-                );
-            } else {
-                // fall back to slow loop-unflatten (not needed yet)
-                return RendererError.RankMismatch;
-            }
+            const idx_expr = try castIndex(temp_alloc, ptr_map, uop.src[1]);
+            try buildLinearIndexExpr(w, idx_expr, shape, strides);
         }
-        // (b) fully-specified per-dim indexes --------------------------
+        // Handle fully-specified per-dim indexing
         else if (uop.src.len - 1 == strides.len) {
-            var first = true;
-            for (uop.src[1..], 0..) |id, ax| {
-                const idx_expr = try castIndex(aalloc, ptr_map, id);
-                try emitTerm(w, idx_expr, @as(usize, @intCast(strides[ax])), &first);
-            }
-            if (first) try w.print("0", .{});
+            try buildMultiDimExpr(w, temp_alloc, ptr_map, uop.src, strides);
         } else {
             return RendererError.RankMismatch;
         }
     } else {
-        // ----------------------------------------------------------------
-        // raw buffer (no VIEW) – support 1-D or 2-D row-major
-        // ----------------------------------------------------------------
-        const nd = uop.src.len - 1;
-        if (nd == 1) {
-            const e = try castIndex(aalloc, ptr_map, uop.src[1]);
-            try w.print("{s}", .{e});
-        } else if (nd == 2) {
-            const info = buffer_map.get(base_id) orelse return RendererError.VarMissing;
-            if (info.shape.len < 2) return RendererError.RankMismatch;
-            const cols = info.shape[info.shape.len - 1];
-            const r_exp = try castIndex(aalloc, ptr_map, uop.src[1]);
-            const c_exp = try castIndex(aalloc, ptr_map, uop.src[2]);
-            try w.print("(({s}*{d})+{s})", .{ r_exp, cols, c_exp });
-        } else {
-            return RendererError.RankMismatch;
-        }
+        // Handle raw buffer (no VIEW)
+        try handleRawBuffer(w, temp_alloc, ptr_map, buffer_map, base_id, uop.src);
     }
 
+    // Get variable name and data type
     const offset_expr = try list.toOwnedSlice();
     const dest_var = ptr_map.get(uop.id) orelse return RendererError.VarMissing;
     const dtype_name = DTypeInfo.asString(uop.dtype);
 
-    // ------------------------------------------------------------------ //
-    // 3. final pointer arithmetic                                        //
-    // ------------------------------------------------------------------ //
+    // Generate final pointer arithmetic
     try writer.print(
         "    const {s} = @intFromPtr({s}) + ({s})*@sizeOf({s}); // GEP id={d}\n",
         .{ dest_var, base_ptr, offset_expr, dtype_name, uop.id },
