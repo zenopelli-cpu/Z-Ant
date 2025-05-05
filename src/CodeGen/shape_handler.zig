@@ -80,7 +80,7 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Flatten")) {
         //https://onnx.ai/onnx/operators/onnx__Flatten.html
         try compute_flatten_output_shape(readyNode);
-    } else if (std.mem.equl(u8, ReadyNode.nodeProto.op_type, "Squeeze")) {
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Squeeze")) {
         //https://onnx.ai/onnx/operators/onnx__Squeeze.html
         try compute_squeeze_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
@@ -1498,10 +1498,15 @@ inline fn compute_squeeze_output_shape(readyNode: *ReadyNode) !void {
         defer allocator.free(input_shape_usize);
         Codegen_log.debug("\n input_shape_usize: []usize = {any}", .{input_shape_usize});
 
-        const maybe_axes = utils.getAttributeList_i64(readyNode.nodeProto, "axes");
-        Codegen_log.debug("\n squeeze axes: {?[]i64} = {any}", .{maybe_axes});
+        var axes: ?[]const i64 = null;
+        if (readyNode.inputs.items.len >= 2 and readyNode.inputs.items[1] != null) {
+            axes = readyNode.inputs.items[1].?.tensorProto.?.int64_data.?; // non so cosa prendere qui
+            Codegen_log.debug("\n squeeze axes from tensor input: {?[]i64} = {any}", .{axes});
+        } else {
+            Codegen_log.debug("\n squeeze axes not provided (will remove all size 1 dimensions)", .{});
+        }
 
-        const output_shape_usize = try tensorMath.get_squeeze_output_shape(input_shape_usize, maybe_axes);
+        const output_shape_usize = try tensorMath.get_squeeze_output_shape(input_shape_usize, axes);
         Codegen_log.debug("\n output_shape_usize: []usize = {any}", .{output_shape_usize});
 
         shape = try utils.usizeSliceToI64Slice(@constCast(output_shape_usize));

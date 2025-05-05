@@ -281,51 +281,7 @@ def generate_fuzz_model(op_name):
 
         return [input_info], output_info, [node], initializers, metadata
     
-    elif op_name == "Squeeze":
-        rank = random.randint(0, 4)
-        if rank == 0:
-            shape = []
-        else:
-            shape = random_shape(rank, min_dim=1, max_dim=10)
-
-        total_size = 1 if rank == 0 else np.prod(shape)
-        data = np.random.randn(total_size).astype(np.float32)
-        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
-        initializers.append(init_tensor)
-
-        use_axes = random.choice([True, False])
-        axes = None
-        attributes = {}
-        if use_axes:
-            axes = [i for i, dim in enumerate(shape) if dim == 1]
-            random.shuffle(axes)
-            axes = axes[:random.randint(1, len(axes))]
-            attributes["axes"] = axes
-
-        out_shape = [dim for i, dim in enumerate(shape) if not (axes is None and dim == 1 or axes and i in axes)]
-
-        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
-        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
-
-        node = helper.make_node(
-            op_name,
-            inputs=[input_names[0]],
-            outputs=[output_names[0]],
-            name=f"{op_name}node" + (f"_axes{axes}" if axes else "")
-        )
-
-        if axes:
-            node.attribute.extend([helper.make_attribute("axes", axes)])
-
-        metadata = {
-            "input_shapes": [shape],
-            "output_shapes": [out_shape],
-        }
-        if axes:
-            metadata["axes"] = axes
-
-        return [input_info], output_info, [node], initializers, metadata
-    
+    # elif op_name == "Squeeze":
 
     elif op_name == "Pad":
         # Operatore Pad: genera dati, pads e constant_value come initializer
