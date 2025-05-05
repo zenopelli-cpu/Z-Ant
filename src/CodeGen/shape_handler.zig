@@ -133,6 +133,8 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Split")) {
         //https://onnx.ai/onnx/operators/onnx__Split.html
         try compute_split_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sqrt")) {
+        try compute_sqrt_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Sub")) {
         //https://onnx.ai/onnx/operators/onnx__Sub.html
         try compute_Sub_output_shape(readyNode);
@@ -1101,6 +1103,24 @@ pub fn compute_concat_output_shape(readyNode: *ReadyNode) !void {
     allocator.free(input_shapes);
     allocator.free(output_shape);
     // Codegen_log.debug("\n   Cleanup complete", .{});
+}
+
+inline fn compute_sqrt_output_shape(readyNode: *ReadyNode) !void {
+    const input = readyNode.inputs.items[0] orelse {
+        return error.InputTensorIsNull;
+    };
+
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        const input_shape = input.shape;
+        Codegen_log.info("\n input_shape: []i64 = {any}", .{input_shape});
+
+        shape = try utils.usizeSliceToI64Slice(try tensorMath.get_sqrt_output_shape(try utils.i64SliceToUsizeSlice(input_shape)));
+    }
+    readyNode.outputs.items[0].shape = shape;
 }
 
 inline fn compute_tanh_output_shape(readyNode: *ReadyNode) !void {

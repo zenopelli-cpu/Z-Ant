@@ -249,6 +249,13 @@ pub const ceil = Ceil.ceil;
 pub const ceil_lean = Ceil.ceil_lean;
 pub const get_ceil_output_shape = Ceil.get_ceil_output_shape;
 
+//--sqrt
+const Sqrt = @import("lib_elementWise_math/op_sqrt.zig");
+
+pub const sqrt = Sqrt.sqrt;
+pub const sqrt_lean = Sqrt.sqrt_lean;
+pub const get_sqrt_output_shape = Sqrt.get_sqrt_output_shape;
+
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");
 pub const isOneHot = logical_math_lib.isOneHot;

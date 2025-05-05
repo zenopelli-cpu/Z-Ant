@@ -134,6 +134,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_slice(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Split")) {
         try write_split(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sqrt")) {
+        try write_sqrt(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sub")) {
         try write_sub(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sum")) {
@@ -2358,6 +2360,30 @@ inline fn write_tanh(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\
         \\
         \\    tensMath.tanh_lean(T, {s}, &tensor_{s})
+    , .{
+        input_tensor_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_sqrt(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name) });
+    }
+
+    _ = try writer.print(
+        \\
+        \\
+        \\    tensMath.sqrt_lean(T, {s}, &tensor_{s})
     , .{
         input_tensor_string,
         try utils.getSanitizedName(node.outputs.items[0].name),

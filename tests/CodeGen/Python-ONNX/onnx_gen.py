@@ -27,11 +27,14 @@ def generate_fuzz_model(op_name):
     output_names = [f"{op_name}_param_out_{i}" for i in range(5)]
     metadata = {}
 
-    if op_name in ["Relu", "Sigmoid", "Ceil", "Tanh", "Identity", "Neg", "Shape", "Floor"]:
+    if op_name in ["Relu", "Sigmoid", "Ceil", "Tanh", "Identity", "Neg", "Shape", "Floor", "Sqrt"]:
         # Operatori a singolo input con forma casuale (rank=4)
         shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
         # Crea dati casuali e li inserisce come initializer
-        data = np.random.randn(*shape).astype(np.float32)
+        if op_name == "Sqrt":
+            data = np.abs(np.random.randn(*shape)).astype(np.float32)
+        else:
+            data = np.random.randn(*shape).astype(np.float32)
         init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
         initializers.append(init_tensor)
 
