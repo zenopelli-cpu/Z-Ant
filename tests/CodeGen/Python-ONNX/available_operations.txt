@@ -17,7 +17,6 @@ MatMul
 MaxPool  
 Mean
 Mul  
-OneHot
 Relu  
 Reshape  
 Sigmoid  
