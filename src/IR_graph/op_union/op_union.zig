@@ -28,7 +28,7 @@ pub const Op_union = union(enum) {
     relu: operators.Relu,
     reshape: operators.Reshape,
     resize: operators.Resize,
-    // shape: operators.Shape,
+    shape: operators.Shape,
     sigmoid: operators.Sigmoid,
     slice: operators.Slice,
     softmax: operators.Softmax,
@@ -85,11 +85,9 @@ pub const Op_union = union(enum) {
             return Op_union{ .reshape = try operators.Reshape.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Resize")) {
             return Op_union{ .resize = try operators.Resize.init(nodeProto) };
-        }
-        // else if (std.mem.eql(u8, op_type, "Shape")) {
-        //     return Op_union{ .shape = try operators.Shape.init(nodeProto) };
-        // }
-        else if (std.mem.eql(u8, op_type, "Sigmoid")) {
+        } else if (std.mem.eql(u8, op_type, "Shape")) {
+            return Op_union{ .shape = try operators.Shape.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Sigmoid")) {
             return Op_union{ .sigmoid = try operators.Sigmoid.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Slice")) {
             return Op_union{ .slice = try operators.Slice.init(nodeProto) };

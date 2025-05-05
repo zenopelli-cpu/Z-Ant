@@ -1,6 +1,7 @@
 const std = @import("std");
 const zant = @import("../../../zant.zig");
 const allocator = std.heap.page_allocator;
+const utils = @import("../../../CodeGen/utils.zig");
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -12,7 +13,6 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const utils = zant.utils;
 
 //https://onnx.ai/onnx/operators/onnx__Transpose.html
 // INPUTS:
@@ -25,18 +25,18 @@ const utils = zant.utils;
 pub const Transpose = struct {
     input_X: *TensorZant,
     output_Y: *TensorZant,
-    perm: []usize,
+    perm: []i64,
 
     pub fn init(nodeProto: *NodeProto) !Transpose {
         const input_X = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
         const output_Y = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
         // Get the perm attribute if it exists
-        var perm: []usize = undefined;
+        var perm: []i64 = undefined;
         for (nodeProto.attribute) |attr| {
             if (std.mem.eql(u8, attr.name, "perm")) {
                 if (attr.type == onnx.AttributeType.INTS) {
-                    perm = try utils.i64SliceToUsizeArrayString(attr.ints);
+                    perm = attr.ints;
                 }
             }
         }

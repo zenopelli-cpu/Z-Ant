@@ -12,7 +12,6 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const globals = @import("../../globals.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Shape.html
 // INPUTS:
@@ -24,14 +23,14 @@ const globals = @import("../../globals.zig");
 //      - end - INT: Last dimension to take
 pub const Shape = struct {
     data: *TensorZant,
-    shape: []usize,
+    shape: *TensorZant,
     //attributes:
     start: ?i64 = null,
     end: ?i64 = null,
 
     pub fn init(nodeProto: *NodeProto) !Shape {
-        const data = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
-        const shape = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
+        const data = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.data_notFound;
+        const shape = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.shape_notFound;
 
         var start: ?i64 = null;
         var end: ?i64 = null;

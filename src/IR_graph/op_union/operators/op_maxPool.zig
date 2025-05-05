@@ -18,7 +18,7 @@ const TensorZant = tensorZant.TensorZant;
 //      - X (heterogeneous) - T:  input tensor.
 // OUTPUTS:
 //      - Y (heterogeneous) - T:  output tensor.
-//      - indices (heterogeneous) - T:  output indices tensor.
+//      - indices (optional, heterogeneous) - T:  output indices tensor.
 // ATTRIBUTES:
 //      - auto_pad (string) - AutoPad type. Default is NOTSET.
 //      - ceil_mode (int) - Ceil mode. Default is 0.
@@ -31,7 +31,7 @@ const TensorZant = tensorZant.TensorZant;
 pub const MaxPool = struct {
     input_X: *TensorZant,
     output_Y: *TensorZant,
-    output_indices: *TensorZant,
+    output_indices: ?*TensorZant,
     //attributes:
     auto_pad: []const u8, // default = "NOTSET",
     ceil_mode: i64, // default = 0;
@@ -44,7 +44,7 @@ pub const MaxPool = struct {
     pub fn init(nodeProto: *NodeProto) !MaxPool {
         const input_X = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
         const output_Y = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
-        const output_indices = if (tensorZant.tensorMap.getPtr(nodeProto.output[1])) |ptr| ptr else return error.output_indices_notFound;
+        const output_indices = if (nodeProto.output.len > 1) if (tensorZant.tensorMap.getPtr(nodeProto.output[1])) |ptr| ptr else return error.output_indices_notFound else null;
 
         var auto_pad: []const u8 = "NOTSET";
         var ceil_mode: i64 = 0;
