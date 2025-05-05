@@ -39,7 +39,7 @@ const TensorType = enum {
 pub const TensorZant = struct {
     name: []const u8,
     ty: TensorType,
-    ptr: ?*anyopaque,
+    ptr: ?*AnyTensor,
 
     pub fn init(name: []const u8, tensorProto: ?*TensorProto, nodeProto: ?*NodeProto, graphProto: ?*GraphProto) !TensorZant {
         _ = tensorProto;
@@ -56,12 +56,12 @@ pub const TensorZant = struct {
         };
     }
 
-    pub fn get_shape(self: TensorZant) void { //TODO: return []usize
-        _ = self;
+    pub fn get_shape(self: TensorZant) []usize {
+        return self.ptr.get_shape();
     }
 
-    pub fn get_stride(self: TensorZant) void { //TODO: return []usize
-        _ = self;
+    pub fn get_stride(self: TensorZant) ![]usize {
+        return try self.ptr.get_stride();
     }
 
     pub fn protoTensor2Tensor(proto: TensorProto) !AnyTensor {

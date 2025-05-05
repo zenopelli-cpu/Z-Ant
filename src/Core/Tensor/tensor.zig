@@ -52,6 +52,54 @@ pub const AnyTensor = union(enum) {
             .u8 => |t| t.deinit(),
         };
     }
+
+    pub fn get_shape(self: AnyTensor) []usize {
+        return switch (self) {
+            .i64 => |t| t.shape,
+            .f64 => |t| t.shape,
+            .u64 => |t| t.shape,
+            .f32 => |t| t.shape,
+            .i32 => |t| t.shape,
+            .u32 => |t| t.shape,
+            .f16 => |t| t.shape,
+            .i16 => |t| t.shape,
+            .u16 => |t| t.shape,
+            .i8 => |t| t.shape,
+            .u8 => |t| t.shape,
+        };
+    }
+
+    pub fn set_shape(self: AnyTensor, new_shape: []usize) []usize {
+        return switch (self) {
+            .i64 => |t| t.shape = new_shape,
+            .f64 => |t| t.shape = new_shape,
+            .u64 => |t| t.shape = new_shape,
+            .f32 => |t| t.shape = new_shape,
+            .i32 => |t| t.shape = new_shape,
+            .u32 => |t| t.shape = new_shape,
+            .f16 => |t| t.shape = new_shape,
+            .i16 => |t| t.shape = new_shape,
+            .u16 => |t| t.shape = new_shape,
+            .i8 => |t| t.shape = new_shape,
+            .u8 => |t| t.shape = new_shape,
+        };
+    }
+
+    pub fn get_stride(self: AnyTensor) ![]usize {
+        return switch (self) {
+            .i64 => |t| try t.getStrides(),
+            .f64 => |t| try t.getStrides(),
+            .u64 => |t| try t.getStrides(),
+            .f32 => |t| try t.getStrides(),
+            .i32 => |t| try t.getStrides(),
+            .u32 => |t| try t.getStrides(),
+            .f16 => |t| try t.getStrides(),
+            .i16 => |t| try t.getStrides(),
+            .u16 => |t| try t.getStrides(),
+            .i8 => |t| try t.getStrides(),
+            .u8 => |t| try t.getStrides(),
+        };
+    }
 };
 
 ///Class Tensor.
