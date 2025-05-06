@@ -1048,15 +1048,39 @@ pub fn lowerMaxPool2d(
         }
     };
 
+    // --- Derive input shape from strides ---
+    if (in_stride.len != 4 or in_stride[3] != 1) {
+        // Basic validation assuming dense NCHW row-major
+        @panic("lowerMaxPool2d expects dense NCHW input strides (..., W, 1)");
+    }
+    const W_in = @as(usize, @intCast(in_stride[2]));
+    const H_in = if (W_in == 0) @panic("Input W cannot be 0") else @as(usize, @intCast(in_stride[1])) / W_in;
+    const C_in = if (H_in * W_in == 0) @panic("Input H*W cannot be 0") else @as(usize, @intCast(in_stride[0])) / (H_in * W_in);
+    const N_in = out_shape[0]; // Assume input N matches output N
+    const derived_in_shape = [_]usize{ N_in, C_in, H_in, W_in };
+    // ---------------------------------------
+
+    // --- MOVE VIEW CREATION UP ---
+    // Create the VIEW of the input tensor first to ensure its ID is registered.
+    _ = b.push(.SHAPE, .i32, &.{X_id}, null); // Keep for potential debug/info
+    const id_viewX = b.push(.VIEW, out_dtype, &.{X_id}, Any{
+        .view_meta = .{
+            .shape = &derived_in_shape, // <<< USE DERIVED INPUT SHAPE
+            .strides = in_stride,
+        },
+    });
+    // --- END MOVE ---
+
     // ── constants ------------------------------------------------------
+    // Now create constants. Their IDs will be assigned *after* the VIEW.
     const padT = H.k(b, pads[0]);
     const padL = H.k(b, pads[1]);
     const strH = H.k(b, strides_hw[0]);
     const strW = H.k(b, strides_hw[1]);
     const dilH = H.k(b, dil_hw[0]);
     const dilW = H.k(b, dil_hw[1]);
-    const Hlim = H.k(b, out_shape[2]); // Use output shape for height limit
-    const Wlim = H.k(b, out_shape[3]); // Use output shape for width limit
+    const Hlim = H.k(b, H_in); // Use INPUT height for limit
+    const Wlim = H.k(b, W_in); // Use INPUT width for limit
     const negInf = H.fneg_inf(b); // -∞ literal
 
     if (ceil_mode) {
@@ -1064,8 +1088,8 @@ pub fn lowerMaxPool2d(
     }
 
     // ── view of X ------------------------------------------------------
-    _ = b.push(.SHAPE, .i32, &.{X_id}, null); // debug only
-    const id_viewX = b.push(.VIEW, out_dtype, &.{X_id}, Any{ .view_meta = .{ .shape = &.{ out_shape[0], out_shape[1], out_shape[2], out_shape[3] }, .strides = in_stride } });
+    // REMOVED: _ = b.push(.SHAPE, .i32, &.{X_id}, null); // debug only -- Already done above
+    // REMOVED: const id_viewX = b.push(.VIEW, out_dtype, &.{X_id}, Any{ .view_meta = .{ .shape = &.{ out_shape[0], out_shape[1], out_shape[2], out_shape[3] }, .strides = in_stride } }); -- Already done above
 
     // output buffer Y
     const id_Y = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
@@ -1088,14 +1112,25 @@ pub fn lowerMaxPool2d(
 
     const iw = b.push(.SUB, .i32, &.{ b.push(.ADD, .i32, &.{ b.push(.MUL, .i32, &.{ ow, strW }, null), b.push(.MUL, .i32, &.{ kw, dilW }, null) }, null), padL }, null);
 
-    // ------ bounds check : 0 ≤ ih < H  &&  0 ≤ iw < W --------------
-    const cond_h_lo = b.push(.CMPLT, .bool, &.{ ih, H.k(b, 0) }, null); // ih < 0
-    const cond_h_hi = b.push(.CMPLT, .bool, &.{ ih, Hlim }, null); // ih < H
-    const inside_h = b.push(.SUB, .bool, &.{ cond_h_hi, cond_h_lo }, null);
-    const cond_w_lo = b.push(.CMPLT, .bool, &.{ iw, H.k(b, 0) }, null); // iw < 0
-    const cond_w_hi = b.push(.CMPLT, .bool, &.{ iw, Wlim }, null); // iw < W
-    const inside_w = b.push(.SUB, .bool, &.{ cond_w_hi, cond_w_lo }, null);
-    const in_bounds = b.push(.MUL, .bool, &.{ inside_h, inside_w }, null);
+    // ------ bounds check : 0 <= ih < H  &&  0 <= iw < W --------------
+    // Need boolean constants for WHERE
+    const bool_true = b.push(.CONST, .bool, &.{}, Any{ .bool = true });
+    const bool_false = b.push(.CONST, .bool, &.{}, Any{ .bool = false });
+
+    // Calculate: inside_h = (ih < Hlim) AND (NOT (ih < 0))
+    const cond_h_lo = b.push(.CMPLT, .bool, &.{ ih, H.k(b, 0) }, null); // B = (ih < 0)
+    const cond_h_hi = b.push(.CMPLT, .bool, &.{ ih, Hlim }, null); // A = (ih < Hlim)
+    const not_cond_h_lo = b.push(.WHERE, .bool, &.{ cond_h_lo, bool_false, bool_true }, null); // NOT B
+    const inside_h = b.push(.WHERE, .bool, &.{ cond_h_hi, not_cond_h_lo, bool_false }, null); // A AND (NOT B)
+
+    // Calculate: inside_w = (iw < Wlim) AND (NOT (iw < 0))
+    const cond_w_lo = b.push(.CMPLT, .bool, &.{ iw, H.k(b, 0) }, null); // B = (iw < 0)
+    const cond_w_hi = b.push(.CMPLT, .bool, &.{ iw, Wlim }, null); // A = (iw < Wlim)
+    const not_cond_w_lo = b.push(.WHERE, .bool, &.{ cond_w_lo, bool_false, bool_true }, null); // NOT B
+    const inside_w = b.push(.WHERE, .bool, &.{ cond_w_hi, not_cond_w_lo, bool_false }, null); // A AND (NOT B)
+
+    // Calculate: in_bounds = inside_h AND inside_w
+    const in_bounds = b.push(.WHERE, .bool, &.{ inside_h, inside_w, bool_false }, null); // inside_h AND inside_w
 
     _ = b.push(.IF, .bool, &.{in_bounds}, null);
 

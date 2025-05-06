@@ -1,6 +1,7 @@
 const std = @import("std");
 const zant = @import("zant");
 const UOp = zant.uops.UOp;
+const UOpType = zant.uops.UOpType;
 const DTypeInfo = zant.uops.DTypeInfo;
 
 pub fn render(
@@ -10,7 +11,11 @@ pub fn render(
     ptr_map: *const std.AutoHashMap(usize, []const u8),
 ) !void {
     _ = allocator;
-    if (uop.op != .EXP2 and uop.op != .NEG and uop.op != .CAST) {
+
+    const supported_ops = [_]UOpType{ .EXP2, .NEG, .CAST };
+
+    // Validate operation type
+    if (!std.mem.containsAtLeast(UOpType, &supported_ops, 1, &[_]UOpType{uop.op})) {
         return error.InvalidOperation;
     }
 

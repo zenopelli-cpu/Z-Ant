@@ -650,9 +650,13 @@ pub fn lowerMatMul(
     };
 
     // ── 1. Logical views for A and B (no data copies) -----------------
-    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = a_shape } });
-    
-    const id_viewB = b.push(.VIEW, out_dtype, &.{B_id}, Any{ .view_meta = .{ .shape = b_shape } });
+    // Calculate default row-major strides
+    const a_strides = &[_]isize{ @intCast(a_shape[1]), 1 }; // Strides for [M, K] are [K, 1]
+    const b_strides = &[_]isize{ @intCast(b_shape[1]), 1 }; // Strides for [K, N] are [N, 1]
+
+    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = a_shape, .strides = a_strides } });
+
+    const id_viewB = b.push(.VIEW, out_dtype, &.{B_id}, Any{ .view_meta = .{ .shape = b_shape, .strides = b_strides } });
 
     // Output buffer
     const id_C = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
@@ -669,7 +673,7 @@ pub fn lowerMatMul(
 
     // ── 5. GEPs for current A and B elements ------------------------
     const id_gepA = b.push(.GEP, out_dtype, &.{ id_viewA, c_rows, a_cols }, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
-    
+
     const id_gepB = b.push(.GEP, out_dtype, &.{ id_viewB, a_cols, c_cols }, Any{ .mem_info = .{ .base = id_viewB, .offset = 0, .stride = 1 } });
 
     // ── 6. Multiply & accumulate  acc += A*B ------------------------
@@ -682,7 +686,7 @@ pub fn lowerMatMul(
 
     // ── 7. Write output element ------------------------------------------
     const id_gepC = b.push(.GEP, out_dtype, &.{ id_C, c_rows, c_cols }, Any{ .mem_info = .{ .base = id_C, .offset = 0, .stride = 1 } });
-    
+
     _ = b.push(.STORE, out_dtype, &.{ id_gepC, id_acc }, null);
 
     // close outer loops (reverse order)
