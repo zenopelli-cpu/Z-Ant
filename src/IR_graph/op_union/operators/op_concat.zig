@@ -12,6 +12,8 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Concat.html
 // INPUTS:
@@ -56,6 +58,20 @@ pub const Concat = struct {
         const res: []usize = [_]usize{ 0, 0, 1, 1 };
         res[0] += self.input;
         return res;
+    }
+
+    pub fn compute_output_shape(self: Concat) []usize {
+        var input_shapes = try allocator.alloc([]const usize, self.inputs.items.len);
+        const axis = self.axis;
+
+        for (self.inputs.items, 0..) |input, i| {
+            var shape = try allocator.alloc(usize, input.get_shape().len);
+            for (input.get_shape(), 0..) |dim, j| {
+                shape[j] = if (dim < 0) 1 else @intCast(dim);
+            }
+            input_shapes[i] = shape;
+        }
+        return try tensorMath.get_concatenate_output_shape(input_shapes, axis);
     }
 
     pub fn print(self: Concat) void { // TODO

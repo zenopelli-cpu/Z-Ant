@@ -12,6 +12,8 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__BatchNormalization.html
 // INPUTS:
@@ -77,6 +79,10 @@ pub const BatchNormalization = struct {
         const res: []usize = [_]usize{ 0, 0, 1, 1 };
         res[0] += self.input;
         return res;
+    }
+
+    pub fn compute_output_shape(self: BatchNormalization) []usize { // TODO
+        return try tensorMath.get_batchNormalization_output_shape(self.input_X.get_shape());
     }
 
     pub fn print(self: BatchNormalization) void { // TODO

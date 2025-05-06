@@ -10,6 +10,7 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
 
 //https://onnx.ai/onnx/operators/onnx__Tanh.html
 // INPUTS:
@@ -36,5 +37,12 @@ pub const Tanh = struct {
 
     pub fn print(self: Tanh) void {
         std.debug.print("\n Tanh: {any}", .{self});
+    }
+
+    pub fn compute_output_shape(self: Tanh) ![]usize {
+        const shape: []const usize = undefined;
+        const input_shape = self.input_X.get_shape();
+        shape = try tensorMath.get_tanh_output_shape(input_shape);
+        return shape;
     }
 };
