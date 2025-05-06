@@ -85,10 +85,32 @@ pub fn render(
             const result_var = try getVar(ptr_map, uop.id);
 
             var val_str_buf: [128]u8 = undefined;
-            const val_str = try formatValue(&val_str_buf, uop.dtype, arg);
+            var final_val_str: []const u8 = undefined;
 
-            try writer.print("    var {s}: {s} = ({s})({s}); // CONST (uop {d})\n" ++
-                "    _ = &{s};\n", .{ result_var, type_str, type_str, val_str, uop.id, result_var });
+            switch (uop.dtype) {
+                .f32 => {
+                    const f_val = arg.float;
+                    if (f_val == std.math.inf(f32)) {
+                        final_val_str = "std.math.inf(f32)";
+                    } else if (f_val == -std.math.inf(f32)) {
+                        final_val_str = "-std.math.inf(f32)";
+                    } else {
+                        // Use standard formatting for non-infinity floats
+                        final_val_str = try std.fmt.bufPrint(&val_str_buf, "{e}", .{f_val});
+                    }
+                },
+                .i32 => {
+                    final_val_str = try std.fmt.bufPrint(&val_str_buf, "{d}", .{arg.int});
+                },
+                .bool => {
+                    // Use Zig's native true/false literals
+                    final_val_str = if (arg.bool) "true" else "false";
+                },
+                else => return RenderError.UnsupportedDType,
+            }
+
+            try writer.print("    var {s}: {s} = {s}; // CONST (uop {d})\n" ++
+                "    _ = &{s};\n", .{ result_var, type_str, final_val_str, uop.id, result_var });
         },
 
         else => unreachable,

@@ -25,18 +25,44 @@ pub fn render(
     const lhs_var = ptr_map.get(uop.src[0]) orelse return error.VariableNotFound;
     const rhs_var = ptr_map.get(uop.src[1]) orelse return error.VariableNotFound;
 
-    // Use separate print calls with comptime-known format strings
+    // --- Check if LHS is an accumulator ---
+    const is_accumulator_update = std.mem.startsWith(u8, lhs_var, "acc_");
+
+    // Generate code based on whether it's an accumulator update or standard assignment
     switch (uop.op) {
-        .ADD => try writer.print(" const {s} = {s} + {s}; // ADD (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
-        .SUB => try writer.print(" const {s} = {s} - {s}; // SUB (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
-        .MUL => try writer.print(" const {s} = {s} * {s}; // MUL (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
+        .ADD => if (is_accumulator_update) {
+            try writer.print(" {s} += {s}; // ADD into Accumulator (uop {d})\n", .{ lhs_var, rhs_var, uop.id });
+        } else {
+            try writer.print(" const {s} = {s} + {s}; // ADD (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id });
+        },
+        .SUB => if (is_accumulator_update) {
+            // Note: Subtraction into accumulator might be less common
+            try writer.print(" {s} -= {s}; // SUB into Accumulator (uop {d})\n", .{ lhs_var, rhs_var, uop.id });
+        } else {
+            try writer.print(" const {s} = {s} - {s}; // SUB (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id });
+        },
+        .MUL => if (is_accumulator_update) {
+            try writer.print(" {s} *= {s}; // MUL into Accumulator (uop {d})\n", .{ lhs_var, rhs_var, uop.id });
+        } else {
+            try writer.print(" const {s} = {s} * {s}; // MUL (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id });
+        },
+        // FDIV and POW are unlikely accumulator ops, handle as standard assignment
         .FDIV => try writer.print(" const {s} = {s} / {s}; // FDIV (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
         .POW => {
             const type_str = DTypeInfo.asString(uop.dtype);
             try writer.print(" const {s} = std.math.pow({s}, {s}, {s}); // POW (uop {d})\n", .{ result_var, type_str, lhs_var, rhs_var, uop.id });
         },
-        .MAX => try writer.print(" const {s} = @max({s}, {s}); // MAX (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
-        .MIN => try writer.print(" const {s} = @min({s}, {s}); // MIN (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
+        .MAX => if (is_accumulator_update) {
+            try writer.print(" {s} = @max({s}, {s}); // MAX into Accumulator (uop {d})\n", .{ lhs_var, lhs_var, rhs_var, uop.id });
+        } else {
+            try writer.print(" const {s} = @max({s}, {s}); // MAX (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id });
+        },
+        .MIN => if (is_accumulator_update) {
+            try writer.print(" {s} = @min({s}, {s}); // MIN into Accumulator (uop {d})\n", .{ lhs_var, lhs_var, rhs_var, uop.id });
+        } else {
+            try writer.print(" const {s} = @min({s}, {s}); // MIN (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id });
+        },
+        // CMPLT always produces a new boolean result, not an accumulator update
         .CMPLT => try writer.print(" const {s} = ({s} < {s}); // CMPLT (uop {d})\n", .{ result_var, lhs_var, rhs_var, uop.id }),
         else => unreachable,
     }

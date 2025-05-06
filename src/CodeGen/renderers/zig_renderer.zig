@@ -37,7 +37,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
         rendered_ids: std.AutoHashMap(usize, void), // Changed to HashMap(usize, void)
         view_map: std.AutoHashMap(usize, ViewInfo),
         buffer_map: std.AutoHashMap(usize, BufferInfo),
-        loop_indent: usize,
+        indent_level: usize, // <<< RENAMED from loop_indent
         final_output_buffer_id: ?usize = null, // Store ID of the presumed output buffer
 
         // Define local errors
@@ -51,6 +51,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
             VariableNotFound, // Added for missing IDs in ptr_map
             InvalidArgs, // Added for invalid args in render_mulacc
             OutOfMemory, // Added for memory allocation failures
+            ShapeInfoNotFound,
         };
 
         const Self = @This();
@@ -63,7 +64,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                 .rendered_ids = std.AutoHashMap(usize, void).init(allocator),
                 .view_map = std.AutoHashMap(usize, ViewInfo).init(allocator),
                 .buffer_map = std.AutoHashMap(usize, BufferInfo).init(allocator),
-                .loop_indent = 0,
+                .indent_level = 0, // <<< RENAMED from loop_indent
             };
             return self;
         }
@@ -85,97 +86,122 @@ pub fn ZigRenderer(comptime WriterType: type) type {
 
         // NEW: Helper to populate buffer_map
         fn identify_buffers(self: *Self, uops_list: []const UOp, input_ids: []const usize) !void {
-            // Clear existing map (deinit frees old entries)
-            var iter = self.buffer_map.valueIterator();
-            while (iter.next()) |info| {
-                self.allocator.free(info.name);
-                self.allocator.free(info.shape);
-            }
-
             self.buffer_map.clearRetainingCapacity();
 
             // Add explicit entries for input IDs
             for (input_ids) |in_id| {
-                // We don't know shape/dtype from ID alone, need to find first usage?
-                // Or assume they are passed externally. For now, create placeholder.
-                // TODO: Find a way to get dtype/shape for inputs if needed here.
+                // --- Find defining UOp for input type/shape ---
+                var input_dtype: DType = .f32; // Default placeholder
+                var input_shape: []const usize = &[_]usize{}; // Default placeholder
+                var defining_op_found = false;
+
+                // Search for VIEW or DEFINE_GLOBAL associated with this input ID
+                // VIEW is more likely for inputs used in operations.
+                for (uops_list) |uop| {
+                    // Check if this UOp *is* the input DEFINE_GLOBAL
+                    if (uop.id == in_id and uop.op == .DEFINE_GLOBAL) { // <<< Check op type first
+                        if (uop.arg) |arg| { // <<< THEN check and unwrap arg
+                            if (arg == .shape) input_shape = arg.shape;
+                        }
+                        input_dtype = uop.dtype;
+                        defining_op_found = true;
+                        break;
+                        // Check if this UOp is a VIEW *using* the input ID as its source
+                    } else if (uop.op == .VIEW and uop.src.len > 0 and uop.src[0] == in_id) {
+                        if (uop.arg) |arg| {
+                            if (arg == .view_meta) input_shape = arg.view_meta.shape;
+                        }
+                        input_dtype = uop.dtype; // Use VIEW's dtype
+                        defining_op_found = true;
+                        break;
+                    } // TODO: Add other cases? LOAD maybe?
+                }
+                // If not found, log warning? Use placeholders.
+                // if (!defining_op_found) { std.log.warn("Could not find defining op for input {d}", .{in_id}); }
+                // --- End find defining UOp ---
+
                 const name = try std.fmt.allocPrint(self.allocator, "input_{d}", .{in_id});
-                // Use getOrPut in case an input ID is also defined later (e.g., as DEFINE_GLOBAL)
+                // Duplicate the found shape (if any)
+                const shape_copy = if (input_shape.len == 0) &[_]usize{} else try self.allocator.dupe(usize, input_shape);
+                const needs_free_shape = shape_copy.len > 0;
+
                 var entry = try self.buffer_map.getOrPut(in_id);
                 if (!entry.found_existing) {
                     entry.value_ptr.* = BufferInfo{
                         .id = in_id,
                         .name = name,
                         .is_input = true,
-                        .dtype = .f32, // Placeholder!
-                        .shape = &[_]usize{}, // Placeholder!
-                        .len = 0, // Initialize len
+                        .dtype = input_dtype, // <<< Use found dtype
+                        .shape = shape_copy, // <<< Use found shape
+                        .len = 0,
                     };
                 } else {
-                    // Input ID already exists (maybe from a later DEFINE_GLOBAL)
-                    // Keep existing entry but mark as input and potentially update name.
-                    // If the existing name wasn't an input name, free it.
-                    if (!entry.value_ptr.is_input and !std.mem.startsWith(u8, entry.value_ptr.name, "input_")) {
-                        self.allocator.free(entry.value_ptr.name);
-                        entry.value_ptr.name = name; // Use the new input name
+                    // Input ID already existed (shouldn't happen if reset worked?)
+                    // Keep existing entry, but ensure is_input=true.
+                    if (entry.value_ptr.is_input) {
+                        self.allocator.free(name); // Free newly allocated name
+                        if (needs_free_shape) self.allocator.free(shape_copy); // Free shape copy too
                     } else {
-                        self.allocator.free(name); // Free the newly allocated name
+                        // This case seems problematic - entry exists but wasn't input?
+                        // Overwrite cautiously?
+                        entry.value_ptr.is_input = true;
+                        // Decide if name/shape/dtype should be overwritten or kept.
+                        // Forcing name overwrite for consistency:
+                        self.allocator.free(entry.value_ptr.name);
+                        entry.value_ptr.name = name;
+                        // Keep existing dtype/shape for now?
+                        if (needs_free_shape) self.allocator.free(shape_copy);
                     }
-                    entry.value_ptr.is_input = true;
                 }
             }
 
             // Add/overwrite entries for ALL defining UOps
             for (uops_list) |uop| {
-                // Check if it's an input ID (needed for name generation)
-                const is_an_input = for (input_ids) |in_id| {
-                    if (uop.id == in_id) break true;
-                } else false;
+                const entry = try self.buffer_map.getOrPut(uop.id);
+                if (!entry.found_existing) {
+                    // ... (logic for NEW entries, largely unchanged) ...
+                    const is_an_input = for (input_ids) |in_id| {
+                        if (uop.id == in_id) break true;
+                    } else false;
+                    const name_prefix = switch (uop.op) {
+                        .DEFINE_GLOBAL => if (is_an_input) "input_" else "output_",
+                        .GEP => "addr_", // Keep for GEP results
+                        .RANGE => "idx_", // Keep for loop indices
+                        .DEFINE_ACC => "acc_", // Keep for accumulators
+                        else => "buf_", // Keep default for other values (LOAD, CONST, ALU)
+                    };
+                    const name = try std.fmt.allocPrint(self.allocator, "{s}{d}", .{ name_prefix, uop.id });
+                    var shape_copy: []const usize = &[_]usize{};
+                    var needs_free_shape = false;
+                    if (uop.op == .DEFINE_GLOBAL) {
+                        if (uop.arg) |arg| {
+                            if (arg == .shape) {
+                                shape_copy = try self.allocator.dupe(usize, arg.shape);
+                                needs_free_shape = shape_copy.len > 0;
+                            }
+                        }
 
-                // Determine name prefix based on UOp type (keep this for ptr_map)
-                const name_prefix = switch (uop.op) {
-                    .DEFINE_GLOBAL => if (is_an_input) "input_" else "output_",
-                    .GEP => "addr_", // Keep for GEP results
-                    .RANGE => "idx_", // Keep for loop indices
-                    .DEFINE_ACC => "acc_", // Keep for accumulators
-                    else => "buf_", // Keep default for other values (LOAD, CONST, ALU)
-                };
-
-                const name = try std.fmt.allocPrint(self.allocator, "{s}{d}", .{ name_prefix, uop.id });
-                var shape_copy: []const usize = &[_]usize{};
-                var needs_free_shape = false;
-
-                // Shape is only relevant for DEFINE_GLOBAL
-                if (uop.op == .DEFINE_GLOBAL) {
-                    if (uop.arg) |arg| {
-                        if (arg == .shape) {
-                            shape_copy = try self.allocator.dupe(usize, arg.shape);
-                            needs_free_shape = shape_copy.len > 0;
+                        if (!is_an_input) {
+                            self.final_output_buffer_id = uop.id;
                         }
                     }
-
-                    if (!is_an_input) {
-                        self.final_output_buffer_id = uop.id;
-                    }
-                }
-
-                // Use getOrPut to add/update the entry for name mapping, but allocation happens elsewhere
-                const entry = try self.buffer_map.getOrPut(uop.id);
-
-                // Assign BufferInfo - NOTE: only DEFINE_GLOBAL info is fully used for allocation now
-                if (!entry.found_existing) {
-                    entry.value_ptr.* = BufferInfo{
-                        .id = uop.id,
-                        .name = name,
-                        .is_input = is_an_input,
-                        .dtype = uop.dtype,
-                        .shape = shape_copy,
-                        .len = 0,
-                    };
+                    // Assign:
+                    entry.value_ptr.* = BufferInfo{ .id = uop.id, .name = name, .is_input = is_an_input, .dtype = uop.dtype, .shape = shape_copy, .len = 0 };
                 } else {
-                    // Free resources if not needed
-                    self.allocator.free(name);
-                    if (needs_free_shape) self.allocator.free(shape_copy);
+                    // Entry ALREADY exists (Must be an input from first loop, or non-input from prev iter)
+                    const existing_info = entry.value_ptr;
+                    if (existing_info.is_input) {
+                        // Input buffer info was set by first loop, DO NOTHING HERE.
+                        // Free name/shape calculated in *this* loop iteration
+                        // (need to recalculate them first? This logic path needs review)
+                        // TEMPORARY SIMPLIFICATION: Assume we don't need name/shape recalc here.
+                        // If is_input, just continue.
+                        continue;
+                    } else {
+                        // Non-input existing entry (from previous iter). Do nothing, let it keep its values.
+                        // (Need to ensure name/shape calculated above are freed if not used?)
+                        // TODO: Review resource freeing in this path.
+                    }
                 }
             }
         }
@@ -204,7 +230,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
         pub fn reset(self: *Self) void {
             self.buffer_map.clearRetainingCapacity();
             self.rendered_ids.clearRetainingCapacity();
-            self.loop_indent = 0;
+            self.indent_level = 0; // <<< RENAMED from loop_indent
             self.final_output_buffer_id = null; // Reset output buffer ID
         }
 
@@ -220,6 +246,10 @@ pub fn ZigRenderer(comptime WriterType: type) type {
             const output_id = self.final_output_buffer_id orelse return error.OutputBufferNotFound;
             const output_info = self.buffer_map.get(output_id) orelse return error.OutputBufferNotFound;
             const output_type = DTypeInfo.asString(output_info.dtype);
+
+            // --- Add std import ---
+            try self.writer.print("const std = @import(\"std\");\n\n", .{});
+            // --- End Add std import ---
 
             // 3. Generate function signature
             try self.write_function_signature(input_ids, output_type);
@@ -272,7 +302,9 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                 const info = entry.value_ptr.*;
 
                 // Skip inputs, loop vars, addresses, accumulators, and intermediate buffers
-                if (info.is_input or
+                // Explicitly skip if is_input flag is true OR if the name starts with "input_"
+                // This provides redundancy in case the is_input flag logic has a subtle bug.
+                if (info.is_input or std.mem.startsWith(u8, info.name, "input_") or
                     std.mem.startsWith(u8, info.name, "idx_") or
                     std.mem.startsWith(u8, info.name, "addr_") or
                     std.mem.startsWith(u8, info.name, "acc_") or
@@ -305,7 +337,8 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                 const var_name = var_name_ptr.*;
                 // Free only dynamically allocated names not managed by buffer_map
                 if (std.mem.startsWith(u8, var_name, "acc_") or
-                    std.mem.startsWith(u8, var_name, "view_"))
+                    std.mem.startsWith(u8, var_name, "view_") or
+                    std.mem.startsWith(u8, var_name, "shape_"))
                 {
                     self.allocator.free(var_name);
                 }
@@ -345,7 +378,10 @@ pub fn ZigRenderer(comptime WriterType: type) type {
         // NEW: Helper function to render a single UOp
         fn render_uop(self: *Self, uop: UOp, ptr_map: *std.AutoHashMap(usize, []const u8)) !void {
             // Apply indentation based on loop depth
-            try self.apply_indentation();
+            // --- Indentation applied BEFORE specific op rendering, EXCEPT for ENDRANGE/ENDIF ---
+            if (uop.op != .ENDRANGE and uop.op != .ENDIF) {
+                try self.apply_indentation();
+            }
 
             switch (uop.op) {
                 .DEFINE_GLOBAL, .LOAD, .STORE, .CONST => try MemoryRender.render(self.allocator, self.writer, uop, ptr_map),
@@ -354,12 +390,12 @@ pub fn ZigRenderer(comptime WriterType: type) type {
 
                 .RANGE => {
                     try ControlFlowRender.render(self.allocator, self.writer, uop, ptr_map);
-                    self.loop_indent += 1;
+                    self.indent_level += 1; // <<< Use indent_level
                 },
 
                 .ENDRANGE => {
-                    if (self.loop_indent > 0) self.loop_indent -= 1;
-                    try self.apply_indentation();
+                    if (self.indent_level > 0) self.indent_level -= 1; // <<< Decrement first
+                    try self.apply_indentation(); // <<< Apply indent for closing brace
                     try ControlFlowRender.render(self.allocator, self.writer, uop, ptr_map);
                 },
 
@@ -371,6 +407,76 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                 .DEFINE_ACC => try self.render_define_acc(uop, ptr_map),
                 .MULACC => try self.render_mulacc(uop, ptr_map),
 
+                .SHAPE => {
+                    // Get shape from source operand's buffer or view info
+                    const src_id = uop.src[0];
+                    var shape: ?[]const usize = null;
+
+                    // Try getting info from view_map first
+                    if (self.view_map.get(src_id)) |view_info| {
+                        // Access shape through the stored 'arg' field
+                        if (view_info.arg == .view_meta) {
+                            shape = view_info.arg.view_meta.shape; // Correct access path
+                        }
+                        // Fallback to buffer_map if source wasn't a VIEW
+                    } else if (self.buffer_map.get(src_id)) |buffer_info| {
+                        shape = buffer_info.shape;
+                    }
+                    // If shape is still null here, there was an error finding it, but maybe we don't need to hard error?
+
+                    // Generate a name for the shape constant (for potential use in ptr_map)
+                    const shape_name = try std.fmt.allocPrint(self.allocator, "shape_{d}", .{uop.id});
+                    // We might still put the *name* in ptr_map if other ops might symbolically refer to it,
+                    // but we won't generate the actual const variable in the code.
+                    // TODO: Decide if putting the name in ptr_map is useful without the declaration.
+                    _ = try ptr_map.put(uop.id, shape_name); // Maybe put? Maybe ignore? Free shape_name?
+
+                    // Add a comment instead to mark that SHAPE was processed
+                    // Use separate prints to handle the optional shape type correctly for {any}
+                    if (shape) |s| {
+                        try self.writer.print("// SHAPE: id={d} src={d} -> shape {any}\n", .{ uop.id, src_id, s });
+                    } else {
+                        try self.writer.print("// SHAPE: id={d} src={d} -> shape <not found>\n", .{ uop.id, src_id });
+                    }
+                },
+
+                // --- NEW IF/ENDIF ---
+                .IF => {
+                    if (uop.src.len != 1) return RendererError.InvalidArgs;
+                    const cond_id = uop.src[0];
+                    const cond_name = ptr_map.get(cond_id) orelse return RendererError.VariableNotFound;
+                    // Condition name should already be a boolean result from CMPLT etc.
+                    try self.writer.print("if ({s}) {{\n", .{cond_name});
+                    self.indent_level += 1;
+                },
+                .ENDIF => {
+                    if (self.indent_level > 0) self.indent_level -= 1;
+                    try self.apply_indentation(); // Indent the closing brace
+                    try self.writer.print("}}\n", .{}); // Print closing brace
+                },
+                // --- END NEW IF/ENDIF ---
+
+                // --- NEW WHERE Handling ---
+                .WHERE => {
+                    if (uop.src.len != 3) return RendererError.InvalidArgs;
+                    const cond_id = uop.src[0];
+                    const then_id = uop.src[1];
+                    const else_id = uop.src[2];
+
+                    const cond_var = ptr_map.get(cond_id) orelse return RendererError.VariableNotFound;
+                    const then_var = ptr_map.get(then_id) orelse return RendererError.VariableNotFound;
+                    const else_var = ptr_map.get(else_id) orelse return RendererError.VariableNotFound;
+                    const result_var = ptr_map.get(uop.id) orelse return RendererError.VariableNotFound;
+                    const type_str = DTypeInfo.asString(uop.dtype);
+
+                    // Generate the ternary expression
+                    try self.writer.print("const {s}: {s} = if ({s}) {s} else {s}; // WHERE (uop {d})\n", .{ result_var, type_str, cond_var, then_var, else_var, uop.id });
+                    // Add the necessary "_ = &result_var;" to prevent unused variable warnings if needed?
+                    // Assuming ptr_map handles registration, but we might need this:
+                    try self.writer.print("_ = &{s};\n", .{result_var});
+                },
+                // --- END NEW WHERE Handling ---
+
                 else => {
                     std.log.err("Rendering not implemented for UOp type: {s} (id: {d})\n", .{ @tagName(uop.op), uop.id });
                     return RendererError.UnsupportedUOp;
@@ -378,12 +484,12 @@ pub fn ZigRenderer(comptime WriterType: type) type {
             }
 
             // Mark UOp as rendered
-            try self.rendered_ids.put(uop.id, {});
+            try self.rendered_ids.put(uop.id, void{});
         }
 
         fn apply_indentation(self: *Self) !void {
             var i: usize = 0;
-            while (i < self.loop_indent) : (i += 1) {
+            while (i < self.indent_level) : (i += 1) { // <<< Use indent_level
                 try self.writer.print("    ", .{});
             }
         }
@@ -400,11 +506,23 @@ pub fn ZigRenderer(comptime WriterType: type) type {
         fn render_define_acc(self: *Self, uop: UOp, ptr_map: *std.AutoHashMap(usize, []const u8)) !void {
             const dtype_str = DTypeInfo.asString(uop.dtype);
             const acc_name = try std.fmt.allocPrint(self.allocator, "acc_{d}", .{uop.id});
-            // Ensure ptr_map owns the var_name slice
             try ptr_map.put(uop.id, acc_name);
 
-            // Initialize accumulator to zero
-            try self.writer.print("var {s}: {s} = 0;\n", .{ acc_name, dtype_str });
+            // --- Handle both explicit and implicit initialization ---
+            if (uop.src.len == 1) {
+                // Case 1: Explicit initial value (like -inf for MaxPool)
+                const init_val_id = uop.src[0];
+                const init_val_name = ptr_map.get(init_val_id) orelse return RendererError.VariableNotFound;
+                try self.writer.print("var {s}: {s} = {s};\n", .{ acc_name, dtype_str, init_val_name });
+            } else if (uop.src.len == 0) {
+                // Case 2: Implicit zero initialization (like for MatMul)
+                // TODO: Confirm zero is always the correct implicit default for all dtypes?
+                try self.writer.print("var {s}: {s} = 0;\n", .{ acc_name, dtype_str });
+            } else {
+                // Error: Invalid number of sources for DEFINE_ACC
+                std.log.err("DEFINE_ACC (id={d}) has invalid src count: {d}", .{ uop.id, uop.src.len });
+                return RendererError.InvalidArgs;
+            }
         }
 
         fn render_mulacc(self: *Self, uop: UOp, ptr_map: *std.AutoHashMap(usize, []const u8)) !void {

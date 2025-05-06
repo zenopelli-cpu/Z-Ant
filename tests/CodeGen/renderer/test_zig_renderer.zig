@@ -11,6 +11,7 @@ const sum_tensors = zant.core.tensor.math_standard.sum_tensors;
 const ZigRenderer = Renderer.ZigRenderer;
 const lowerAdd = zant.core.tensor.math_standard.lowerAdd;
 const lowerMatMul = zant.core.tensor.math_standard.lowerMatMul;
+const lowerMaxPool2d = zant.core.tensor.math_standard.lowerMaxPool2d;
 const UOpBuilder = zant.uops.UOpBuilder;
 const DType = zant.uops.DType;
 
@@ -302,4 +303,147 @@ test "Test Generated LowerAdd Kernel" {
     try std.testing.expectEqualSlices(f32, &expected_result, result_slice);
 
     std.debug.print("Generated LowerAdd kernel test passed!\n", .{});
+}
+
+test "LowerMaxPool2d Pipeline" {
+    std.debug.print("Running zig renderer lowerMaxPool2d pipeline test\n", .{});
+    const allocator = std.testing.allocator;
+
+    // 1. Setup UOpBuilder
+    var builder = UOpBuilder.init(allocator);
+
+    // 2. Define inputs for lowerMaxPool2d
+    const A_id: usize = 0; // Simulated input tensor ID
+    const out_dtype = DType.f32;
+
+    // Input: NCHW = [1, 1, 4, 4]
+    // const shapeA = &.{ 1, 1, 4, 4 }; // Removed unused variable
+    // Strides for A (NCHW): [C*H*W, H*W, W, 1] = [16, 16, 4, 1]
+    const strideA = &.{ 16, 16, 4, 1 }; // Define input strides
+    // Kernel K = [2, 2]
+    const kernel_size = .{ 2, 2 }; // Use array literal
+    // Stride S = [2, 2]
+    const stride = .{ 2, 2 }; // Use array literal
+    // Padding P = [0, 0] (top, left) -> Function expects [2]usize
+    const padding = .{ 0, 0 }; // Use array literal
+    // Dilation D = [1, 1]
+    const dilation = .{ 1, 1 }; // Use array literal
+
+    // Output NCHW = [1, 1, 2, 2] (Calculated)
+    // H_out = floor((H_in + P_top + P_bottom - D_h * (K_h - 1) - 1) / S_h + 1)
+    //       = floor((4 + 0 + 0 - 1 * (2 - 1) - 1) / 2 + 1) = floor((4 - 1 - 1)/2 + 1) = floor(2/2 + 1) = 2
+    // W_out = floor((W_in + P_left + P_right - D_w * (K_w - 1) - 1) / S_w + 1)
+    //       = floor((4 + 0 + 0 - 1 * (2 - 1) - 1) / 2 + 1) = floor((4 - 1 - 1)/2 + 1) = floor(2/2 + 1) = 2
+    const out_shape = &.{ 1, 1, 2, 2 };
+
+    // 3. Call lowerMaxPool2d to generate UOps
+    const out_buf_id = lowerMaxPool2d(
+        &builder,
+        A_id, // X_id
+        out_shape, // out_shape
+        strideA, // in_stride
+        padding, // pads: [2]usize
+        stride, // strides_hw: [2]usize
+        dilation, // dil_hw: [2]usize
+        kernel_size, // kHW: [2]usize
+        out_dtype, // out_dtype
+        false, // ceil_mode
+    );
+    _ = out_buf_id; // Prevent unused warning
+
+    // Take ownership of UOps
+    const uops_list = try builder.toOwnedSlice();
+    builder.deinit();
+    defer allocator.free(uops_list);
+
+    // DEBUG: Print the generated UOps
+    std.debug.print("--- Generated UOps (MaxPool2d) ---\n", .{});
+    for (uops_list) |uop| {
+        uop.dump(std.io.getStdErr().writer()) catch {};
+    }
+    std.debug.print("-------------------------------\n", .{});
+
+    // Defer freeing internal src/args
+    defer {
+        std.debug.print("DEBUG: Freeing internal src/args for {d} uops in MaxPool2d test\n", .{uops_list.len});
+        for (uops_list) |uop| {
+            if (uop.src.len > 0) allocator.free(@constCast(uop.src));
+            if (uop.arg) |arg_val| {
+                if (uop.op == .VIEW) {
+                    switch (arg_val) {
+                        .view_meta => |vm| {
+                            if (vm.shape.len > 0) allocator.free(@constCast(vm.shape));
+                            if (vm.strides.len > 0) allocator.free(@constCast(vm.strides));
+                        },
+                        else => {},
+                    }
+                }
+                // Add other duplicated args if needed
+            }
+        }
+    }
+
+    // 4. Render UOps to Zig code as a function
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+    const Writer = @TypeOf(buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    defer renderer.deinit();
+
+    const input_ids = &[_]usize{A_id};
+    try renderer.render_as_function(uops_list, input_ids);
+
+    const actual_code = try buffer.toOwnedSlice();
+    defer allocator.free(actual_code);
+
+    std.debug.print("\n--- Generated Function (MaxPool2d) ---\n{s}\n-------------------------------------\n", .{actual_code});
+
+    // 5. Save output to a file
+    const output_filename = "tests/CodeGen/renderer/lower_maxpool2d_output_function.zig";
+    var file = try std.fs.cwd().createFile(output_filename, .{ .read = true });
+    defer file.close();
+    _ = try file.write(actual_code);
+    std.debug.print("Generated maxpool2d function saved to {s}\n", .{output_filename});
+
+    // Optional: Clean up
+    // try std.fs.cwd().deleteFile(output_filename);
+}
+
+test "Test Generated LowerMaxPool2d Kernel" {
+    std.debug.print("Testing generated kernel from lower_maxpool2d_output_function.zig\n", .{});
+    const allocator = std.testing.allocator;
+    // Import the generated kernel file
+    // IMPORTANT: Build system needs to know about this generated file or test needs to run after generation
+    // For simplicity here, assume it's generated before `zig test` is run on this file.
+    const kernel = @import("lower_maxpool2d_output_function.zig");
+
+    // 1. Define input data based on LowerMaxPool2d Pipeline shapes/strides
+    // Input shapeA: [1, 1, 4, 4], flat size = 16
+    const input_data_0 = [_]f32{
+        1.0,  2.0,  3.0,  4.0,
+        5.0,  6.0,  7.0,  8.0,
+        9.0,  10.0, 11.0, 12.0,
+        13.0, 14.0, 15.0, 16.0,
+    };
+
+    // 2. Call the generated kernel
+    // Signature: pub fn generated_kernel(allocator: std.mem.Allocator, input_0: []const f32) ![]f32
+    const result_slice = try kernel.generated_kernel(allocator, &input_data_0);
+    defer allocator.free(result_slice); // Kernel allocates the output slice (size 4)
+
+    // 3. Define expected output
+    // Output shape: [1, 1, 2, 2], flat size = 4
+    // K=[2,2], S=[2,2], P=[0,0], D=[1,1]
+    // O[0,0] = max(I[0,0], I[0,1], I[1,0], I[1,1]) = max(1, 2, 5, 6) = 6
+    // O[0,1] = max(I[0,2], I[0,3], I[1,2], I[1,3]) = max(3, 4, 7, 8) = 8
+    // O[1,0] = max(I[2,0], I[2,1], I[3,0], I[3,1]) = max(9, 10, 13, 14) = 14
+    // O[1,1] = max(I[2,2], I[2,3], I[3,2], I[3,3]) = max(11, 12, 15, 16) = 16
+    const expected_result = [_]f32{
+        6.0, 8.0, 14.0, 16.0,
+    };
+
+    // 4. Compare results
+    try std.testing.expectEqualSlices(f32, &expected_result, result_slice);
+
+    std.debug.print("Generated LowerMaxPool2d kernel test passed!\n", .{});
 }
