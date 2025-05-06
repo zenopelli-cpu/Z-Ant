@@ -12,6 +12,8 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Conv.html
 // INPUTS:
@@ -87,6 +89,25 @@ pub const Conv = struct {
     pub fn get_output_shape() []usize { //TODO
         const res: []usize = [_]usize{ 2, 2, 3, 3 };
         return res;
+    }
+
+    pub fn compute_output_shape(self: Conv) []usize {
+        var shape: []usize = undefined;
+        const input_shape = self.input_X.get_shape();
+        const kernel_shape = self.input_W.get_shape();
+        const stride = self.strides;
+        const pads = self.pads;
+        const dilations = self.dilations;
+        const auto_pad = self.auto_pad;
+        shape = try tensorMath.get_convolution_output_shape(
+            input_shape,
+            kernel_shape,
+            try utils.i64SliceToUsizeSlice(stride.?),
+            if (pads != null) try utils.i64SliceToUsizeSlice(pads.?) else null,
+            try utils.i64SliceToUsizeSlice(dilations.?),
+            auto_pad,
+        );
+        return shape;
     }
 
     pub fn print(self: Conv) void { //TODO
