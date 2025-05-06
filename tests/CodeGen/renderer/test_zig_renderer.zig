@@ -566,52 +566,52 @@ test "LowerConv2d Pipeline" {
     // try std.fs.cwd().deleteFile(output_filename);
 }
 
-// test "Test Generated LowerConv2d Kernel" {
-//     std.debug.print("Testing generated kernel from lower_conv2d_output_function.zig\n", .{});
-//     const allocator = std.testing.allocator;
-//     // Import the generated kernel file
-//     const kernel = @import("lower_conv2d_output_function.zig");
+test "Test Generated LowerConv2d Kernel" {
+    std.debug.print("Testing generated kernel from lower_conv2d_output_function.zig\n", .{});
+    const allocator = std.testing.allocator;
+    // Import the generated kernel file
+    const kernel = @import("lower_conv2d_output_function.zig");
 
-//     // 1. Define input data based on LowerConv2d Pipeline
-//     // Input X: [1, 1, 3, 3], flat size = 9
-//     const input_data_0 = [_]f32{ // X
-//         1.0, 2.0, 3.0,
-//         4.0, 5.0, 6.0,
-//         7.0, 8.0, 9.0,
-//     };
-//     // Weights W: [1, 1, 2, 2], flat size = 4
-//     const input_data_1 = [_]f32{ // W
-//         1.0, 1.0,
-//         1.0, 1.0,
-//     };
-//     // Bias B: [1], flat size = 1
-//     const input_data_2 = [_]f32{ // B
-//         0.5,
-//     };
+    // 1. Define input data based on LowerConv2d Pipeline
+    // Input X: [1, 1, 3, 3], flat size = 9
+    const input_data_0 = [_]f32{ // X
+        1.0, 2.0, 3.0,
+        4.0, 5.0, 6.0,
+        7.0, 8.0, 9.0,
+    };
+    // Weights W: [1, 1, 2, 2], flat size = 4
+    const input_data_1 = [_]f32{ // W
+        1.0, 1.0,
+        1.0, 1.0,
+    };
+    // Bias B: [1], flat size = 1 -- REMOVED, bias handled separately
+    // const input_data_2 = [_]f32{ // B
+    //     0.5,
+    // };
 
-//     // 2. Call the generated kernel
-//     // Signature expected: pub fn generated_kernel(allocator: std.mem.Allocator, input_0: []const f32, input_1: []const f32, input_2: []const f32) ![]f32
-//     const result_slice = try kernel.generated_kernel(allocator, &input_data_0, &input_data_1, &input_data_2);
-//     defer allocator.free(result_slice); // Kernel allocates output slice (size 4)
+    // 2. Call the generated kernel
+    // Signature expected: pub fn generated_kernel(allocator: std.mem.Allocator, input_0: []const f32, input_1: []const f32) ![]f32
+    const result_slice = try kernel.generated_kernel(allocator, &input_data_0, &input_data_1); // REMOVED input_data_2
+    defer allocator.free(result_slice); // Kernel allocates output slice (size 4)
 
-//     // 3. Define expected output
-//     // Output shape: [1, 1, 2, 2], flat size = 4
-//     // K=[2,2], S=[1,1], P=[0,0,0,0], D=[1,1], G=1
-//     // O[n,o,h,w] = B[o] + sum(I[n, g*I_c + i, h*S_h + kh*D_h - P_t, w*S_w + kw*D_w - P_l] * W[o, i, kh, kw])
-//     // O[0,0,0,0] = B[0] + I[0,0,0,0]*W[0,0,0,0] + I[0,0,0,1]*W[0,0,0,1] + I[0,0,1,0]*W[0,0,1,0] + I[0,0,1,1]*W[0,0,1,1]
-//     //            = 0.5 + 1*1 + 2*1 + 4*1 + 5*1 = 0.5 + 12 = 12.5
-//     // O[0,0,0,1] = B[0] + I[0,0,0,1]*W[0,0,0,0] + I[0,0,0,2]*W[0,0,0,1] + I[0,0,1,1]*W[0,0,1,0] + I[0,0,1,2]*W[0,0,1,1]
-//     //            = 0.5 + 2*1 + 3*1 + 5*1 + 6*1 = 0.5 + 16 = 16.5
-//     // O[0,0,1,0] = B[0] + I[0,0,1,0]*W[0,0,0,0] + I[0,0,1,1]*W[0,0,0,1] + I[0,0,2,0]*W[0,0,1,0] + I[0,0,2,1]*W[0,0,1,1]
-//     //            = 0.5 + 4*1 + 5*1 + 7*1 + 8*1 = 0.5 + 24 = 24.5
-//     // O[0,0,1,1] = B[0] + I[0,0,1,1]*W[0,0,0,0] + I[0,0,1,2]*W[0,0,0,1] + I[0,0,2,1]*W[0,0,1,0] + I[0,0,2,2]*W[0,0,1,1]
-//     //            = 0.5 + 5*1 + 6*1 + 8*1 + 9*1 = 0.5 + 28 = 28.5
-//     const expected_result = [_]f32{
-//         12.5, 16.5, 24.5, 28.5,
-//     };
+    // 3. Define expected output (WITHOUT BIAS)
+    // Output shape: [1, 1, 2, 2], flat size = 4
+    // K=[2,2], S=[1,1], P=[0,0,0,0], D=[1,1], G=1
+    // O[n,o,h,w] = sum(I[n, g*I_c + i, h*S_h + kh*D_h - P_t, w*S_w + kw*D_w - P_l] * W[o, i, kh, kw])
+    // O[0,0,0,0] = I[0,0,0,0]*W[0,0,0,0] + I[0,0,0,1]*W[0,0,0,1] + I[0,0,1,0]*W[0,0,1,0] + I[0,0,1,1]*W[0,0,1,1]
+    //            = 1*1 + 2*1 + 4*1 + 5*1 = 12.0
+    // O[0,0,0,1] = I[0,0,0,1]*W[0,0,0,0] + I[0,0,0,2]*W[0,0,0,1] + I[0,0,1,1]*W[0,0,1,0] + I[0,0,1,2]*W[0,0,1,1]
+    //            = 2*1 + 3*1 + 5*1 + 6*1 = 16.0
+    // O[0,0,1,0] = I[0,0,1,0]*W[0,0,0,0] + I[0,0,1,1]*W[0,0,0,1] + I[0,0,2,0]*W[0,0,1,0] + I[0,0,2,1]*W[0,0,1,1]
+    //            = 4*1 + 5*1 + 7*1 + 8*1 = 24.0
+    // O[0,0,1,1] = I[0,0,1,1]*W[0,0,0,0] + I[0,0,1,2]*W[0,0,0,1] + I[0,0,2,1]*W[0,0,1,0] + I[0,0,2,2]*W[0,0,1,1]
+    //            = 5*1 + 6*1 + 8*1 + 9*1 = 28.0
+    const expected_result = [_]f32{
+        12.0, 16.0, 24.0, 28.0, // Removed bias of 0.5 from original expected
+    };
 
-//     // 4. Compare results
-//     try std.testing.expectEqualSlices(f32, &expected_result, result_slice);
+    // 4. Compare results
+    try std.testing.expectEqualSlices(f32, &expected_result, result_slice);
 
-//     std.debug.print("Generated LowerConv2d kernel test passed!\n", .{});
-// }
+    std.debug.print("Generated LowerConv2d kernel test passed!\n", .{});
+}
