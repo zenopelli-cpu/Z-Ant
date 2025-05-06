@@ -37,8 +37,16 @@ pub fn render(
 
     // Updated print statements to assign to existing buffer elements (assuming scalar ops for now)
     switch (uop.op) {
-        .EXP2 => try writer.print("{s}[0] = std.math.exp2({s}[0]); // EXP2 (uop {d})\n", .{ result_var, src_var, uop.id }),
-        .NEG => try writer.print("{s}[0] = -{s}[0]; // NEG (uop {d})\n", .{ result_var, src_var, uop.id }),
+        .EXP2 => {
+            const type_str = DTypeInfo.asString(uop.dtype);
+            try writer.print("    const {s}: {s} = std.math.exp2({s}); // EXP2 (uop {d})\n", .{ result_var, type_str, src_var, uop.id });
+            try writer.print("    _ = &{s};\n", .{result_var});
+        },
+        .NEG => {
+            const type_str = DTypeInfo.asString(uop.dtype);
+            try writer.print("    const {s}: {s} = -{s}; // NEG (uop {d})\n", .{ result_var, type_str, src_var, uop.id });
+            try writer.print("    _ = &{s};\n", .{result_var});
+        },
         .CAST => {
             @panic("CAST rendering needs source type information");
         },
