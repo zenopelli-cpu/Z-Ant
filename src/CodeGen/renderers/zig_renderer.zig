@@ -159,16 +159,17 @@ pub fn ZigRenderer(comptime WriterType: type) type {
             for (uops_list) |uop| {
                 const entry = try self.buffer_map.getOrPut(uop.id);
                 if (!entry.found_existing) {
-                    // ... (logic for NEW entries, largely unchanged) ...
                     const is_an_input = for (input_ids) |in_id| {
                         if (uop.id == in_id) break true;
                     } else false;
-                    const name_prefix = switch (uop.op) {
+
+                    const name_prefix = if (uop.op == .CONST) "const_" else switch (uop.op) {
                         .DEFINE_GLOBAL => if (is_an_input) "input_" else "output_",
-                        .GEP => "addr_", // Keep for GEP results
-                        .RANGE => "idx_", // Keep for loop indices
-                        .DEFINE_ACC => "acc_", // Keep for accumulators
-                        else => "buf_", // Keep default for other values (LOAD, CONST, ALU)
+                        .GEP => "addr_",
+                        .RANGE => "idx_",
+                        .DEFINE_ACC => "acc_",
+                        // .CONST is handled by the if condition above
+                        else => "buf_", // Default for ALU, LOAD, etc.
                     };
                     const name = try std.fmt.allocPrint(self.allocator, "{s}{d}", .{ name_prefix, uop.id });
                     var shape_copy: []const usize = &[_]usize{};
@@ -191,16 +192,23 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                     // Entry ALREADY exists (Must be an input from first loop, or non-input from prev iter)
                     const existing_info = entry.value_ptr;
                     if (existing_info.is_input) {
-                        // Input buffer info was set by first loop, DO NOTHING HERE.
-                        // Free name/shape calculated in *this* loop iteration
-                        // (need to recalculate them first? This logic path needs review)
-                        // TEMPORARY SIMPLIFICATION: Assume we don't need name/shape recalc here.
-                        // If is_input, just continue.
-                        continue;
+                        // Input buffer info was set by first loop.
+                        // However, if this UOp (which has an ID of an input) is actually a CONST,
+                        // its name should be const_N, not input_N for the purpose of definition.
+                        if (uop.op == .CONST) {
+                            // Free the old "input_N" name and assign "const_N"
+                            self.allocator.free(existing_info.name);
+                            const new_name = try std.fmt.allocPrint(self.allocator, "const_{d}", .{uop.id});
+                            existing_info.name = new_name;
+                            // It's still an input parameter to the function, but its primary definition as a UOp is CONST.
+                            // The is_input flag remains true for function signature generation.
+                        }
+                        // Otherwise, if it's an input and not a CONST, its name "input_N" is correct.
+                        continue; // Continue to next UOp, processing for this one is done.
                     } else {
-                        // Non-input existing entry (from previous iter). Do nothing, let it keep its values.
-                        // (Need to ensure name/shape calculated above are freed if not used?)
-                        // TODO: Review resource freeing in this path.
+                        // Non-input existing entry (e.g. a CONST already processed with const_ prefix).
+                        // Do nothing, let it keep its values.
+                        continue;
                     }
                 }
             }
@@ -280,18 +288,21 @@ pub fn ZigRenderer(comptime WriterType: type) type {
         fn write_function_signature(self: *Self, input_ids: []const usize, output_type: []const u8) !void {
             try self.writer.print("pub fn generated_kernel(allocator: std.mem.Allocator", .{});
 
-            // Add input parameters, sorted by ID
-            var sorted_inputs = std.ArrayList(usize).init(self.allocator);
-            defer sorted_inputs.deinit();
-            try sorted_inputs.appendSlice(input_ids);
-            std.mem.sort(usize, sorted_inputs.items, {}, std.sort.asc(usize));
+            var sorted_inputs_list = std.ArrayList(usize).init(self.allocator);
+            defer sorted_inputs_list.deinit();
+            try sorted_inputs_list.appendSlice(input_ids);
+            std.mem.sort(usize, sorted_inputs_list.items, {}, std.sort.asc(usize));
 
-            for (sorted_inputs.items) |id| {
+            for (sorted_inputs_list.items) |id| {
                 const info = self.buffer_map.get(id) orelse return RendererError.InputBufferNotFound;
-                try self.writer.print(", {s}: []const {s}", .{ info.name, DTypeInfo.asString(info.dtype) });
+                // For function parameters, ALWAYS use "input_N" naming convention.
+                // The actual UOp definition (if ID 0 is also a CONST) will use "const_0".
+                var param_name_buf: [32]u8 = undefined;
+                const param_name = try std.fmt.bufPrint(&param_name_buf, "input_{d}", .{id});
+
+                try self.writer.print(", {s}: []const {s}", .{ param_name, DTypeInfo.asString(info.dtype) });
             }
 
-            // Return type
             try self.writer.print(") ![]{s} {{\n", .{output_type});
         }
 
@@ -308,6 +319,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                     std.mem.startsWith(u8, info.name, "idx_") or
                     std.mem.startsWith(u8, info.name, "addr_") or
                     std.mem.startsWith(u8, info.name, "acc_") or
+                    std.mem.startsWith(u8, info.name, "const_") or // <<< ADDED: Skip const_ for allocations
                     std.mem.startsWith(u8, info.name, "buf_"))
                 {
                     continue;

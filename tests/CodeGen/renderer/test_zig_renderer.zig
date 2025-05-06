@@ -22,7 +22,7 @@ const DType = zant.uops.DType;
 // */
 
 test "LowerAdd Pipeline" {
-    std.debug.print("Running zig renderer lowerAdd pipeline test\n", .{});
+    std.debug.print("Running zig renderer lowerAdd pipeline test (3D broadcast)\n", .{});
     const allocator = std.testing.allocator;
 
     // 1. Setup UOpBuilder
@@ -32,9 +32,12 @@ test "LowerAdd Pipeline" {
     // 2. Define inputs for lowerAdd (example shapes/strides)
     const A_id: usize = 0; // Simulated input tensor ID
     const B_id: usize = 1; // Simulated input tensor ID
-    const out_shape = &.{ 2, 3 }; // Example output shape
-    const strideA = &.{ 3, 1 }; // Example strides for A (row-major)
-    const strideB = &.{ 0, 1 }; // Example strides for B (broadcast dim 0)
+    // A shape: {2, 3, 4}
+    // B shape: {1, 3, 1} (broadcasted to {2, 3, 4})
+    // Out shape: {2, 3, 4}
+    const out_shape = &.{ 2, 3, 4 }; // Output shape
+    const strideA = &.{ 12, 4, 1 }; // Strides for A (row-major for {2,3,4})
+    const strideB = &.{ 0, 1, 0 }; // Strides for B (broadcast dim 0 and dim 2, actual data for B is {3})
     const out_dtype = DType.f32;
 
     // 3. Call lowerAdd to generate UOps
@@ -255,54 +258,49 @@ test "Test Generated LowerMatMul Kernel" {
 }
 
 test "Test Generated LowerAdd Kernel" {
-    std.debug.print("Testing generated kernel from loweradd_output_function.zig\n", .{});
+    std.debug.print("Testing generated kernel from loweradd_output_function.zig (3D broadcast)\n", .{});
     const allocator = std.testing.allocator;
     // Import the generated kernel file
     const kernel = @import("loweradd_output_function.zig");
 
-    // 1. Define input data based on LowerAdd Pipeline shapes/strides
-    // A shape {2, 3}, stride {3, 1} -> 6 elements, row-major
-    const input_data_0 = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 };
-    // B shape {2, 3}, stride {0, 1} -> Broadcast dim 0, reads elements {10, 11, 12} repeatedly
-    // Kernel expects a slice, provide the full data based on loop access pattern.
-    // The generated kernel from LowerAdd likely loops 0..6.
-    // Based on stride {0, 1}, B[0, j] = B_data[j], B[1, j] = B_data[j]
-    // If the kernel accesses linearly (0..6), it accesses:
-    // idx 0 -> A[0,0], B[0,0] -> input_0[0], input_1[0]
-    // idx 1 -> A[0,1], B[0,1] -> input_0[1], input_1[1]
-    // idx 2 -> A[0,2], B[0,2] -> input_0[2], input_1[2]
-    // idx 3 -> A[1,0], B[1,0] -> input_0[3], input_1[0]  <-- B repeats
-    // idx 4 -> A[1,1], B[1,1] -> input_0[4], input_1[1]  <-- B repeats
-    // idx 5 -> A[1,2], B[1,2] -> input_0[5], input_1[2]  <-- B repeats
-    // So input_1 needs to contain {10, 11, 12} for the generated loop accesses.
-    // However, the generated code *might* pass the full slice. Let's assume it takes the broadcasted view:
-    const input_data_1 = [_]f32{ 10.0, 11.0, 12.0 }; // Only the unique values due to broadcast stride {0,1}
-    // IMPORTANT: The generated kernel likely accesses input_1 linearly based on the RANGE(0..6)
-    // It will calculate addresses based on strides {3,1} for input_0 and {0,1} for input_1
-    // GEP input_0 (View strides {3,1}): (idx_3 / 3) * 3 + (idx_3 % 3) * 1 = idx_3
-    // GEP input_1 (View strides {0,1}): (idx_3 / 3) * 0 + (idx_3 % 3) * 1 = idx_3 % 3
-    // So, input_1 needs 3 elements, accessed via index % 3.
+    // 1. Define input data based on LowerAdd Pipeline (3D broadcast)
+    // A shape {2, 3, 4}, stride {12, 4, 1} -> 24 elements, row-major
+    var input_data_0_list: [24]f32 = undefined;
+    for (0..24) |i| {
+        input_data_0_list[i] = @as(f32, @floatFromInt(i + 1)); // 1.0 to 24.0
+    }
+    const input_data_0 = &input_data_0_list;
+
+    // B has effective shape {3} for data, broadcasted via strides {0, 1, 0}
+    // to match output shape {2, 3, 4}.
+    // The kernel will access input_1 using an index like ((flat_idx / out_shape[2]) % out_shape[1])
+    // which is ((flat_idx / 4) % 3) for out_shape {2,3,4}
+    const input_data_1 = [_]f32{ 100.0, 200.0, 300.0 }; // Data for the broadcasted dimension of B
 
     // 2. Call the generated kernel
     // Signature: pub fn generated_kernel(allocator: std.mem.Allocator, input_0: []const f32, input_1: []const f32) ![]f32
-    const result_slice = try kernel.generated_kernel(allocator, &input_data_0, &input_data_1);
-    defer allocator.free(result_slice); // Kernel allocates the output slice (size 6)
+    const result_slice = try kernel.generated_kernel(allocator, input_data_0, &input_data_1);
+    defer allocator.free(result_slice); // Kernel allocates the output slice (size 24)
 
     // 3. Define expected output
-    // C[i] = A[i] + B[i % 3]
-    const expected_result = [_]f32{
-        1.0 + 10.0, // 11.0
-        2.0 + 11.0, // 13.0
-        3.0 + 12.0, // 15.0
-        4.0 + 10.0, // 14.0
-        5.0 + 11.0, // 16.0
-        6.0 + 12.0, // 18.0
-    };
+    // C[i,j,k] = A[i,j,k] + B_broadcasted[j]
+    // Output shape {2,3,4}, total 24 elements.
+    var expected_result_list: [24]f32 = undefined;
+    var flat_idx: usize = 0;
+    for (0..2) |_| { // Corresponds to out_shape[0]
+        for (0..3) |j| { // Corresponds to out_shape[1]
+            for (0..4) |_| { // Corresponds to out_shape[2]
+                expected_result_list[flat_idx] = input_data_0[flat_idx] + input_data_1[j];
+                flat_idx += 1;
+            }
+        }
+    }
+    const expected_result = &expected_result_list;
 
     // 4. Compare results
-    try std.testing.expectEqualSlices(f32, &expected_result, result_slice);
+    try std.testing.expectEqualSlices(f32, expected_result, result_slice);
 
-    std.debug.print("Generated LowerAdd kernel test passed!\n", .{});
+    std.debug.print("Generated LowerAdd kernel test (3D broadcast) passed!\n", .{});
 }
 
 test "LowerMaxPool2d Pipeline" {
@@ -447,3 +445,173 @@ test "Test Generated LowerMaxPool2d Kernel" {
 
     std.debug.print("Generated LowerMaxPool2d kernel test passed!\n", .{});
 }
+
+test "LowerConv2d Pipeline" {
+    std.debug.print("Running zig renderer lowerConv2d pipeline test\n", .{});
+    const allocator = std.testing.allocator;
+
+    // 1. Setup UOpBuilder
+    var builder = UOpBuilder.init(allocator);
+
+    // 2. Define inputs for lowerConv2d
+    const X_id: usize = 0; // Input Tensor ID
+    const W_id: usize = 1; // Weight Tensor ID
+    const out_dtype = DType.f32;
+
+    // Input X: NCHW = [1, 1, 3, 3]
+    // const shapeX = &.{ 1, 1, 3, 3 }; // Removed unused variable
+    // Strides for X (NCHW): [C*H*W, H*W, W, 1] = [9, 9, 3, 1]
+    const strideX = &.{ 9, 9, 3, 1 };
+
+    // Weights W: OIHW = [1, 1, 2, 2] (O=1, I=1/groups=1, KH=2, KW=2)
+    // const shapeW = &.{ 1, 1, 2, 2 }; // Removed unused variable
+    // Strides for W (OIHW): [I*KH*KW, KH*KW, KW, 1] = [4, 4, 2, 1] (assuming groups=1)
+    const strideW = &.{ 4, 4, 2, 1 };
+
+    // Kernel K = [2, 2]
+    const kernel_size = .{ 2, 2 };
+    // Stride S = [1, 1]
+    const stride = .{ 1, 1 };
+    // Padding P = [0, 0, 0, 0] (top, left, bottom, right) -> Func expects [4]usize
+    const padding = .{ 0, 0, 0, 0 };
+    // Dilation D = [1, 1]
+    const dilation = .{ 1, 1 };
+    // Groups G = 1
+    const groups: usize = 1;
+
+    // Output NCHW = [1, 1, 2, 2] (Calculated based on params)
+    // H_out = floor((3 + 0 + 0 - 1 * (2 - 1) - 1) / 1 + 1) = 2
+    // W_out = floor((3 + 0 + 0 - 1 * (2 - 1) - 1) / 1 + 1) = 2
+    const out_shape = &.{ 1, 1, 2, 2 };
+
+    const C_in: usize = 1; // Input channels from shapeX[1]
+    const M_out: usize = 1; // Output channels from out_shape[1]
+    const C_per_grp = C_in / groups;
+    const M_per_grp = M_out / groups;
+
+    // 3. Call lowerConv2d to generate UOps
+    const out_buf_id = zant.core.tensor.math_standard.lowerConv2d(
+        &builder,
+        X_id, // X_id
+        W_id, // W_id
+        out_shape, // out_shape
+        strideX, // in_stride
+        strideW, // w_stride
+        groups, // groups
+        .{ padding[0], padding[1] }, // pads: [2]usize {top, left}
+        stride, // strides_hw: [2]usize
+        dilation, // dil_hw: [2]usize
+        kernel_size, // kHW: [2]usize
+        C_per_grp, // C' input channels per group
+        M_per_grp, // M' output channels per group
+        out_dtype, // out_dtype
+    );
+    _ = out_buf_id; // Prevent unused warning
+
+    // Take ownership of UOps
+    const uops_list = try builder.toOwnedSlice();
+    builder.deinit();
+    defer allocator.free(uops_list);
+
+    // DEBUG: Print the generated UOps
+    std.debug.print("--- Generated UOps (Conv2d) ---\n", .{});
+    for (uops_list) |uop| {
+        uop.dump(std.io.getStdErr().writer()) catch {};
+    }
+    std.debug.print("-----------------------------\n", .{});
+
+    // Defer freeing internal src/args
+    defer {
+        std.debug.print("DEBUG: Freeing internal src/args for {d} uops in Conv2d test\n", .{uops_list.len});
+        for (uops_list) |uop| {
+            if (uop.src.len > 0) allocator.free(@constCast(uop.src));
+            if (uop.arg) |arg_val| {
+                if (uop.op == .VIEW) {
+                    switch (arg_val) {
+                        .view_meta => |vm| {
+                            if (vm.shape.len > 0) allocator.free(@constCast(vm.shape));
+                            if (vm.strides.len > 0) allocator.free(@constCast(vm.strides));
+                        },
+                        else => {},
+                    }
+                }
+                // Add other duplicated args if needed
+            }
+        }
+    }
+
+    // 4. Render UOps to Zig code as a function
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+    const Writer = @TypeOf(buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    defer renderer.deinit();
+
+    const input_ids = &[_]usize{ X_id, W_id }; // X, W are inputs (Bias B_id removed)
+    try renderer.render_as_function(uops_list, input_ids);
+
+    const actual_code = try buffer.toOwnedSlice();
+    defer allocator.free(actual_code);
+
+    std.debug.print("\n--- Generated Function (Conv2d) ---\n{s}\n-----------------------------------\n", .{actual_code});
+
+    // 5. Save output to a file
+    const output_filename = "tests/CodeGen/renderer/lower_conv2d_output_function.zig";
+    var file = try std.fs.cwd().createFile(output_filename, .{ .read = true });
+    defer file.close();
+    _ = try file.write(actual_code);
+    std.debug.print("Generated conv2d function saved to {s}\n", .{output_filename});
+
+    // Optional: Clean up
+    // try std.fs.cwd().deleteFile(output_filename);
+}
+
+// test "Test Generated LowerConv2d Kernel" {
+//     std.debug.print("Testing generated kernel from lower_conv2d_output_function.zig\n", .{});
+//     const allocator = std.testing.allocator;
+//     // Import the generated kernel file
+//     const kernel = @import("lower_conv2d_output_function.zig");
+
+//     // 1. Define input data based on LowerConv2d Pipeline
+//     // Input X: [1, 1, 3, 3], flat size = 9
+//     const input_data_0 = [_]f32{ // X
+//         1.0, 2.0, 3.0,
+//         4.0, 5.0, 6.0,
+//         7.0, 8.0, 9.0,
+//     };
+//     // Weights W: [1, 1, 2, 2], flat size = 4
+//     const input_data_1 = [_]f32{ // W
+//         1.0, 1.0,
+//         1.0, 1.0,
+//     };
+//     // Bias B: [1], flat size = 1
+//     const input_data_2 = [_]f32{ // B
+//         0.5,
+//     };
+
+//     // 2. Call the generated kernel
+//     // Signature expected: pub fn generated_kernel(allocator: std.mem.Allocator, input_0: []const f32, input_1: []const f32, input_2: []const f32) ![]f32
+//     const result_slice = try kernel.generated_kernel(allocator, &input_data_0, &input_data_1, &input_data_2);
+//     defer allocator.free(result_slice); // Kernel allocates output slice (size 4)
+
+//     // 3. Define expected output
+//     // Output shape: [1, 1, 2, 2], flat size = 4
+//     // K=[2,2], S=[1,1], P=[0,0,0,0], D=[1,1], G=1
+//     // O[n,o,h,w] = B[o] + sum(I[n, g*I_c + i, h*S_h + kh*D_h - P_t, w*S_w + kw*D_w - P_l] * W[o, i, kh, kw])
+//     // O[0,0,0,0] = B[0] + I[0,0,0,0]*W[0,0,0,0] + I[0,0,0,1]*W[0,0,0,1] + I[0,0,1,0]*W[0,0,1,0] + I[0,0,1,1]*W[0,0,1,1]
+//     //            = 0.5 + 1*1 + 2*1 + 4*1 + 5*1 = 0.5 + 12 = 12.5
+//     // O[0,0,0,1] = B[0] + I[0,0,0,1]*W[0,0,0,0] + I[0,0,0,2]*W[0,0,0,1] + I[0,0,1,1]*W[0,0,1,0] + I[0,0,1,2]*W[0,0,1,1]
+//     //            = 0.5 + 2*1 + 3*1 + 5*1 + 6*1 = 0.5 + 16 = 16.5
+//     // O[0,0,1,0] = B[0] + I[0,0,1,0]*W[0,0,0,0] + I[0,0,1,1]*W[0,0,0,1] + I[0,0,2,0]*W[0,0,1,0] + I[0,0,2,1]*W[0,0,1,1]
+//     //            = 0.5 + 4*1 + 5*1 + 7*1 + 8*1 = 0.5 + 24 = 24.5
+//     // O[0,0,1,1] = B[0] + I[0,0,1,1]*W[0,0,0,0] + I[0,0,1,2]*W[0,0,0,1] + I[0,0,2,1]*W[0,0,1,0] + I[0,0,2,2]*W[0,0,1,1]
+//     //            = 0.5 + 5*1 + 6*1 + 8*1 + 9*1 = 0.5 + 28 = 28.5
+//     const expected_result = [_]f32{
+//         12.5, 16.5, 24.5, 28.5,
+//     };
+
+//     // 4. Compare results
+//     try std.testing.expectEqualSlices(f32, &expected_result, result_slice);
+
+//     std.debug.print("Generated LowerConv2d kernel test passed!\n", .{});
+// }
