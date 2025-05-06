@@ -15,30 +15,26 @@ const ColorChannels = utils.ColorChannels;
 pub const SegmentReader = jpeg.SegmentReader;
 
 // define the maximum size of the image
-const MAX_BYTES = 5 * 1024 * 1024; // 1 MB
-
-// const file = try std.fs.cwd().openFile(file_path, .{});
-//     defer file.close();
-
-//     const file_size = try file.getEndPos();
-//     const buffer = try allocator.alloc(u8, @intCast(file_size));
-//     defer allocator.free(buffer);
-
-//     const bytes_read = try file.readAll(buffer);
-//     if (bytes_read != file_size) {
-//         return error.UnexpectedEOF;
-//     }
+const MAX_BYTES = 1024 * 1024; // 1 MB
 
 pub fn imageToRGB(
     allocator: *const std.mem.Allocator,
     image_path: []const u8,
-    norm_type: u8,
+    norm_type: usize,
     comptime T: anytype,
 ) !Tensor(T) {
     // open the file
     const file = try std.fs.cwd().openFile(image_path, .{});
-    const buffer = try file.readToEndAlloc(allocator.*, MAX_BYTES);
+    defer file.close();
+
+    const file_size = try file.getEndPos();
+    const buffer = try allocator.alloc(u8, @intCast(file_size));
     defer allocator.free(buffer);
+
+    const bytes_read = try file.readAll(buffer);
+    if (bytes_read != file_size) {
+        return error.UnexpectedEOF;
+    }
 
     // find the format of the image
     const format = try findFormat(buffer);
@@ -58,7 +54,7 @@ pub fn imageToRGB(
         },
     }
     // write bmp file
-    try writeBmp(channels, "/workspaces/Z-Ant/tests/ImageToTensor/jpeg/out.bmp", false);
+    try writeBmp(channels, image_path, 0);
 
     // normalize image:
     // norm_type = 0 -> normalization between 0 and 1
@@ -95,14 +91,21 @@ pub fn imageToRGB(
 pub fn imageToYCbCr(
     allocator: *const std.mem.Allocator,
     image_path: []const u8,
-    norm_type: u8,
+    norm_type: usize,
     comptime T: anytype,
 ) !Tensor(T) {
     // open the file
     const file = try std.fs.cwd().openFile(image_path, .{});
-    const buffer = try file.readToEndAlloc(allocator.*, MAX_BYTES);
+    defer file.close();
+
+    const file_size = try file.getEndPos();
+    const buffer = try allocator.alloc(u8, @intCast(file_size));
     defer allocator.free(buffer);
 
+    const bytes_read = try file.readAll(buffer);
+    if (bytes_read != file_size) {
+        return error.UnexpectedEOF;
+    }
     // find the format of the image
     const format = try findFormat(buffer);
 
@@ -121,7 +124,7 @@ pub fn imageToYCbCr(
         },
     }
     // write bmp file
-    try writeBmp(channels, "/workspaces/Z-Ant/tests/ImageToTensor/jpeg/out.bmp", false);
+    try writeBmp(channels, image_path, 1);
 
     // normalize image:
     // norm_type = 0 -> normalization between 0 and 1
@@ -156,16 +159,23 @@ pub fn imageToYCbCr(
 }
 
 pub fn imageToGray(
-    allocator: *std.mem.Allocator,
-    image_path: []u8,
-    norm_type: u8,
+    allocator: *const std.mem.Allocator,
+    image_path: []const u8,
+    norm_type: usize,
     comptime T: anytype,
 ) !Tensor(T) {
     // open the file
     const file = try std.fs.cwd().openFile(image_path, .{});
-    const buffer = try file.readToEndAlloc(allocator, MAX_BYTES);
+    defer file.close();
+
+    const file_size = try file.getEndPos();
+    const buffer = try allocator.alloc(u8, @intCast(file_size));
     defer allocator.free(buffer);
 
+    const bytes_read = try file.readAll(buffer);
+    if (bytes_read != file_size) {
+        return error.UnexpectedEOF;
+    }
     // find the format of the image
     const format = try findFormat(buffer);
 
@@ -189,16 +199,16 @@ pub fn imageToGray(
     // norm_type = 1 -> normalization beetwen -1 and 1
     // if norm_type > 1 -> automatic normalization between 0 and 1
     // retrurn a tensor with the same shape of the imag
-    var image = try allocator.alloc([][]T, channels.component_num);
+    var image = try allocator.alloc([][]T, 1);
     for (0..1) |i| {
         image[i] = try allocator.alloc([]T, channels.width);
-        for (0..channels.height) |j| {
+        for (0..channels.width) |j| {
             image[i][j] = try allocator.alloc(T, channels.height);
         }
     }
     defer {
-        for (0..channels.component_num) |i| {
-            for (0..channels.height) |j| {
+        for (0..1) |i| {
+            for (0..channels.width) |j| {
                 allocator.free(image[i][j]);
             }
             allocator.free(image[i]);
@@ -207,12 +217,226 @@ pub fn imageToGray(
     }
 
     if (norm_type == 1) {
-        try utils.normalizeSigned(T, channels, image);
+        try utils.normalizeSigned(T, &channels, image);
     } else {
-        try utils.normalize(T, channels, image);
+        try utils.normalize(T, &channels, image);
     }
 
-    const shape = [_]usize{ 1, channels.height, channels.width };
+    var shape = [_]usize{ 1, channels.height, channels.width };
+    channels.deinit(allocator);
     // create the tensor
-    return try Tensor(T).fromArray(allocator, image, shape);
+    return try Tensor(T).fromArray(allocator, image, shape[0..]);
+}
+
+//------------------------------------------------------------------------------------------------------//
+//--------------------------------BMP GENERATING FUNCTIONS for debugging--------------------------------//
+//------------------------------------------------------------------------------------------------------//
+
+pub fn debug_imageToRGB(
+    allocator: *const std.mem.Allocator,
+    image_path: []const u8,
+    norm_type: usize,
+    comptime T: anytype,
+) !Tensor(T) {
+    // open the file
+    const file = try std.fs.cwd().openFile(image_path, .{});
+    defer file.close();
+
+    const file_size = try file.getEndPos();
+    const buffer = try allocator.alloc(u8, @intCast(file_size));
+    defer allocator.free(buffer);
+
+    const bytes_read = try file.readAll(buffer);
+    if (bytes_read != file_size) {
+        return error.UnexpectedEOF;
+    }
+    // find the format of the image
+    const format = try findFormat(buffer);
+
+    // create the reader
+    var block_reader = try SegmentReader.init(buffer, format);
+    var channels: ColorChannels = undefined;
+    defer channels.deinit(allocator);
+    // decode the image using the appropriate decoder
+    switch (format) {
+        ImageFormat.JPEG => {
+            channels = try jpeg.jpegToRGB(&block_reader, allocator);
+        },
+        else => {
+            // unsupported format
+            return error.UnsupportedFormat;
+        },
+    }
+
+    // normalize image:
+    // norm_type = 0 -> normalization between 0 and 1
+    // norm_type = 1 -> normalization beetwen -1 and 1
+    // if norm_type > 1 -> automatic normalization between 0 and 1
+    // retrurn a tensor with the same shape of the imag
+    var image = try allocator.alloc([][]T, channels.component_num);
+    for (0..channels.component_num) |i| {
+        image[i] = try allocator.alloc([]T, channels.width);
+        for (0..channels.width) |j| {
+            image[i][j] = try allocator.alloc(T, channels.height);
+        }
+    }
+    defer {
+        for (0..channels.component_num) |i| {
+            for (0..channels.width) |j| {
+                allocator.free(image[i][j]);
+            }
+            allocator.free(image[i]);
+        }
+        allocator.free(image);
+    }
+
+    if (norm_type == 1) {
+        try utils.normalizeSigned(T, &channels, image);
+    } else {
+        try utils.normalize(T, &channels, image);
+    }
+    // create the tensor
+    var shape = [_]usize{ channels.component_num, channels.height, channels.width };
+    return try Tensor(T).fromArray(allocator, image, shape[0..]);
+}
+
+pub fn debug_imageToYCbCr(
+    allocator: *const std.mem.Allocator,
+    image_path: []const u8,
+    norm_type: usize,
+    comptime T: anytype,
+) !Tensor(T) {
+    // open the file
+    const file = try std.fs.cwd().openFile(image_path, .{});
+    defer file.close();
+
+    const file_size = try file.getEndPos();
+    const buffer = try allocator.alloc(u8, @intCast(file_size));
+    defer allocator.free(buffer);
+
+    const bytes_read = try file.readAll(buffer);
+    if (bytes_read != file_size) {
+        return error.UnexpectedEOF;
+    }
+    // find the format of the image
+    const format = try findFormat(buffer);
+
+    // create the reader
+    var block_reader = try SegmentReader.init(buffer, format);
+    var channels: ColorChannels = undefined;
+    defer channels.deinit(allocator);
+    // decode the image using the appropriate decoder
+    switch (format) {
+        ImageFormat.JPEG => {
+            channels = try jpeg.jpegToYCbCr(&block_reader, allocator);
+        },
+        else => {
+            // unsupported format
+            return error.UnsupportedFormat;
+        },
+    }
+    // write bmp file
+    try writeBmp(channels, image_path, 1);
+
+    // normalize image:
+    // norm_type = 0 -> normalization between 0 and 1
+    // norm_type = 1 -> normalization beetwen -1 and 1
+    // if norm_type > 1 -> automatic normalization between 0 and 1
+    // retrurn a tensor with the same shape of the imag
+    var image = try allocator.alloc([][]T, channels.component_num);
+    for (0..channels.component_num) |i| {
+        image[i] = try allocator.alloc([]T, channels.width);
+        for (0..channels.width) |j| {
+            image[i][j] = try allocator.alloc(T, channels.height);
+        }
+    }
+    defer {
+        for (0..channels.component_num) |i| {
+            for (0..channels.width) |j| {
+                allocator.free(image[i][j]);
+            }
+            allocator.free(image[i]);
+        }
+        allocator.free(image);
+    }
+
+    if (norm_type == 1) {
+        try utils.normalizeSigned(T, &channels, image);
+    } else {
+        try utils.normalize(T, &channels, image);
+    }
+    // create the tensor
+    var shape = [_]usize{ channels.component_num, channels.height, channels.width };
+    return try Tensor(T).fromArray(allocator, image, shape[0..]);
+}
+
+pub fn debug_imageToGray(
+    allocator: *const std.mem.Allocator,
+    image_path: []const u8,
+    norm_type: usize,
+    comptime T: anytype,
+) !Tensor(T) {
+    // open the file
+    const file = try std.fs.cwd().openFile(image_path, .{});
+    defer file.close();
+
+    const file_size = try file.getEndPos();
+    const buffer = try allocator.alloc(u8, @intCast(file_size));
+    defer allocator.free(buffer);
+
+    const bytes_read = try file.readAll(buffer);
+    if (bytes_read != file_size) {
+        return error.UnexpectedEOF;
+    }
+    // find the format of the image
+    const format = try findFormat(buffer);
+
+    // create the reader
+    var block_reader = try SegmentReader.init(buffer, format);
+    var channels: ColorChannels = undefined;
+
+    // decode the image using the appropriate decoder
+    switch (format) {
+        ImageFormat.JPEG => {
+            channels = try jpeg.jpegToYCbCr(&block_reader, allocator);
+        },
+        else => {
+            // unsupported format
+            return error.UnsupportedFormat;
+        },
+    }
+    try writeBmp(channels, image_path, 2);
+
+    // normalize image:
+    // norm_type = 0 -> normalization between 0 and 1
+    // norm_type = 1 -> normalization beetwen -1 and 1
+    // if norm_type > 1 -> automatic normalization between 0 and 1
+    // retrurn a tensor with the same shape of the imag
+    var image = try allocator.alloc([][]T, 1);
+    for (0..1) |i| {
+        image[i] = try allocator.alloc([]T, channels.width);
+        for (0..channels.width) |j| {
+            image[i][j] = try allocator.alloc(T, channels.height);
+        }
+    }
+    defer {
+        for (0..1) |i| {
+            for (0..channels.width) |j| {
+                allocator.free(image[i][j]);
+            }
+            allocator.free(image[i]);
+        }
+        allocator.free(image);
+    }
+
+    if (norm_type == 1) {
+        try utils.normalizeSigned(T, &channels, image);
+    } else {
+        try utils.normalize(T, &channels, image);
+    }
+
+    var shape = [_]usize{ 1, channels.height, channels.width };
+    channels.deinit(allocator);
+    // create the tensor
+    return try Tensor(T).fromArray(allocator, image, shape[0..]);
 }

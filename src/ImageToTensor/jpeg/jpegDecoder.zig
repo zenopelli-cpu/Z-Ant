@@ -39,6 +39,7 @@ pub fn jpegToYCbCr(segment_reader: *SegmentReader, allocator: *const std.mem.All
         for (0..64) |j| {
             for (0..header.frame_info.components_num) |k| {
                 mcus[i].get(k).*[j] += 128;
+                mcus[i].get(k).*[j] = std.math.clamp(mcus[i].get(k).*[j], 0, 255);
             }
         }
     }

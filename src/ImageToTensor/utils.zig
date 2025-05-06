@@ -213,7 +213,7 @@ pub const ColorChannels = struct {
     ch2: []u8 = undefined,
     ch3: []u8 = undefined,
 
-    // usato per canale alpha in formato RGBA
+    // used for alpha channel in RGBA format
     alpha: []u8 = undefined,
 
     pub fn init(allocator: *const std.mem.Allocator, len: u32, component_num: usize) !ColorChannels {
@@ -242,7 +242,7 @@ pub const ColorChannels = struct {
             .ch1 = try allocator.alloc(u8, len),
             .ch2 = try allocator.alloc(u8, len),
             .ch3 = try allocator.alloc(u8, len),
-            .alpha = undefined,
+            .alpha = &[_]u8{},
         };
     }
     pub fn deinit(self: *ColorChannels, allocator: *const std.mem.Allocator) void {
@@ -282,7 +282,6 @@ pub fn normalizeSigned(comptime T: type, channel: *ColorChannels, output: [][][]
     for (0..output[0][0].len) |col| {
         for (0..output[0].len) |row| {
             for (0..output.len) |comp| {
-                std.debug.print("output.len: {}\n", .{output.len});
                 const ch = try channel.get(comp);
                 output[comp][row][col] = @as(T, @floatFromInt(ch[idx])) / 127.5 - 1.0;
             }

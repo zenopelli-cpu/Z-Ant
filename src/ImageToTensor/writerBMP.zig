@@ -9,8 +9,30 @@ const bytes_per_pixel = 3; // always 3 bytes per pixel (RGB)
 pub fn writeBmp(
     channels: ColorChannels,
     path: []const u8,
-    grayscale: bool,
+    colorspace: usize,
 ) !void {
+    // ---------- costruzione percorso output ----------
+    var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+
+    const ext = std.fs.path.extension(path); // ".jpg" / ".jpeg"
+    const base_len = path.len - ext.len;
+
+    const suffix = switch (colorspace) {
+        0 => "_rgb",
+        1 => "_ycbcr",
+        2 => "_gray",
+        else => return error.InvalidColorspace,
+    };
+
+    if (base_len + suffix.len + 4 > path_buf.len)
+        return error.NameTooLong;
+
+    @memcpy(path_buf[0..base_len], path[0..base_len]);
+    @memcpy(path_buf[base_len..][0..suffix.len], suffix);
+    @memcpy(path_buf[base_len + suffix.len ..][0..4], ".bmp");
+    const bmp_path = path_buf[0 .. base_len + suffix.len + 4];
+
+    // ------ scrittura del file BMP ------
     const width = channels.width;
     const height = channels.height;
     const row_raw = width * bytes_per_pixel;
@@ -20,7 +42,7 @@ pub fn writeBmp(
     const file_size = bmp_header_size + dib_header_size + pixel_array;
 
     // Open the file for writing
-    var file = try std.fs.cwd().createFile(path, .{});
+    var file = try std.fs.cwd().createFile(bmp_path, .{});
     defer file.close();
     var writer = file.writer();
 
@@ -46,8 +68,6 @@ pub fn writeBmp(
 
     // --- Pixel data ---
     var pad_buf: [3]u8 = [_]u8{ 0, 0, 0 };
-    std.debug.print("row_stride: {}\n", .{row_stride});
-    std.debug.print("row_raw: {}\n", .{row_raw});
     const padding = row_stride - row_raw;
 
     for (0..height) |row| {
@@ -57,7 +77,7 @@ pub fn writeBmp(
         for (0..width) |_| {
             const y_val = @as(u8, @intCast(channels.ch1[idx]));
 
-            const rgb: [3]u8 = if (grayscale or channels.component_num == 1)
+            const rgb: [3]u8 = if (colorspace == 2 or channels.component_num == 1)
                 .{ y_val, y_val, y_val } // grayscale
             else
                 .{ @as(u8, @intCast(channels.ch3[idx])), @as(u8, @intCast(channels.ch2[idx])), y_val }; // B-G-R

@@ -109,7 +109,6 @@ pub fn writeChannels(header: JpegData, mcus: []MCU, allocator: *const std.mem.Al
     var channels = try ColorChannels.init(allocator, channels_len, header.frame_info.components_num);
     channels.height = header.frame_info.height;
     channels.width = header.frame_info.width;
-    std.debug.print("compo num: {}\n", .{header.frame_info.components_num});
     channels.component_num = header.frame_info.components_num;
 
     var idx: u32 = 0;
@@ -125,6 +124,8 @@ pub fn writeChannels(header: JpegData, mcus: []MCU, allocator: *const std.mem.Al
             channels.ch1[idx] = @as(u8, @intCast(std.math.clamp(mcus[mcuIndex].y[pixelIndex], 0, 255)));
 
             if (channels.component_num == 3) {
+                if (mcus[mcuIndex].cb[pixelIndex] < 0)
+                    std.debug.print("cb: {}\n", .{mcus[mcuIndex].cb[pixelIndex]});
                 channels.ch2[idx] = @as(u8, @intCast(mcus[mcuIndex].cb[pixelIndex]));
                 channels.ch3[idx] = @as(u8, @intCast(mcus[mcuIndex].cr[pixelIndex]));
             }
@@ -531,7 +532,8 @@ pub fn yCbCrToRgbMCU(header: JpegData, mcu: MCU, cbcr: MCU, v: usize, h: usize) 
             //std.debug.print("cb: {}\n", .{cbcr.cb[cbcr_pixel]});
             var b_temp = mcu.y[pixel] + @as(i32, @intFromFloat(1.772 * @as(f32, @floatFromInt(cbcr.cb[cbcr_pixel]))));
             b_temp += 128;
-
+            if (cbcr.cb[cbcr_pixel] > 300)
+                std.debug.print("r_temp: {}\n", .{r_temp});
             r_temp = std.math.clamp(r_temp, 0, 255);
             g_temp = std.math.clamp(g_temp, 0, 255);
             b_temp = std.math.clamp(b_temp, 0, 255);
