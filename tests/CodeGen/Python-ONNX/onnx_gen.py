@@ -541,7 +541,8 @@ def generate_fuzz_model(op_name):
             inputs=[input_names[0]], 
             outputs=[split_output1, split_output2],
             axis=axis, 
-            name=f"{op_name}_split_node"
+            name=f"{op_name}_split_node",
+            num_outputs=2  # Add this line
         )
         
         # Process the first split part with Relu
