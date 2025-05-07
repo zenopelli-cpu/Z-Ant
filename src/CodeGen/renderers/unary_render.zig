@@ -51,19 +51,20 @@ pub fn render(
         },
         .CLIP => {
             if(uop.dtype!=uop.arg.?.clip_bounds.type) return error.TypeNotMatching;
-            const type_str = DTypeInfo.asString(uop.dtype);
-            const cast = try std.fmt.allocPrint(allocator, "@as({s}, {s})", .{type_str, src_var});
-            defer allocator.free(cast);
-            const max_str = try std.fmt.allocPrint(allocator, "{any}", .{uop.arg.?.clip_bounds.max});
-            defer allocator.free(max_str);
-            const min_str = try std.fmt.allocPrint(allocator, "{any}", .{uop.arg.?.clip_bounds.min});
-            defer allocator.free(min_str);
-            const min = try std.fmt.allocPrint(allocator, "@as({s}, {s})", .{type_str, max_str});
-            defer allocator.free(min);
-            const max = try std.fmt.allocPrint(allocator, "@as({s}, {s})", .{type_str, min_str});
-            defer allocator.free(max);
-            try writer.print(" const {s} = if( {s} < {s}) { if ({s} > {s}) {s} else {s}; } else {s};\n", 
-                .{result_var, cast, min, cast, max, max, cast, min});
+            if(uop.dtype!=@TypeOf(uop.arg.?.clip_bounds.max) or uop.dtype!=@TypeOf(uop.arg.?.clip_bounds.min)) return error.TypeNotMatching;
+            const is_accumulator_update = std.mem.startsWith(u8, src_var, "acc_");
+            if(is_accumulator_update){
+                try writer.print(" {s} = if({s} < {s}) { if ({s} > {s}) {s} else {s};} else {s}; // CLIP into Accumulator (uop {d})\n",
+                    .{result_var, src_var, min_str, src_var, max_str, max_str, src_var, min_str});
+            } else {
+                const max_str = try std.fmt.allocPrint(allocator, "{any}", .{uop.arg.?.clip_bounds.max});
+                defer allocator.free(max_str);
+                const min_str = try std.fmt.allocPrint(allocator, "{any}", .{uop.arg.?.clip_bounds.min});
+                defer allocator.free(min_str);
+            
+                try writer.print(" const {s} = if({s} < {s}) { if ({s} > {s}) {s} else {s};} else {s};\n", 
+                    .{result_var, src_var, min_str, src_var, max_str, max_str, src_var, min_str});
+            }
         },
         else => unreachable,
     }
