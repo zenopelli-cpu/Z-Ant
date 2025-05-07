@@ -217,42 +217,42 @@ pub const GraphProto = struct {
             onnx_log.info("{s}Graph Name: (none)\n", .{space});
         }
 
-        onnx_log.debug("{s}Nodes:\n", .{space});
+        std.debug.print("{s}Nodes:\n", .{space});
         for (self.nodes) |node| {
             node.print(space);
         }
 
-        onnx_log.debug("{s}Initializers  [{}]:\n", .{ space, self.initializers.len });
+        std.debug.print("{s}Initializers  [{}]:\n", .{ space, self.initializers.len });
         for (self.initializers) |initializer| {
             initializer.print(space);
         }
 
-        onnx_log.debug("{s}Inputs [{}]:\n", .{ space, self.inputs.len });
+        std.debug.print("{s}Inputs [{}]:\n", .{ space, self.inputs.len });
         for (self.inputs) |input| {
             input.print(space);
         }
 
-        onnx_log.debug("{s}Outputs  [{}]: \n", .{ space, self.outputs.len });
+        std.debug.print("{s}Outputs  [{}]: \n", .{ space, self.outputs.len });
         for (self.outputs) |output| {
             output.print(space);
         }
 
-        onnx_log.debug("{s}Value_info [{}]:\n", .{ space, self.value_info.len });
+        std.debug.print("{s}Value_info [{}]:\n", .{ space, self.value_info.len });
         for (self.value_info) |vi| {
             vi.print(space);
         }
 
-        onnx_log.debug("{s}Quantization Annotations:\n", .{space});
+        std.debug.print("{s}Quantization Annotations:\n", .{space});
         for (self.quantization_annotation) |qa| {
             qa.print(space);
         }
 
-        onnx_log.debug("{s}Sparse Initializers:\n", .{space});
+        std.debug.print("{s}Sparse Initializers:\n", .{space});
         for (self.sparse_initializer) |sp| {
             sp.print(space);
         }
 
-        onnx_log.debug("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
+        std.debug.print("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
         for (self.metadata_props) |mp| {
             mp.print(space);
         }

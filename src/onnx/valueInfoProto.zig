@@ -81,28 +81,28 @@ pub const ValueInfoProto = struct {
         const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
             return;
         };
-        onnx_log.debug("{s}------------- VALUEINFO \n", .{space});
+        std.debug.print("{s}------------- VALUEINFO \n", .{space});
 
         if (self.name) |n| {
-            onnx_log.debug("{s}Name: {s}\n", .{ space, n });
+            std.debug.print("{s}Name: {s}\n", .{ space, n });
         } else {
-            onnx_log.debug("{s}Name: (none)\n", .{space});
+            std.debug.print("{s}Name: (none)\n", .{space});
         }
 
         if (self.type) |t| {
-            onnx_log.debug("{s}Type:\n", .{space});
+            std.debug.print("{s}Type:\n", .{space});
             t.print(space);
         } else {
-            onnx_log.debug("{s}Type: (none)\n", .{space});
+            std.debug.print("{s}Type: (none)\n", .{space});
         }
 
         if (self.doc_string) |doc| {
-            onnx_log.debug("{s}Doc: {s}\n", .{ space, doc });
+            std.debug.print("{s}Doc: {s}\n", .{ space, doc });
         } else {
-            onnx_log.debug("{s}Doc: (none)\n", .{space});
+            std.debug.print("{s}Doc: (none)\n", .{space});
         }
 
-        onnx_log.debug("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
+        std.debug.print("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
         for (self.metadata_props) |mp| {
             mp.print(space);
         }

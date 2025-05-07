@@ -51,7 +51,7 @@ pub const StringStringEntryProto = struct {
             return;
         };
 
-        onnx_log.info("{s}StringStringEntryProto: key:{s}, value:{s} \n", .{
+        std.debug.print("{s}StringStringEntryProto: key:{s}, value:{s} \n", .{
             space,
             if (self.key) |k| k else "(none)",
             if (self.value) |v| v else "(none)",

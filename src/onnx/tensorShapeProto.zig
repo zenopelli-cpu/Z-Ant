@@ -60,24 +60,24 @@ pub const TensorShapeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            onnx_log.debug("{s}------------- DIMENSION\n", .{space});
+            std.debug.print("{s}------------- DIMENSION\n", .{space});
 
             if (self.dim_value) |value| {
-                onnx_log.debug("{s}Dim Value: {}\n", .{ space, value });
+                std.debug.print("{s}Dim Value: {}\n", .{ space, value });
             } else {
-                onnx_log.debug("{s}Dim Value: (none)\n", .{space});
+                std.debug.print("{s}Dim Value: (none)\n", .{space});
             }
 
             if (self.dim_param) |param| {
-                onnx_log.debug("{s}Dim Param: {s}\n", .{ space, param });
+                std.debug.print("{s}Dim Param: {s}\n", .{ space, param });
             } else {
-                onnx_log.debug("{s}Dim Param: (none)\n", .{space});
+                std.debug.print("{s}Dim Param: (none)\n", .{space});
             }
 
             if (self.denotation) |d| {
-                onnx_log.debug("{s}Denotation: {s}\n", .{ space, d });
+                std.debug.print("{s}Denotation: {s}\n", .{ space, d });
             } else {
-                onnx_log.debug("{s}Denotation: (none)\n", .{space});
+                std.debug.print("{s}Denotation: (none)\n", .{space});
             }
         }
     };
@@ -138,19 +138,19 @@ pub const TensorShapeProto = struct {
         const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
             return;
         };
-        onnx_log.debug("{s}------------- SHAPE\n", .{space});
+        std.debug.print("{s}------------- SHAPE\n", .{space});
 
-        onnx_log.debug("{s}Shape: [", .{space});
+        std.debug.print("{s}Shape: [", .{space});
         for (self.shape) |dim| {
-            onnx_log.debug("{}", .{dim});
+            std.debug.print("{}", .{dim});
         }
-        onnx_log.debug("]\n", .{});
+        std.debug.print("]\n", .{});
 
         if (self.dims.len != 0) {
-            onnx_log.debug("{s}Dimensions:\n", .{space});
+            std.debug.print("{s}Dimensions:\n", .{space});
             for (self.dims) |d| d.print(space);
         } else {
-            onnx_log.debug("{s}Dimensions: (none)\n", .{space});
+            std.debug.print("{s}Dimensions: (none)\n", .{space});
         }
     }
 };

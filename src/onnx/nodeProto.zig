@@ -146,42 +146,42 @@ pub const NodeProto = struct {
             return;
         };
 
-        onnx_log.info("{s}------------- NODE\n", .{space});
+        std.debug.print("{s}------------- NODE\n", .{space});
 
         if (self.name) |n| {
-            onnx_log.info("{s}Name: {s}\n", .{ space, n });
+            std.debug.print("{s}Name: {s}\n", .{ space, n });
         } else {
-            onnx_log.info("{s}Name: (none)\n", .{space});
+            std.debug.print("{s}Name: (none)\n", .{space});
         }
 
-        onnx_log.info("{s}Op Type: {s}\n", .{ space, self.op_type });
+        std.debug.print("{s}Op Type: {s}\n", .{ space, self.op_type });
 
         if (self.domain) |d| {
-            onnx_log.debug("{s}Domain: {s}\n", .{ space, d });
+            std.debug.print("{s}Domain: {s}\n", .{ space, d });
         } else {
-            onnx_log.debug("{s}Domain: (none)\n", .{space});
+            std.debug.print("{s}Domain: (none)\n", .{space});
         }
 
-        onnx_log.debug("{s}Inputs: ", .{space});
+        std.debug.print("{s}Inputs: ", .{space});
         for (
             self.input,
         ) |inp| {
-            onnx_log.debug("{s}", .{if (std.mem.eql(u8, inp, "")) "<empty_string>" else inp});
+            std.debug.print("{s}", .{if (std.mem.eql(u8, inp, "")) "<empty_string>" else inp});
         }
-        onnx_log.debug("\n", .{});
+        std.debug.print("\n", .{});
 
-        onnx_log.debug("{s}Outputs: ", .{space});
+        std.debug.print("{s}Outputs: ", .{space});
         for (self.output) |out| {
-            onnx_log.debug("{s}{s} ", .{ space, out });
+            std.debug.print("{s}{s} ", .{ space, out });
         }
-        onnx_log.debug("\n", .{});
+        std.debug.print("\n", .{});
 
-        onnx_log.debug("{s}Attributes:\n", .{space});
+        std.debug.print("{s}Attributes:\n", .{space});
         for (self.attribute) |attr| {
             attr.print(space);
         }
 
-        onnx_log.debug("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
+        std.debug.print("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
         for (self.metadata_props) |mp| {
             mp.print(space);
         }

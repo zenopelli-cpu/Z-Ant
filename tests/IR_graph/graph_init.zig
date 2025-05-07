@@ -11,6 +11,8 @@ test "parsing mnist-8 graphZant" {
     var model: onnx.ModelProto = try onnx.parseFromFile(allocator, "datasets/models/mnist-8/mnist-8.onnx");
     defer model.deinit(allocator);
 
+    model.print();
+
     var graphZant: zant.IR_graph.GraphZant = try zant.IR_graph.init(&model);
     defer graphZant.deinit();
 

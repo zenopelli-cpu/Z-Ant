@@ -66,15 +66,15 @@ pub const TensorAnnotation = struct {
             return;
         };
 
-        onnx_log.debug("{s}------------- TensorAnnotation\n", .{space});
+        std.debug.print("{s}------------- TensorAnnotation\n", .{space});
 
         if (self.tensor_name) |n| {
-            onnx_log.debug("{s}Tensor Name: {s}\n", .{ space, n });
+            std.debug.print("{s}Tensor Name: {s}\n", .{ space, n });
         } else {
-            onnx_log.debug("{s}Tensor Name: (none)\n", .{space});
+            std.debug.print("{s}Tensor Name: (none)\n", .{space});
         }
 
-        onnx_log.debug("{s}quant_parameter_tensor_names (key, value) [{}]: \n", .{ space, self.quant_parameter_tensor_names.len });
+        std.debug.print("{s}quant_parameter_tensor_names (key, value) [{}]: \n", .{ space, self.quant_parameter_tensor_names.len });
         for (self.quant_parameter_tensor_names) |mp| {
             mp.print(space);
         }

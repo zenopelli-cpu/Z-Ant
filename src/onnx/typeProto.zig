@@ -66,15 +66,15 @@ pub const TypeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            onnx_log.debug("{s}------------- TENSOR_TYPE\n", .{space});
+            std.debug.print("{s}------------- TENSOR_TYPE\n", .{space});
 
-            onnx_log.debug("{s}Element Type: {}\n", .{ space, self.elem_type });
+            std.debug.print("{s}Element Type: {}\n", .{ space, self.elem_type });
 
             if (self.shape) |s| {
-                onnx_log.debug("{s}Shape:\n", .{space});
+                std.debug.print("{s}Shape:\n", .{space});
                 s.print(space);
             } else {
-                onnx_log.debug("{s}Shape: (none)\n", .{space});
+                std.debug.print("{s}Shape: (none)\n", .{space});
             }
         }
     };
@@ -122,13 +122,13 @@ pub const TypeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            onnx_log.debug("{s}------------- SEQUENCE\n", .{space});
+            std.debug.print("{s}------------- SEQUENCE\n", .{space});
 
             if (self.elem_type) |t| {
-                onnx_log.debug("{s}Element Type:\n", .{space});
+                std.debug.print("{s}Element Type:\n", .{space});
                 t.print(space);
             } else {
-                onnx_log.debug("{s}Element Type: (none)\n", .{space});
+                std.debug.print("{s}Element Type: (none)\n", .{space});
             }
         }
     };
@@ -181,15 +181,15 @@ pub const TypeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            onnx_log.debug("{s}------------- MAP\n", .{space});
+            std.debug.print("{s}------------- MAP\n", .{space});
 
-            onnx_log.debug("{s}Key Type: {}\n", .{ space, self.key_type });
+            std.debug.print("{s}Key Type: {}\n", .{ space, self.key_type });
 
             if (self.value_type) |v| {
-                onnx_log.debug("{s}Value Type:\n", .{space});
+                std.debug.print("{s}Value Type:\n", .{space});
                 v.print(space);
             } else {
-                onnx_log.debug("{s}Value Type: (none)\n", .{space});
+                std.debug.print("{s}Value Type: (none)\n", .{space});
             }
         }
     };
@@ -244,14 +244,14 @@ pub const TypeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            onnx_log.debug("{s}------------- SparseTensor\n", .{space});
-            onnx_log.debug("{s}Element Type: {}\n", .{ space, self.elem_type });
+            std.debug.print("{s}------------- SparseTensor\n", .{space});
+            std.debug.print("{s}Element Type: {}\n", .{ space, self.elem_type });
 
             if (self.shape) |s| {
-                onnx_log.debug("{s}Shape:\n", .{space});
+                std.debug.print("{s}Shape:\n", .{space});
                 s.print(space);
             } else {
-                onnx_log.debug("{s}Shape: (none)\n", .{space});
+                std.debug.print("{s}Shape: (none)\n", .{space});
             }
         }
     };
@@ -299,12 +299,12 @@ pub const TypeProto = struct {
             const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
                 return;
             };
-            onnx_log.debug("{s}------------- OPTIONAL\n", .{space});
+            std.debug.print("{s}------------- OPTIONAL\n", .{space});
             if (self.elem_type) |t| {
-                onnx_log.debug("{s}Element Type:\n", .{space});
+                std.debug.print("{s}Element Type:\n", .{space});
                 t.print(space);
             } else {
-                onnx_log.debug("{s}Element Type: (none)\n", .{space});
+                std.debug.print("{s}Element Type: (none)\n", .{space});
             }
         }
     };
@@ -404,47 +404,47 @@ pub const TypeProto = struct {
             return;
         };
 
-        onnx_log.debug("{s}------------- TYPE\n", .{space});
+        std.debug.print("{s}------------- TYPE\n", .{space});
 
         if (self.tensor_type) |t| {
-            onnx_log.debug("{s}Tensor Type:\n", .{space});
+            std.debug.print("{s}Tensor Type:\n", .{space});
             t.print(space);
         } else {
-            onnx_log.debug("{s}Tensor Type: (none)\n", .{space});
+            std.debug.print("{s}Tensor Type: (none)\n", .{space});
         }
 
         if (self.sequence_type) |s| {
-            onnx_log.debug("{s}Sequence Type:\n", .{space});
+            std.debug.print("{s}Sequence Type:\n", .{space});
             s.print(space);
         } else {
-            onnx_log.debug("{s}Sequence Type: (none)\n", .{space});
+            std.debug.print("{s}Sequence Type: (none)\n", .{space});
         }
 
         if (self.map_type) |m| {
-            onnx_log.debug("{s}Map Type:\n", .{space});
+            std.debug.print("{s}Map Type:\n", .{space});
             m.print(space);
         } else {
-            onnx_log.debug("{s}Map Type: (none)\n", .{space});
+            std.debug.print("{s}Map Type: (none)\n", .{space});
         }
 
         if (self.sparse_tensor_type) |st| {
-            onnx_log.debug("{s}Sparse Tensor Type:\n", .{space});
+            std.debug.print("{s}Sparse Tensor Type:\n", .{space});
             st.print(space);
         } else {
-            onnx_log.debug("{s}Sparse Tensor Type: (none)\n", .{space});
+            std.debug.print("{s}Sparse Tensor Type: (none)\n", .{space});
         }
 
         if (self.optional_type) |o| {
-            onnx_log.debug("{s}Optional Type:\n", .{space});
+            std.debug.print("{s}Optional Type:\n", .{space});
             o.print(space);
         } else {
-            onnx_log.debug("{s}Optional Type: (none)\n", .{space});
+            std.debug.print("{s}Optional Type: (none)\n", .{space});
         }
 
         if (self.denotation) |d| {
-            onnx_log.debug("{s}Denotation: {s}\n", .{ space, d });
+            std.debug.print("{s}Denotation: {s}\n", .{ space, d });
         } else {
-            onnx_log.debug("{s}Denotation: (none)\n", .{space});
+            std.debug.print("{s}Denotation: (none)\n", .{space});
         }
     }
 };

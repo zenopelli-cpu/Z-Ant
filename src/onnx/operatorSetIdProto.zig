@@ -50,18 +50,18 @@ pub const OperatorSetIdProto = struct {
             return;
         };
 
-        onnx_log.debug("{s}------------- OPERATOR SET ID PROTO\n", .{space});
+        std.debug.print("{s}------------- OPERATOR SET ID PROTO\n", .{space});
 
         if (self.domain) |d| {
-            onnx_log.debug("{s}OperatorSetID domain: {s}\n", .{ space, d });
+            std.debug.print("{s}OperatorSetID domain: {s}\n", .{ space, d });
         } else {
-            onnx_log.debug("{s}OperatorSetID domain: (none)\n", .{space});
+            std.debug.print("{s}OperatorSetID domain: (none)\n", .{space});
         }
 
         if (self.version) |v| {
-            onnx_log.debug("{s}OperatorSetID version: {}\n", .{ space, v });
+            std.debug.print("{s}OperatorSetID version: {}\n", .{ space, v });
         } else {
-            onnx_log.debug("{s}OperatorSetID version: (none)\n", .{space});
+            std.debug.print("{s}OperatorSetID version: (none)\n", .{space});
         }
     }
 };

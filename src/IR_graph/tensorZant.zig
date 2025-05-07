@@ -42,17 +42,18 @@ pub const TensorZant = struct {
     ptr: ?*AnyTensor,
 
     pub fn init(name: []const u8, tensorProto: ?*TensorProto, nodeProto: ?*NodeProto, graphProto: ?*GraphProto) !TensorZant {
-        _ = tensorProto;
         _ = nodeProto;
         _ = graphProto;
 
-        // const tensor_ptr = if (tensorProto) |tp| protoTensor2Tensor(tp) else null;
+        var tensor: ?AnyTensor = null;
+        if (tensorProto) |tp| {
+            tensor = try protoTensor2Tensor(tp);
+        }
 
-        //create a Tensor(T)
         return TensorZant{
             .name = name,
             .ty = TensorType.undefined,
-            .ptr = null,
+            .ptr = if (tensor) |t| @constCast(&t) else null,
         };
     }
 
@@ -64,7 +65,7 @@ pub const TensorZant = struct {
         return try self.ptr.get_stride();
     }
 
-    pub fn protoTensor2Tensor(proto: TensorProto) !AnyTensor {
+    pub fn protoTensor2Tensor(proto: *TensorProto) !AnyTensor {
         // Allocate shape array
         var shape = try allocator.alloc(usize, proto.dims.len);
         for (proto.dims, 0..) |dim, i| {

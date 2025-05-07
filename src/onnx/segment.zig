@@ -47,18 +47,18 @@ pub const Segment = struct {
             return;
         };
 
-        onnx_log.debug("{s}------------- SEGMENT\n", .{space});
+        std.debug.print("{s}------------- SEGMENT\n", .{space});
 
         if (self.begin) |b| {
-            onnx_log.debug("{s}Segment begin: {}\n", .{ space, b });
+            std.debug.print("{s}Segment begin: {}\n", .{ space, b });
         } else {
-            onnx_log.debug("{s}Segment begin: (none)\n", .{space});
+            std.debug.print("{s}Segment begin: (none)\n", .{space});
         }
 
         if (self.end) |e| {
-            onnx_log.debug("{s}Segment end: {}\n", .{ space, e });
+            std.debug.print("{s}Segment end: {}\n", .{ space, e });
         } else {
-            onnx_log.debug("{s}Segment end: (none)\n", .{space});
+            std.debug.print("{s}Segment end: (none)\n", .{space});
         }
     }
 };

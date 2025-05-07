@@ -15,7 +15,7 @@ test "ProtoTensor2Tensor: float32 parsing" {
     var dims = [_]i64{ 2, 2 };
     var values = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
 
-    const proto = TensorProto{
+    var proto = TensorProto{
         .dims = &dims,
         .data_type = .FLOAT,
         .float_data = &values,
@@ -36,7 +36,7 @@ test "ProtoTensor2Tensor: float32 parsing" {
         .metadata_props = undefined,
     };
 
-    var anyTensor = try protoTensor2Tensor(proto);
+    var anyTensor = try protoTensor2Tensor(&proto);
     defer anyTensor.deinit();
 
     // test size

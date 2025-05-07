@@ -291,100 +291,100 @@ pub const AttributeProto = struct {
         const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
             return;
         };
-        onnx_log.debug("{s}------------- ATTRIBUTE \n", .{space});
+        std.debug.print("{s}------------- ATTRIBUTE \n", .{space});
 
-        onnx_log.debug("{s}Name: {s}\n", .{ space, self.name });
-        onnx_log.debug("{s}Type: {}\n", .{ space, self.type });
+        std.debug.print("{s}Name: {s}\n", .{ space, self.name });
+        std.debug.print("{s}Type: {}\n", .{ space, self.type });
 
         if (self.f != 0) {
-            onnx_log.debug("{s}Float: {}\n", .{ space, self.f });
+            std.debug.print("{s}Float: {}\n", .{ space, self.f });
         }
 
         if (self.i != 0) {
-            onnx_log.debug("{s}Int: {}\n", .{ space, self.i });
+            std.debug.print("{s}Int: {}\n", .{ space, self.i });
         }
 
         if (self.s.len > 0) {
-            onnx_log.debug("{s}String: \"{s}\"\n", .{ space, self.s });
+            std.debug.print("{s}String: \"{s}\"\n", .{ space, self.s });
         }
 
         if (self.t) |tensor| {
-            onnx_log.debug("{s}Tensor:\n", .{space});
+            std.debug.print("{s}Tensor:\n", .{space});
             tensor.print(space);
         }
 
         if (self.g) |tensor| {
-            onnx_log.debug("{s}Tensor:\n", .{space});
+            std.debug.print("{s}Tensor:\n", .{space});
             tensor.print(space);
         }
 
         if (self.floats.len > 0) {
-            onnx_log.debug("{s}Floats: [", .{space});
+            std.debug.print("{s}Floats: [", .{space});
             for (self.floats) |val| {
-                onnx_log.debug("{}", .{val});
+                std.debug.print("{}", .{val});
             }
-            onnx_log.debug("]\n", .{});
+            std.debug.print("]\n", .{});
         }
 
         if (self.ints.len > 0) {
-            onnx_log.debug("{s}Ints: [", .{space});
+            std.debug.print("{s}Ints: [", .{space});
             for (self.ints) |val| {
-                onnx_log.debug("{}", .{val});
+                std.debug.print("{}", .{val});
             }
-            onnx_log.debug("]\n", .{});
+            std.debug.print("]\n", .{});
         }
 
         if (self.strings.len > 0) {
-            onnx_log.debug("{s}Strings: [", .{space});
+            std.debug.print("{s}Strings: [", .{space});
             for (self.strings) |val| {
-                onnx_log.debug("\"{s}\"", .{val});
+                std.debug.print("\"{s}\"", .{val});
             }
-            onnx_log.debug("]\n", .{});
+            std.debug.print("]\n", .{});
         }
 
         if (self.tensors.len > 0) {
-            onnx_log.debug("{s}Tensors: [", .{space});
+            std.debug.print("{s}Tensors: [", .{space});
             for (self.tensors) |val| {
-                onnx_log.debug("TensorProto", .{});
+                std.debug.print("TensorProto", .{});
                 val.print(space);
             }
-            onnx_log.debug("]\n", .{});
+            std.debug.print("]\n", .{});
         }
 
         //if (self.graphs.len > 0) {
-        //   onnx_log.debug("{s}Graphs: [", .{space});
+        //   std.debug.print("{s}Graphs: [", .{space});
         // for (self.graphs, 0..) |val, i| {
-        //   if (i > 0) onnx_log.debug(", ", .{});
-        // onnx_log.debug("GraphProto", .{});
+        //   if (i > 0) std.debug.print(", ", .{});
+        // std.debug.print("GraphProto", .{});
         //val.print(space);
         //}
-        //onnx_log.debug("]\n", .{});
+        //std.debug.print("]\n", .{});
         //}
 
         if (self.doc_string) |doc| {
-            onnx_log.debug("{s}Doc String: \"{s}\"\n", .{ space, doc });
+            std.debug.print("{s}Doc String: \"{s}\"\n", .{ space, doc });
         }
 
         if (self.tp) |tp| {
-            onnx_log.debug("{s}TypeProto:\n", .{space});
+            std.debug.print("{s}TypeProto:\n", .{space});
             tp.print(space);
         }
 
         if (self.type_protos.len > 0) {
-            onnx_log.debug("{s}Type Protos: [", .{space});
+            std.debug.print("{s}Type Protos: [", .{space});
             for (self.type_protos) |val| {
-                onnx_log.debug("TypeProto", .{});
+                std.debug.print("TypeProto", .{});
                 val.print(space);
             }
-            onnx_log.debug("]\n", .{});
+            std.debug.print("]\n", .{});
         }
 
         if (self.ref_attr_name.len > 0) {
-            onnx_log.debug("{s}Ref Attr Name: \"{s}\"\n", .{ space, self.ref_attr_name });
+            std.debug.print("{s}Ref Attr Name: \"{s}\"\n", .{ space, self.ref_attr_name });
         }
 
         if (self.sparse_tensor) |tensor| {
-            onnx_log.debug("{s}Sparse Tensor:\n", .{space});
+            std.debug.print("{s}Sparse Tensor:\n", .{space});
             tensor.print(space);
         }
     }

@@ -78,25 +78,25 @@ pub const SparseTensorProto = struct {
             return;
         };
 
-        onnx_log.debug("{s}------------- SparseTensorProto\n", .{space});
+        std.debug.print("{s}------------- SparseTensorProto\n", .{space});
 
         if (self.values) |tensor| {
-            onnx_log.debug("{s}TensorProto:\n", .{space});
+            std.debug.print("{s}TensorProto:\n", .{space});
             tensor.print(space);
         }
 
         if (self.indices) |tensor| {
-            onnx_log.debug("{s}TensorProto:\n", .{space});
+            std.debug.print("{s}TensorProto:\n", .{space});
             tensor.print(space);
         }
 
         if (self.dims.len > 0) {
-            onnx_log.debug("{s}Dims: [", .{space});
+            std.debug.print("{s}Dims: [", .{space});
             for (self.dims, 0..) |val, i| {
-                if (i > 0) onnx_log.debug(", ", .{});
-                onnx_log.debug("{}", .{val});
+                if (i > 0) std.debug.print(", ", .{});
+                std.debug.print("{}", .{val});
             }
-            onnx_log.debug("]\n", .{});
+            std.debug.print("]\n", .{});
         }
     }
 };
