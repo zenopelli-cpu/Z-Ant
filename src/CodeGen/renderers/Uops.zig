@@ -116,9 +116,15 @@ pub const Any = union(enum) {
     },
 
     cast_meta: struct {
-        to: DType, // target scalar type
+        to: DType, // target scalar tSype
         saturate: bool, // obey float-8 saturation tables (opset-23 attr)
     },
+
+    clip_bounds: struct {
+        type: DType,
+        min: Any,
+        max: Any,
+    }
 
     // 👉  add more variants when a new op requires metadata
 };

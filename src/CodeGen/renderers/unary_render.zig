@@ -10,7 +10,6 @@ pub fn render(
     uop: UOp,
     ptr_map: *const std.AutoHashMap(usize, []const u8),
 ) !void {
-    _ = allocator;
 
     const supported_ops = [_]UOpType{ .EXP2, .NEG, .CAST };
 
@@ -49,6 +48,22 @@ pub fn render(
         },
         .CAST => {
             @panic("CAST rendering needs source type information");
+        },
+        .CLIP => {
+            if(uop.dtype!=uop.arg.?.clip_bounds.type) return error.TypeNotMatching;
+            const type_str = DTypeInfo.asString(uop.dtype);
+            const cast = try std.fmt.allocPrint(allocator, "@as({s}, {s})", .{type_str, src_var});
+            defer allocator.free(cast);
+            const max_str = try std.fmt.allocPrint(allocator, "{any}", .{uop.arg.?.clip_bounds.max});
+            defer allocator.free(max_str);
+            const min_str = try std.fmt.allocPrint(allocator, "{any}", .{uop.arg.?.clip_bounds.min});
+            defer allocator.free(min_str);
+            const min = try std.fmt.allocPrint(allocator, "@as({s}, {s})", .{type_str, max_str});
+            defer allocator.free(min);
+            const max = try std.fmt.allocPrint(allocator, "@as({s}, {s})", .{type_str, min_str});
+            defer allocator.free(max);
+            try writer.print(" const {s} = if( {s} < {s}) { if ({s} > {s}) {s} else {s}; } else {s};\n", 
+                .{result_var, cast, min, cast, max, max, cast, min});
         },
         else => unreachable,
     }
