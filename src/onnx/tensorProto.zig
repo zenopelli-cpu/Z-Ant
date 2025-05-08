@@ -270,12 +270,12 @@ pub const TensorProto = struct {
             return;
         };
 
-        onnx_log.info("{s}------------- TENSOR\n", .{space});
+        std.debug.print("{s}------------- TENSOR\n", .{space});
 
         if (self.name) |n| {
-            onnx_log.info("{s}Name: {s}\n", .{ space, n });
+            std.debug.print("{s}Name: {s}\n", .{ space, n });
         } else {
-            onnx_log.info("{s}Name: (none)\n", .{space});
+            std.debug.print("{s}Name: (none)\n", .{space});
         }
 
         if (self.segment) |segment| {

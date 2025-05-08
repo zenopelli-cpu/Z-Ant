@@ -20,6 +20,7 @@ pub const tensorZant_lib = @import("tensorZant.zig");
 pub const TensorZant = tensorZant_lib.TensorZant;
 
 pub const operators = @import("op_union/op_union.zig").operators;
+pub const utils = @import("utils.zig");
 
 pub fn init(modelProto: *ModelProto) !GraphZant {
 

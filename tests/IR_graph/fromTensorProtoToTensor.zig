@@ -8,10 +8,10 @@ const allocator = zant.utils.allocator.allocator;
 const TensorProto = zant.onnx.TensorProto;
 const Tensor = zant.core.tensor.Tensor;
 
-const protoTensor2Tensor = zant.IR_graph.TensorZant.protoTensor2Tensor;
+const protoTensor2AnyTensor = zant.IR_graph.utils.protoTensor2AnyTensor;
 
 // Test for raw data not available
-test "ProtoTensor2Tensor: float32 parsing" {
+test "protoTensor2AnyTensor: float32 parsing" {
     var dims = [_]i64{ 2, 2 };
     var values = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
 
@@ -36,7 +36,7 @@ test "ProtoTensor2Tensor: float32 parsing" {
         .metadata_props = undefined,
     };
 
-    var anyTensor = try protoTensor2Tensor(&proto);
+    var anyTensor = try protoTensor2AnyTensor(&proto);
     defer anyTensor.deinit();
 
     // test size

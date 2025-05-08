@@ -37,8 +37,8 @@ pub const AnyTensor = union(enum) {
     i8: *Tensor(i8),
     u8: *Tensor(u8),
 
-    pub fn deinit(self: AnyTensor) void {
-        return switch (self) {
+    pub fn deinit(self: *AnyTensor) void {
+        return switch (self.*) {
             .i64 => |t| t.deinit(),
             .f64 => |t| t.deinit(),
             .u64 => |t| t.deinit(),
@@ -53,8 +53,8 @@ pub const AnyTensor = union(enum) {
         };
     }
 
-    pub fn get_shape(self: AnyTensor) []usize {
-        return switch (self) {
+    pub fn get_shape(self: *AnyTensor) []usize {
+        return switch (self.*) {
             .i64 => |t| t.shape,
             .f64 => |t| t.shape,
             .u64 => |t| t.shape,
@@ -69,7 +69,7 @@ pub const AnyTensor = union(enum) {
         };
     }
 
-    pub fn set_shape(self: AnyTensor, new_shape: []usize) []usize {
+    pub fn set_shape(self: *AnyTensor, new_shape: []usize) []usize {
         return switch (self) {
             .i64 => |t| t.shape = new_shape,
             .f64 => |t| t.shape = new_shape,
