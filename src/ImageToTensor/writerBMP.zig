@@ -32,7 +32,7 @@ pub fn writeBmp(
     @memcpy(path_buf[base_len + suffix.len ..][0..4], ".bmp");
     const bmp_path = path_buf[0 .. base_len + suffix.len + 4];
 
-    // ------ scrittura del file BMP ------
+    // ------ Image data ------
     const width = channels.width;
     const height = channels.height;
     const row_raw = width * bytes_per_pixel;

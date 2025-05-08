@@ -1,0 +1,789 @@
+test
++- run test_lib stderr
+     test: Convolution 4D Input with 2x2x2x2 Kernel shape
+
+     test: OnnxConvLean - NOTSET padding
+
+     test: OnnxConvLean - SAME_UPPER padding
+
+Kernel values:
+ 1.0  1.0  1.0 
+ 1.0  1.0  1.0 
+ 1.0  1.0  1.0 
+
+Result shape: { 1, 1, 5, 5 }
+
+Actual values:
+ 4.0  6.0  6.0  6.0  4.0 
+ 6.0  9.0  9.0  9.0  6.0 
+ 6.0  9.0  9.0  9.0  6.0 
+ 6.0  9.0  9.0  9.0  6.0 
+ 4.0  6.0  6.0  6.0  4.0 
+
+Expected values:
+ 4.0  6.0  6.0  6.0  4.0 
+ 6.0  9.0  9.0  9.0  6.0 
+ 6.0  9.0  9.0  9.0  6.0 
+ 6.0  9.0  9.0  9.0  6.0 
+ 4.0  6.0  6.0  6.0  4.0 
+
+     test: OnnxConvLean - with bias and dilation
+
+     test: OnnxConv - all padding modes and features
+
+--- Running utils test
+
+     convert integer to float
+     convert float to integer
+     convert integer to bool
+     convert float to bool
+     convert bool to integer
+     convert bool to integer
+     convert bool to float
+     convert bool to bool
+     convert comptime int to float
+     Checking allocation in tensorInitializer
+
+     Checking binary values in tensorInitializer
+
+     Checking limited range in tensorInitializer
+
+     Checking Gaussian distribution in tensorInitializer
+SOF0
+comp_num: 3
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+zericint: 888496
+
+--- Running tensor tests
+
+     test: init() 
+     test:initialization fromShape
+     test:Get_Set_Test
+     test:Flatten Index Test
+     test:Get_at Set_at Test
+     test:copy() method 
+     test:to array 
+     test: setToZero()
+     test: ensure_4D_shape 
+     test: ensure_4D_shape with 3 dimensions
+     test: ensure_4D_shape with 4 dimensions
+     test: ensure_4D_shape with 5 dimensions
+     test: benchmark flatten_index implementationsBenchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+Benchmark result: 0
+
+       1D tensor: optimized=9ms, original=13ms, speedup=1.44x
+       2D tensor: optimized=12ms, original=18ms, speedup=1.50x
+       3D tensor: optimized=14ms, original=20ms, speedup=1.43x
+       4D tensor: optimized=19ms, original=28ms, speedup=1.47x
+       5D tensor: optimized=24ms, original=33ms, speedup=1.38x
+--- Running tensor_math tests
+
+     test: Sum two tensors on CPU architecture
+     test: tensor element-wise multiplication 
+     test: Error when input tensors have different sizesIncompatible broadcast shapes at dim 0: 2 vs 3
+
+     test:add bias
+     test: Subtraction with same shape tensors
+     test: Subtraction with broadcasting - scalar and matrix
+     test: Subtraction with broadcasting - row and matrix
+     test: Subtraction with incompatible shapes
+     test: Lean subtraction with SIMD optimization
+     test: tensor element-wise division 
+     test: Sum list of tensors - normal case
+     test: Sum list of tensors - single tensor case
+     test: Sum list of tensors - empty list error
+     test: Sum list of tensors - different sizes error
+     test: Sum list of tensors - type promotion
+     test: tensor element-wise tanh with valid f32 tensor
+     test: tensor element-wise ceil with valid f32 tensor
+     test: clip f32 basic
+     test: clip i32 with defaults
+     test: clip f32 min only
+     test: clip f32 max only
+     test: clip f32 min > max
+     test: clip error: min not scalar
+     test: clip error: max not scalar
+     test: clip empty input
+     test: clip with SIMD vector size 1
+     test: clip f32 large tensor with SIMD
+     test:equal()
+
+ ERROR: WRONG DATA
+
+ ERROR: WRONG SHAPE t1.shape[0]:1 t2.shape[0]:2
+     test: isSafe() method 
+     test: isSafe()-> TensorError.NotFiniteValue
+     test: isSafe()-> TensorError.NanValue
+     test:mean
+     test:reduce_mean
+     test:reduce_mean_advanced
+     test: Concatenate tensors along axis 0
+     test: Concatenate tensors along axis 1
+  tensor data: 1e0 2e0 5e0 6e0 3e0 4e0 7e0 8e0 
+
+     test: Concatenate tensors along negative axis
+     test: Concatenate 3D tensors along axis 2
+     test: transpose 
+     test: transpose multi-dimensions 
+     test: addPadding()
+     test: addPadding() -> zero dilatation 
+     test: addPaddingAndDilation() -> zero padding
+tensor infos: 
+  data type:i8
+  size:70
+ shape.len:3 shape: [ 2 5 7 ] 
+  tensor data: 1 0 0 2 0 0 3 0 0 0 0 0 0 0 4 0 0 5 0 0 6 0 0 0 0 0 0 0 7 0 0 8 0 0 9 1 0 0 2 0 0 3 0 0 0 0 0 0 0 4 0 0 5 0 0 6 0 0 0 0 0 0 0 7 0 0 8 0 0 9 
+
+tensor infos: 
+  data type:i8
+  size:70
+ shape.len:3 shape: [ 2 5 7 ] 
+  tensor data: 1 0 0 2 0 0 3 0 0 0 0 0 0 0 4 0 0 5 0 0 6 0 0 0 0 0 0 0 7 0 0 8 0 0 9 1 0 0 2 0 0 3 0 0 0 0 0 0 0 4 0 0 5 0 0 6 0 0 0 0 0 0 0 7 0 0 8 0 0 9 
+
+     test: neg()TRY WITH THISSS: 
+[
+    [
+        [9, 8, 7, ],
+        [6, 5, 4, ],
+        [3, 2, 1, ],
+
+    ],
+    [
+        [6, 5, 4, ],
+        [3, 2, 1, ],
+        [90, 80, 70, ],
+
+    ],
+
+]
+     test: resize with nearest neighbor interpolationrezise_lean
+mode: nearest
+scales: { 2e0 }
+sizes: null
+coordinate_transformation_mode: half_pixel
+rezise_lean
+mode: nearest
+scales: { 2e0, 2e0 }
+sizes: null
+coordinate_transformation_mode: half_pixel
+
+     test: resize with linear interpolationrezise_lean
+mode: linear
+scales: { 2e0 }
+sizes: null
+coordinate_transformation_mode: half_pixel
+rezise_lean
+mode: linear
+scales: { 2e0, 2e0 }
+sizes: null
+coordinate_transformation_mode: half_pixel
+
+     test: resize with cubic interpolationrezise_lean
+mode: cubic
+scales: { 5e-1 }
+sizes: null
+coordinate_transformation_mode: half_pixel
+
+     test: resize with explicit sizesrezise_lean
+mode: nearest
+scales: null
+sizes: { 3, 3 }
+coordinate_transformation_mode: half_pixel
+
+     test: resize error cases
+     test: split basic test
+     test: split with custom sizes
+     test: split with negative axis
+     test: get_resize_output_shape 
+
+     test: get_concatenate_output_shape 
+
+[DEBUG] Shape mismatch at dim 1: shape[1][1] = 4 != shape[0][1] = 3
+     test: get_split_output_shapes 
+
+     test: Empty tensor list error
+     test: Reshape  
+
+  new_tens.shape= { 1, 1, 3, 2 } 
+     test: gather along axis 0
+     test: gather along axis 1
+     gatheredTensor1.size: 8
+
+  tensor data: 20 40 10 30 60 80 50 70 
+
+     gatheredTensor1.data[i]: 20
+
+     expectedData1[i]: 20
+
+     gatheredTensor1.data[i]: 40
+
+     expectedData1[i]: 40
+
+     gatheredTensor1.data[i]: 10
+
+     expectedData1[i]: 10
+
+     gatheredTensor1.data[i]: 30
+
+     expectedData1[i]: 30
+
+     gatheredTensor1.data[i]: 60
+
+     expectedData1[i]: 60
+
+     gatheredTensor1.data[i]: 80
+
+     expectedData1[i]: 80
+
+     gatheredTensor1.data[i]: 50
+
+     expectedData1[i]: 50
+
+     gatheredTensor1.data[i]: 70
+
+     expectedData1[i]: 70
+
+     test: gather with invalid axis
+     test: get_slice_output_shape basic slicing
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 5, 5, 5 }
+  starts: { 1, 1, 1 }
+  ends: { 4, 4, 4 }
+  axes: null
+  steps: null
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 5, 5, 5 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] After processing axis 0:
+  dim_size: 5
+  actual_start: 1
+  actual_end: 4
+  actual_step: 1
+[DEBUG] After processing axis 1:
+  dim_size: 5
+  actual_start: 1
+  actual_end: 4
+  actual_step: 1
+[DEBUG] After processing axis 2:
+  dim_size: 5
+  actual_start: 1
+  actual_end: 4
+  actual_step: 1
+[DEBUG] Final values before shape calculation:
+  actual_starts: { 1, 1, 1 }
+  actual_ends: { 4, 4, 4 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] Positive step calculation for dim 0:
+  end (4) - start (1) = 3
+  (end-start) + step(1) - 1 = 3
+  final dim_size = 3
+[DEBUG] Positive step calculation for dim 1:
+  end (4) - start (1) = 3
+  (end-start) + step(1) - 1 = 3
+  final dim_size = 3
+[DEBUG] Positive step calculation for dim 2:
+  end (4) - start (1) = 3
+  (end-start) + step(1) - 1 = 3
+  final dim_size = 3
+[DEBUG] Final output_shape: { 3, 3, 3 }
+
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 5, 5, 5 }
+  starts: { 1, 1, 1 }
+  ends: { 4, 4, 4 }
+  axes: null
+  steps: { 2, 2, 2 }
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 5, 5, 5 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] After processing axis 0:
+  dim_size: 5
+  actual_start: 1
+  actual_end: 4
+  actual_step: 2
+[DEBUG] After processing axis 1:
+  dim_size: 5
+  actual_start: 1
+  actual_end: 4
+  actual_step: 2
+[DEBUG] After processing axis 2:
+  dim_size: 5
+  actual_start: 1
+  actual_end: 4
+  actual_step: 2
+[DEBUG] Final values before shape calculation:
+  actual_starts: { 1, 1, 1 }
+  actual_ends: { 4, 4, 4 }
+  actual_steps: { 2, 2, 2 }
+[DEBUG] Positive step calculation for dim 0:
+  end (4) - start (1) = 3
+  (end-start) + step(2) - 1 = 4
+  final dim_size = 2
+[DEBUG] Positive step calculation for dim 1:
+  end (4) - start (1) = 3
+  (end-start) + step(2) - 1 = 4
+  final dim_size = 2
+[DEBUG] Positive step calculation for dim 2:
+  end (4) - start (1) = 3
+  (end-start) + step(2) - 1 = 4
+  final dim_size = 2
+[DEBUG] Final output_shape: { 2, 2, 2 }
+
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 5, 5, 5 }
+  starts: { -3, -3, -3 }
+  ends: { -1, -1, -1 }
+  axes: null
+  steps: null
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 5, 5, 5 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] After processing axis 0:
+  dim_size: 5
+  actual_start: 2
+  actual_end: 4
+  actual_step: 1
+[DEBUG] After processing axis 1:
+  dim_size: 5
+  actual_start: 2
+  actual_end: 4
+  actual_step: 1
+[DEBUG] After processing axis 2:
+  dim_size: 5
+  actual_start: 2
+  actual_end: 4
+  actual_step: 1
+[DEBUG] Final values before shape calculation:
+  actual_starts: { 2, 2, 2 }
+  actual_ends: { 4, 4, 4 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] Positive step calculation for dim 0:
+  end (4) - start (2) = 2
+  (end-start) + step(1) - 1 = 2
+  final dim_size = 2
+[DEBUG] Positive step calculation for dim 1:
+  end (4) - start (2) = 2
+  (end-start) + step(1) - 1 = 2
+  final dim_size = 2
+[DEBUG] Positive step calculation for dim 2:
+  end (4) - start (2) = 2
+  (end-start) + step(1) - 1 = 2
+  final dim_size = 2
+[DEBUG] Final output_shape: { 2, 2, 2 }
+
+     test: get_slice_output_shape with axes and negative steps
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 5, 5, 5 }
+  starts: { 1 }
+  ends: { 4 }
+  axes: { 1 }
+  steps: null
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 5, 5, 5 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] After processing axis 1:
+  dim_size: 5
+  actual_start: 1
+  actual_end: 4
+  actual_step: 1
+[DEBUG] Final values before shape calculation:
+  actual_starts: { 0, 1, 0 }
+  actual_ends: { 5, 4, 5 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] Positive step calculation for dim 0:
+  end (5) - start (0) = 5
+  (end-start) + step(1) - 1 = 5
+  final dim_size = 5
+[DEBUG] Positive step calculation for dim 1:
+  end (4) - start (1) = 3
+  (end-start) + step(1) - 1 = 3
+  final dim_size = 3
+[DEBUG] Positive step calculation for dim 2:
+  end (5) - start (0) = 5
+  (end-start) + step(1) - 1 = 5
+  final dim_size = 5
+[DEBUG] Final output_shape: { 5, 3, 5 }
+
+     Specific axes test - output shape: 5 3 5 
+
+     Negative steps test - inputs:
+     starts: 4 4 4
+     ends: 1 1 1
+     steps: -1 -1 -1
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 5, 5, 5 }
+  starts: { 4, 4, 4 }
+  ends: { 1, 1, 1 }
+  axes: null
+  steps: { -1, -1, -1 }
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 5, 5, 5 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] After processing axis 0:
+  dim_size: 5
+  actual_start: 4
+  actual_end: 1
+  actual_step: -1
+[DEBUG] After processing axis 1:
+  dim_size: 5
+  actual_start: 4
+  actual_end: 1
+  actual_step: -1
+[DEBUG] After processing axis 2:
+  dim_size: 5
+  actual_start: 4
+  actual_end: 1
+  actual_step: -1
+[DEBUG] Final values before shape calculation:
+  actual_starts: { 4, 4, 4 }
+  actual_ends: { 1, 1, 1 }
+  actual_steps: { -1, -1, -1 }
+[DEBUG] Negative step calculation for dim 0:
+  start (4) - end (1) = range (3)
+  (range) / abs(step) + 1 = 4
+[DEBUG] Negative step calculation for dim 1:
+  start (4) - end (1) = range (3)
+  (range) / abs(step) + 1 = 4
+[DEBUG] Negative step calculation for dim 2:
+  start (4) - end (1) = range (3)
+  (range) / abs(step) + 1 = 4
+[DEBUG] Final output_shape: { 4, 4, 4 }
+
+     Negative steps test - output shape: 4 4 4 
+
+     test: get_slice_output_shape error cases
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 5, 5, 5 }
+  starts: { 1, 2 }
+  ends: { 4 }
+  axes: null
+  steps: null
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 5, 5, 5 }
+  starts: { 1, 2 }
+  ends: { 4, 5 }
+  axes: { 1 }
+  steps: null
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 5, 5, 5 }
+  starts: { 1 }
+  ends: { 4 }
+  axes: null
+  steps: { 0 }
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 5, 5, 5 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 5, 5, 5 }
+  starts: { 1 }
+  ends: { 4 }
+  axes: { 5 }
+  steps: null
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 5, 5, 5 }
+  actual_steps: { 1, 1, 1 }
+     test: transpose_onnx basic operations
+     test: get_transpose_output_shape basic operations
+     test: lean_shape_onnx basic operations
+     test: unsqueeze valid
+
+ test: unsqueeze axis out of bounds error
+
+ test: unsqueeze duplicate axis error
+
+     test: Reshape - Basic 
+     test: Reshape - Multi-dimensional 
+     test: Reshape - Error case 
+     test: Reshape - Same size different dimensions 
+     test: Reshape - With negative dimension 
+     test: Reshape - With zero dimension 
+     test: Reshape - Multiple negative dimensions 
+     test: gather - negative axis
+     test: gather - invalid indices
+     test: gather - multi-dimensional indices
+     test: gather - single element tensor
+     test: unsqueeze - basic
+     test: unsqueeze - multiple axes
+     test: unsqueeze - negative axes
+     test: unsqueeze - scalar tensor
+     test: unsqueeze - error cases
+     test: Concatenate tensors with mismatched shapes
+[DEBUG] Shape mismatch at dim 1: shape[1][1] = 3 != shape[0][1] = 2
+     test: Concatenate tensors with invalid axis
+     test: get_concatenate_output_shape - 3D tensors
+     test: get_concatenate_output_shape - mismatched shapes
+[DEBUG] Shape mismatch at dim 1: shape[1][1] = 3 != shape[0][1] = 2
+     test: get_concatenate_output_shape - invalid axis
+[DEBUG] axis out of bounds: 2 (max_rank: 2)
+[DEBUG] axis out of bounds: -1 (max_rank: 2)
+     test: neg - 2D tensor
+     test: neg - 3D tensor
+     test: get_split_output_shapes - basic functionality
+     test: get_split_output_shapes - negative axis
+     test: get_split_output_shapes - error cases
+     test: get_split_output_shapes - default split
+     test: get_slice_output_shape basic operations
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 2, 2, 3 }
+  starts: { 0, 1, 1 }
+  ends: { 2, 2, 3 }
+  axes: { 0, 1, 2 }
+  steps: { 1, 1, 1 }
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 2, 2, 3 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] After processing axis 0:
+  dim_size: 2
+  actual_start: 0
+  actual_end: 2
+  actual_step: 1
+[DEBUG] After processing axis 1:
+  dim_size: 2
+  actual_start: 1
+  actual_end: 2
+  actual_step: 1
+[DEBUG] After processing axis 2:
+  dim_size: 3
+  actual_start: 1
+  actual_end: 3
+  actual_step: 1
+[DEBUG] Final values before shape calculation:
+  actual_starts: { 0, 1, 1 }
+  actual_ends: { 2, 2, 3 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] Positive step calculation for dim 0:
+  end (2) - start (0) = 2
+  (end-start) + step(1) - 1 = 2
+  final dim_size = 2
+[DEBUG] Positive step calculation for dim 1:
+  end (2) - start (1) = 1
+  (end-start) + step(1) - 1 = 1
+  final dim_size = 1
+[DEBUG] Positive step calculation for dim 2:
+  end (3) - start (1) = 2
+  (end-start) + step(1) - 1 = 2
+  final dim_size = 2
+[DEBUG] Final output_shape: { 2, 1, 2 }
+
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 5 }
+  starts: { -3 }
+  ends: { -1 }
+  axes: null
+  steps: { 1 }
+[DEBUG] Initial values:
+  actual_starts: { 0 }
+  actual_ends: { 5 }
+  actual_steps: { 1 }
+[DEBUG] After processing axis 0:
+  dim_size: 5
+  actual_start: 2
+  actual_end: 4
+  actual_step: 1
+[DEBUG] Final values before shape calculation:
+  actual_starts: { 2 }
+  actual_ends: { 4 }
+  actual_steps: { 1 }
+[DEBUG] Positive step calculation for dim 0:
+  end (4) - start (2) = 2
+  (end-start) + step(1) - 1 = 2
+  final dim_size = 2
+[DEBUG] Final output_shape: { 2 }
+
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 6 }
+  starts: { 0 }
+  ends: { 6 }
+  axes: null
+  steps: { 2 }
+[DEBUG] Initial values:
+  actual_starts: { 0 }
+  actual_ends: { 6 }
+  actual_steps: { 1 }
+[DEBUG] After processing axis 0:
+  dim_size: 6
+  actual_start: 0
+  actual_end: 6
+  actual_step: 2
+[DEBUG] Final values before shape calculation:
+  actual_starts: { 0 }
+  actual_ends: { 6 }
+  actual_steps: { 2 }
+[DEBUG] Positive step calculation for dim 0:
+  end (6) - start (0) = 6
+  (end-start) + step(2) - 1 = 7
+  final dim_size = 3
+[DEBUG] Final output_shape: { 3 }
+
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 2, 2, 3 }
+  starts: { 0, 1 }
+  ends: { 2, 2, 3 }
+  axes: null
+  steps: null
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 2, 2, 3 }
+  starts: { 0 }
+  ends: { 2 }
+  axes: null
+  steps: { 0 }
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 2, 2, 3 }
+  actual_steps: { 1, 1, 1 }
+[DEBUG] get_slice_output_shape input:
+  input_shape: { 2, 2, 3 }
+  starts: { 0 }
+  ends: { 2 }
+  axes: { 3 }
+  steps: null
+[DEBUG] Initial values:
+  actual_starts: { 0, 0, 0 }
+  actual_ends: { 2, 2, 3 }
+  actual_steps: { 1, 1, 1 }
+ test: identity basic operations
+OK: identity test passed.
+
+     test: get_pads_output_shape - basic
+     test: get_pads_output_shape - with axes
+     test: get_pads_output_shape - negative axes
+     test: get_pads_output_shape - error cases
+     test: pads constant mode basic 2D
+     test: pads constant mode with value and axes
+     test: pads edge mode basic 2D
+     test: pads wrap mode basic 2D
+     test: pads constant mode 3D
+     test: pads zero padding
+     test:MatMul 2x2
+ _______ TensorMath: input tensors have incompatible shapes ______
+     test: Error when input tensors have incompatible shapes for MatMul
+Test: Compare MatMul implementations with execution time
+Average over 100 iterations:
+SIMD execution time: 50881 ns
+Flat execution time: 64724 ns
+SIMD is 1.27x faster
+
+     test: Gemm Y = a A*B
+     test: Gemm Y = a A*B + bC without broadcasting
+     test: Gemm Y = a A*B + bC with broadcasting
+     test: Gemm Y = a A*B + bC with broadcasting, custom parameters v1
+     test: Gemm Y = a A*B + bC with broadcasting, custom parameters v2
+     test: Error when input tensors aren't 4D
+ _______ TensorMath: input tensors have incompatible shapes ______
+     test: Error when there's a mismatch in batch or channel dimension
+ _______ TensorMath: input tensor shape mismatch ______
+     test: Error when input tensors have incompatible sizes for gemm
+ _______ TensorMath: input tensor dimension mismatch ______
+     test: Pooling 2D
+
+     test: Pooling multidim
+
+     test: ONNX MaxPool - NOTSET padding
+
+     test: ONNX MaxPool - SAME_UPPER padding
+
+     test: ONNX MaxPool - with dilation
+
+     test: ONNX MaxPool - ceil mode
+
+     test: ONNX MaxPool - explicit padding
+
+     test: ONNX AveragePool - NOTSET padding
+
+     test: ONNX AveragePool - SAME_UPPER padding
+
+     test: ONNX AveragePool - with dilation
+
+     test: ONNX AveragePool - ceil mode
+
+     test: ONNX AveragePool - explicit padding with count_include_pad
+
+     test: mean_standard - basic case
+     test: mean_lean - basic case
+     test: mean_standard - broadcasting
+     test: mean_standard - single input
+     test: mean_standard - empty tensor list
+     test: mean_standard - invalid type
+     Error: TensorMath: invalid data type
+     test: mean_standard - multidimensional broadcasting

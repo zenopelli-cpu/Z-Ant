@@ -124,8 +124,6 @@ pub fn writeChannels(header: JpegData, mcus: []MCU, allocator: *const std.mem.Al
             channels.ch1[idx] = @as(u8, @intCast(std.math.clamp(mcus[mcuIndex].y[pixelIndex], 0, 255)));
 
             if (channels.component_num == 3) {
-                if (mcus[mcuIndex].cb[pixelIndex] < 0)
-                    std.debug.print("cb: {}\n", .{mcus[mcuIndex].cb[pixelIndex]});
                 channels.ch2[idx] = @as(u8, @intCast(mcus[mcuIndex].cb[pixelIndex]));
                 channels.ch3[idx] = @as(u8, @intCast(mcus[mcuIndex].cr[pixelIndex]));
             }
@@ -155,16 +153,14 @@ pub fn decodeHuffmanData(header: JpegData, allocator: *const std.mem.Allocator, 
     var b: BitReader = BitReader.init(header.huffman_data);
 
     var previousDCs: [3]i32 = .{ 0, 0, 0 };
-
-    var y: usize = 0;
-
     const restartInerval: u32 = @as(u32, header.restart_interval) * @as(u32, header.horizontal_sampling_factor) * @as(u32, header.vertical_sampling_factor);
-
     // loops through the MCUs decoding each one of them
+    var y: usize = 0;
     while (y < header.mcu_height) {
         var x: usize = 0;
         while (x < header.mcu_width) {
             if (restartInerval != 0 and ((y * header.mcu_true_width + x) % restartInerval == 0)) {
+                std.debug.print("reset\n", .{});
                 previousDCs[0] = 0;
                 previousDCs[1] = 0;
                 previousDCs[2] = 0;
@@ -203,13 +199,13 @@ pub fn decodeMCUComponent(b: *BitReader, component: []i32, previousDC: *i32, dcT
 
     // ---------- DC ----------
     const len: u8 = try getNextSymbol(b, dcTable);
-    if (len == 0xFF) return error.InvalidDcValue; // getNextSymbol fallito
+    if (len == 0xFF) return error.InvalidDcValue;
     if (len > 11) return error.DcCoefficientLenghtGreaterThan11;
 
     var coeff = try b.readBits(len);
     if (coeff == -1) return error.InvalidDcValue;
 
-    // calcola gli shift in modo sicuro
+    // calculate the shifts
     var len_m1_shift: u5 = 31;
     var len_shift: u5 = 0;
 
@@ -470,19 +466,15 @@ pub fn inverseDCTComponent(component: []i32) !void {
         const b7: f32 = c7;
 
         // round + store (Arai/IJPG: +0.5 and cast a int)
-        component[i * 8 + 0] = toPixel(b0 + b7 + 0.5);
-        component[i * 8 + 1] = toPixel(b1 + b6 + 0.5);
-        component[i * 8 + 2] = toPixel(b2 + b5 + 0.5);
-        component[i * 8 + 3] = toPixel(b3 + b4 + 0.5);
-        component[i * 8 + 4] = toPixel(b3 - b4 + 0.5);
-        component[i * 8 + 5] = toPixel(b2 - b5 + 0.5);
-        component[i * 8 + 6] = toPixel(b1 - b6 + 0.5);
-        component[i * 8 + 7] = toPixel(b0 - b7 + 0.5);
+        component[i * 8 + 0] = @as(i32, @intFromFloat(b0 + b7 + 0.5));
+        component[i * 8 + 1] = @as(i32, @intFromFloat(b1 + b6 + 0.5));
+        component[i * 8 + 2] = @as(i32, @intFromFloat(b2 + b5 + 0.5));
+        component[i * 8 + 3] = @as(i32, @intFromFloat(b3 + b4 + 0.5));
+        component[i * 8 + 4] = @as(i32, @intFromFloat(b3 - b4 + 0.5));
+        component[i * 8 + 5] = @as(i32, @intFromFloat(b2 - b5 + 0.5));
+        component[i * 8 + 6] = @as(i32, @intFromFloat(b1 - b6 + 0.5));
+        component[i * 8 + 7] = @as(i32, @intFromFloat(b0 - b7 + 0.5));
     }
-}
-inline fn toPixel(x: f32) i32 {
-    const v: i32 = @as(i32, @intFromFloat(@round(x))); //+ 128;
-    return v;
 }
 
 //----------------------------------COLORSPACE CONVERSION--------------------------------
@@ -513,7 +505,7 @@ pub fn yCbCrToRgb(header: JpegData, mcus: []MCU) !void {
     }
 }
 
-// Convert YCbCr to RGB for a single MCU
+// Convert YCbCr to RGB for a single MCU and upsample
 pub fn yCbCrToRgbMCU(header: JpegData, mcu: MCU, cbcr: MCU, v: usize, h: usize) void {
     var y: usize = 7;
     while (y >= 0) : (y -= 1) {
@@ -529,21 +521,72 @@ pub fn yCbCrToRgbMCU(header: JpegData, mcu: MCU, cbcr: MCU, v: usize, h: usize) 
             r_temp += 128;
             var g_temp = mcu.y[pixel] - @as(i32, @intFromFloat(0.34414 * @as(f32, @floatFromInt(cbcr.cb[cbcr_pixel])))) - @as(i32, @intFromFloat(0.71414 * @as(f32, @floatFromInt(cbcr.cr[cbcr_pixel]))));
             g_temp += 128;
-            //std.debug.print("cb: {}\n", .{cbcr.cb[cbcr_pixel]});
+
             var b_temp = mcu.y[pixel] + @as(i32, @intFromFloat(1.772 * @as(f32, @floatFromInt(cbcr.cb[cbcr_pixel]))));
             b_temp += 128;
-            if (cbcr.cb[cbcr_pixel] > 300)
-                std.debug.print("r_temp: {}\n", .{r_temp});
+
             r_temp = std.math.clamp(r_temp, 0, 255);
             g_temp = std.math.clamp(g_temp, 0, 255);
             b_temp = std.math.clamp(b_temp, 0, 255);
 
-            const r = @as(u8, @intCast(r_temp));
-            const g = @as(u8, @intCast(g_temp));
-            const b = @as(u8, @intCast(b_temp));
-            mcu.y[pixel] = r;
-            mcu.cb[pixel] = g;
-            mcu.cr[pixel] = b;
+            mcu.y[pixel] = r_temp;
+            mcu.cb[pixel] = g_temp;
+            mcu.cr[pixel] = b_temp;
+            if (x == 0) {
+                break;
+            }
+        }
+        if (y == 0) {
+            break;
+        }
+    }
+}
+
+//----------------------------------YCbCr Upsampling--------------------------------
+pub fn yCbCrUpsampling(header: JpegData, mcus: []MCU) !void {
+    var y: usize = 0;
+    while (y < header.mcu_height) {
+        var x: usize = 0;
+        while (x < header.mcu_width) {
+            const cbcr = mcus[y * header.mcu_true_width + x];
+            var v = header.vertical_sampling_factor - 1;
+            while (v >= 0) : (v -= 1) {
+                var h = header.horizontal_sampling_factor - 1;
+                while (h >= 0) : (h -= 1) {
+                    const mcu = mcus[(y + v) * header.mcu_true_width + (x + h)];
+                    yCbCrUpsamplingMCU(header, mcu, cbcr, v, h);
+                    if (h == 0) {
+                        break;
+                    }
+                }
+                if (v == 0) {
+                    break;
+                }
+            }
+            x += header.horizontal_sampling_factor;
+        }
+        y += header.vertical_sampling_factor;
+    }
+}
+
+// Convert YCbCr to RGB for a single MCU
+pub fn yCbCrUpsamplingMCU(header: JpegData, mcu: MCU, cbcr: MCU, v: usize, h: usize) void {
+    var y: usize = 7;
+    while (y >= 0) : (y -= 1) {
+        var x: usize = 7;
+        while (x >= 0) : (x -= 1) {
+            const pixel = y * 8 + x;
+
+            const cbcr_pixel_row = y / header.vertical_sampling_factor + 4 * v;
+            const cbcr_pixel_col = x / header.horizontal_sampling_factor + 4 * h;
+            const cbcr_pixel = cbcr_pixel_row * 8 + cbcr_pixel_col;
+
+            mcu.cb[pixel] = cbcr.cb[cbcr_pixel] + 128;
+            mcu.cr[pixel] = cbcr.cr[cbcr_pixel] + 128;
+            mcu.y[pixel] = mcu.y[pixel] + 128;
+            mcu.cb[pixel] = std.math.clamp(mcu.cb[pixel], 0, 255);
+            mcu.cr[pixel] = std.math.clamp(mcu.cr[pixel], 0, 255);
+            mcu.y[pixel] = std.math.clamp(mcu.y[pixel], 0, 255);
             if (x == 0) {
                 break;
             }

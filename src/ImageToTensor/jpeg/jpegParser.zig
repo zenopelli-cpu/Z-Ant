@@ -8,6 +8,17 @@ const SegmentReader = utils.SegmentReader;
 const ImageUnit = utils.ImageUnit;
 const JpegSegment = utils.JpegSegment;
 
+const zigZagMap: [64]u8 = .{
+    0,  1,  8,  16, 9,  2,  3,  10,
+    17, 24, 32, 25, 18, 11, 4,  5,
+    12, 19, 26, 33, 40, 48, 41, 34,
+    27, 20, 13, 6,  7,  14, 21, 28,
+    35, 42, 49, 56, 57, 50, 43, 36,
+    29, 22, 15, 23, 30, 37, 44, 51,
+    58, 59, 52, 45, 38, 31, 39, 46,
+    53, 60, 61, 54, 47, 55, 62, 63,
+};
+
 // marker enum: contains all the markers used in the jpeg file
 // the markers are used to identify the different segments of the jpeg file
 pub const jpegMarker = enum(u8) {
@@ -107,7 +118,7 @@ pub const JpegData = struct {
     quant_tables: []?QuantTable = undefined,
     huffman_tables_dc: []?HuffmanTable = undefined,
     huffman_tables_ac: []?HuffmanTable = undefined,
-    restart_interval: u16 = undefined,
+    restart_interval: u16 = 0,
 
     // bitstream containing the huffman entropy encoded data
     huffman_data: []u8 = undefined,
@@ -180,7 +191,7 @@ pub const QuantTable = struct {
 
     fn init(table: [64]u8, id: u8) !QuantTable {
         if (id > 15)
-            return error.InvalidId;
+            return error.InvalidQuantizationTableId;
         return QuantTable{
             .id = id,
             .table = table,
@@ -221,9 +232,18 @@ pub fn parseDQT(segment: *JpegSegment, result: *JpegData) !void {
             return error.UnsupportedPrecision;
 
         var table_slice: [64]u8 = undefined;
-        for (0..64) |i| {
-            table_slice[i] = try segment.nextByte();
+        if (precision == 0) {
+            for (0..64) |i| {
+                table_slice[zigZagMap[i]] = try segment.nextByte();
+            }
+        } else {
+            for (0..64) |i| {
+                const byte1 = try segment.nextByte();
+                const byte2 = try segment.nextByte();
+                table_slice[zigZagMap[i]] = @as(u8, @intCast(std.mem.readInt(u16, &[2]u8{ byte1, byte2 }, .big)));
+            }
         }
+
         result.quant_tables[id] = try QuantTable.init(table_slice, id);
     }
 }
@@ -240,7 +260,7 @@ pub fn parseDHT(segment: *JpegSegment, result: *JpegData, allocator: *const std.
         const id: u8 = @intCast(ht_info & 0x0F); // lower 4 bits
 
         if (class > 1 or id > 3) {
-            return error.InvalidHTInfo;
+            return error.InvalidHuffmanTableId;
         }
 
         var total_symbols: u8 = 0;
@@ -257,7 +277,7 @@ pub fn parseDHT(segment: *JpegSegment, result: *JpegData, allocator: *const std.
         const expected_len = 1 + 16 + total_symbols;
 
         if (expected_len > segment.length) {
-            return error.NotEnoughData;
+            return error.UnexpectedEndOfSegment;
         }
 
         var symbols = try allocator.alloc(u8, total_symbols);
@@ -291,22 +311,21 @@ pub fn parseDHT(segment: *JpegSegment, result: *JpegData, allocator: *const std.
 // SOF parsing
 // at the moment only the SOF0 format is supported (baseline). SOF2 (progressive) is not supported but can be easily implemented
 pub fn parseSOF0(data: []u8, result: *JpegData) !void {
-    std.debug.print("SOF0\n", .{});
     if (data.len < 6)
-        return error.InvalidSOFData;
+        return error.SegmentTooShort;
 
     const precision = data[0];
     const height = std.mem.readInt(u16, data[1..3], .big);
     const width = std.mem.readInt(u16, data[3..5], .big);
     const components_num = data[5];
-    std.debug.print("comp_num: {}\n", .{components_num});
+
     if (components_num != 1 and components_num != 3) {
-        return error.InvalidNumberOfComponents;
+        return error.InvalidComponentNum;
     }
 
     const expected_length = 6 + components_num * 3;
     if (data.len < expected_length)
-        return error.InvalidSOFLength;
+        return error.SegmentTooShort;
 
     result.frame_info.precision = precision;
     result.frame_info.height = height;
@@ -371,7 +390,7 @@ pub fn parseSOS(segment: *JpegSegment, decoder: *SegmentReader, result: *JpegDat
             component_id += 1;
         }
         if (component_id > result.frame_info.components_num) {
-            return error.InvalidColorComponentId;
+            return error.InvalidComponentNum;
         }
         if (result.frame_info.components[component_id - 1].used) {
             return error.AlreadyUsedComponent;

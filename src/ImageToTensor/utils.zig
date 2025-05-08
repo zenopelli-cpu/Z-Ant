@@ -2,7 +2,7 @@ const std = @import("std");
 const fv = @import("formatVerifier.zig");
 const jpeg = @import("jpeg/jpegParser.zig");
 
-const ImageFormat = fv.ImageFormat;
+pub const ImageFormat = fv.ImageFormat;
 
 // jpeg related
 const jpegMarker = jpeg.jpegMarker;
@@ -23,7 +23,7 @@ pub const JpegSegment = struct {
 
     pub fn nextByte(self: *JpegSegment) !u8 {
         if (self.idx + 1 > self.data.len) {
-            return error.Eof;
+            return error.UnexpectedEOF;
         }
         const byte = self.data[self.idx];
         defer self.idx += 1;
@@ -73,7 +73,7 @@ pub const SegmentReader = struct {
         return switch (self.format) {
             .JPEG => ImageUnit{ .JpegSegment = try self.nextJpegSegment() },
             //.PNG => png.nextPngChunk(self),
-            else => error.UnsupportedFormat,
+            else => error.InvalidImageFormat,
         };
     }
 
@@ -82,7 +82,7 @@ pub const SegmentReader = struct {
     // the reader will also check if the end of the segment is reached
     pub fn tryAdvance(self: *SegmentReader, len: usize) ![]u8 {
         if (self.idx + len > self.data.len) {
-            return error.Eof;
+            return error.UnexpectedEOF;
         }
         const slice = self.data[self.idx .. self.idx + len];
         self.idx += len;
@@ -92,7 +92,7 @@ pub const SegmentReader = struct {
     // read the next byte of the image and return it as a u8
     pub fn nextByte(self: *SegmentReader) !u8 {
         if (self.idx + 1 > self.data.len) {
-            return error.Eof;
+            return error.UnexpectedEOF;
         }
         const byte_slice = try self.tryAdvance(1);
         const byte = byte_slice[0];
@@ -105,7 +105,7 @@ pub const SegmentReader = struct {
     fn nextJpegSegment(self: *SegmentReader) !JpegSegment {
         // gets the marker
         if (try self.nextByte() != 0xFF) {
-            return error.NotTheStartOfSegment;
+            return error.NotStartOfSegment;
         }
 
         var marker = try self.nextByte();
@@ -161,7 +161,7 @@ pub const BitReader = struct {
     // read a single bit from the bitstream
     // the bit is returned as a u8
     pub fn readBit(self: *BitReader) !u8 {
-        if (self.nextByte >= self.data.len) return error.Eof;
+        if (self.nextByte >= self.data.len) return error.UnexpectedEOF;
 
         const shift: u3 = @intCast(7 - self.nextBit);
         const bit: u8 = (self.data[self.nextByte] >> shift) & 1;
@@ -289,3 +289,36 @@ pub fn normalizeSigned(comptime T: type, channel: *ColorChannels, output: [][][]
         }
     }
 }
+
+pub const ImToTensorError = error{
+    InvalidImageFormat,
+    UnexpectedEOF,
+    WrongFileFormat,
+    NotStartOfSegment,
+    InvalidComponentNum,
+    InvalidComponent,
+    InvalidColorspace,
+    NameTooLong,
+    InvalidDcValue,
+    DcCoefficientLenghtGreaterThan11,
+    InvalidAcValue,
+    InvalidAcSymbol,
+    ZeroRunExceedeMCU,
+    DecodeAcCoefficientLenGreaterThan10,
+    InvalidHuffmanCode,
+    InvalidQuantizationTableId,
+    UnsupportedPrecision,
+    SegmentTooShort,
+    InvalidHuffmanTableId,
+    TooManyHTSymbols,
+    UnexpectedEndOfSegment,
+    SamplingFactorsNotSupported,
+    SamplingOnCbCrNotSupported,
+    SosDetectedBeforeSof,
+    InvalidSpectralSeletion,
+    InvalidSuccessiveApproximation,
+    UnexpectedMarker,
+    ArithmeticEncodingNotSupported,
+    SofMarkerNotSupported,
+    RstNDetectedBeforeSos,
+};
