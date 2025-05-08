@@ -44,6 +44,15 @@ pub const TensorCategory = enum {
     output,
     initializer,
     link,
+
+    pub fn toString(self: TensorCategory) []const u8 {
+        return switch (self) {
+            .input => ".input",
+            .output => ".output",
+            .initializer => ".initializer",
+            .link => ".link",
+        };
+    }
 };
 
 pub const TensorZant = struct {
@@ -54,7 +63,7 @@ pub const TensorZant = struct {
     shape: []usize,
 
     pub fn init(name: []const u8, tensorProto: ?*TensorProto, value_info: ?*ValueInfoProto, tensorCategory: TensorCategory) !TensorZant {
-        std.debug.print("\n ----------- init({s}, {s}, model) ", .{ name, if (tensorProto) |_| "tp" else "null" });
+        std.debug.print("\n ----------- init({s}, {s}, {s}) ", .{ name, if (tensorProto) |_| "tp" else "null", tensorCategory.toString() });
 
         var tensor: ?AnyTensor = null;
         var shape_i64: []i64 = undefined;
@@ -108,12 +117,12 @@ pub var tensorMap: std.StringHashMap(TensorZant) = std.StringHashMap(TensorZant)
 // Populates tensorHashMap with the tensors used in the onnx graph, where the key is the name of the tensor
 
 pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
-    std.debug.print("\n ------ initialize_tensorZantMap ----- ", .{});
+    std.debug.print("\n ---- initialize_tensorZantMap ---- ", .{});
 
     const protoGraph = try if (modelProto.graph) |graph| graph else error.GraphNotAvailable;
 
     //adding initializers to the hash map
-    std.debug.print("\n ---------- initializers ", .{});
+    std.debug.print("\n -------- initializers ", .{});
 
     for (protoGraph.initializers) |init_ptr| { //initializer : *TensorProto,
         //create the readyTensor
@@ -128,7 +137,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
     }
 
     //adding inputs to the hash map
-    std.debug.print("\n ---------- inputs ", .{});
+    std.debug.print("\n -------- inputs ", .{});
 
     for (protoGraph.inputs) |inputs_ptr| { //inputs : *ValueInfoProto,
         if (tensorMap.getPtr(inputs_ptr.name.?) != null) continue;
@@ -144,7 +153,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
     }
 
     //adding outputs to the hash map
-    std.debug.print("\n ---------- outputs ", .{});
+    std.debug.print("\n -------- outputs ", .{});
 
     for (protoGraph.outputs) |outputs_ptr| { //outputs : *ValueInfoProto,
         if (tensorMap.getPtr(outputs_ptr.name.?) != null) continue;
@@ -159,7 +168,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
         try tensorMap.put(tensorZant.name, tensorZant);
     }
 
-    std.debug.print("\n ---------- nodes ", .{});
+    std.debug.print("\n -------- nodes ", .{});
     //adding all the nodes inputs and outputs
     for (protoGraph.nodes) |node| { //for each NodeProto in the GraphProto
         for (node.input) |input_name| {
