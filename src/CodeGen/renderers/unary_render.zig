@@ -50,12 +50,11 @@ pub fn render(
 
             const type_str = DTypeInfo.asString(uop.dtype);
             const is_accumulator_update = std.mem.startsWith(u8, src_var, "acc_");
-
             switch(DTypeInfo.byteSize(uop.dtype)){
                 1 => {
-                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, {d}&0xFF)", .{ type_str, uop.arg.?.clip_bounds.max });
+                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFF))", .{ type_str, uop.arg.?.clip_bounds.max });
                     defer allocator.free(maxstr);
-                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, {d}&0xFF)", .{ type_str, uop.arg.?.clip_bounds.min });
+                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFF))", .{ type_str, uop.arg.?.clip_bounds.min });
                     defer allocator.free(minstr);
 
                     if(is_accumulator_update){
@@ -65,9 +64,9 @@ pub fn render(
                     }
                 },
                 2 => {
-                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, {d}&0xFFFF)", .{ type_str, uop.arg.?.clip_bounds.max });
+                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFF))", .{ type_str, uop.arg.?.clip_bounds.max });
                     defer allocator.free(maxstr);
-                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, {d}&0xFFFF)", .{ type_str, uop.arg.?.clip_bounds.min });
+                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFF))", .{ type_str, uop.arg.?.clip_bounds.min });
                     defer allocator.free(minstr);
 
                     if(is_accumulator_update){
@@ -77,9 +76,9 @@ pub fn render(
                     }
                 },
                 4 => {
-                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, {d}&0xFFFFFFFF)", .{ type_str, uop.arg.?.clip_bounds.max });
+                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFFFFFF))", .{ type_str, uop.arg.?.clip_bounds.max });
                     defer allocator.free(maxstr);
-                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, {d}&0xFFFFFFFF)", .{ type_str, uop.arg.?.clip_bounds.min });
+                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFFFFFF))", .{ type_str, uop.arg.?.clip_bounds.min });
                     defer allocator.free(minstr);
 
                     if(is_accumulator_update){
@@ -89,9 +88,9 @@ pub fn render(
                     }
                 },
                 else => {
-                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, {d})", .{ type_str, uop.arg.?.clip_bounds.max });
+                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}))", .{ type_str, uop.arg.?.clip_bounds.max });
                     defer allocator.free(maxstr);
-                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, {d})", .{ type_str, uop.arg.?.clip_bounds.min });
+                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}))", .{ type_str, uop.arg.?.clip_bounds.min });
                     defer allocator.free(minstr);
 
                     if(is_accumulator_update){
