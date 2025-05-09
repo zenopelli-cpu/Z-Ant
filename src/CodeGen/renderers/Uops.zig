@@ -122,8 +122,8 @@ pub const Any = union(enum) {
 
     clip_bounds: struct {
         type: DType,
-        min: Any,
-        max: Any,
+        min: usize,
+        max: usize,
     }
 
     // 👉  add more variants when a new op requires metadata
@@ -142,6 +142,15 @@ pub const DTypeInfo = struct {
             .i8 => "i8",
             .bool => "bool",
             .u16 => "u16",
+        };
+    }
+    pub fn byteSize(dtype: DType) usize {
+        return switch (dtype) {
+            .f32 => 4,
+            .i32 => 4,
+            .i8 => 1,
+            .bool => 1,
+            .u16 => 2,
         };
     }
 };
