@@ -52,51 +52,51 @@ pub fn render(
             const is_accumulator_update = std.mem.startsWith(u8, src_var, "acc_");
             switch(DTypeInfo.byteSize(uop.dtype)){
                 1 => {
-                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFF))", .{ type_str, uop.arg.?.clip_bounds.max });
+                    const maxstr = try std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFF))", .{ type_str, uop.arg.?.clip_bounds.max });
                     defer allocator.free(maxstr);
-                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFF))", .{ type_str, uop.arg.?.clip_bounds.min });
+                    const minstr = try std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFF))", .{ type_str, uop.arg.?.clip_bounds.min });
                     defer allocator.free(minstr);
 
                     if(is_accumulator_update){
-                        try writer.print("  {s} = if({s}<{s}){if({s}>{s}) {s} else {s};} else {s};\n", .{ src_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
+                        try writer.print("  {s} = if({s}<{s}) if({s}>{s}) {s} else {s} else {s};\n", .{ src_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
                     } else {
-                        try writer.print("  const {s} = if({s}<{s}){if({s}>{s}) {s} else {s};} else {s};\n", .{ result_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
+                        try writer.print("  const {s} = if({s}<{s}) if({s}>{s}) {s} else {s} else {s};\n", .{ result_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
                     }
                 },
                 2 => {
-                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFF))", .{ type_str, uop.arg.?.clip_bounds.max });
+                    const maxstr = try std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFF))", .{ type_str, uop.arg.?.clip_bounds.max });
                     defer allocator.free(maxstr);
-                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFF))", .{ type_str, uop.arg.?.clip_bounds.min });
+                    const minstr = try std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFF))", .{ type_str, uop.arg.?.clip_bounds.min });
                     defer allocator.free(minstr);
 
                     if(is_accumulator_update){
-                        try writer.print("  {s} = if({s}<{s}){if({s}>{s}) {s} else {s};} else {s};\n", .{ src_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
+                        try writer.print("  {s} = if({s}<{s}) if({s}>{s}) {s} else {s} else {s};\n", .{ src_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
                     } else {
-                        try writer.print("  const {s} = if({s}<{s}){if({s}>{s}) {s} else {s};} else {s};\n", .{ result_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
+                        try writer.print("  const {s} = if({s}<{s}) if({s}>{s}) {s} else {s} else {s};\n", .{ result_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
                     }
                 },
                 4 => {
-                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFFFFFF))", .{ type_str, uop.arg.?.clip_bounds.max });
+                    const maxstr = try std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFFFFFF))", .{ type_str, uop.arg.?.clip_bounds.max });
                     defer allocator.free(maxstr);
-                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFFFFFF))", .{ type_str, uop.arg.?.clip_bounds.min });
+                    const minstr = try std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}&0xFFFFFFFF))", .{ type_str, uop.arg.?.clip_bounds.min });
                     defer allocator.free(minstr);
 
                     if(is_accumulator_update){
-                        try writer.print("  {s} = if({s}<{s}){if({s}>{s}) {s} else {s};} else {s};\n", .{ src_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
+                        try writer.print("  {s} = if({s}<{s}) if({s}>{s}) {s} else {s} else {s};\n", .{ src_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
                     } else {
-                        try writer.print("  const {s} = if({s}<{s}){if({s}>{s}) {s} else {s};} else {s};\n", .{ result_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
+                        try writer.print("  const {s} = if({s}<{s}) if({s}>{s}) {s} else {s} else {s};\n", .{ result_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
                     }
                 },
                 else => {
-                    const maxstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}))", .{ type_str, uop.arg.?.clip_bounds.max });
+                    const maxstr = try std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}))", .{ type_str, uop.arg.?.clip_bounds.max });
                     defer allocator.free(maxstr);
-                    const minstr = std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}))", .{ type_str, uop.arg.?.clip_bounds.min });
+                    const minstr = try std.fmt.allocPrint(allocator, "@as({s}, @bitCast({d}))", .{ type_str, uop.arg.?.clip_bounds.min });
                     defer allocator.free(minstr);
 
                     if(is_accumulator_update){
-                        try writer.print("  {s} = if({s}<{s}){if({s}>{s}) {s} else {s};} else {s};\n", .{ src_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
+                        try writer.print("  {s} = if({s}<{s}) if({s}>{s}) {s} else {s} else {s};\n", .{ src_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
                     } else {
-                        try writer.print("  const {s} = if({s}<{s}){if({s}>{s}) {s} else {s};} else {s};\n", .{ result_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
+                        try writer.print("  const {s} = if({s}<{s}) if({s}>{s}) {s} else {s} else {s};\n", .{ result_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
                     }
                 },
             }
