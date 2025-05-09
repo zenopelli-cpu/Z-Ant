@@ -15,7 +15,7 @@ const lowerMaxPool2d = zant.core.tensor.math_standard.lowerMaxPool2d;
 const UOpBuilder = zant.uops.UOpBuilder;
 const DType = zant.uops.DType;
 const lowerNeg = zant.core.tensor.math_standard.lowerNeg;
-
+const lowerClip = zant.core.tensor.math_standard.lowerClip;
 // /* REMOVED OLD TESTS
 // test "Arithmetic operations" { ... }
 // ... etc ...
@@ -731,4 +731,90 @@ test "Test Generated LowerNeg Kernel" {
     try std.testing.expectEqualSlices(f32, expected_result, result_slice);
 
     std.debug.print("Generated LowerNeg kernel test passed!\n", .{});
+}
+
+test "LowerClip Pipeline" {
+    std.debug.print("Running zig renderer lowerClip pipeline test\n", .{});
+    const allocator = std.testing.allocator;
+
+    // 1. Setup UOpBuilder
+    var builder = UOpBuilder.init(allocator);
+
+    // 2. Define inputs for lowerNeg
+    const A_id: usize = 0; // Simulated input tensor ID
+    // A shape: {2, 3}
+    const input_shape = &.{ @as(usize, 2), @as(usize, 3) }; // Explicitly type for array literal
+    const out_shape = input_shape; // For Neg, output shape is same as input
+    const out_dtype = DType.f32;
+    const max: usize = 10;
+    const min: usize = 8;
+
+    // 3. Call lowerNeg to generate UOps
+    const out_buf_id = lowerClip(
+        &builder,
+        A_id,
+        out_shape,
+        out_dtype,
+        min,
+        max,
+    );
+    _ = out_buf_id; // Prevent unused warning
+
+    // Take ownership of UOps
+    const uops_list = try builder.toOwnedSlice();
+    builder.deinit();
+    defer allocator.free(uops_list);
+
+    // DEBUG: Print the generated UOps
+    std.debug.print("--- Generated UOps (Neg) ---\n", .{});
+    for (uops_list) |uop| {
+        uop.dump(std.io.getStdErr().writer()) catch {};
+    }
+    std.debug.print("--------------------------\n", .{});
+
+    // Defer to free duplicated src slices and view_meta args
+    defer {
+        std.debug.print("DEBUG: Freeing internal src/args for {d} uops in Neg test\n", .{uops_list.len});
+        for (uops_list) |uop| {
+            if (uop.src.len > 0) {
+                allocator.free(@constCast(uop.src));
+            }
+            if (uop.arg) |arg_val| {
+                if (uop.op == .VIEW) {
+                    switch (arg_val) {
+                        .view_meta => |vm| {
+                            if (vm.shape.len > 0) allocator.free(@constCast(vm.shape));
+                            if (vm.strides.len > 0) allocator.free(@constCast(vm.strides));
+                        },
+                        else => {},
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Render UOps to Zig code as a function
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+    const Writer = @TypeOf(buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    defer renderer.deinit();
+
+    const input_ids = &[_]usize{A_id};
+    try renderer.render_as_function(uops_list, input_ids);
+
+    const actual_code = try buffer.toOwnedSlice();
+    defer allocator.free(actual_code);
+
+    std.debug.print("\n--- Generated Function (Neg) ---\n{s}\n--------------------------------\n", .{actual_code});
+
+    // 5. Save output to a file
+    const output_filename = "tests/CodeGen/renderer/lowerneg_output_function.zig";
+    var file = try std.fs.cwd().createFile(output_filename, .{ .read = true });
+    defer file.close();
+    _ = try file.write(actual_code);
+    std.debug.print("Generated neg function saved to {s}\n", .{output_filename});
+
+    // Optional: Clean up
+    // try std.fs.cwd().deleteFile(output_filename);
 }
