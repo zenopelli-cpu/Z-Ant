@@ -63,7 +63,7 @@ pub const GraphZant = struct {
         }
     }
 
-    // linerize the graph
+    // linearize the graph
     pub fn linearize(self: *GraphZant, alloc: std.mem.Allocator) !std.ArrayList(*NodeZant) {
         const visited = std.AutoHashMap(*NodeZant, bool).init(alloc);
         const result = std.ArrayList(*NodeZant).init(alloc);
