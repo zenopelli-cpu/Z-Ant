@@ -1,4 +1,5 @@
 const std = @import("std");
+const ImToTensorError = @import("utils.zig").ImToTensorError;
 
 pub const ImageFormat = enum {
     PNG,
@@ -26,6 +27,6 @@ pub fn findFormat(buf: []u8) !ImageFormat {
     //    return ImageFormat.PNG;
     //}
     else {
-        return error.InvalidImageFormat;
+        return ImToTensorError.InvalidImageFormat;
     }
 }

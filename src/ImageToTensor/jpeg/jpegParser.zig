@@ -7,6 +7,7 @@ const ImageFormat = fv.ImageFormat;
 const SegmentReader = utils.SegmentReader;
 const ImageUnit = utils.ImageUnit;
 const JpegSegment = utils.JpegSegment;
+const ImToTensorError = utils.ImToTensorError;
 
 const zigZagMap: [64]u8 = .{
     0,  1,  8,  16, 9,  2,  3,  10,
@@ -191,7 +192,7 @@ pub const QuantTable = struct {
 
     fn init(table: [64]u8, id: u8) !QuantTable {
         if (id > 15)
-            return error.InvalidQuantizationTableId;
+            return ImToTensorError.InvalidQuantizationTableId;
         return QuantTable{
             .id = id,
             .table = table,
@@ -229,7 +230,7 @@ pub fn parseDQT(segment: *JpegSegment, result: *JpegData) !void {
         const id = info_byte & 0x0F;
 
         if (precision != 0 and precision != 1)
-            return error.UnsupportedPrecision;
+            return ImToTensorError.UnsupportedPrecision;
 
         var table_slice: [64]u8 = undefined;
         if (precision == 0) {
@@ -252,7 +253,7 @@ pub fn parseDQT(segment: *JpegSegment, result: *JpegData) !void {
 pub fn parseDHT(segment: *JpegSegment, result: *JpegData, allocator: *const std.mem.Allocator) !void {
     while (segment.idx < segment.length - 1) {
         if (segment.length - segment.idx < 17) {
-            return error.SegmentTooShort;
+            return ImToTensorError.SegmentTooShort;
         }
 
         const ht_info = try segment.nextByte();
@@ -260,7 +261,7 @@ pub fn parseDHT(segment: *JpegSegment, result: *JpegData, allocator: *const std.
         const id: u8 = @intCast(ht_info & 0x0F); // lower 4 bits
 
         if (class > 1 or id > 3) {
-            return error.InvalidHuffmanTableId;
+            return ImToTensorError.InvalidHuffmanTableId;
         }
 
         var total_symbols: u8 = 0;
@@ -272,12 +273,12 @@ pub fn parseDHT(segment: *JpegSegment, result: *JpegData, allocator: *const std.
         }
 
         if (total_symbols > 162)
-            return error.TooManyHTSymbols;
+            return ImToTensorError.TooManyHTSymbols;
 
         const expected_len = 1 + 16 + total_symbols;
 
         if (expected_len > segment.length) {
-            return error.UnexpectedEndOfSegment;
+            return ImToTensorError.UnexpectedEndOfSegment;
         }
 
         var symbols = try allocator.alloc(u8, total_symbols);
@@ -312,7 +313,7 @@ pub fn parseDHT(segment: *JpegSegment, result: *JpegData, allocator: *const std.
 // at the moment only the SOF0 format is supported (baseline). SOF2 (progressive) is not supported but can be easily implemented
 pub fn parseSOF0(data: []u8, result: *JpegData) !void {
     if (data.len < 6)
-        return error.SegmentTooShort;
+        return ImToTensorError.SegmentTooShort;
 
     const precision = data[0];
     const height = std.mem.readInt(u16, data[1..3], .big);
@@ -320,12 +321,12 @@ pub fn parseSOF0(data: []u8, result: *JpegData) !void {
     const components_num = data[5];
 
     if (components_num != 1 and components_num != 3) {
-        return error.InvalidComponentNum;
+        return ImToTensorError.InvalidComponentNum;
     }
 
     const expected_length = 6 + components_num * 3;
     if (data.len < expected_length)
-        return error.SegmentTooShort;
+        return ImToTensorError.SegmentTooShort;
 
     result.frame_info.precision = precision;
     result.frame_info.height = height;
@@ -352,7 +353,7 @@ pub fn parseSOF0(data: []u8, result: *JpegData) !void {
 
         if (id == 1 or id == 0) {
             if ((h_sampling != 1 and h_sampling != 2) or (v_sampling != 1 and v_sampling != 2)) {
-                return error.SamplingFactorsNotSupported;
+                return ImToTensorError.SamplingFactorsNotSupported;
             }
             if (h_sampling == 2 and result.mcu_width % 2 == 1) {
                 result.mcu_true_width += 1;
@@ -364,7 +365,7 @@ pub fn parseSOF0(data: []u8, result: *JpegData) !void {
             result.vertical_sampling_factor = v_sampling;
         } else {
             if (h_sampling != 1 or v_sampling != 1) {
-                return error.SamplingOnCbCrNotSupported;
+                return ImToTensorError.SamplingOnCbCrNotSupported;
             }
         }
 
@@ -380,7 +381,7 @@ pub fn parseSOF0(data: []u8, result: *JpegData) !void {
 // Start of Scan parsing
 pub fn parseSOS(segment: *JpegSegment, decoder: *SegmentReader, result: *JpegData, allocator: *const std.mem.Allocator) !void {
     if (result.frame_info.components_num == 0) {
-        return error.SosDetectedBeforeSof;
+        return ImToTensorError.SosDetectedBeforeSof;
     }
 
     const components_num = try segment.nextByte();
@@ -390,10 +391,10 @@ pub fn parseSOS(segment: *JpegSegment, decoder: *SegmentReader, result: *JpegDat
             component_id += 1;
         }
         if (component_id > result.frame_info.components_num) {
-            return error.InvalidComponentNum;
+            return ImToTensorError.InvalidComponentNum;
         }
         if (result.frame_info.components[component_id - 1].used) {
-            return error.AlreadyUsedComponent;
+            return ImToTensorError.InvalidComponent;
         }
         result.frame_info.components[component_id - 1].used = true;
 
@@ -402,7 +403,7 @@ pub fn parseSOS(segment: *JpegSegment, decoder: *SegmentReader, result: *JpegDat
         result.frame_info.components[component_id - 1].huffmanACTableID = ht_ids & 0x0F;
 
         if ((ht_ids >> 4) > 3 or (ht_ids & 0x0F) > 3) {
-            return error.InvalidHuffmanTableId;
+            return ImToTensorError.InvalidHuffmanTableId;
         }
     }
 
@@ -413,10 +414,10 @@ pub fn parseSOS(segment: *JpegSegment, decoder: *SegmentReader, result: *JpegDat
     result.sos_info.successive_approx_low = successive_approx & 0x0F;
 
     if (result.sos_info.start_of_selection != 0 or result.sos_info.end_of_selection != 63) {
-        return error.InvalidSpectralSeletion;
+        return ImToTensorError.InvalidSpectralSeletion;
     }
     if (result.sos_info.successive_approx_high != 0 or result.sos_info.successive_approx_low != 0) {
-        return error.InvalidSuccessiveApproximation;
+        return ImToTensorError.InvalidSuccessiveApproximation;
     }
 
     result.huffman_data = try readSosData(decoder, allocator);
@@ -437,7 +438,7 @@ pub fn readSosData(segment: *SegmentReader, allocator: *const std.mem.Allocator)
         }
 
         if (i + 1 >= data.len)
-            return error.UnexpectedEof;
+            return ImToTensorError.UnexpectedEof;
 
         const next = data[i + 1];
 
@@ -451,7 +452,7 @@ pub fn readSosData(segment: *SegmentReader, allocator: *const std.mem.Allocator)
         { // FF D0..D7 -> restart marker, discard the byte
             i += 1;
         } else {
-            return error.UnexpectedMarker;
+            return ImToTensorError.UnexpectedMarker;
         }
     }
 
@@ -482,7 +483,7 @@ pub fn readSosData(segment: *SegmentReader, allocator: *const std.mem.Allocator)
                 continue;
             }
 
-            return error.UnexpectedMarker;
+            return ImToTensorError.UnexpectedMarker;
         }
 
         out[idx] = last;
@@ -542,11 +543,11 @@ pub fn jpegParser(
             // not supported markers
             else => {
                 if (segment.type == jpegMarker.DAC) {
-                    return error.ArithmeticEncodingNotSupported;
+                    return ImToTensorError.ArithmeticEncodingNotSupported;
                 } else if (@intFromEnum(segment.type) > @intFromEnum(jpegMarker.SOF0) and @intFromEnum(segment.type) <= @intFromEnum(jpegMarker.SOF15)) {
-                    return error.SOFMarkerNotSupported;
+                    return ImToTensorError.SOFMarkerNotSupported;
                 } else if (@intFromEnum(segment.type) >= @intFromEnum(jpegMarker.RST0) and @intFromEnum(segment.type) <= @intFromEnum(jpegMarker.RST7)) {
-                    return error.RSTNDetectedBeforeSOS;
+                    return ImToTensorError.RSTNDetectedBeforeSOS;
                 }
             },
         }

@@ -3,8 +3,6 @@ const fv = @import("formatVerifier.zig");
 const jpeg = @import("jpeg/jpegParser.zig");
 
 pub const ImageFormat = fv.ImageFormat;
-
-// jpeg related
 const jpegMarker = jpeg.jpegMarker;
 
 // --------------------------------- Blocks Structures of all format ----------------------------------------
@@ -23,7 +21,7 @@ pub const JpegSegment = struct {
 
     pub fn nextByte(self: *JpegSegment) !u8 {
         if (self.idx + 1 > self.data.len) {
-            return error.UnexpectedEOF;
+            return ImToTensorError.UnexpectedEOF;
         }
         const byte = self.data[self.idx];
         defer self.idx += 1;
@@ -50,7 +48,7 @@ pub const SegmentReader = struct {
 
     pub fn init(data: []u8, format: ImageFormat) !SegmentReader {
         if (!fv.verifyFormat(data, format)) {
-            return error.WrongFileFormat;
+            return ImToTensorError.WrongFileFormat;
         }
         return SegmentReader{
             .format = format,
@@ -73,7 +71,7 @@ pub const SegmentReader = struct {
         return switch (self.format) {
             .JPEG => ImageUnit{ .JpegSegment = try self.nextJpegSegment() },
             //.PNG => png.nextPngChunk(self),
-            else => error.InvalidImageFormat,
+            else => ImToTensorError.InvalidImageFormat,
         };
     }
 
@@ -82,7 +80,7 @@ pub const SegmentReader = struct {
     // the reader will also check if the end of the segment is reached
     pub fn tryAdvance(self: *SegmentReader, len: usize) ![]u8 {
         if (self.idx + len > self.data.len) {
-            return error.UnexpectedEOF;
+            return ImToTensorError.UnexpectedEOF;
         }
         const slice = self.data[self.idx .. self.idx + len];
         self.idx += len;
@@ -92,7 +90,7 @@ pub const SegmentReader = struct {
     // read the next byte of the image and return it as a u8
     pub fn nextByte(self: *SegmentReader) !u8 {
         if (self.idx + 1 > self.data.len) {
-            return error.UnexpectedEOF;
+            return ImToTensorError.UnexpectedEOF;
         }
         const byte_slice = try self.tryAdvance(1);
         const byte = byte_slice[0];
@@ -105,7 +103,7 @@ pub const SegmentReader = struct {
     fn nextJpegSegment(self: *SegmentReader) !JpegSegment {
         // gets the marker
         if (try self.nextByte() != 0xFF) {
-            return error.NotStartOfSegment;
+            return ImToTensorError.NotStartOfSegment;
         }
 
         var marker = try self.nextByte();
@@ -161,7 +159,7 @@ pub const BitReader = struct {
     // read a single bit from the bitstream
     // the bit is returned as a u8
     pub fn readBit(self: *BitReader) !u8 {
-        if (self.nextByte >= self.data.len) return error.UnexpectedEOF;
+        if (self.nextByte >= self.data.len) return ImToTensorError.UnexpectedEOF;
 
         const shift: u3 = @intCast(7 - self.nextBit);
         const bit: u8 = (self.data[self.nextByte] >> shift) & 1;
@@ -198,7 +196,7 @@ pub const BitReader = struct {
 };
 
 // ---------------------------------------- Normalization ---------------------------------------------------
-// struct to hold the 3 channels of the image
+// struct to hold the channels of the image
 // the channels are stored as slices of u8
 // the channels are used to store the pixel values of the image
 // the pixel values can be stored as Rgb, YCbCr, or Grayscale
@@ -218,7 +216,7 @@ pub const ColorChannels = struct {
 
     pub fn init(allocator: *const std.mem.Allocator, len: u32, component_num: usize) !ColorChannels {
         if (component_num <= 0 or component_num == 2 or component_num > 4) {
-            return error.InvalidComponentNum;
+            return ImToTensorError.InvalidComponentNum;
         }
 
         if (component_num == 1) {
@@ -257,7 +255,7 @@ pub const ColorChannels = struct {
             1 => self.ch2,
             2 => self.ch3,
             3 => self.alpha,
-            else => error.InvalidComponent,
+            else => ImToTensorError.InvalidComponent,
         };
     }
 };
@@ -265,8 +263,8 @@ pub const ColorChannels = struct {
 // normalize the 3 channels from 0 - 255 to 0 - 1
 pub fn normalize(comptime T: type, channel: *ColorChannels, output: [][][]T) !void {
     var idx: usize = 0;
-    for (0..output[0][0].len) |col| {
-        for (0..output[0].len) |row| {
+    for (0..channel.height) |row| {
+        for (0..channel.width) |col| {
             for (0..output.len) |comp| {
                 const ch = try channel.get(comp);
                 output[comp][row][col] = @as(T, @floatFromInt(ch[idx])) / 255.0;
@@ -279,8 +277,8 @@ pub fn normalize(comptime T: type, channel: *ColorChannels, output: [][][]T) !vo
 // normalize the 3 channels from 0 - 255 to -1 - 1
 pub fn normalizeSigned(comptime T: type, channel: *ColorChannels, output: [][][]T) !void {
     var idx: usize = 0;
-    for (0..output[0][0].len) |col| {
-        for (0..output[0].len) |row| {
+    for (0..channel.height) |row| {
+        for (0..channel.width) |col| {
             for (0..output.len) |comp| {
                 const ch = try channel.get(comp);
                 output[comp][row][col] = @as(T, @floatFromInt(ch[idx])) / 127.5 - 1.0;
@@ -299,6 +297,7 @@ pub const ImToTensorError = error{
     InvalidComponent,
     InvalidColorspace,
     NameTooLong,
+    UnexpectedEof,
     InvalidDcValue,
     DcCoefficientLenghtGreaterThan11,
     InvalidAcValue,
@@ -321,4 +320,6 @@ pub const ImToTensorError = error{
     ArithmeticEncodingNotSupported,
     SofMarkerNotSupported,
     RstNDetectedBeforeSos,
+    SOFMarkerNotSupported,
+    RSTNDetectedBeforeSOS,
 };

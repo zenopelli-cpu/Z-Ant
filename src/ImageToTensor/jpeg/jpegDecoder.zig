@@ -9,6 +9,7 @@ pub const SegmentReader = utils.SegmentReader;
 const ColorChannels = utils.ColorChannels;
 const JpegData = parser.JpegData;
 const MCU = alg.MCU;
+const ImToTensorError = utils.ImToTensorError;
 
 const writeBmp = bmp.writeBmp;
 
@@ -102,7 +103,7 @@ pub fn debug_jpegToRGB(
 
     const bytes_read = try file.readAll(buffer);
     if (bytes_read != file_size) {
-        return error.UnexpectedEOF;
+        return ImToTensorError.UnexpectedEOF;
     }
 
     // create the reader
@@ -130,7 +131,7 @@ pub fn debug_jpegToYCbCr(
 
     const bytes_read = try file.readAll(buffer);
     if (bytes_read != file_size) {
-        return error.UnexpectedEOF;
+        return ImToTensorError.UnexpectedEOF;
     }
     // create the reader
 
@@ -159,7 +160,7 @@ pub fn debug_jpegToGrayscale(
 
     const bytes_read = try file.readAll(buffer);
     if (bytes_read != file_size) {
-        return error.UnexpectedEOF;
+        return ImToTensorError.UnexpectedEOF;
     }
     // create the reader
 

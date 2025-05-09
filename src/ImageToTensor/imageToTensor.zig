@@ -1,21 +1,17 @@
 const std = @import("std");
-pub const jpeg = @import("jpeg/jpegDecoder.zig");
-const utils = @import("utils.zig");
 const zant = @import("../zant.zig");
+pub const jpeg = @import("jpeg/jpegDecoder.zig");
+pub const utils = @import("utils.zig");
+const formatVerifier = @import("formatVerifier.zig");
 
 const writeBmp = @import("writerBMP.zig").writeBmp;
-const findFormat = @import("formatVerifier.zig").findFormat;
+const findFormat = formatVerifier.findFormat;
 
-const ImageFormat = @import("formatVerifier.zig").ImageFormat;
+const ImageFormat = formatVerifier.ImageFormat;
 const Tensor = zant.core.tensor.Tensor;
-const TensorError = zant.utils.error_handler.TensorError;
-
 const ColorChannels = utils.ColorChannels;
-
 pub const SegmentReader = jpeg.SegmentReader;
-
-// define the maximum size of the image
-const MAX_BYTES = 1024 * 1024; // 1 MB
+const ImToTensorError = utils.ImToTensorError;
 
 pub fn imageToRGB(
     allocator: *const std.mem.Allocator,
@@ -33,7 +29,7 @@ pub fn imageToRGB(
 
     const bytes_read = try file.readAll(buffer);
     if (bytes_read != file_size) {
-        return error.UnexpectedEOF;
+        return ImToTensorError.UnexpectedEOF;
     }
 
     // find the format of the image
@@ -50,7 +46,7 @@ pub fn imageToRGB(
         },
         else => {
             // unsupported format
-            return error.InvalidImageFormat;
+            return ImToTensorError.InvalidImageFormat;
         },
     }
 
@@ -61,14 +57,14 @@ pub fn imageToRGB(
     // retrurn a tensor with the same shape of the imag
     var image = try allocator.alloc([][]T, channels.component_num);
     for (0..channels.component_num) |i| {
-        image[i] = try allocator.alloc([]T, channels.width);
-        for (0..channels.width) |j| {
-            image[i][j] = try allocator.alloc(T, channels.height);
+        image[i] = try allocator.alloc([]T, channels.height);
+        for (0..channels.height) |j| {
+            image[i][j] = try allocator.alloc(T, channels.width);
         }
     }
     defer {
         for (0..channels.component_num) |i| {
-            for (0..channels.width) |j| {
+            for (0..channels.height) |j| {
                 allocator.free(image[i][j]);
             }
             allocator.free(image[i]);
@@ -82,7 +78,7 @@ pub fn imageToRGB(
         try utils.normalize(T, &channels, image);
     }
     // create the tensor
-    var shape = [_]usize{ channels.component_num, channels.height, channels.width };
+    var shape = [_]usize{ image.len, image[0].len, image[0][0].len };
     return try Tensor(T).fromArray(allocator, image, shape[0..]);
 }
 
@@ -102,7 +98,7 @@ pub fn imageToYCbCr(
 
     const bytes_read = try file.readAll(buffer);
     if (bytes_read != file_size) {
-        return error.UnexpectedEOF;
+        return ImToTensorError.UnexpectedEOF;
     }
     // find the format of the image
     const format = try findFormat(buffer);
@@ -118,7 +114,7 @@ pub fn imageToYCbCr(
         },
         else => {
             // unsupported format
-            return error.InvalidImageFormat;
+            return ImToTensorError.InvalidImageFormat;
         },
     }
 
@@ -129,14 +125,14 @@ pub fn imageToYCbCr(
     // retrurn a tensor with the same shape of the imag
     var image = try allocator.alloc([][]T, channels.component_num);
     for (0..channels.component_num) |i| {
-        image[i] = try allocator.alloc([]T, channels.width);
-        for (0..channels.width) |j| {
-            image[i][j] = try allocator.alloc(T, channels.height);
+        image[i] = try allocator.alloc([]T, channels.height);
+        for (0..channels.height) |j| {
+            image[i][j] = try allocator.alloc(T, channels.width);
         }
     }
     defer {
         for (0..channels.component_num) |i| {
-            for (0..channels.width) |j| {
+            for (0..channels.height) |j| {
                 allocator.free(image[i][j]);
             }
             allocator.free(image[i]);
@@ -150,7 +146,7 @@ pub fn imageToYCbCr(
         try utils.normalize(T, &channels, image);
     }
     // create the tensor
-    var shape = [_]usize{ channels.component_num, channels.height, channels.width };
+    var shape = [_]usize{ image.len, image[0].len, image[0][0].len };
     return try Tensor(T).fromArray(allocator, image, shape[0..]);
 }
 
@@ -170,7 +166,7 @@ pub fn imageToGray(
 
     const bytes_read = try file.readAll(buffer);
     if (bytes_read != file_size) {
-        return error.UnexpectedEOF;
+        return ImToTensorError.UnexpectedEOF;
     }
     // find the format of the image
     const format = try findFormat(buffer);
@@ -186,7 +182,7 @@ pub fn imageToGray(
         },
         else => {
             // unsupported format
-            return error.InvalidImageFormat;
+            return ImToTensorError.InvalidImageFormat;
         },
     }
 
@@ -197,14 +193,14 @@ pub fn imageToGray(
     // retrurn a tensor with the same shape of the imag
     var image = try allocator.alloc([][]T, 1);
     for (0..1) |i| {
-        image[i] = try allocator.alloc([]T, channels.width);
-        for (0..channels.width) |j| {
-            image[i][j] = try allocator.alloc(T, channels.height);
+        image[i] = try allocator.alloc([]T, channels.height);
+        for (0..channels.height) |j| {
+            image[i][j] = try allocator.alloc(T, channels.widht);
         }
     }
     defer {
         for (0..1) |i| {
-            for (0..channels.width) |j| {
+            for (0..channels.height) |j| {
                 allocator.free(image[i][j]);
             }
             allocator.free(image[i]);
@@ -218,7 +214,7 @@ pub fn imageToGray(
         try utils.normalize(T, &channels, image);
     }
 
-    var shape = [_]usize{ 1, channels.height, channels.width };
+    var shape = [_]usize{ image.len, image[0].len, image[0][0].len };
     channels.deinit(allocator);
     // create the tensor
     return try Tensor(T).fromArray(allocator, image, shape[0..]);

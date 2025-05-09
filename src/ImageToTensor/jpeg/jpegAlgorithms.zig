@@ -7,6 +7,7 @@ const HuffmanTable = jpeg_parser.HuffmanTable;
 const QuantTable = jpeg_parser.QuantTable;
 const BitReader = utils.BitReader;
 const ColorChannels = utils.ColorChannels;
+const ImToTensorError = utils.ImToTensorError;
 
 // -------------------------IDCT CONSTANTS-------------------------
 const zigZagMap: [64]u8 = .{
@@ -61,7 +62,7 @@ pub const MCU = struct {
 
     pub fn init(allocator: *const std.mem.Allocator, num_components: usize) !MCU {
         if (num_components == 0 or num_components > 3) {
-            return error.InvalidComponentNum;
+            return ImToTensorError.InvalidComponentNum;
         }
         if (num_components == 1) {
             var mcu = MCU{
@@ -199,11 +200,11 @@ pub fn decodeMCUComponent(b: *BitReader, component: []i32, previousDC: *i32, dcT
 
     // ---------- DC ----------
     const len: u8 = try getNextSymbol(b, dcTable);
-    if (len == 0xFF) return error.InvalidDcValue;
-    if (len > 11) return error.DcCoefficientLenghtGreaterThan11;
+    if (len == 0xFF) return ImToTensorError.InvalidDcValue;
+    if (len > 11) return ImToTensorError.DcCoefficientLenghtGreaterThan11;
 
     var coeff = try b.readBits(len);
-    if (coeff == -1) return error.InvalidDcValue;
+    if (coeff == -1) return ImToTensorError.InvalidDcValue;
 
     // calculate the shifts
     var len_m1_shift: u5 = 31;
@@ -223,7 +224,7 @@ pub fn decodeMCUComponent(b: *BitReader, component: []i32, previousDC: *i32, dcT
     var i: usize = 1;
     while (i < 64) {
         const symbol: u8 = try getNextSymbol(b, acTable);
-        if (symbol == 0xFF) return error.InvalidAcValue;
+        if (symbol == 0xFF) return ImToTensorError.InvalidAcValue;
 
         if (symbol == 0x00) { // EOB
             for (i..64) |j| component[zigZagMap[j]] = 0;
@@ -237,11 +238,11 @@ pub fn decodeMCUComponent(b: *BitReader, component: []i32, previousDC: *i32, dcT
             run = 16;
             size = 0;
         } else if (size == 0) { // size == 0 allowed only in 0xF0
-            return error.InvalidAcSymbol;
+            return ImToTensorError.InvalidAcSymbol;
         }
 
         if (i + run > 64)
-            return error.ZeroRunExceedeMCU;
+            return ImToTensorError.ZeroRunExceedeMCU;
 
         // fill the zeros
         for (0..run) |_| {
@@ -250,10 +251,10 @@ pub fn decodeMCUComponent(b: *BitReader, component: []i32, previousDC: *i32, dcT
         }
 
         if (size != 0) {
-            if (size > 10) return error.DecodeAcCoefficientLenGreaterThan10;
+            if (size > 10) return ImToTensorError.DecodeAcCoefficientLenGreaterThan10;
 
             coeff = try b.readBits(size);
-            if (coeff == -1) return error.InvalidAcValue;
+            if (coeff == -1) return ImToTensorError.InvalidAcValue;
 
             var size_m1_shift: u5 = 31;
             var size_shift: u5 = 0;
@@ -275,7 +276,7 @@ pub fn getNextSymbol(b: *BitReader, hTable: HuffmanTable) !u8 {
     for (0..16) |i| {
         const bit = try b.readBit();
         if (bit == -1) {
-            return error.InvalidHuffmanCode;
+            return ImToTensorError.InvalidHuffmanCode;
         }
         code_curr = (code_curr << 1) | bit;
         for (hTable.code_lengths[i]..hTable.code_lengths[i + 1]) |j| {
@@ -284,7 +285,7 @@ pub fn getNextSymbol(b: *BitReader, hTable: HuffmanTable) !u8 {
             }
         }
     }
-    return error.InvalidHuffmanCode;
+    return ImToTensorError.InvalidHuffmanCode;
 }
 
 //------------------------------------DEQUANTIZATION-----------------------------------

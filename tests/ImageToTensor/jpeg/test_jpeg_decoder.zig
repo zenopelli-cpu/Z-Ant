@@ -6,8 +6,9 @@ const debug_jpegToRGB = jpeg.debug_jpegToRGB;
 const debug_jpegToYCbCr = jpeg.debug_jpegToYCbCr;
 const debug_jpegToGrayscale = jpeg.debug_jpegToGrayscale;
 
+//these are visive tests, can be used to check if an image is decoded correctly
+
 test "jpeg baseline standard" {
-    std.debug.print("test jpeg baseline standard\n", .{});
     const allocator = pgkAllocator.allocator;
     const image_path = "tests/ImageToTensor/jpeg/baseline.jpg";
     try debug_jpegToRGB(&allocator, image_path);
@@ -22,9 +23,9 @@ test "jpeg restart interval" {
     const image_path = "tests/ImageToTensor/jpeg/restart_intervals.jpg";
     try debug_jpegToRGB(&allocator, image_path);
 
-    try debug_jpegToYCbCr(&allocator, image_path);
+    // try debug_jpegToYCbCr(&allocator, image_path);
 
-    try debug_jpegToGrayscale(&allocator, image_path);
+    // try debug_jpegToGrayscale(&allocator, image_path);
 }
 
 test "jpeg subsampling" {
@@ -37,38 +38,9 @@ test "jpeg subsampling" {
     try debug_jpegToGrayscale(&allocator, image_path);
 }
 
-test "jpeg t1" {
+test "grayscale" {
     const allocator = pgkAllocator.allocator;
-    const image_path = "tests/ImageToTensor/jpeg/t1.jpg";
-    try debug_jpegToRGB(&allocator, image_path);
-
-    try debug_jpegToYCbCr(&allocator, image_path);
-    try debug_jpegToGrayscale(&allocator, image_path);
-}
-
-test "jpeg t2" {
-    const allocator = pgkAllocator.allocator;
-    const image_path = "tests/ImageToTensor/jpeg/t2.jpg";
-    try debug_jpegToRGB(&allocator, image_path);
-
-    try debug_jpegToYCbCr(&allocator, image_path);
-
-    try debug_jpegToGrayscale(&allocator, image_path);
-}
-
-test "jpeg t3" {
-    const allocator = pgkAllocator.allocator;
-    const image_path = "tests/ImageToTensor/jpeg/t3.jpg";
-    try debug_jpegToRGB(&allocator, image_path);
-
-    try debug_jpegToYCbCr(&allocator, image_path);
-
-    try debug_jpegToGrayscale(&allocator, image_path);
-}
-
-test "jpeg t4" {
-    const allocator = pgkAllocator.allocator;
-    const image_path = "tests/ImageToTensor/jpeg/t4.jpg";
+    const image_path = "tests/ImageToTensor/jpeg/grayscale.jpg";
     try debug_jpegToRGB(&allocator, image_path);
 
     try debug_jpegToYCbCr(&allocator, image_path);

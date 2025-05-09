@@ -1,6 +1,7 @@
 const std = @import("std");
 const utils = @import("utils.zig");
 const ColorChannels = utils.ColorChannels;
+const ImToTensorError = utils.ImToTensorError;
 
 const bmp_header_size = 14; // BITMAPFILEHEADER
 const dib_header_size = 40; // BITMAPINFOHEADER
@@ -11,7 +12,7 @@ pub fn writeBmp(
     path: []const u8,
     colorspace: usize,
 ) !void {
-    // ---------- costruzione percorso output ----------
+    // ---------- output path --------------
     var path_buf: [std.fs.max_path_bytes]u8 = undefined;
 
     const ext = std.fs.path.extension(path); // ".jpg" / ".jpeg"
@@ -21,11 +22,11 @@ pub fn writeBmp(
         0 => "_rgb",
         1 => "_ycbcr",
         2 => "_gray",
-        else => return error.InvalidColorspace,
+        else => return ImToTensorError.InvalidColorspace,
     };
 
     if (base_len + suffix.len + 4 > path_buf.len)
-        return error.NameTooLong;
+        return ImToTensorError.NameTooLong;
 
     @memcpy(path_buf[0..base_len], path[0..base_len]);
     @memcpy(path_buf[base_len..][0..suffix.len], suffix);
