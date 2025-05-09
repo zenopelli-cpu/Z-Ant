@@ -119,3 +119,33 @@ pub fn protoTensor2AnyTensor(proto: *TensorProto) !AnyTensor {
         return error.UnsupportedDataType;
     }
 }
+
+pub fn broadcastShapes(general_allocator: std.mem.Allocator, shape1: []usize, shape2: []usize) ![]usize {
+    const max_len = std.math.max(shape1.len, shape2.len);
+
+    var output = try general_allocator.alloc(usize, max_len);
+    errdefer general_allocator.free(output);
+
+    // Compute padding
+    const pad1 = max_len - shape1.len;
+    const pad2 = max_len - shape2.len;
+
+    for (0..max_len) |i| {
+        // Get the corresponding dimensions, using 1 for padding if necessary
+        const dim1 = if (i < pad1) @as(usize, 1) else shape1[i - pad1];
+        const dim2 = if (i < pad2) @as(usize, 1) else shape2[i - pad2];
+
+        // Check compatibility and compute the output dimension
+        if (dim1 == dim2) {
+            output[i] = dim1;
+        } else if (dim1 == 1) {
+            output[i] = dim2;
+        } else if (dim2 == 1) {
+            output[i] = dim1;
+        } else {
+            allocator.free(output);
+            return error.IncompatibleShapes;
+        }
+    }
+    return output;
+}

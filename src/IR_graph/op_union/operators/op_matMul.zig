@@ -12,6 +12,7 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
 
 // https://onnx.ai/onnx/operators/onnx__MatMul.html#l-onnx-doc-matmul// INPUTS:
 //      - A (heterogeneous) - T:  input tensor.
@@ -50,6 +51,13 @@ pub const MatMul = struct {
         const res: []usize = [_]usize{ 0, 0, 1, 1 };
         res[0] += self.input_X;
         return res;
+    }
+
+    pub fn compute_output_shape(self: MatMul) []usize {
+        var output_shape: []usize = undefined;
+        output_shape = try tensorMath.get_mat_mul_output_shape(self.input_A.shape, self.input_B.shape);
+        self.output_C.shape = output_shape;
+        return output_shape;
     }
 
     pub fn print(self: MatMul) void {

@@ -12,6 +12,8 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Reshape.html#l-onnx-doc-reshape
 // INPUTS:
@@ -43,6 +45,22 @@ pub const Reshape = struct {
         const res: []usize = [_]usize{ 0, 0, 1, 1 };
         res[0] += self.input_X;
         return res;
+    }
+
+    pub fn get_reshape_output_shape(self: Reshape) ![]usize {
+        var output_shape: []usize = undefined;
+        const new_shape_spec = try allocator.alloc(isize, self.shape.shape.len);
+        defer allocator.free(new_shape_spec);
+        for (self.shape.shape, 0..) |val, i| {
+            new_shape_spec[i] = @as(isize, @intCast(val));
+        }
+        output_shape = try tensorMath.get_reshape_output_shape(
+            self.data.shape,
+            new_shape_spec,
+            false,
+        );
+        self.reshaped.shape = output_shape;
+        return output_shape;
     }
 
     pub fn print(self: Reshape) void {

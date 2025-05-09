@@ -13,7 +13,6 @@ const TensorProto = onnx.TensorProto;
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 const tensorMath = zant.core.tensor.math_standard;
-const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Flatten.html
 // INPUTS:
@@ -57,10 +56,11 @@ pub const Flatten = struct {
     }
 
     pub fn compute_output_shape(self: Flatten) []usize {
-        var shape: []usize = undefined;
+        var output_shape: []usize = undefined;
         const axis = @as(isize, @intCast(self.axis));
-        shape = try tensorMath.get_flatten_output_shape(self.data.get_shape(), axis);
-        return shape;
+        output_shape = try tensorMath.get_flatten_output_shape(self.data.get_shape(), axis);
+        self.output.shape = output_shape;
+        return output_shape;
     }
 
     pub fn print(self: Flatten) void { // TODO

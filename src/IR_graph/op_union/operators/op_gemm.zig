@@ -12,6 +12,7 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
 
 // https://onnx.ai/onnx/operators/onnx__Gemm.html
 // INPUTS:
@@ -77,6 +78,8 @@ pub const Gemm = struct {
         res[0] += self.input;
         return res;
     }
+
+    pub fn compute_output_shape() []usize {} // TODO
 
     pub fn print(self: Gemm) void { // TODO
         std.debug.print("\n Gemm:\n {any}", .{self});

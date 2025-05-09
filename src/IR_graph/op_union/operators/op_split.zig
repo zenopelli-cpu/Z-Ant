@@ -10,6 +10,7 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
 
 //https://onnx.ai/onnx/operators/onnx__Split.html
 // INPUTS:
@@ -51,6 +52,8 @@ pub const Split = struct {
     pub fn get_output_shape(self: Split) []usize {
         return self.output_Y.shape;
     }
+
+    pub fn compute_output_shape() ![]usize {} // TODO
 
     pub fn print(self: Split) void {
         std.debug.print("\n Split: {any}", .{self});

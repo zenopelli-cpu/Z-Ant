@@ -12,6 +12,7 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
 
 // https://onnx.ai/onnx/operators/onnx__Relu.html#l-onnx-doc-relu
 // INPUTS:
@@ -37,6 +38,13 @@ pub const Relu = struct {
         const res: []usize = [_]usize{ 0, 0, 1, 1 };
         res[0] += self.input_X;
         return res;
+    }
+
+    pub fn compute_output_shape(self: Relu) []usize {
+        var output_shape: []usize = undefined;
+        output_shape = self.input_X.shape;
+        self.output_Y.shape = output_shape;
+        return output_shape;
     }
 
     pub fn print(self: Relu) void {

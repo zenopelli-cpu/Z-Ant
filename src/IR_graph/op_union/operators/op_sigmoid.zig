@@ -12,6 +12,7 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
 
 //https://onnx.ai/onnx/operators/onnx__Sigmoid.html
 // INPUTS:
@@ -34,6 +35,13 @@ pub const Sigmoid = struct {
 
     pub fn get_output_shape(self: Sigmoid) []usize {
         return self.output_Y.shape;
+    }
+
+    pub fn compute_output_shape(self: Sigmoid) []usize {
+        var output_shape: []usize = undefined;
+        output_shape = try tensorMath.get_sigmoid_output_shape(self.input_X.shape);
+        self.output_Y.shape = output_shape;
+        return output_shape;
     }
 
     pub fn print(self: Sigmoid) void {

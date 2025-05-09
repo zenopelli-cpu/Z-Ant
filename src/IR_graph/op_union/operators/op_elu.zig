@@ -13,7 +13,6 @@ const TensorProto = onnx.TensorProto;
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 const tensorMath = zant.core.tensor.math_standard;
-const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Elu.html
 // INPUTS:
@@ -57,7 +56,10 @@ pub const Elu = struct {
     }
 
     pub fn compute_output_shape(self: Elu) []usize {
-        return try tensorMath.get_elu_output_shape(self.input_X.get_shape());
+        var output_shape: []usize = undefined;
+        output_shape = try tensorMath.get_elu_output_shape(self.input_X.get_shape());
+        self.output_Y.shape = output_shape;
+        return output_shape;
     }
 
     pub fn print(self: Elu) void { // TODO

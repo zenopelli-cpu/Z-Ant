@@ -92,14 +92,14 @@ pub const Conv = struct {
     }
 
     pub fn compute_output_shape(self: Conv) []usize {
-        var shape: []usize = undefined;
+        var output_shape: []usize = undefined;
         const input_shape = self.input_X.get_shape();
         const kernel_shape = self.input_W.get_shape();
         const stride = self.strides;
         const pads = self.pads;
         const dilations = self.dilations;
         const auto_pad = self.auto_pad;
-        shape = try tensorMath.get_convolution_output_shape(
+        output_shape = try tensorMath.get_convolution_output_shape(
             input_shape,
             kernel_shape,
             try utils.i64SliceToUsizeSlice(stride.?),
@@ -107,7 +107,8 @@ pub const Conv = struct {
             try utils.i64SliceToUsizeSlice(dilations.?),
             auto_pad,
         );
-        return shape;
+        self.output_Y.shape = output_shape;
+        return output_shape;
     }
 
     pub fn print(self: Conv) void { //TODO

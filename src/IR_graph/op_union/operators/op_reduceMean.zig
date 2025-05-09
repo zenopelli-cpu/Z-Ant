@@ -12,6 +12,8 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__ReduceMean.html
 // INPUTS:
@@ -59,6 +61,21 @@ pub const ReduceMean = struct {
         const res: []usize = [_]usize{ 0, 0, 1, 1 };
         res[0] += self.input;
         return res;
+    }
+
+    pub fn compute_output_shape(self: ReduceMean) []usize {
+        var output_shape: []usize = undefined;
+        const axes = self.axes.?.ptr.?.i64;
+        const keepdims = self.keepdims;
+        const noop_with_empty_axes = self.noop_with_empty_axes;
+        output_shape = try tensorMath.get_reduce_mean_output_shape(
+            self.data.shape,
+            axes,
+            keepdims,
+            noop_with_empty_axes,
+        );
+        self.reduced.shape = output_shape;
+        return output_shape;
     }
 
     pub fn print(self: ReduceMean) void { // TODO

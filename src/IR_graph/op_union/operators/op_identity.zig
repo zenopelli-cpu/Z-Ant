@@ -12,6 +12,7 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
 
 // https://onnx.ai/onnx/operators/onnx__Identity.html#l-onnx-doc-identity
 // INPUTS:
@@ -37,6 +38,13 @@ pub const Identity = struct {
         const res: []usize = [_]usize{ 0, 0, 1, 1 };
         res[0] += self.input_X;
         return res;
+    }
+
+    pub fn compute_output_shape(self: Identity) []usize {
+        var output_shape: []usize = undefined;
+        output_shape = try tensorMath.get_identity_output_shape(self.input.ptr.?.get_shape());
+        self.output.shape = output_shape;
+        return output_shape;
     }
 
     pub fn print(self: Identity) void {

@@ -12,6 +12,8 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
+const utils = @import("../../../CodeGen/utils.zig");
 
 //https://onnx.ai/onnx/operators/onnx__Greater.html#l-onnx-doc-greater
 // INPUTS:
@@ -41,6 +43,16 @@ pub const Gather = struct {
         res[0] += self.input_A;
         return res;
     }
+
+    // pub fn compute_output_shape(self: Gather) []usize {
+    //     var output_shape: []usize = undefined;
+
+    //     output_shape = try utils.usizeSliceToI64Slice(try tensorMath.get_gather_output_shape(
+    //         try utils.i64SliceToUsizeSlice(data_shape),
+    //         try utils.i64SliceToUsizeSlice(indices_shape),
+    //         axis,
+    //     ));
+    // }
     pub fn print(self: Gather) void { //TODO
         std.debug.print("\n Gather:\n {any}", .{self});
     }

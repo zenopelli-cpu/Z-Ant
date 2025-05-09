@@ -39,10 +39,10 @@ pub const Tanh = struct {
         std.debug.print("\n Tanh: {any}", .{self});
     }
 
-    pub fn compute_output_shape(self: Tanh) ![]usize {
-        const shape: []const usize = undefined;
-        const input_shape = self.input_X.get_shape();
-        shape = try tensorMath.get_tanh_output_shape(input_shape);
-        return shape;
+    pub fn compute_output_shape(self: Tanh) []usize {
+        const output_shape: []usize = undefined;
+        const input_shape = self.input_X.shape;
+        output_shape = try tensorMath.get_tanh_output_shape(input_shape);
+        return output_shape;
     }
 };

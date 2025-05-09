@@ -10,6 +10,7 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
 
 // https://onnx.ai/onnx/operators/onnx__Slice.html
 // INPUTS:
@@ -50,6 +51,19 @@ pub const Slice = struct {
 
     pub fn get_output_shape(self: Slice) []usize {
         return self.output.shape;
+    }
+
+    pub fn compute_output_shape(self: Slice) []usize {
+        var output_shape: []usize = undefined;
+        output_shape = try tensorMath.get_slice_output_shape(
+            self.input.shape,
+            self.starts.ptr.?.i64.data,
+            self.ends.ptr.?.i64.data,
+            self.axes.ptr.?.i64.data,
+            self.steps.ptr.?.i64.data,
+        );
+        self.output.shape = output_shape;
+        return output_shape;
     }
 
     pub fn print(self: Slice) void {

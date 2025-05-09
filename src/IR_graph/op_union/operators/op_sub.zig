@@ -12,6 +12,7 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const utils = @import("../../utils.zig");
 
 //https://onnx.ai/onnx/operators/onnx__Sub.html
 // INPUTS:
@@ -40,6 +41,13 @@ pub const Sub = struct {
         const res: []usize = [_]usize{ 0, 0, 1, 1 };
         res[0] += self.input;
         return res;
+    }
+
+    pub fn compute_output_shape(self: Sub) []usize {
+        var output_shape: []usize = undefined;
+        output_shape = try utils.broadcastShapes(allocator, self.input_A.shape, self.input_B.shape);
+        self.output_Y.shape = output_shape;
+        return output_shape;
     }
 
     pub fn print(self: Sub) void {

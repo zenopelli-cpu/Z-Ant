@@ -12,6 +12,8 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
+const utils = @import("../../../CodeGen/utils.zig");
 
 //https://onnx.ai/onnx/operators/onnx__MaxPool.html
 // INPUTS:
@@ -87,6 +89,20 @@ pub const AveragePool = struct {
         const res: []usize = [_]usize{ 0, 0, 1, 1 };
         res[0] += self.input;
         return res;
+    }
+
+    pub fn compute_averagePool_output_shape(self: AveragePool) []usize {
+        var output_shape: []usize = undefined;
+        output_shape = try tensorMath.get_onnx_averagepool_output_shape(
+            self.input_X.shape,
+            try utils.i64SliceToUsizeSlice(self.kernel_shape.?),
+            try utils.i64SliceToUsizeSlice(self.strides.?),
+            try utils.i64SliceToUsizeSlice(self.dilations.?),
+            try utils.i64SliceToUsizeSlice(self.pads.?),
+            "NOTSET",
+            try utils.i64SliceToUsizeSlice(self.ceil_mode),
+        );
+        return output_shape;
     }
 
     pub fn print(self: AveragePool) void { // TODO

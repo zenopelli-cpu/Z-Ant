@@ -10,6 +10,8 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const tensorMath = zant.core.tensor.math_standard;
+const utils = @import("../../../CodeGen/utils.zig");
 
 //https://onnx.ai/onnx/operators/onnx__Unsqueeze.html
 // INPUTS:
@@ -38,6 +40,17 @@ pub const Unsqueeze = struct {
         res[0] += self.input_X.shape;
         return res;
     }
+
+    pub fn compute_output_shape(self: Unsqueeze) []usize {
+        var output_shape: []usize = undefined;
+        output_shape = try tensorMath.get_unsqueeze_output_shape(
+            self.input_X.shape,
+            self.input_axes.ptr.?.i64.data,
+        );
+        self.output_Y.shape = output_shape;
+        return output_shape;
+    }
+
     pub fn print(self: Unsqueeze) void {
         std.debug.print("\n Unsqueeze: {any}", .{self});
     }
