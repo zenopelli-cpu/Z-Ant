@@ -62,4 +62,48 @@ pub const GraphZant = struct {
             }
         }
     }
+
+    // linearize the graph
+    pub fn linearize(self: *GraphZant, alloc: std.mem.Allocator) !std.ArrayList(*NodeZant) {
+        const visited = std.AutoHashMap(*NodeZant, bool).init(alloc);
+        const result = std.ArrayList(*NodeZant).init(alloc);
+        defer visited.deinit();
+
+        for (self.nodes.items) |node| {
+            try dfs(node, &visited, &result);
+        }
+
+        GraphZant.reverseArrayList(*NodeZant, &result);
+
+        return result;
+    }
+
+    pub fn dfs(
+        node: *NodeZant,
+        visited: *std.AutoHashMap(*NodeZant, bool),
+        result: *std.ArrayList(*NodeZant),
+    ) !void {
+        if (visited.get(node)) |_| return;
+
+        try visited.put(node, true);
+
+        for (node.next.items) |child| {
+            try dfs(child, visited, result);
+        }
+
+        try result.append(node);
+    }
+
+    pub fn reverseArrayList(comptime T: type, list: *std.ArrayList(T)) void {
+        var i: usize = 0;
+        var j: usize = list.items.len - 1;
+        while (i < j) {
+            const temp = list.items[i];
+            list.items[i] = list.items[j];
+            list.items[j] = temp;
+
+            i += 1;
+            j -= 1;
+        }
+    }
 };
