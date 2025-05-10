@@ -740,11 +740,12 @@ test "LowerClip Pipeline" {
     // 1. Setup UOpBuilder
     var builder = UOpBuilder.init(allocator);
 
-    // 2. Define inputs for lowerNeg
+    // 2. Define inputs for lowerClip
     const A_id: usize = 0; // Simulated input tensor ID
     // A shape: {2, 3}
     const input_shape = &.{ @as(usize, 2), @as(usize, 3) }; // Explicitly type for array literal
-    const out_shape = input_shape; // For Neg, output shape is same as input
+    const out_shape = input_shape; // For Clip, output shape is same as input
+    const strideA = &.{ @as(isize, 3), @as(isize, 1) };
     const out_dtype = DType.f32;
     const max: usize = 10;
     const min: usize = 8;
@@ -754,6 +755,7 @@ test "LowerClip Pipeline" {
         &builder,
         A_id,
         out_shape,
+        strideA,
         out_dtype,
         min,
         max,
@@ -806,14 +808,14 @@ test "LowerClip Pipeline" {
     const actual_code = try buffer.toOwnedSlice();
     defer allocator.free(actual_code);
 
-    std.debug.print("\n--- Generated Function (Neg) ---\n{s}\n--------------------------------\n", .{actual_code});
+    std.debug.print("\n--- Generated Function (Clip) ---\n{s}\n--------------------------------\n", .{actual_code});
 
     // 5. Save output to a file
-    const output_filename = "tests/CodeGen/renderer/lowerneg_output_function.zig";
+    const output_filename = "tests/CodeGen/renderer/lowerclip_output_function.zig";
     var file = try std.fs.cwd().createFile(output_filename, .{ .read = true });
     defer file.close();
     _ = try file.write(actual_code);
-    std.debug.print("Generated neg function saved to {s}\n", .{output_filename});
+    std.debug.print("Generated clip function saved to {s}\n", .{output_filename});
 
     // Optional: Clean up
     // try std.fs.cwd().deleteFile(output_filename);

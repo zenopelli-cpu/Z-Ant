@@ -142,6 +142,7 @@ pub fn lowerClip(
     b: *UOpBuilder,
     A_id: usize, // input-tensor SSA ids
     out_shape: []const usize,
+    strideA: []const isize,
     out_dtype: DType, // promoted element type
     min: usize, //Unsigned value with same bits as value in desired type.
     max: usize, //Unsigned value with same bits as value in desired type.
@@ -150,7 +151,7 @@ pub fn lowerClip(
     // ── Set-up phase ────────────────────────────────────────────────────
     _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
 
-    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = 1 } });
+    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideA } });
 
     const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 
