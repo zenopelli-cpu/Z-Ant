@@ -734,8 +734,8 @@ test "Test Generated LowerNeg Kernel" {
     std.debug.print("Generated LowerNeg kernel test passed!\n", .{});
 }
 
-test "LowerClip Pipeline" {
-    std.debug.print("Running zig renderer lowerClip pipeline test\n", .{});
+test "LowerClip Pipeline with f32" {
+    std.debug.print("Running zig renderer lowerClip pipeline test with f32\n", .{});
     const allocator = std.testing.allocator;
 
     // 1. Setup UOpBuilder
@@ -777,7 +777,7 @@ test "LowerClip Pipeline" {
 
     // Defer to free duplicated src slices and view_meta args
     defer {
-        std.debug.print("DEBUG: Freeing internal src/args for {d} uops in Neg test\n", .{uops_list.len});
+        std.debug.print("DEBUG: Freeing internal src/args for {d} uops in Clip test\n", .{uops_list.len});
         for (uops_list) |uop| {
             if (uop.src.len > 0) {
                 allocator.free(@constCast(uop.src));
@@ -822,8 +822,8 @@ test "LowerClip Pipeline" {
     // try std.fs.cwd().deleteFile(output_filename);
 }
 
-test "Test Generated LowerClip Kernel" {
-    std.debug.print("Testing generated kernel from lowerclip_output_function.zig\n", .{});
+test "Test Generated LowerClip Kernel with f32" {
+    std.debug.print("Testing generated kernel from lowerclip_output_function.zig with f32\n", .{});
     const allocator = std.testing.allocator;
     const kernel = @import("lowerclip_output_function.zig");
 
@@ -844,12 +844,133 @@ test "Test Generated LowerClip Kernel" {
     // Output shape {2, 3}, flat size = 6
     const expected_result_list = [_]f32{
         1.0, -2.0, 2.0,
-        2.0, 2.0, 0.0, // Note: -0.0 is f32 representation
+        -2.0, 2.0, 0.0, // Note: -0.0 is f32 representation
     };
     const expected_result = &expected_result_list;
 
     // 4. Compare results
     try std.testing.expectEqualSlices(f32, expected_result, result_slice);
+
+    std.debug.print("Generated LowerClip kernel test passed!\n", .{});
+}
+
+
+test "LowerClip Pipeline with u16" {
+    std.debug.print("Running zig renderer lowerClip pipeline test with u16\n", .{});
+    const allocator = std.testing.allocator;
+
+    // 1. Setup UOpBuilder
+    var builder = UOpBuilder.init(allocator);
+
+    // 2. Define inputs for lowerClip
+    const A_id: usize = 0; // Simulated input tensor ID
+    // A shape: {2, 3}
+    const input_shape = &.{ @as(usize, 2), @as(usize, 3) }; // Explicitly type for array literal
+    const out_shape = input_shape; // For Clip, output shape is same as input
+    const strideA = &.{ @as(isize, 3), @as(isize, 1) };
+    const out_dtype = DType.u16;
+    const max = DTypeValue{ .u16 = 8};
+    const min = DTypeValue{ .u16 = 2};
+
+    // 3. Call lowerNeg to generate UOps
+    const out_buf_id = lowerClip(
+        &builder,
+        A_id,
+        out_shape,
+        strideA,
+        out_dtype,
+        min,
+        max,
+    );
+    _ = out_buf_id; // Prevent unused warning
+
+    // Take ownership of UOps
+    const uops_list = try builder.toOwnedSlice();
+    builder.deinit();
+    defer allocator.free(uops_list);
+
+    // DEBUG: Print the generated UOps
+    std.debug.print("--- Generated UOps (Neg) ---\n", .{});
+    for (uops_list) |uop| {
+        uop.dump(std.io.getStdErr().writer()) catch {};
+    }
+    std.debug.print("--------------------------\n", .{});
+
+    // Defer to free duplicated src slices and view_meta args
+    defer {
+        std.debug.print("DEBUG: Freeing internal src/args for {d} uops in Clip test\n", .{uops_list.len});
+        for (uops_list) |uop| {
+            if (uop.src.len > 0) {
+                allocator.free(@constCast(uop.src));
+            }
+            if (uop.arg) |arg_val| {
+                if (uop.op == .VIEW) {
+                    switch (arg_val) {
+                        .view_meta => |vm| {
+                            if (vm.shape.len > 0) allocator.free(@constCast(vm.shape));
+                            if (vm.strides.len > 0) allocator.free(@constCast(vm.strides));
+                        },
+                        else => {},
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Render UOps to Zig code as a function
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+    const Writer = @TypeOf(buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    defer renderer.deinit();
+
+    const input_ids = &[_]usize{A_id};
+    try renderer.render_as_function(uops_list, input_ids);
+
+    const actual_code = try buffer.toOwnedSlice();
+    defer allocator.free(actual_code);
+
+    std.debug.print("\n--- Generated Function (Clip) ---\n{s}\n--------------------------------\n", .{actual_code});
+
+    // 5. Save output to a file
+    const output_filename = "tests/CodeGen/renderer/lowerclip_output_function2.zig";
+    var file = try std.fs.cwd().createFile(output_filename, .{ .read = true });
+    defer file.close();
+    _ = try file.write(actual_code);
+    std.debug.print("Generated clip function saved to {s}\n", .{output_filename});
+
+    // Optional: Clean up
+    // try std.fs.cwd().deleteFile(output_filename);
+}
+
+test "Test Generated LowerClip Kernel with u16" {
+    std.debug.print("Testing generated kernel from lowerclip_output_function.zig with u16\n", .{});
+    const allocator = std.testing.allocator;
+    const kernel = @import("lowerclip_output_function2.zig");
+
+    // 1. Define input data
+    // Input shape {2, 3}, flat size = 6
+    const input_data_0_list = [_]u16{
+        1,  2, 10,
+        6,  3, 16,
+    };
+    const input_data_0 = &input_data_0_list;
+
+    // 2. Call the generated kernel
+    // Signature: pub fn generated_kernel(allocator: std.mem.Allocator, input_0: []const f32) ![]f32
+    const result_slice = try kernel.generated_kernel(allocator, input_data_0);
+    defer allocator.free(result_slice); // Kernel allocates the output slice (size 6)
+
+    // 3. Define expected output
+    // Output shape {2, 3}, flat size = 6
+    const expected_result_list = [_]u16{
+        2, 2, 8,
+        6, 3, 8,
+    };
+    const expected_result = &expected_result_list;
+
+    // 4. Compare results
+    try std.testing.expectEqualSlices(u16, expected_result, result_slice);
 
     std.debug.print("Generated LowerClip kernel test passed!\n", .{});
 }
