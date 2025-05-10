@@ -122,17 +122,35 @@ pub const Any = union(enum) {
 
     clip_bounds: struct {
         type: DType,
-        min: usize,
-        max: usize,
+        min: DTypeValue,
+        max: DTypeValue,
     }
 
     // 👉  add more variants when a new op requires metadata
 };
 
+pub const DTypeValue = union(DType) {
+    f32: f32, 
+    i32: i32, 
+    i8: i8,  
+    bool: bool,
+    u16: u16,
+
+    pub fn getDType(self: DTypeValue) DType {
+        return switch(self){
+            DTypeValue.f32 => DType.f32,
+            DTypeValue.i32 => DType.i32,
+            DTypeValue.i8 => DType.i8,
+            DTypeValue.bool => DType.bool,
+            DTypeValue.u16 => DType.u16,
+        };
+    }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. DType – minimalist scalar element types
 // ─────────────────────────────────────────────────────────────────────────────
-pub const DType = enum { f32, i32, i8, bool, u16 };
+pub const DType = enum { f32, i32, i8, bool, u16};
 
 pub const DTypeInfo = struct {
     pub fn asString(dtype: DType) []const u8 {
@@ -142,15 +160,6 @@ pub const DTypeInfo = struct {
             .i8 => "i8",
             .bool => "bool",
             .u16 => "u16",
-        };
-    }
-    pub fn byteSize(dtype: DType) usize {
-        return switch (dtype) {
-            .f32 => 4,
-            .i32 => 4,
-            .i8 => 1,
-            .bool => 1,
-            .u16 => 2,
         };
     }
 };

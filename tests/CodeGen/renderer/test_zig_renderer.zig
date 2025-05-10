@@ -14,6 +14,7 @@ const lowerMatMul = zant.core.tensor.math_standard.lowerMatMul;
 const lowerMaxPool2d = zant.core.tensor.math_standard.lowerMaxPool2d;
 const UOpBuilder = zant.uops.UOpBuilder;
 const DType = zant.uops.DType;
+const DTypeValue = zant.uops.DTypeValue;
 const lowerNeg = zant.core.tensor.math_standard.lowerNeg;
 const lowerClip = zant.core.tensor.math_standard.lowerClip;
 // /* REMOVED OLD TESTS
@@ -747,8 +748,8 @@ test "LowerClip Pipeline" {
     const out_shape = input_shape; // For Clip, output shape is same as input
     const strideA = &.{ @as(isize, 3), @as(isize, 1) };
     const out_dtype = DType.f32;
-    const max: usize = 10;
-    const min: usize = 8;
+    const max = DTypeValue{ .f32 = 10.5};
+    const min = DTypeValue{ .f32 = 8.2};
 
     // 3. Call lowerNeg to generate UOps
     const out_buf_id = lowerClip(

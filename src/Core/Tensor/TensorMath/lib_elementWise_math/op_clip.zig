@@ -10,6 +10,7 @@ const TensorError = error_handler.TensorError;
 const Uops = zant.uops;
 const UOpBuilder = Uops.UOpBuilder;
 const DType = Uops.DType;
+const DTypeValue = Uops.DTypeValue;
 const Any = Uops.Any;
 
 /// Returns the shape of the output tensor for the clip operation.
@@ -144,8 +145,8 @@ pub fn lowerClip(
     out_shape: []const usize,
     strideA: []const isize,
     out_dtype: DType, // promoted element type
-    min: usize, //Unsigned value with same bits as value in desired type.
-    max: usize, //Unsigned value with same bits as value in desired type.
+    min: DTypeValue,
+    max: DTypeValue,
 ) usize { // returns id of result buffer
 
     // ── Set-up phase ────────────────────────────────────────────────────
