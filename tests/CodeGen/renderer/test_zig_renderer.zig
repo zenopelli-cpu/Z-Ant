@@ -748,8 +748,8 @@ test "LowerClip Pipeline" {
     const out_shape = input_shape; // For Clip, output shape is same as input
     const strideA = &.{ @as(isize, 3), @as(isize, 1) };
     const out_dtype = DType.f32;
-    const max = DTypeValue{ .f32 = 10.5};
-    const min = DTypeValue{ .f32 = 8.2};
+    const max = DTypeValue{ .f32 =  2.0};
+    const min = DTypeValue{ .f32 = -2.0};
 
     // 3. Call lowerNeg to generate UOps
     const out_buf_id = lowerClip(
@@ -820,4 +820,36 @@ test "LowerClip Pipeline" {
 
     // Optional: Clean up
     // try std.fs.cwd().deleteFile(output_filename);
+}
+
+test "Test Generated LowerClip Kernel" {
+    std.debug.print("Testing generated kernel from lowerclip_output_function.zig\n", .{});
+    const allocator = std.testing.allocator;
+    const kernel = @import("lowerclip_output_function.zig");
+
+    // 1. Define input data
+    // Input shape {2, 3}, flat size = 6
+    const input_data_0_list = [_]f32{
+        1.0,  -2.0, 3.0,
+        -4.0, 5.0,  0.0,
+    };
+    const input_data_0 = &input_data_0_list;
+
+    // 2. Call the generated kernel
+    // Signature: pub fn generated_kernel(allocator: std.mem.Allocator, input_0: []const f32) ![]f32
+    const result_slice = try kernel.generated_kernel(allocator, input_data_0);
+    defer allocator.free(result_slice); // Kernel allocates the output slice (size 6)
+
+    // 3. Define expected output
+    // Output shape {2, 3}, flat size = 6
+    const expected_result_list = [_]f32{
+        1.0, -2.0, 2.0,
+        2.0, 2.0, 0.0, // Note: -0.0 is f32 representation
+    };
+    const expected_result = &expected_result_list;
+
+    // 4. Compare results
+    try std.testing.expectEqualSlices(f32, expected_result, result_slice);
+
+    std.debug.print("Generated LowerClip kernel test passed!\n", .{});
 }
