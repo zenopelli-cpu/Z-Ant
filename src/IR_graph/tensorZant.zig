@@ -61,6 +61,7 @@ pub const TensorZant = struct {
     tc: TensorCategory,
     ptr: ?*AnyTensor,
     shape: []usize,
+    stride: []usize,
 
     pub fn init(name: []const u8, tensorProto: ?*TensorProto, value_info: ?*ValueInfoProto, tensorCategory: TensorCategory) !TensorZant {
         std.debug.print("\n ----------- init({s}, {s}, {s}) ", .{ name, if (tensorProto) |_| "tp" else "null", tensorCategory.toString() });
@@ -91,11 +92,24 @@ pub const TensorZant = struct {
             .tc = tensorCategory,
             .ptr = if (tensor) |t| @constCast(&t) else null,
             .shape = shape_usize,
+            .stride = try TensorZant.set_stride(shape_usize),
         };
     }
 
     pub fn get_shape(self: *TensorZant) []usize {
         return self.ptr.get_shape();
+    }
+
+    pub fn set_stride(shape: []usize) ![]usize {
+        const num_dims = shape.len;
+        var strides = try allocator.alloc(usize, num_dims);
+        strides[num_dims - 1] = 1;
+        var i: usize = num_dims - 1;
+        while (i > 0) {
+            strides[i - 1] = strides[i] * shape[i];
+            i -= 1;
+        }
+        return strides;
     }
 
     pub fn set_tensorType(self: *TensorZant, ty: TensorType) void {
