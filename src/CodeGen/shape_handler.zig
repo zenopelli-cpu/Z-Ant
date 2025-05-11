@@ -1498,15 +1498,37 @@ inline fn compute_squeeze_output_shape(readyNode: *ReadyNode) !void {
         defer allocator.free(input_shape_usize);
         Codegen_log.debug("\n input_shape_usize: []usize = {any}", .{input_shape_usize});
 
-        var axes: ?[]const i64 = null;
-        if (readyNode.inputs.items.len >= 2 and readyNode.inputs.items[1] != null) {
-            axes = readyNode.inputs.items[1].?.tensorProto.?.int64_data.?; // non so cosa prendere qui
-            Codegen_log.debug("\n squeeze axes from tensor input: {?[]i64} = {any}", .{axes});
+        var axes_values_isize: ?[]const isize = null;
+        var axes_buffer: []isize = undefined; // Buffer for conversion
+        defer if (axes_values_isize != null) allocator.free(axes_buffer);
+
+        if (readyNode.inputs.items.len > 2 and readyNode.inputs.items[2] != null and readyNode.inputs.items[2].?.tensorProto != null) {
+            const axes_proto = readyNode.inputs.items[2].?.tensorProto.?;
+            if (axes_proto.int64_data != null) {
+                const axes_i64 = axes_proto.int64_data.?;
+                axes_buffer = try allocator.alloc(isize, axes_i64.len);
+                for (axes_i64, 0..) |val, i| {
+                    axes_buffer[i] = @intCast(val);
+                }
+                axes_values_isize = axes_buffer;
+                Codegen_log.debug("\n axes (from i64): {any}", .{axes_values_isize});
+            } else if (axes_proto.int32_data != null) {
+                const axes_i32 = axes_proto.int32_data.?;
+                axes_buffer = try allocator.alloc(isize, axes_i32.len);
+                for (axes_i32, 0..) |val, i| {
+                    axes_buffer[i] = @intCast(val);
+                }
+                axes_values_isize = axes_buffer;
+                Codegen_log.debug("\n axes (from i32): {any}", .{axes_values_isize});
+            } else {
+                Codegen_log.warn("\nWARNING: Axes input (index 3) provided but is not int64 or int32 data.", .{});
+                // Proceed without axes if the type is wrong
+            }
         } else {
-            Codegen_log.debug("\n squeeze axes not provided (will remove all size 1 dimensions)", .{});
+            Codegen_log.debug("\n axes: not provided", .{});
         }
 
-        const output_shape_usize = try tensorMath.get_squeeze_output_shape(input_shape_usize, axes);
+        const output_shape_usize = try tensorMath.get_squeeze_output_shape(input_shape_usize, axes_values_isize);
         Codegen_log.debug("\n output_shape_usize: []usize = {any}", .{output_shape_usize});
 
         shape = try utils.usizeSliceToI64Slice(@constCast(output_shape_usize));
