@@ -98,10 +98,6 @@ pub const TensorZant = struct {
         return self.ptr.get_shape();
     }
 
-    pub fn get_stride(self: *TensorZant) ![]usize {
-        return try self.ptr.get_stride();
-    }
-
     pub fn set_tensorType(self: *TensorZant, ty: TensorType) void {
         if (ty == TensorType.undefined) {
             std.debug.print("\n ERROR: illegal behavior! you cannot set a tensor type to undefined! ", .{});

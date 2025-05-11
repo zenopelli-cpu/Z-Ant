@@ -84,22 +84,6 @@ pub const AnyTensor = union(enum) {
             .u8 => |t| t.shape = new_shape,
         };
     }
-
-    pub fn get_stride(self: AnyTensor) ![]usize {
-        return switch (self) {
-            .i64 => |t| try t.getStrides(),
-            .f64 => |t| try t.getStrides(),
-            .u64 => |t| try t.getStrides(),
-            .f32 => |t| try t.getStrides(),
-            .i32 => |t| try t.getStrides(),
-            .u32 => |t| try t.getStrides(),
-            .f16 => |t| try t.getStrides(),
-            .i16 => |t| try t.getStrides(),
-            .u16 => |t| try t.getStrides(),
-            .i8 => |t| try t.getStrides(),
-            .u8 => |t| try t.getStrides(),
-        };
-    }
 };
 
 ///Class Tensor.
