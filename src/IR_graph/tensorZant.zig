@@ -92,15 +92,25 @@ pub const TensorZant = struct {
             .tc = tensorCategory,
             .ptr = if (tensor) |t| @constCast(&t) else null,
             .shape = shape_usize,
-            .stride = try TensorZant.set_stride(shape_usize),
+            .stride = try TensorZant.computeStride(shape_usize),
         };
     }
 
-    pub fn get_shape(self: *TensorZant) []usize {
-        return self.ptr.get_shape();
+    pub fn deint(self: *TensorZant) void {
+        allocator.free(self.name);
+        allocator.free(self.shape);
+        allocator.free(self.stride);
     }
 
-    pub fn set_stride(shape: []usize) ![]usize {
+    pub fn getShape(self: *TensorZant) []usize {
+        return self.shape;
+    }
+
+    pub fn getStride(self: *TensorZant) []usize {
+        return self.stride;
+    }
+
+    pub fn computeStride(shape: []usize) ![]usize {
         const num_dims = shape.len;
         var strides = try allocator.alloc(usize, num_dims);
         strides[num_dims - 1] = 1;
