@@ -12,6 +12,8 @@ const OperatorSetIdProto = @import("onnx.zig").OperatorSetIdProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.functionProto);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L909
 //TAGS:
 // - 1 : name, optional string
@@ -197,7 +199,7 @@ pub const FunctionProto = struct {
                     try metadataList.append(ssep_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
+                    onnx_log.debug("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
 
                     var unknown_reader = try reader.readLengthDelimited();
                     while (unknown_reader.hasMore()) {
@@ -224,74 +226,71 @@ pub const FunctionProto = struct {
             return;
         };
 
-        std.debug.print("{s}------------- FUNCTION\n", .{space});
+        onnx_log.debug("{s}------------- FUNCTION\n", .{space});
 
         if (self.name) |n| {
-            std.debug.print("{s}Function Name: {s}\n", .{ space, n });
+            onnx_log.debug("{s}Function Name: {s}\n", .{ space, n });
         } else {
-            std.debug.print("{s}Function Name: (none)\n", .{space});
+            onnx_log.debug("{s}Function Name: (none)\n", .{space});
         }
 
-        std.debug.print("{s}Inputs: ", .{space});
-        for (self.input, 0..) |inp, i| {
-            if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{s}", .{inp});
+        onnx_log.debug("{s}Inputs: ", .{space});
+        for (self.input) |inp| {
+            onnx_log.debug("{s}", .{inp});
         }
-        std.debug.print("\n", .{});
+        onnx_log.debug("\n", .{});
 
-        std.debug.print("{s}Outputs: ", .{space});
-        for (self.output, 0..) |out, i| {
-            if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{s}{s} ", .{ space, out });
+        onnx_log.debug("{s}Outputs: ", .{space});
+        for (self.output) |out| {
+            onnx_log.debug("{s}{s} ", .{ space, out });
         }
-        std.debug.print("\n", .{});
+        onnx_log.debug("\n", .{});
 
-        std.debug.print("{s}Attributes: ", .{space});
-        for (self.attribute, 0..) |attr, i| {
-            if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{s}{s} ", .{ space, attr });
+        onnx_log.debug("{s}Attributes: ", .{space});
+        for (self.attribute) |attr| {
+            onnx_log.debug("{s}{s} ", .{ space, attr });
         }
-        std.debug.print("\n", .{});
+        onnx_log.debug("\n", .{});
 
-        std.debug.print("{s}Attributes Proto:\n", .{space});
+        onnx_log.debug("{s}Attributes Proto:\n", .{space});
         for (self.attribute_proto) |attr| {
             attr.print(space);
         }
 
-        std.debug.print("{s}Nodes:\n", .{space});
+        onnx_log.debug("{s}Nodes:\n", .{space});
         for (self.node) |node| {
             node.print(space);
         }
 
         if (self.doc_string) |ds| {
-            std.debug.print("{s}Function Doc string: {s}\n", .{ space, ds });
+            onnx_log.debug("{s}Function Doc string: {s}\n", .{ space, ds });
         } else {
-            std.debug.print("{s}Function Doc string: (none)\n", .{space});
+            onnx_log.debug("{s}Function Doc string: (none)\n", .{space});
         }
 
-        std.debug.print("{s}Opertor set id:\n", .{space});
+        onnx_log.debug("{s}Opertor set id:\n", .{space});
         for (self.opset_import) |opset| {
             opset.print(space);
         }
 
         if (self.domain) |d| {
-            std.debug.print("{s}Function Domain: {s}\n", .{ space, d });
+            onnx_log.debug("{s}Function Domain: {s}\n", .{ space, d });
         } else {
-            std.debug.print("{s}Function Domain: (none)\n", .{space});
+            onnx_log.debug("{s}Function Domain: (none)\n", .{space});
         }
 
         if (self.overload) |o| {
-            std.debug.print("{s}Function Overload: {s}\n", .{ space, o });
+            onnx_log.debug("{s}Function Overload: {s}\n", .{ space, o });
         } else {
-            std.debug.print("{s}Function Overload: (none)\n", .{space});
+            onnx_log.debug("{s}Function Overload: (none)\n", .{space});
         }
 
-        std.debug.print("{s}value infos (key, value) [{}]: \n", .{ space, self.metadata_props.len });
+        onnx_log.debug("{s}value infos (key, value) [{}]: \n", .{ space, self.metadata_props.len });
         for (self.value_info) |vi| {
             vi.print(space);
         }
 
-        std.debug.print("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
+        onnx_log.debug("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
         for (self.metadata_props) |mp| {
             mp.print(space);
         }

@@ -28,7 +28,6 @@ pub fn Tensor(comptime T: type) type {
         size: usize, //dimension of the tensor, equal to data.len
         shape: []usize, //defines the multidimensional structure of the tensor
         allocator: *const std.mem.Allocator, //allocator used in the memory initialization of the tensor
-        owns_memory: bool, //whether this tensor owns its memory and should free it
 
         ///Method used to initialize an undefined Tensor. It just set the allocator.
         /// More usefull methods are:
@@ -41,21 +40,18 @@ pub fn Tensor(comptime T: type) type {
                 .size = 0,
                 .shape = &[_]usize{},
                 .allocator = allocator,
-                .owns_memory = true,
             };
         }
 
         ///Free all the possible allocation, use it every time you create a new Tensor ( defer yourTensor.deinit() )
         pub fn deinit(self: *@This()) void {
-            if (self.owns_memory) {
-                if (self.data.len > 0) {
-                    self.allocator.free(self.data);
-                    self.data = &[_]T{};
-                }
-                if (self.shape.len > 0) {
-                    self.allocator.free(self.shape);
-                    self.shape = &[_]usize{};
-                }
+            if (self.data.len > 0) {
+                self.allocator.free(self.data);
+                self.data = &[_]T{};
+            }
+            if (self.shape.len > 0) {
+                self.allocator.free(self.shape);
+                self.shape = &[_]usize{};
             }
         }
 
@@ -87,7 +83,6 @@ pub fn Tensor(comptime T: type) type {
                 .size = total_size,
                 .shape = tensorShape,
                 .allocator = allocator,
-                .owns_memory = true,
             };
         }
 
@@ -125,14 +120,17 @@ pub fn Tensor(comptime T: type) type {
             @memcpy(tensorShape, shape);
 
             const tensorData = try allocator.alloc(T, total_size);
-            @memset(tensorData, 0);
+            if (T == bool) {
+                @memset(tensorData, false);
+            } else {
+                @memset(tensorData, 0);
+            }
 
             return @This(){
                 .data = tensorData,
                 .size = total_size,
                 .shape = tensorShape,
                 .allocator = allocator,
-                .owns_memory = true,
             };
         }
 
@@ -145,7 +143,6 @@ pub fn Tensor(comptime T: type) type {
                 .size = data.len,
                 .shape = @constCast(shape),
                 .allocator = allocator,
-                .owns_memory = false,
             };
         }
 
@@ -393,7 +390,7 @@ pub fn Tensor(comptime T: type) type {
 
                 // Use result to prevent optimization
                 if (result == 0) {
-                    std.debug.print("Benchmark result: {}\n", .{result});
+                    std.log.info("Benchmark result: {}\n", .{result});
                 }
             }
 
@@ -411,7 +408,7 @@ pub fn Tensor(comptime T: type) type {
 
                 // Use result to prevent optimization
                 if (result == 0) {
-                    std.debug.print("Benchmark result: {}\n", .{result});
+                    std.log.info("Benchmark result: {}\n", .{result});
                 }
             }
 
@@ -471,7 +468,6 @@ pub fn Tensor(comptime T: type) type {
                 .shape = try self.allocator.dupe(usize, slice_shape),
                 .size = new_size,
                 .allocator = self.allocator,
-                .owns_memory = true,
             };
 
             _ = &new_tensor;
@@ -518,7 +514,7 @@ pub fn Tensor(comptime T: type) type {
         }
 
         // Helper function to calculate the flat index from multi-dimensional indices
-        fn get_flat_index(self: *Tensor(T), indices: []usize) !usize {
+        pub fn get_flat_index(self: *Tensor(T), indices: []usize) !usize {
             if (indices.len != self.shape.len) return TensorError.InvalidIndices;
 
             var flat_index: usize = 0;
@@ -551,24 +547,24 @@ pub fn Tensor(comptime T: type) type {
         /// Prints all the possible details of a tensor.
         /// Very usefull in debugging.
         pub fn info(self: *@This()) void {
-            std.debug.print("\ntensor infos: ", .{});
-            std.debug.print("\n  data type:{}", .{@TypeOf(self.data[0])});
-            std.debug.print("\n  size:{}", .{self.size});
-            std.debug.print("\n shape.len:{} shape: [ ", .{self.shape.len});
+            std.log.debug("\ntensor infos: ", .{});
+            std.log.debug("\n  data type:{}", .{@TypeOf(self.data[0])});
+            std.log.debug("\n  size:{}", .{self.size});
+            std.log.debug("\n shape.len:{} shape: [ ", .{self.shape.len});
             for (0..self.shape.len) |i| {
-                std.debug.print("{} ", .{self.shape[i]});
+                std.log.debug("{} ", .{self.shape[i]});
             }
-            std.debug.print("] ", .{});
+            std.log.debug("] ", .{});
             //self.print();
         }
 
         /// Prints all the array self.data in an array.
         pub fn print(self: *@This()) void {
-            std.debug.print("\n  tensor data: ", .{});
+            std.log.debug("\n  tensor data: ", .{});
             for (0..self.size) |i| {
-                std.debug.print("{} ", .{self.data[i]});
+                std.log.debug("{} ", .{self.data[i]});
             }
-            std.debug.print("\n", .{});
+            std.log.debug("\n", .{});
         }
 
         /// Print the Tensor() to console in a more readable way.
@@ -580,29 +576,29 @@ pub fn Tensor(comptime T: type) type {
         fn _printMultidimHelper(self: *@This(), offset: usize, idx: usize) void {
             // Print opening bracket with a number of tab that is equals to idx
             for (0..idx) |_| {
-                std.debug.print("    ", .{});
+                std.log.debug("    ", .{});
             }
-            std.debug.print("[", .{});
+            std.log.debug("[", .{});
 
             if (idx == self.shape.len - 1) {
                 for (0..self.shape[self.shape.len - 1]) |i| {
                     const local_idx = offset + i;
-                    std.debug.print("{}, ", .{self.data[local_idx]});
+                    std.log.debug("{}, ", .{self.data[local_idx]});
                 }
-                std.debug.print("],\n", .{});
+                std.log.debug("],\n", .{});
             } else {
-                std.debug.print("\n", .{});
+                std.log.debug("\n", .{});
                 for (0..self.shape[idx]) |i| {
                     self._printMultidimHelper(offset + self.shape[idx + 1] * i, idx + 1);
                 }
-                std.debug.print("\n", .{});
+                std.log.debug("\n", .{});
 
                 for (0..idx) |_| {
-                    std.debug.print("    ", .{});
+                    std.log.debug("    ", .{});
                 }
-                std.debug.print("]", .{});
+                std.log.debug("]", .{});
                 if (idx != 0) {
-                    std.debug.print(",\n", .{});
+                    std.log.debug(",\n", .{});
                 }
             }
         }

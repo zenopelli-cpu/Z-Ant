@@ -11,6 +11,8 @@ const SparseTensorProto = @import("sparseTensorProto.zig").SparseTensorProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.graphProto);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L460
 //TAGS:
 //  - 1 : node, type: NodeProto repeated
@@ -180,7 +182,7 @@ pub const GraphProto = struct {
                     try metadataList.append(ssep_ptr);
                 },
                 else => {
-                    //std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
+                    //onnx_log.debug("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
 
                     var unknown_reader = try reader.readLengthDelimited();
                     while (unknown_reader.hasMore()) {
@@ -207,50 +209,50 @@ pub const GraphProto = struct {
             return;
         };
 
-        std.debug.print("{s}------------- GRAPH\n", .{space});
+        onnx_log.info("{s}------------- GRAPH\n", .{space});
 
         if (self.name) |n| {
-            std.debug.print("{s}Graph Name: {s}\n", .{ space, n });
+            onnx_log.info("{s}Graph Name: {s}\n", .{ space, n });
         } else {
-            std.debug.print("{s}Graph Name: (none)\n", .{space});
+            onnx_log.info("{s}Graph Name: (none)\n", .{space});
         }
 
-        std.debug.print("{s}Nodes:\n", .{space});
+        onnx_log.debug("{s}Nodes:\n", .{space});
         for (self.nodes) |node| {
             node.print(space);
         }
 
-        std.debug.print("{s}Initializers  [{}]:\n", .{ space, self.initializers.len });
+        onnx_log.debug("{s}Initializers  [{}]:\n", .{ space, self.initializers.len });
         for (self.initializers) |initializer| {
             initializer.print(space);
         }
 
-        std.debug.print("{s}Inputs [{}]:\n", .{ space, self.inputs.len });
+        onnx_log.debug("{s}Inputs [{}]:\n", .{ space, self.inputs.len });
         for (self.inputs) |input| {
             input.print(space);
         }
 
-        std.debug.print("{s}Outputs  [{}]: \n", .{ space, self.outputs.len });
+        onnx_log.debug("{s}Outputs  [{}]: \n", .{ space, self.outputs.len });
         for (self.outputs) |output| {
             output.print(space);
         }
 
-        std.debug.print("{s}Value_info [{}]:\n", .{ space, self.value_info.len });
+        onnx_log.debug("{s}Value_info [{}]:\n", .{ space, self.value_info.len });
         for (self.value_info) |vi| {
             vi.print(space);
         }
 
-        std.debug.print("{s}Quantization Annotations:\n", .{space});
+        onnx_log.debug("{s}Quantization Annotations:\n", .{space});
         for (self.quantization_annotation) |qa| {
             qa.print(space);
         }
 
-        std.debug.print("{s}Sparse Initializers:\n", .{space});
+        onnx_log.debug("{s}Sparse Initializers:\n", .{space});
         for (self.sparse_initializer) |sp| {
             sp.print(space);
         }
 
-        std.debug.print("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
+        onnx_log.debug("{s}metadata_props (key, value) [{}]: \n", .{ space, self.metadata_props.len });
         for (self.metadata_props) |mp| {
             mp.print(space);
         }

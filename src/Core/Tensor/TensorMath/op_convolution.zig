@@ -42,10 +42,10 @@ pub export fn setLogFunctionC(func: ?*const fn ([*c]u8) callconv(.C) void) void 
     log_functionC = func;
 }
 pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void {
-    // std.debug.print("\n[DEBUG] OnnxConvLean - Input shape: {any}", .{input.shape});
-    // std.debug.print("\n[DEBUG] OnnxConvLean - Kernel shape: {any}", .{kernel.shape});
-    // std.debug.print("\n[DEBUG] OnnxConvLean - Output shape: {any}", .{output.shape});
-    // std.debug.print("\n[DEBUG] OnnxConvLean - Stride: {any}", .{stride});
+    // std.log.debug("\n[DEBUG] OnnxConvLean - Input shape: {any}", .{input.shape});
+    // std.log.debug("\n[DEBUG] OnnxConvLean - Kernel shape: {any}", .{kernel.shape});
+    // std.log.debug("\n[DEBUG] OnnxConvLean - Output shape: {any}", .{output.shape});
+    // std.log.debug("\n[DEBUG] OnnxConvLean - Stride: {any}", .{stride});
 
     // Input validation: Ensure 4D tensors for input (N,C,H,W) and kernel (M,C/g,kH,kW)
 
@@ -132,8 +132,8 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     const dilation_h = if (dilations) |d| if (d.len > 0) d[0] else 1 else 1;
     const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else d[0] else 1;
 
-    // std.debug.print("\n[DEBUG] Computed strides: h={}, w={}", .{ stride_h, stride_w });
-    // std.debug.print("\n[DEBUG] Computed dilations: h={}, w={}", .{ dilation_h, dilation_w });
+    // std.log.debug("\n[DEBUG] Computed strides: h={}, w={}", .{ stride_h, stride_w });
+    // std.log.debug("\n[DEBUG] Computed dilations: h={}, w={}", .{ dilation_h, dilation_w });
 
     // Calculate dilated kernel dimensions
     const dilated_kernel_h = (kernel_height - 1) * dilation_h + 1;
@@ -149,7 +149,7 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     }
     // Handle padding: Either auto_pad or explicit pads
     if (auto_pad) |pad_mode| {
-        //std.debug.print("\n[DEBUG] pad_mode: {s}", .{pad_mode});
+        //std.log.debug("\n[DEBUG] pad_mode: {s}", .{pad_mode});
         if (std.mem.eql(u8, pad_mode, "VALID")) {
             // No padding
         } else if (std.mem.eql(u8, pad_mode, "SAME_UPPER") or std.mem.eql(u8, pad_mode, "SAME_LOWER")) {
@@ -289,8 +289,8 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     }
 
     //print  result e output shape
-    //std.debug.print("\n[DEBUG] Result shape: {any}", .{result.shape});
-    //std.debug.print("\n[DEBUG] Output shape: {any}", .{output.shape});
+    //std.log.debug("\n[DEBUG] Result shape: {any}", .{result.shape});
+    //std.log.debug("\n[DEBUG] Output shape: {any}", .{output.shape});
 
     // Validate output dimensions and copy result
     // Output shape should match the expected 4D shape based on actual_input_shape
@@ -305,7 +305,7 @@ pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), out
     } // else: Let the data length check catch other invalid output shapes
 
     if (!shape_match) {
-        //std.debug.print("\n[DEBUG] OnnxConvLean: Result shape: {any}", .{result.shape});
+        //std.log.debug("\n[DEBUG] OnnxConvLean: Result shape: {any}", .{result.shape});
         // Adjust error message or logic if needed, considering the 3D input case
         if (log_functionC) |log_func| {
             var buf: [256]u8 = undefined;
@@ -455,7 +455,7 @@ pub fn convolve_tensor_with_bias(
     };
     errdefer output.deinit();
 
-    //std.debug.print("\n[DEBUG] Output shape: {any}", .{output.shape});
+    //std.log.debug("\n[DEBUG] Output shape: {any}", .{output.shape});
 
     const kernel_size = [2]usize{ kernel_height, kernel_width };
     const stride_size = [2]usize{ stride[0], stride[1] };
@@ -901,13 +901,13 @@ pub fn convolve_tensor_with_bias_memory_efficient(
 }
 
 pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []const usize, stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, auto_pad: ?[]const u8) ![4]usize {
-    std.debug.print("\n =================================================", .{});
-    std.debug.print("\n[DEBUG] get_convolution_output_shape - input_shape: {any}", .{input_shape});
-    std.debug.print("\n[DEBUG] get_convolution_output_shape - kernel_shape: {any}", .{kernel_shape});
-    std.debug.print("\n[DEBUG] get_convolution_output_shape - stride: {any}", .{stride});
-    std.debug.print("\n[DEBUG] get_convolution_output_shape - pads: {any}", .{pads});
-    std.debug.print("\n[DEBUG] get_convolution_output_shape - dilations: {any}", .{dilations});
-    std.debug.print("\n[DEBUG] get_convolution_output_shape - auto_pad: {any}", .{auto_pad});
+    //std.log.debug("\n =================================================", .{});
+    // std.log.debug("\n[DEBUG] get_convolution_output_shape - input_shape: {any}", .{input_shape});
+    // std.log.debug("\n[DEBUG] get_convolution_output_shape - kernel_shape: {any}", .{kernel_shape});
+    // std.log.debug("\n[DEBUG] get_convolution_output_shape - stride: {any}", .{stride});
+    // std.log.debug("\n[DEBUG] get_convolution_output_shape - pads: {any}", .{pads});
+    // std.log.debug("\n[DEBUG] get_convolution_output_shape - dilations: {any}", .{dilations});
+    // std.log.debug("\n[DEBUG] get_convolution_output_shape - auto_pad: {any}", .{auto_pad});
 
     // --- Handle 3D input shape by assuming batch size = 1 ---
     var actual_input_shape: [4]usize = undefined;
@@ -917,17 +917,17 @@ pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []
         actual_input_shape[1] = input_shape[0]; // Channels
         actual_input_shape[2] = input_shape[1]; // Height
         actual_input_shape[3] = input_shape[2]; // Width
-        std.debug.print("\n[DEBUG] get_convolution_output_shape - Adjusted 3D input shape to 4D: {any}", .{actual_input_shape});
+        std.log.debug("\n[DEBUG] get_convolution_output_shape - Adjusted 3D input shape to 4D: {any}", .{actual_input_shape});
     } else if (input_shape.len == 4) {
         @memcpy(&actual_input_shape, input_shape[0..4]);
     } else {
-        std.debug.print("\n[ERROR] get_convolution_output_shape - Invalid input dimensions: {}", .{input_shape.len});
+        std.log.warn("\n[ERROR] get_convolution_output_shape - Invalid input dimensions: {}", .{input_shape.len});
         return TensorMathError.InvalidDimensions;
     }
     // --- End Shape Adjustment ---
 
     if (kernel_shape.len != 4) {
-        std.debug.print("\n[ERROR] get_convolution_output_shape - Invalid kernel dimensions: {}", .{kernel_shape.len});
+        std.log.warn("\n[ERROR] get_convolution_output_shape - Invalid kernel dimensions: {}", .{kernel_shape.len});
         return TensorMathError.InvalidDimensions;
     }
 
@@ -1020,7 +1020,7 @@ pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []
     }
 
     if (expected_out_height <= 0 or expected_out_width <= 0) {
-        std.debug.print("\n[ERROR] get_convolution_output_shape - Calculated output dimensions are non-positive: H={}, W={}", .{ expected_out_height, expected_out_width });
+        std.log.warn("\n[ERROR] get_convolution_output_shape - Calculated output dimensions are non-positive: H={}, W={}", .{ expected_out_height, expected_out_width });
         return TensorMathError.InvalidDimensions;
     }
 
@@ -1033,11 +1033,11 @@ pub fn get_convolution_output_shape(input_shape: []const usize, kernel_shape: []
 // --------------------------------------------------
 // --------- standard im2col
 pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize, dilations: ?[]const usize, group: usize) !Tensor(T) {
-    // std.debug.print("\n[DEBUG] im2col - Starting transformation", .{});
-    // std.debug.print("\n[DEBUG] Input shape: {any}", .{input.shape});
-    // std.debug.print("\n[DEBUG] Kernel size: {any}", .{kernel});
-    // std.debug.print("\n[DEBUG] Stride: {any}", .{stride});
-    // std.debug.print("\n[DEBUG] Group: {}", .{group});
+    // std.log.debug("\n[DEBUG] im2col - Starting transformation", .{});
+    // std.log.debug("\n[DEBUG] Input shape: {any}", .{input.shape});
+    // std.log.debug("\n[DEBUG] Kernel size: {any}", .{kernel});
+    // std.log.debug("\n[DEBUG] Stride: {any}", .{stride});
+    // std.log.debug("\n[DEBUG] Group: {}", .{group});
 
     if (input.shape.len != 4) {
         return TensorMathError.InputTensorsWrongShape;
@@ -1087,7 +1087,7 @@ pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]
     const cols_per_group = channels_per_group * kernel_h * kernel_w;
     const cols = cols_per_group * group; // Total columns across all groups
 
-    //std.debug.print("\n[DEBUG] im2col output shape - rows: {}, cols: {}", .{ rows, cols });
+    //std.log.debug("\n[DEBUG] im2col output shape - rows: {}, cols: {}", .{ rows, cols });
 
     var col_shape = [_]usize{ rows, cols };
     var col_matrix = Tensor(T).fromShape(&pkg_allocator, &col_shape) catch {
@@ -1105,9 +1105,9 @@ pub fn im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]
 }
 
 pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize, stride: [2]usize, dilations: ?[]const usize, group: usize, output: *Tensor(T)) !void {
-    // std.debug.print("\n[DEBUG] lean_im2col - Starting transformation", .{});
-    // std.debug.print("\n[DEBUG] Input shape: {any}, Output shape: {any}", .{ input.shape, output.shape });
-    // std.debug.print("\n[DEBUG] lean_im2col - Group: {}", .{group});
+    // std.log.debug("\n[DEBUG] lean_im2col - Starting transformation", .{});
+    // std.log.debug("\n[DEBUG] Input shape: {any}, Output shape: {any}", .{ input.shape, output.shape });
+    // std.log.debug("\n[DEBUG] lean_im2col - Group: {}", .{group});
 
     const batch_size = input.shape[0];
     const channels = input.shape[1];
@@ -1258,9 +1258,9 @@ pub inline fn lean_im2col(comptime T: type, input: *Tensor(T), kernel: [2]usize,
 /// Input shape: [batch_size * out_height * out_width, channels * kernel_height * kernel_width]
 /// Output shape: [batch_size, channels, height, width]
 pub fn col2im(comptime T: type, col_matrix: *Tensor(T), output_shape: []const usize, kernel: [2]usize, stride: [2]usize) !Tensor(T) {
-    // std.debug.print("\n[DEBUG] col2im - Starting transformation", .{});
-    // std.debug.print("\n[DEBUG] Col matrix shape: {any}", .{col_matrix.shape});
-    // std.debug.print("\n[DEBUG] Target output shape: {any}", .{output_shape});
+    // std.log.debug("\n[DEBUG] col2im - Starting transformation", .{});
+    // std.log.debug("\n[DEBUG] Col matrix shape: {any}", .{col_matrix.shape});
+    // std.log.debug("\n[DEBUG] Target output shape: {any}", .{output_shape});
 
     if (output_shape.len != 4) {
         return TensorMathError.InvalidDimensions;
@@ -1493,13 +1493,13 @@ pub fn OnnxConv(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), bias: ?
 }
 
 pub fn debug_print_max_pool(input_shape: []const usize, kernel_shape: []const usize, stride: []const usize, padding: ?[]const usize) void {
-    std.debug.print("\n[DEBUG] MaxPool - Input shape: {any}", .{input_shape});
-    std.debug.print("\n[DEBUG] MaxPool - Kernel shape: {any}", .{kernel_shape});
-    std.debug.print("\n[DEBUG] MaxPool - Stride: {any}", .{stride});
+    std.log.debug("\n[DEBUG] MaxPool - Input shape: {any}", .{input_shape});
+    std.log.debug("\n[DEBUG] MaxPool - Kernel shape: {any}", .{kernel_shape});
+    std.log.debug("\n[DEBUG] MaxPool - Stride: {any}", .{stride});
     if (padding) |p| {
-        std.debug.print("\n[DEBUG] MaxPool - Padding: {any}", .{p});
+        std.log.debug("\n[DEBUG] MaxPool - Padding: {any}", .{p});
     } else {
-        std.debug.print("\n[DEBUG] MaxPool - Padding: null", .{});
+        std.log.debug("\n[DEBUG] MaxPool - Padding: null", .{});
     }
 
     // Calculate dilated kernel dimensions (MaxPool typically has no dilation, but for consistency)
@@ -1509,11 +1509,11 @@ pub fn debug_print_max_pool(input_shape: []const usize, kernel_shape: []const us
     const in_height = if (input_shape.len > 2) input_shape[2] else 1;
     const in_width = if (input_shape.len > 3) input_shape[3] else 1;
 
-    std.debug.print("\n[DEBUG] MaxPool - in_height: {}, in_width: {}, kernel_h: {}, kernel_w: {}", .{ in_height, in_width, kernel_h, kernel_w });
+    std.log.debug("\n[DEBUG] MaxPool - in_height: {}, in_width: {}, kernel_h: {}, kernel_w: {}", .{ in_height, in_width, kernel_h, kernel_w });
 
     // Check if this is a problematic case (kernel larger than input)
     if (in_height < kernel_h or in_width < kernel_w) {
-        std.debug.print("\n[DEBUG] MaxPool - WARNING: Kernel is larger than input dimensions!", .{});
+        std.log.debug("\n[DEBUG] MaxPool - WARNING: Kernel is larger than input dimensions!", .{});
     }
 }
 
@@ -1523,7 +1523,7 @@ pub fn get_max_pool_output_shape(input_shape: []const usize, kernel_shape: []con
     _ = padding;
     // Special case handling for MaxPool when kernel is larger than input
     if (input_shape.len > 2 and input_shape[2] < kernel_shape[0]) {
-        // std.debug.print("\n[DEBUG] MaxPool - Using special case for small input", .{});
+        // std.log.debug("\n[DEBUG] MaxPool - Using special case for small input", .{});
 
         // Return a shape with 1x1 spatial dimensions
         var result = try pkg_allocator.alloc(usize, 4);

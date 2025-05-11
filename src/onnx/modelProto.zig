@@ -9,6 +9,8 @@ const FunctionProto = @import("onnx.zig").FunctionProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.modelProto);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L361
 // TAGS:
 //  - 1 : ir_version, optional int64
@@ -153,7 +155,7 @@ pub const ModelProto = struct {
                     try functions.append(fn_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
+                    onnx_log.debug("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
                     try reader.skipField(tag.wire_type);
                 },
             }
@@ -167,59 +169,59 @@ pub const ModelProto = struct {
     }
 
     pub fn print(self: *ModelProto) void {
-        std.debug.print("\n\n------------------------- MODEL -------------------------------\n", .{});
+        onnx_log.info("\n\n------------------------- MODEL -------------------------------\n", .{});
 
-        std.debug.print("ModelProto:\n", .{});
-        std.debug.print("  IR Version: {}\n", .{self.ir_version});
+        onnx_log.debug("ModelProto:\n", .{});
+        onnx_log.debug("  IR Version: {}\n", .{self.ir_version});
 
         if (self.producer_name) |name| {
-            std.debug.print("  Producer Name: {s}\n", .{name});
+            onnx_log.debug("  Producer Name: {s}\n", .{name});
         } else {
-            std.debug.print("  Producer Name: (none)\n", .{});
+            onnx_log.debug("  Producer Name: (none)\n", .{});
         }
 
         if (self.producer_version) |version| {
-            std.debug.print("  Producer Version: {s}\n", .{version});
+            onnx_log.debug("  Producer Version: {s}\n", .{version});
         } else {
-            std.debug.print("  Producer Version: (none)\n", .{});
+            onnx_log.debug("  Producer Version: (none)\n", .{});
         }
 
         if (self.domain) |d| {
-            std.debug.print("  Domain: {s}\n", .{d});
+            onnx_log.debug("  Domain: {s}\n", .{d});
         } else {
-            std.debug.print("  Domain: (none)\n", .{});
+            onnx_log.debug("  Domain: (none)\n", .{});
         }
 
         if (self.model_version) |v| {
-            std.debug.print("  Model Version: {}\n", .{v});
+            onnx_log.debug("  Model Version: {}\n", .{v});
         } else {
-            std.debug.print("  Model Version: (none)\n", .{});
+            onnx_log.debug("  Model Version: (none)\n", .{});
         }
 
         if (self.doc_string) |doc| {
-            std.debug.print("  Doc String: {s}\n", .{doc});
+            onnx_log.debug("  Doc String: {s}\n", .{doc});
         } else {
-            std.debug.print("  Doc String: (none)\n", .{});
+            onnx_log.debug("  Doc String: (none)\n", .{});
         }
 
         if (self.graph) |g| {
-            std.debug.print("  Graph:\n", .{});
+            onnx_log.debug("  Graph:\n", .{});
             g.print(null);
         } else {
-            std.debug.print("  Graph: (none)\n", .{});
+            onnx_log.debug("  Graph: (none)\n", .{});
         }
 
-        std.debug.print("{s}Operator set id:\n", .{" "});
+        onnx_log.debug("{s}Operator set id:\n", .{" "});
         for (self.opset_import) |opset| {
             opset.print(null);
         }
 
-        std.debug.print("Metadata count: {}\n", .{self.metadata_props.len});
+        onnx_log.debug("Metadata count: {}\n", .{self.metadata_props.len});
         for (self.metadata_props) |metadata| {
             metadata.print(null);
         }
 
-        std.debug.print("Functions count: {}\n", .{self.functions.len});
+        onnx_log.debug("Functions count: {}\n", .{self.functions.len});
         for (self.functions) |fun| {
             fun.print(null);
         }

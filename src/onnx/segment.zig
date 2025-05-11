@@ -4,6 +4,8 @@ const protobuf = @import("protobuf.zig");
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.segment);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L503
 
 //TAGS:
@@ -32,7 +34,7 @@ pub const Segment = struct {
                     segment.end = @intCast(value);
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for AttributeProto\n\n ", .{seg_tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for AttributeProto\n\n ", .{seg_tag});
                     try reader.skipField(seg_tag.wire_type);
                 },
             }
@@ -45,18 +47,18 @@ pub const Segment = struct {
             return;
         };
 
-        std.debug.print("{s}------------- SEGMENT\n", .{space});
+        onnx_log.debug("{s}------------- SEGMENT\n", .{space});
 
         if (self.begin) |b| {
-            std.debug.print("{s}Segment begin: {}\n", .{ space, b });
+            onnx_log.debug("{s}Segment begin: {}\n", .{ space, b });
         } else {
-            std.debug.print("{s}Segment begin: (none)\n", .{space});
+            onnx_log.debug("{s}Segment begin: (none)\n", .{space});
         }
 
         if (self.end) |e| {
-            std.debug.print("{s}Segment end: {}\n", .{ space, e });
+            onnx_log.debug("{s}Segment end: {}\n", .{ space, e });
         } else {
-            std.debug.print("{s}Segment end: (none)\n", .{space});
+            onnx_log.debug("{s}Segment end: (none)\n", .{space});
         }
     }
 };

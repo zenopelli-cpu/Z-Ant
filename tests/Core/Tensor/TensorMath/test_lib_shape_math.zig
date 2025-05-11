@@ -6,8 +6,10 @@ const Tensor = zant.core.tensor.Tensor;
 const TensorError = zant.utils.error_handler.TensorError;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 
+const tests_log = std.log.scoped(.test_lib_shape);
+
 test "Concatenate tensors along axis 0" {
-    std.debug.print("\n     test: Concatenate tensors along axis 0", .{});
+    tests_log.info("\n     test: Concatenate tensors along axis 0", .{});
     var allocator = pkgAllocator.allocator;
 
     var inputArray1: [2][2]f32 = [_][2]f32{
@@ -44,14 +46,14 @@ test "Concatenate tensors along axis 0" {
 
     for (0..4) |i| {
         for (0..2) |j| {
-            //std.debug.print("Checking result_tensor[{d}][{d}]: {f}\n", .{ i, j, result_tensor.data[i * 2 + j] });
+            //tests_log.debug("Checking result_tensor[{d}][{d}]: {f}\n", .{ i, j, result_tensor.data[i * 2 + j] });
             try std.testing.expect(result_tensor.data[i * 2 + j] == expected_data[i][j]);
         }
     }
 }
 
 test "Concatenate tensors along axis 1" {
-    std.debug.print("\n     test: Concatenate tensors along axis 1", .{});
+    tests_log.info("\n     test: Concatenate tensors along axis 1", .{});
     var allocator = pkgAllocator.allocator;
 
     var inputArray1: [2][2]f32 = [_][2]f32{
@@ -87,14 +89,14 @@ test "Concatenate tensors along axis 1" {
 
     for (0..2) |i| {
         for (0..4) |j| {
-            //std.debug.print("Checking result_tensor[{d}][{d}]: {f}\n", .{ i, j, result_tensor.data[i * 4 + j] });
+            //tests_log.info("Checking result_tensor[{d}][{d}]: {f}\n", .{ i, j, result_tensor.data[i * 4 + j] });
             try std.testing.expect(result_tensor.data[i * 4 + j] == expected_data[i][j]);
         }
     }
 }
 
 test "Concatenate tensors along negative axis" {
-    std.debug.print("\n     test: Concatenate tensors along negative axis", .{});
+    tests_log.info("\n     test: Concatenate tensors along negative axis", .{});
     var allocator = std.testing.allocator;
 
     var inputArray1: [2][2]f32 = [_][2]f32{
@@ -137,7 +139,7 @@ test "Concatenate tensors along negative axis" {
 }
 
 test "Concatenate 3D tensors along axis 2" {
-    std.debug.print("\n     test: Concatenate 3D tensors along axis 2", .{});
+    tests_log.info("\n     test: Concatenate 3D tensors along axis 2", .{});
     var allocator = std.testing.allocator;
 
     // Tensor A: shape [2, 2, 2]
@@ -189,7 +191,7 @@ test "Concatenate 3D tensors along axis 2" {
 }
 
 test "transpose" {
-    std.debug.print("\n     test: transpose ", .{});
+    tests_log.info("\n     test: transpose ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Inizializzazione degli array di input
@@ -214,7 +216,7 @@ test "transpose" {
 }
 
 test "transpose multi-dimensions default" {
-    std.debug.print("\n     test: transpose multi-dimensions ", .{});
+    tests_log.info("\n     test: transpose multi-dimensions ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Initialize input Array and shape
@@ -245,7 +247,7 @@ test "transpose multi-dimensions default" {
 }
 
 test "test addPaddingAndDilation() " {
-    std.debug.print("\n     test: addPadding()", .{});
+    tests_log.info("\n     test: addPadding()", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -305,7 +307,7 @@ test "test addPaddingAndDilation() " {
 }
 
 test "test addPaddingAndDilation() -> zero dilatation " {
-    std.debug.print("\n     test: addPadding() -> zero dilatation ", .{});
+    tests_log.info("\n     test: addPadding() -> zero dilatation ", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -361,7 +363,7 @@ test "test addPaddingAndDilation() -> zero dilatation " {
 }
 
 test "test addPaddingAndDilation() -> zero padding" {
-    std.debug.print("\n     test: addPaddingAndDilation() -> zero padding", .{});
+    tests_log.info("\n     test: addPaddingAndDilation() -> zero padding", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -422,7 +424,7 @@ test "test addPaddingAndDilation() -> zero padding" {
 }
 
 test "test neg() " {
-    std.debug.print("\n     test: neg()", .{});
+    tests_log.info("\n     test: neg()", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -462,7 +464,7 @@ test "test neg() " {
     var resultShape: [3]usize = [_]usize{ 2, 3, 3 };
     var resultTensor = try Tensor(i8).fromArray(&allocator, &resultArray, &resultShape);
     defer resultTensor.deinit();
-    std.debug.print("TRY WITH THISSS: \n", .{});
+    tests_log.debug("TRY WITH THISSS: \n", .{});
     resultTensor.printMultidim();
 
     //check on data
@@ -478,7 +480,7 @@ test "test neg() " {
 }
 
 test "resize with nearest neighbor interpolation" {
-    std.debug.print("\n     test: resize with nearest neighbor interpolation", .{});
+    tests_log.info("\n     test: resize with nearest neighbor interpolation", .{});
     const allocator = pkgAllocator.allocator;
 
     // Test 1D tensor resize
@@ -518,7 +520,7 @@ test "resize with nearest neighbor interpolation" {
 }
 
 test "resize with linear interpolation" {
-    std.debug.print("\n     test: resize with linear interpolation", .{});
+    tests_log.info("\n     test: resize with linear interpolation", .{});
     const allocator = pkgAllocator.allocator;
 
     // Test 1D tensor resize
@@ -554,7 +556,7 @@ test "resize with linear interpolation" {
 }
 
 test "resize with cubic interpolation" {
-    std.debug.print("\n     test: resize with cubic interpolation", .{});
+    tests_log.info("\n     test: resize with cubic interpolation", .{});
     const allocator = pkgAllocator.allocator;
 
     // Test 1D tensor resize
@@ -572,7 +574,7 @@ test "resize with cubic interpolation" {
 }
 
 test "resize with explicit sizes" {
-    std.debug.print("\n     test: resize with explicit sizes", .{});
+    tests_log.info("\n     test: resize with explicit sizes", .{});
     const allocator = pkgAllocator.allocator;
 
     var input_array = [_][2]u8{
@@ -594,7 +596,7 @@ test "resize with explicit sizes" {
 }
 
 test "resize error cases" {
-    std.debug.print("\n     test: resize error cases", .{});
+    tests_log.info("\n     test: resize error cases", .{});
     const allocator = pkgAllocator.allocator;
 
     var input_array = [_][2]u8{
@@ -627,7 +629,7 @@ test "resize error cases" {
 }
 
 test "split basic test" {
-    std.debug.print("\n     test: split basic test", .{});
+    tests_log.info("\n     test: split basic test", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x3 tensor
@@ -656,7 +658,7 @@ test "split basic test" {
 }
 
 test "split with custom sizes" {
-    std.debug.print("\n     test: split with custom sizes", .{});
+    tests_log.info("\n     test: split with custom sizes", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 4x2 tensor
@@ -696,7 +698,7 @@ test "split with custom sizes" {
 }
 
 test "split with negative axis" {
-    std.debug.print("\n     test: split with negative axis", .{});
+    tests_log.info("\n     test: split with negative axis", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x4 tensor
@@ -740,7 +742,7 @@ test "split with negative axis" {
 }
 
 test "get_resize_output_shape()" {
-    std.debug.print("\n     test: get_resize_output_shape \n", .{});
+    tests_log.info("\n     test: get_resize_output_shape \n", .{});
 
     var input_shape = [_]usize{ 2, 3, 4 };
     var scales = [_]f32{ 2.0, 1.5, 0.5 };
@@ -779,7 +781,7 @@ test "get_resize_output_shape()" {
 }
 
 test "get_concatenate_output_shape" {
-    std.debug.print("\n     test: get_concatenate_output_shape \n", .{});
+    tests_log.info("\n     test: get_concatenate_output_shape \n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -836,7 +838,7 @@ test "get_concatenate_output_shape" {
 }
 
 test "get_split_output_shapes()" {
-    std.debug.print("\n     test: get_split_output_shapes \n", .{});
+    tests_log.info("\n     test: get_split_output_shapes \n", .{});
 
     const allocator = pkgAllocator.allocator;
     var input_shape = [_]usize{ 2, 3, 4 };
@@ -887,13 +889,13 @@ test "get_split_output_shapes()" {
 }
 
 test "Empty tensor list error" {
-    std.debug.print("\n     test: Empty tensor list error", .{});
+    tests_log.info("\n     test: Empty tensor list error", .{});
     const empty_shapes: []const []const usize = &[_][]const usize{};
     try std.testing.expectError(TensorMathError.EmptyTensorList, TensMath.get_concatenate_output_shape(empty_shapes, 0));
 }
 
 test "Reshape" {
-    std.debug.print("\n     test: Reshape ", .{});
+    tests_log.info("\n     test: Reshape ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Inizializzazione degli array di input
@@ -910,7 +912,7 @@ test "Reshape" {
     var new_tens = try TensMath.reshape(u8, &tensor, &new_shape, false);
     defer new_tens.deinit();
 
-    std.debug.print(" \n\n  new_tens.shape= {any} ", .{new_tens.shape});
+    tests_log.debug(" \n\n  new_tens.shape= {any} ", .{new_tens.shape});
 
     try std.testing.expect(new_tens.size == new_tens.size);
     try std.testing.expect(new_tens.shape[2] == 3);
@@ -923,7 +925,7 @@ test "gather along axis 0 and axis 1" {
     // -------------------------------------------------------------------------------------
     // Test Case 1: Gather Along Axis 0
     // -------------------------------------------------------------------------------------
-    std.debug.print("\n     test: gather along axis 0", .{});
+    tests_log.info("\n     test: gather along axis 0", .{});
 
     // Initialize input tensor: 3x3 matrix
     var inputArray0: [3][3]u8 = [_][3]u8{
@@ -964,7 +966,7 @@ test "gather along axis 0 and axis 1" {
     // -------------------------------------------------------------------------------------
     // Test Case 2: Gather Along Axis 1
     // -------------------------------------------------------------------------------------
-    std.debug.print("\n     test: gather along axis 1", .{});
+    tests_log.info("\n     test: gather along axis 1", .{});
 
     var inputArray1: [2][4]u8 = [_][4]u8{
         [_]u8{ 10, 20, 30, 40 },
@@ -1002,27 +1004,27 @@ test "gather along axis 0 and axis 1" {
     }
 
     // Check data
-    std.debug.print("\n     gatheredTensor1.size: {}\n", .{gatheredTensor1.size});
+    tests_log.debug("\n     gatheredTensor1.size: {}\n", .{gatheredTensor1.size});
     gatheredTensor1.print();
 
     try std.testing.expect(gatheredTensor1.size == 8);
     for (0..gatheredTensor1.size) |i| {
-        std.debug.print("\n     gatheredTensor1.data[i]: {}\n", .{expectedData1[i]});
-        std.debug.print("\n     expectedData1[i]: {}\n", .{gatheredTensor1.data[i]});
+        tests_log.debug("\n     gatheredTensor1.data[i]: {}\n", .{expectedData1[i]});
+        tests_log.debug("\n     expectedData1[i]: {}\n", .{gatheredTensor1.data[i]});
         try std.testing.expect(gatheredTensor1.data[i] == expectedData1[i]);
     }
 
     // -------------------------------------------------------------------------------------
     // Test Case 3: Error Handling - Invalid Axis
     // -------------------------------------------------------------------------------------
-    std.debug.print("\n     test: gather with invalid axis", .{});
+    tests_log.info("\n     test: gather with invalid axis", .{});
     const invalidAxis: usize = 3; // Input tensor has 2 dimensions
     const result0 = TensMath.gather(u8, &inputTensor0, &indicesTensor0, invalidAxis);
     try std.testing.expect(result0 == TensorError.InvalidAxis);
 }
 
 test "get_slice_output_shape basic slicing" {
-    std.debug.print("\n     test: get_slice_output_shape basic slicing", .{});
+    tests_log.info("\n     test: get_slice_output_shape basic slicing", .{});
     const allocator = pkgAllocator.allocator;
 
     var input_shape = [_]usize{ 5, 5, 5 };
@@ -1067,7 +1069,7 @@ test "get_slice_output_shape basic slicing" {
 }
 
 test "get_slice_output_shape with axes and negative steps" {
-    std.debug.print("\n     test: get_slice_output_shape with axes and negative steps", .{});
+    tests_log.info("\n     test: get_slice_output_shape with axes and negative steps", .{});
     const allocator = pkgAllocator.allocator;
 
     var input_shape = [_]usize{ 5, 5, 5 };
@@ -1081,11 +1083,11 @@ test "get_slice_output_shape with axes and negative steps" {
         const output_shape = try TensMath.get_slice_output_shape(&input_shape, &starts, &ends, &axes, null);
         defer allocator.free(output_shape);
 
-        std.debug.print("\n     Specific axes test - output shape: ", .{});
+        tests_log.debug("\n     Specific axes test - output shape: ", .{});
         for (output_shape) |dim| {
-            std.debug.print("{} ", .{dim});
+            tests_log.debug("{} ", .{dim});
         }
-        std.debug.print("\n", .{});
+        tests_log.debug("\n", .{});
 
         try std.testing.expectEqual(@as(usize, 3), output_shape.len);
         try std.testing.expectEqual(@as(usize, 5), output_shape[0]); // unchanged
@@ -1099,19 +1101,19 @@ test "get_slice_output_shape with axes and negative steps" {
         var ends = [_]i64{ 1, 1, 1 };
         var steps = [_]i64{ -1, -1, -1 };
 
-        std.debug.print("\n     Negative steps test - inputs:", .{});
-        std.debug.print("\n     starts: {} {} {}", .{ starts[0], starts[1], starts[2] });
-        std.debug.print("\n     ends: {} {} {}", .{ ends[0], ends[1], ends[2] });
-        std.debug.print("\n     steps: {} {} {}", .{ steps[0], steps[1], steps[2] });
+        tests_log.debug("\n     Negative steps test - inputs:", .{});
+        tests_log.debug("\n     starts: {} {} {}", .{ starts[0], starts[1], starts[2] });
+        tests_log.debug("\n     ends: {} {} {}", .{ ends[0], ends[1], ends[2] });
+        tests_log.debug("\n     steps: {} {} {}", .{ steps[0], steps[1], steps[2] });
 
         const output_shape = try TensMath.get_slice_output_shape(&input_shape, &starts, &ends, null, &steps);
         defer allocator.free(output_shape);
 
-        std.debug.print("\n     Negative steps test - output shape: ", .{});
+        tests_log.debug("\n     Negative steps test - output shape: ", .{});
         for (output_shape) |dim| {
-            std.debug.print("{} ", .{dim});
+            tests_log.debug("{} ", .{dim});
         }
-        std.debug.print("\n", .{});
+        tests_log.debug("\n", .{});
 
         try std.testing.expectEqual(@as(usize, 3), output_shape.len);
         // For negative steps, we expect:
@@ -1124,7 +1126,7 @@ test "get_slice_output_shape with axes and negative steps" {
 }
 
 test "get_slice_output_shape error cases" {
-    std.debug.print("\n     test: get_slice_output_shape error cases", .{});
+    tests_log.info("\n     test: get_slice_output_shape error cases", .{});
 
     var input_shape = [_]usize{ 5, 5, 5 };
 
@@ -1161,7 +1163,7 @@ test "get_slice_output_shape error cases" {
 }
 
 test "transpose_onnx basic operations" {
-    std.debug.print("\n     test: transpose_onnx basic operations", .{});
+    tests_log.info("\n     test: transpose_onnx basic operations", .{});
     const allocator = pkgAllocator.allocator;
 
     // Test Case 1: Basic 2D transpose without perm
@@ -1271,7 +1273,7 @@ test "transpose_onnx basic operations" {
 }
 
 test "get_transpose_output_shape basic operations" {
-    std.debug.print("\n     test: get_transpose_output_shape basic operations", .{});
+    tests_log.info("\n     test: get_transpose_output_shape basic operations", .{});
     const allocator = pkgAllocator.allocator;
 
     // Test Case 1: Basic 2D shape without perm
@@ -1408,7 +1410,7 @@ test "shape_onnx basic operations" {
 }
 
 test "lean_shape_onnx basic operations" {
-    std.debug.print("\n     test: lean_shape_onnx basic operations", .{});
+    tests_log.info("\n     test: lean_shape_onnx basic operations", .{});
     const allocator = pkgAllocator.allocator;
 
     // Test Case 1: Basic operation with pre-allocated output tensor
@@ -1583,7 +1585,7 @@ test "get_shape_output_shape" {
 
 // f23 input tensor with [2, 3] shape and axes = [1] => expected output: [2, 1, 3]
 test "test unsqueeze valid" {
-    std.debug.print("\n     test: unsqueeze valid\n", .{});
+    tests_log.info("\n     test: unsqueeze valid\n", .{});
     const allocator = std.testing.allocator;
 
     // Input tensor
@@ -1620,7 +1622,7 @@ test "test unsqueeze valid" {
 // -------------------------------------------------------------
 // Test for AxisOutOfBounds error
 test "test unsqueeze axis out of bounds error" {
-    std.debug.print("\n test: unsqueeze axis out of bounds error\n", .{});
+    tests_log.info("\n test: unsqueeze axis out of bounds error\n", .{});
     const allocator = std.testing.allocator;
 
     var inputArray: [2][3]f32 = [_][3]f32{
@@ -1644,7 +1646,7 @@ test "test unsqueeze axis out of bounds error" {
 // -------------------------------------------------------------
 // Test for DuplicateAxis error
 test "test unsqueeze duplicate axis error" {
-    std.debug.print("\n test: unsqueeze duplicate axis error\n", .{});
+    tests_log.info("\n test: unsqueeze duplicate axis error\n", .{});
     const allocator = std.testing.allocator;
 
     var inputArray: [2][3]f32 = [_][3]f32{
@@ -1666,7 +1668,7 @@ test "test unsqueeze duplicate axis error" {
 }
 
 test "Reshape - Basic" {
-    std.debug.print("\n     test: Reshape - Basic ", .{});
+    tests_log.info("\n     test: Reshape - Basic ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x3 tensor
@@ -1699,7 +1701,7 @@ test "Reshape - Basic" {
 }
 
 test "Reshape - Multi-dimensional" {
-    std.debug.print("\n     test: Reshape - Multi-dimensional ", .{});
+    tests_log.info("\n     test: Reshape - Multi-dimensional ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x2x2 tensor
@@ -1735,7 +1737,7 @@ test "Reshape - Multi-dimensional" {
 }
 
 test "Reshape - Error case" {
-    std.debug.print("\n     test: Reshape - Error case ", .{});
+    tests_log.info("\n     test: Reshape - Error case ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x3 tensor
@@ -1754,7 +1756,7 @@ test "Reshape - Error case" {
 }
 
 test "Reshape - Same size different dimensions" {
-    std.debug.print("\n     test: Reshape - Same size different dimensions ", .{});
+    tests_log.info("\n     test: Reshape - Same size different dimensions ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x3 tensor
@@ -1784,7 +1786,7 @@ test "Reshape - Same size different dimensions" {
 }
 
 test "Reshape - With negative dimension" {
-    std.debug.print("\n     test: Reshape - With negative dimension ", .{});
+    tests_log.info("\n     test: Reshape - With negative dimension ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x3 tensor
@@ -1814,7 +1816,7 @@ test "Reshape - With negative dimension" {
 }
 
 test "Reshape - With zero dimension" {
-    std.debug.print("\n     test: Reshape - With zero dimension ", .{});
+    tests_log.info("\n     test: Reshape - With zero dimension ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x3 tensor
@@ -1844,7 +1846,7 @@ test "Reshape - With zero dimension" {
 }
 
 test "Reshape - Multiple negative dimensions (should fail)" {
-    std.debug.print("\n     test: Reshape - Multiple negative dimensions ", .{});
+    tests_log.info("\n     test: Reshape - Multiple negative dimensions ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x3 tensor
@@ -1863,7 +1865,7 @@ test "Reshape - Multiple negative dimensions (should fail)" {
 }
 
 test "gather - negative axis" {
-    std.debug.print("\n     test: gather - negative axis", .{});
+    tests_log.info("\n     test: gather - negative axis", .{});
     const allocator = pkgAllocator.allocator;
 
     // Initialize input tensor: 2x3 matrix
@@ -1894,7 +1896,7 @@ test "gather - negative axis" {
 }
 
 test "gather - invalid indices" {
-    std.debug.print("\n     test: gather - invalid indices", .{});
+    tests_log.info("\n     test: gather - invalid indices", .{});
     const allocator = pkgAllocator.allocator;
 
     // Initialize input tensor: 2x2 matrix
@@ -1917,7 +1919,7 @@ test "gather - invalid indices" {
 }
 
 test "gather - multi-dimensional indices" {
-    std.debug.print("\n     test: gather - multi-dimensional indices", .{});
+    tests_log.info("\n     test: gather - multi-dimensional indices", .{});
     const allocator = pkgAllocator.allocator;
 
     // Initialize input tensor: 3x3 matrix
@@ -1966,7 +1968,7 @@ test "gather - multi-dimensional indices" {
 }
 
 test "gather - single element tensor" {
-    std.debug.print("\n     test: gather - single element tensor", .{});
+    tests_log.info("\n     test: gather - single element tensor", .{});
     const allocator = pkgAllocator.allocator;
 
     // Initialize input tensor: [[[1]]]
@@ -1992,7 +1994,7 @@ test "gather - single element tensor" {
 }
 
 test "unsqueeze - basic" {
-    std.debug.print("\n     test: unsqueeze - basic", .{});
+    tests_log.info("\n     test: unsqueeze - basic", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x3 tensor
@@ -2026,7 +2028,7 @@ test "unsqueeze - basic" {
 }
 
 test "unsqueeze - multiple axes" {
-    std.debug.print("\n     test: unsqueeze - multiple axes", .{});
+    tests_log.info("\n     test: unsqueeze - multiple axes", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x2 tensor
@@ -2061,7 +2063,7 @@ test "unsqueeze - multiple axes" {
 }
 
 test "unsqueeze - negative axes" {
-    std.debug.print("\n     test: unsqueeze - negative axes", .{});
+    tests_log.info("\n     test: unsqueeze - negative axes", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x3 tensor
@@ -2095,7 +2097,7 @@ test "unsqueeze - negative axes" {
 }
 
 test "unsqueeze - scalar tensor" {
-    std.debug.print("\n     test: unsqueeze - scalar tensor", .{});
+    tests_log.info("\n     test: unsqueeze - scalar tensor", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 1x1 tensor
@@ -2124,7 +2126,7 @@ test "unsqueeze - scalar tensor" {
 }
 
 test "unsqueeze - error cases" {
-    std.debug.print("\n     test: unsqueeze - error cases", .{});
+    tests_log.info("\n     test: unsqueeze - error cases", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create a 2x2 tensor
@@ -2158,7 +2160,7 @@ test "unsqueeze - error cases" {
 }
 
 test "Concatenate tensors with mismatched shapes" {
-    std.debug.print("\n     test: Concatenate tensors with mismatched shapes", .{});
+    tests_log.info("\n     test: Concatenate tensors with mismatched shapes", .{});
     var allocator = pkgAllocator.allocator;
 
     var inputArray1: [2][2]f32 = [_][2]f32{
@@ -2204,7 +2206,7 @@ test "Concatenate tensors with mismatched shapes" {
 }
 
 test "Concatenate tensors with invalid axis" {
-    std.debug.print("\n     test: Concatenate tensors with invalid axis", .{});
+    tests_log.info("\n     test: Concatenate tensors with invalid axis", .{});
     var allocator = pkgAllocator.allocator;
 
     var inputArray1: [2][2]f32 = [_][2]f32{
@@ -2232,7 +2234,7 @@ test "Concatenate tensors with invalid axis" {
 }
 
 test "get_concatenate_output_shape - 3D tensors" {
-    std.debug.print("\n     test: get_concatenate_output_shape - 3D tensors", .{});
+    tests_log.info("\n     test: get_concatenate_output_shape - 3D tensors", .{});
     const allocator = pkgAllocator.allocator;
 
     // Test shapes for 3D tensors
@@ -2270,7 +2272,7 @@ test "get_concatenate_output_shape - 3D tensors" {
 }
 
 test "get_concatenate_output_shape - mismatched shapes" {
-    std.debug.print("\n     test: get_concatenate_output_shape - mismatched shapes", .{});
+    tests_log.info("\n     test: get_concatenate_output_shape - mismatched shapes", .{});
 
     // Test shapes with mismatched dimensions
     var shapes = [_][]const usize{
@@ -2295,7 +2297,7 @@ test "get_concatenate_output_shape - mismatched shapes" {
 //Mismatched rank now supported
 
 test "get_concatenate_output_shape - invalid axis" {
-    std.debug.print("\n     test: get_concatenate_output_shape - invalid axis", .{});
+    tests_log.info("\n     test: get_concatenate_output_shape - invalid axis", .{});
 
     var shapes = [_][]const usize{
         &[_]usize{ 2, 2 },
@@ -2320,7 +2322,7 @@ test "get_concatenate_output_shape - invalid axis" {
 }
 
 test "neg - 2D tensor" {
-    std.debug.print("\n     test: neg - 2D tensor", .{});
+    tests_log.info("\n     test: neg - 2D tensor", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -2368,7 +2370,7 @@ test "neg - 2D tensor" {
 }
 
 test "neg - 3D tensor" {
-    std.debug.print("\n     test: neg - 3D tensor", .{});
+    tests_log.info("\n     test: neg - 3D tensor", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -2410,7 +2412,7 @@ test "neg - 3D tensor" {
 }
 
 test "get_split_output_shapes - basic functionality" {
-    std.debug.print("\n     test: get_split_output_shapes - basic functionality", .{});
+    tests_log.info("\n     test: get_split_output_shapes - basic functionality", .{});
 
     // Test case 1: Split along axis 1 - using shape that's evenly divisible by 2
     {
@@ -2457,7 +2459,7 @@ test "get_split_output_shapes - basic functionality" {
 }
 
 test "get_split_output_shapes - negative axis" {
-    std.debug.print("\n     test: get_split_output_shapes - negative axis", .{});
+    tests_log.info("\n     test: get_split_output_shapes - negative axis", .{});
 
     var input_shape = [_]usize{ 2, 6, 3 };
     var split_sizes = [_]usize{ 2, 4 };
@@ -2483,7 +2485,7 @@ test "get_split_output_shapes - negative axis" {
 }
 
 test "get_split_output_shapes - error cases" {
-    std.debug.print("\n     test: get_split_output_shapes - error cases", .{});
+    tests_log.info("\n     test: get_split_output_shapes - error cases", .{});
 
     var input_shape = [_]usize{ 2, 3, 4 };
 
@@ -2523,7 +2525,7 @@ test "get_split_output_shapes - error cases" {
 }
 
 test "get_split_output_shapes - default split" {
-    std.debug.print("\n     test: get_split_output_shapes - default split", .{});
+    tests_log.info("\n     test: get_split_output_shapes - default split", .{});
 
     // When split_sizes is null, should split into equal parts
     var input_shape = [_]usize{ 2, 3, 4 };
@@ -2718,7 +2720,7 @@ test "lean_shape_onnx operations and error cases" {
 }
 
 test "slice_onnx basic operations" {
-    // std.debug.print("\n     test: slice_onnx basic operations", .{});
+    // tests_log.info("\n     test: slice_onnx basic operations", .{});
     // const allocator = pkgAllocator.allocator;
 
     // Test 1: Basic 3D slicing
@@ -2798,7 +2800,7 @@ test "slice_onnx basic operations" {
 }
 
 test "get_slice_output_shape basic operations" {
-    std.debug.print("\n     test: get_slice_output_shape basic operations", .{});
+    tests_log.info("\n     test: get_slice_output_shape basic operations", .{});
     const allocator = pkgAllocator.allocator;
 
     // Test 1: Basic 3D slicing
@@ -2868,7 +2870,7 @@ test "get_slice_output_shape basic operations" {
 }
 
 test "identity" {
-    std.debug.print("\n test: identity basic operations\n", .{});
+    tests_log.info("\n test: identity basic operations\n", .{});
     const allocator = pkgAllocator.allocator;
     {
         //check output correctness
@@ -2910,7 +2912,7 @@ test "identity" {
         //check that the output is not the same alias as the input
         try std.testing.expect(result.data.ptr != tensor.data.ptr);
 
-        std.debug.print("OK: identity test passed.\n", .{});
+        tests_log.debug("OK: identity test passed.\n", .{});
     }
 }
 
@@ -2932,7 +2934,7 @@ test "get_identity_shape_output returns a copy of the input shape" {
 }
 
 test "get_pads_output_shape - basic" {
-    std.debug.print("\n     test: get_pads_output_shape - basic", .{});
+    tests_log.info("\n     test: get_pads_output_shape - basic", .{});
     const allocator = pkgAllocator.allocator;
 
     var input_shape = [_]usize{ 3, 4 };
@@ -2947,7 +2949,7 @@ test "get_pads_output_shape - basic" {
 }
 
 test "get_pads_output_shape - with axes" {
-    std.debug.print("\n     test: get_pads_output_shape - with axes", .{});
+    tests_log.info("\n     test: get_pads_output_shape - with axes", .{});
     const allocator = pkgAllocator.allocator;
 
     var input_shape = [_]usize{ 3, 4, 5 };
@@ -2964,7 +2966,7 @@ test "get_pads_output_shape - with axes" {
 }
 
 test "get_pads_output_shape - negative axes" {
-    std.debug.print("\n     test: get_pads_output_shape - negative axes", .{});
+    tests_log.info("\n     test: get_pads_output_shape - negative axes", .{});
     const allocator = pkgAllocator.allocator;
 
     var input_shape = [_]usize{ 3, 4, 5 };
@@ -2981,7 +2983,7 @@ test "get_pads_output_shape - negative axes" {
 }
 
 test "get_pads_output_shape - error cases" {
-    std.debug.print("\n     test: get_pads_output_shape - error cases", .{});
+    tests_log.info("\n     test: get_pads_output_shape - error cases", .{});
     const allocator = pkgAllocator.allocator;
     var input_shape = [_]usize{ 3, 4 };
 
@@ -3029,7 +3031,7 @@ fn expectTensorEqual(comptime T: type, expected: *const Tensor(T), actual: *cons
 
 // Test Case 1: Constant Mode (like ONNX Example 1)
 test "pads constant mode basic 2D" {
-    std.debug.print("\n     test: pads constant mode basic 2D", .{});
+    tests_log.info("\n     test: pads constant mode basic 2D", .{});
     const allocator = pkgAllocator.allocator;
 
     var data_array = [_][2]f32{
@@ -3063,7 +3065,7 @@ test "pads constant mode basic 2D" {
 
 // Test Case 2: Constant Mode with specific value and axes
 test "pads constant mode with value and axes" {
-    std.debug.print("\n     test: pads constant mode with value and axes", .{});
+    tests_log.info("\n     test: pads constant mode with value and axes", .{});
     const allocator = pkgAllocator.allocator;
 
     var data_array = [_]i32{ 1, 2, 3 };
@@ -3094,7 +3096,7 @@ test "pads constant mode with value and axes" {
 
 // Test Case 4: Edge Mode (like ONNX Example 3)
 test "pads edge mode basic 2D" {
-    std.debug.print("\n     test: pads edge mode basic 2D", .{});
+    tests_log.info("\n     test: pads edge mode basic 2D", .{});
     const allocator = pkgAllocator.allocator;
 
     var data_array = [_][2]f32{
@@ -3128,7 +3130,7 @@ test "pads edge mode basic 2D" {
 
 // Test Case 5: Wrap Mode (like ONNX Example 4)
 test "pads wrap mode basic 2D" {
-    std.debug.print("\n     test: pads wrap mode basic 2D", .{});
+    tests_log.info("\n     test: pads wrap mode basic 2D", .{});
     const allocator = pkgAllocator.allocator;
 
     var data_array = [_][2]f32{
@@ -3175,7 +3177,7 @@ test "pads wrap mode basic 2D" {
 
 // Test Case 6: Padding a 3D tensor with constant mode
 test "pads constant mode 3D" {
-    std.debug.print("\n     test: pads constant mode 3D", .{});
+    tests_log.info("\n     test: pads constant mode 3D", .{});
     const allocator = pkgAllocator.allocator;
 
     var data_array = [_][2][2]u8{
@@ -3226,7 +3228,7 @@ test "pads constant mode 3D" {
 
 // Test Case 7: Zero padding (should be identity)
 test "pads zero padding" {
-    std.debug.print("\n     test: pads zero padding", .{});
+    tests_log.info("\n     test: pads zero padding", .{});
     const allocator = pkgAllocator.allocator;
 
     var data_array = [_][2]f32{
@@ -3247,4 +3249,259 @@ test "pads zero padding" {
 
     // Expected should be the same as input
     try expectTensorEqual(f32, &data_tensor, &output);
+}
+
+test "Flatten - Basic" {
+    tests_log.info("\n     test: Flatten - Basic ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Flatten con axis = 1
+    var flattened = try TensMath.flatten(u8, &tensor, 1);
+    defer flattened.deinit();
+
+    // Verify shape: [2, 3]
+    try std.testing.expect(flattened.shape[0] == 2);
+    try std.testing.expect(flattened.shape[1] == 3);
+    try std.testing.expect(flattened.size == 6);
+
+    // Verify data preservation
+    try std.testing.expect(flattened.data[0] == 1);
+    try std.testing.expect(flattened.data[1] == 2);
+    try std.testing.expect(flattened.data[2] == 3);
+    try std.testing.expect(flattened.data[3] == 4);
+    try std.testing.expect(flattened.data[4] == 5);
+    try std.testing.expect(flattened.data[5] == 6);
+}
+
+test "Flatten - Multi-dimensional" {
+    tests_log.info("\n     test: Flatten - Multi-dimensional ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3x4 tensor
+    var inputArray: [2][3][4]u8 = [_][3][4]u8{
+        [_][4]u8{
+            [_]u8{ 1, 2, 3, 4 },
+            [_]u8{ 5, 6, 7, 8 },
+            [_]u8{ 9, 10, 11, 12 },
+        },
+        [_][4]u8{
+            [_]u8{ 13, 14, 15, 16 },
+            [_]u8{ 17, 18, 19, 20 },
+            [_]u8{ 21, 22, 23, 24 },
+        },
+    };
+    var shape: [3]usize = [_]usize{ 2, 3, 4 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Flatten con axis = 1
+    var flattened = try TensMath.flatten(u8, &tensor, 1);
+    defer flattened.deinit();
+
+    // Verify shape: [2, 12]
+    try std.testing.expect(flattened.shape[0] == 2);
+    try std.testing.expect(flattened.shape[1] == 12);
+    try std.testing.expect(flattened.size == 24);
+
+    // Verify data preservation
+    for (0..24) |i| {
+        try std.testing.expect(flattened.data[i] == i + 1);
+    }
+}
+
+test "Flatten - Negative axis" {
+    tests_log.info("\n     test: Flatten - Negative axis ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3x4 tensor
+    var inputArray: [2][3][4]u8 = [_][3][4]u8{
+        [_][4]u8{
+            [_]u8{ 1, 2, 3, 4 },
+            [_]u8{ 5, 6, 7, 8 },
+            [_]u8{ 9, 10, 11, 12 },
+        },
+        [_][4]u8{
+            [_]u8{ 13, 14, 15, 16 },
+            [_]u8{ 17, 18, 19, 20 },
+            [_]u8{ 21, 22, 23, 24 },
+        },
+    };
+    var shape: [3]usize = [_]usize{ 2, 3, 4 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Flatten con axis = -2 (equivalente a axis = 1)
+    var flattened = try TensMath.flatten(u8, &tensor, -2);
+    defer flattened.deinit();
+
+    // Verify shape: [2, 12]
+    try std.testing.expect(flattened.shape[0] == 2);
+    try std.testing.expect(flattened.shape[1] == 12);
+    try std.testing.expect(flattened.size == 24);
+
+    // Verify data preservation
+    for (0..24) |i| {
+        try std.testing.expect(flattened.data[i] == i + 1);
+    }
+}
+
+test "Flatten - Axis zero" {
+    tests_log.info("\n     test: Flatten - Axis zero ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3x4 tensor
+    var inputArray: [2][3][4]u8 = [_][3][4]u8{
+        [_][4]u8{
+            [_]u8{ 1, 2, 3, 4 },
+            [_]u8{ 5, 6, 7, 8 },
+            [_]u8{ 9, 10, 11, 12 },
+        },
+        [_][4]u8{
+            [_]u8{ 13, 14, 15, 16 },
+            [_]u8{ 17, 18, 19, 20 },
+            [_]u8{ 21, 22, 23, 24 },
+        },
+    };
+    var shape: [3]usize = [_]usize{ 2, 3, 4 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Flatten con axis = 0
+    var flattened = try TensMath.flatten(u8, &tensor, 0);
+    defer flattened.deinit();
+
+    // Verify shape: [1, 24]
+    try std.testing.expect(flattened.shape[0] == 1);
+    try std.testing.expect(flattened.shape[1] == 24);
+    try std.testing.expect(flattened.size == 24);
+
+    // Verify data preservation
+    for (0..24) |i| {
+        try std.testing.expect(flattened.data[i] == i + 1);
+    }
+}
+
+test "Flatten - Axis equal to rank" {
+    tests_log.info("\n     test: Flatten - Axis equal to rank ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3x4 tensor
+    var inputArray: [2][3][4]u8 = [_][3][4]u8{
+        [_][4]u8{
+            [_]u8{ 1, 2, 3, 4 },
+            [_]u8{ 5, 6, 7, 8 },
+            [_]u8{ 9, 10, 11, 12 },
+        },
+        [_][4]u8{
+            [_]u8{ 13, 14, 15, 16 },
+            [_]u8{ 17, 18, 19, 20 },
+            [_]u8{ 21, 22, 23, 24 },
+        },
+    };
+    var shape: [3]usize = [_]usize{ 2, 3, 4 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Flatten con axis = 3
+    var flattened = try TensMath.flatten(u8, &tensor, 3);
+    defer flattened.deinit();
+
+    // Verify shape: [24, 1]
+    try std.testing.expect(flattened.shape[0] == 24);
+    try std.testing.expect(flattened.shape[1] == 1);
+    try std.testing.expect(flattened.size == 24);
+
+    // Verify data preservation
+    for (0..24) |i| {
+        try std.testing.expect(flattened.data[i] == i + 1);
+    }
+}
+
+test "Flatten - Scalar tensor" {
+    tests_log.info("\n     test: Flatten - Scalar tensor ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a scalar tensor
+    var inputArray: [1]u8 = [_]u8{42};
+    var shape: [0]usize = [_]usize{};
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Flatten con axis = 0
+    var flattened = try TensMath.flatten(u8, &tensor, 0);
+    defer flattened.deinit();
+
+    // Verify shape: [1, 1]
+    try std.testing.expect(flattened.shape[0] == 1);
+    try std.testing.expect(flattened.shape[1] == 1);
+    try std.testing.expect(flattened.size == 1);
+
+    // Verify data preservation
+    try std.testing.expect(flattened.data[0] == 42);
+}
+
+test "Flatten - Empty tensor" {
+    tests_log.info("\n     test: Flatten - Empty tensor ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create an empty tensor: [0, 3, 4]
+    var shape: [3]usize = [_]usize{ 0, 3, 4 };
+    var tensor = try Tensor(u8).fromShape(&allocator, &shape);
+    defer tensor.deinit();
+
+    // Flatten con axis = 1
+    var flattened = try TensMath.flatten(u8, &tensor, 1);
+    defer flattened.deinit();
+
+    // Verify shape: [0, 12]
+    try std.testing.expect(flattened.shape[0] == 0);
+    try std.testing.expect(flattened.shape[1] == 12);
+    try std.testing.expect(flattened.size == 0);
+
+    // Verify no data
+    try std.testing.expect(flattened.data.len == 0);
+}
+
+test "Flatten - Invalid axis" {
+    tests_log.info("\n     test: Flatten - Invalid axis ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3x4 tensor
+    var inputArray: [2][3][4]u8 = [_][3][4]u8{
+        [_][4]u8{
+            [_]u8{ 1, 2, 3, 4 },
+            [_]u8{ 5, 6, 7, 8 },
+            [_]u8{ 9, 10, 11, 12 },
+        },
+        [_][4]u8{
+            [_]u8{ 13, 14, 15, 16 },
+            [_]u8{ 17, 18, 19, 20 },
+            [_]u8{ 21, 22, 23, 24 },
+        },
+    };
+    var shape: [3]usize = [_]usize{ 2, 3, 4 };
+
+    var tensor = try Tensor(u8).fromArray(&allocator, &inputArray, &shape);
+    defer tensor.deinit();
+
+    // Try with invalid axis (4)
+    try std.testing.expectError(TensorMathError.AxisOutOfRange, TensMath.flatten(u8, &tensor, 4));
+
+    // Try with invalid axis (-4)
+    try std.testing.expectError(TensorMathError.AxisOutOfRange, TensMath.flatten(u8, &tensor, -4));
 }

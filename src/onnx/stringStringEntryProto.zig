@@ -6,6 +6,8 @@ const DataType = @import("onnx.zig").DataType;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.stringEntryProto);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L531
 // TAGS:
 //  - 1 : key, optional string
@@ -35,7 +37,7 @@ pub const StringStringEntryProto = struct {
                     ssep.value = try reader.readString(reader.allocator);
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for StringStringEntryProto\n\n", .{tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for StringStringEntryProto\n\n", .{tag});
                     return error.TagNotAvailable;
                 },
             }
@@ -49,7 +51,7 @@ pub const StringStringEntryProto = struct {
             return;
         };
 
-        std.debug.print("{s}StringStringEntryProto: key:{s}, value:{s} \n", .{
+        onnx_log.info("{s}StringStringEntryProto: key:{s}, value:{s} \n", .{
             space,
             if (self.key) |k| k else "(none)",
             if (self.value) |v| v else "(none)",

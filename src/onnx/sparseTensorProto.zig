@@ -6,6 +6,8 @@ const TensorProto = @import("tensorProto.zig").TensorProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.tensorProto);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L460
 
 //TAGS:
@@ -61,7 +63,7 @@ pub const SparseTensorProto = struct {
                     try dim_list.append(@intCast(d));
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for sparseTensorProto\n\n ", .{sp_tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for sparseTensorProto\n\n ", .{sp_tag});
                     try reader.skipField(sp_tag.wire_type);
                 },
             }
@@ -76,25 +78,25 @@ pub const SparseTensorProto = struct {
             return;
         };
 
-        std.debug.print("{s}------------- SparseTensorProto\n", .{space});
+        onnx_log.debug("{s}------------- SparseTensorProto\n", .{space});
 
         if (self.values) |tensor| {
-            std.debug.print("{s}TensorProto:\n", .{space});
+            onnx_log.debug("{s}TensorProto:\n", .{space});
             tensor.print(space);
         }
 
         if (self.indices) |tensor| {
-            std.debug.print("{s}TensorProto:\n", .{space});
+            onnx_log.debug("{s}TensorProto:\n", .{space});
             tensor.print(space);
         }
 
         if (self.dims.len > 0) {
-            std.debug.print("{s}Dims: [", .{space});
+            onnx_log.debug("{s}Dims: [", .{space});
             for (self.dims, 0..) |val, i| {
-                if (i > 0) std.debug.print(", ", .{});
-                std.debug.print("{}", .{val});
+                if (i > 0) onnx_log.debug(", ", .{});
+                onnx_log.debug("{}", .{val});
             }
-            std.debug.print("]\n", .{});
+            onnx_log.debug("]\n", .{});
         }
     }
 };
