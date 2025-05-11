@@ -12,6 +12,7 @@ const UnaryRender = @import("unary_render.zig");
 const GepRender = @import("gep_render.zig");
 const ControlFlowRender = @import("controlflow_render.zig");
 const ViewManagerModule = @import("view_manager.zig");
+const ReshapeManager = @import("reshape_manager.zig");
 const ViewInfo = ViewManagerModule.ViewInfo;
 
 const Uops = zant.uops;
@@ -416,6 +417,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                 .EXP2, .NEG, .CAST => try UnaryRender.render(self.allocator, self.writer, uop, ptr_map),
 
                 .VIEW => try self.render_view(uop, ptr_map),
+                .RESHAPE => try ReshapeManager.render(self.allocator, self.writer, uop, &self.view_map, &self.buffer_map, ptr_map),
                 .DEFINE_ACC => try self.render_define_acc(uop, ptr_map),
                 .MULACC => try self.render_mulacc(uop, ptr_map),
 
