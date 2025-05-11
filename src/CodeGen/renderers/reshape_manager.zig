@@ -16,7 +16,7 @@ pub const RendererError = error{
 };
 
 /// Main entry point for rendering GEP operations
-pub fn render(
+pub fn manage(
     alloc: std.mem.Allocator,
     writer: anytype,
     uop: UOp,
