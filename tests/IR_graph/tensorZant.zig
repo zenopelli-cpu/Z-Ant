@@ -3,6 +3,7 @@ const testing = std.testing;
 const std = @import("std");
 const zant = @import("zant");
 const onnx = zant.onnx;
+const TensorZant = zant.IR_graph.TensorZant;
 const allocator = zant.utils.allocator.allocator;
 
 const TensorProto = zant.onnx.TensorProto;
@@ -49,4 +50,31 @@ test "protoTensor2AnyTensor: float32 parsing" {
     // test shape
     try testing.expectEqual(2, anyTensor.f32.shape[0]);
     try testing.expectEqual(2, anyTensor.f32.shape[1]);
+}
+
+test "set_stride with 3D shape" {
+    var shape = [_]usize{ 2, 3, 4 };
+    const expected = [_]usize{ 12, 4, 1 };
+
+    const strides = try TensorZant.set_stride(&shape);
+
+    try std.testing.expectEqualSlices(usize, &expected, strides);
+}
+
+test "set_stride with 2D shape" {
+    var shape = [_]usize{ 5, 10 };
+    const expected = [_]usize{ 10, 1 };
+
+    const strides = try TensorZant.set_stride(&shape);
+
+    try std.testing.expectEqualSlices(usize, &expected, strides);
+}
+
+test "set_stride with 1D shape" {
+    var shape = [_]usize{7};
+    const expected = [_]usize{1};
+
+    const strides = try TensorZant.set_stride(&shape);
+
+    try std.testing.expectEqualSlices(usize, &expected, strides);
 }
