@@ -42,6 +42,10 @@ pub const Add = struct {
         return self.output_C.getShape();
     }
 
+    pub fn get_output_tensor(self: Add) *TensorZant {
+        return self.output_C;
+    }
+
     pub fn write_op(self: Add, writer: std.fs.File.Writer) !void {
 
         //----create tensor_A_string
