@@ -1,5 +1,7 @@
 const std = @import("std");
 const zant = @import("../../../zant.zig");
+const tensorMath = zant.core.tensor.math_standard;
+
 const allocator = std.heap.page_allocator;
 
 // --- onnx ---
@@ -12,7 +14,8 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
 const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Conv.html
@@ -86,9 +89,105 @@ pub const Conv = struct {
         };
     }
 
-    pub fn get_output_shape() []usize { //TODO
-        const res: []usize = [_]usize{ 2, 2, 3, 3 };
-        return res;
+    pub fn get_output_shape(self: Conv) []usize {
+        return self.output_Y.getShape();
+    }
+
+    pub fn get_output_tensor(self: Conv) *TensorZant {
+        return self.output_Y;
+    }
+
+    pub fn write_op(self: Conv, writer: std.fs.File.Writer) !void {
+        //----create tensor_X_string
+        var tensor_X_string: []u8 = undefined;
+        defer allocator.free(tensor_X_string);
+
+        if (self.input_X.tc == TensorCategory.initializer) {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+                ")",
+            });
+        } else {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(self.input_X.name), ")" });
+        }
+
+        //----create tensor_W_string
+        var tensor_W_string: []u8 = undefined;
+        defer allocator.free(tensor_W_string);
+        if (self.input_W.tc == TensorCategory.initializer) {
+            tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_W.name),
+                ")",
+            });
+        } else {
+            tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(self.input_W.name), ")" });
+        }
+
+        //----create ?bias string
+        var bias_string: []u8 = undefined;
+        // Bias Tensor B is optional! verify the presence
+        if (self.input_B != null) {
+            const B_name = try utils.getSanitizedName(self.input_B.name);
+            bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", B_name, ")" });
+        } else {
+            bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{"null"});
+        }
+
+        //----create stride string (mandatory)
+        // TODO: implement default stride, see docs above
+        if (self.strides == null) return error.StrideNotFound;
+        const stride_string: []const u8 = try utils.i64SliceToUsizeArrayString(self.strides.?);
+
+        //----create ?pads string
+        var pads_string: []const u8 = "null";
+        if (self.pads != null) {
+            if (self.pads.?.len > 0) { // Check if the slice is actually non-empty
+                pads_string = try utils.i64SliceToUsizeArrayString(self.pads.?);
+                // Assuming no allocation needed to be freed, following write_conv
+            } else {
+                pads_string = "&[_]usize{}"; // Use explicit empty slice literal if input slice is empty
+            }
+        } // else pads_string remains "null"
+
+        //----create ?dilatations string
+        var dilat_string: []const u8 = "null";
+        if (self.dilations != null) {
+            if (self.dilations.?.len > 0) {
+                dilat_string = try utils.i64SliceToUsizeArrayString(self.dilations.?);
+            } else {
+                dilat_string = "&[_]usize{}";
+            }
+        } // else dilat_string remains "null"
+
+        // pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void
+        _ = try writer.print(
+            \\    
+            \\
+            \\    tensMath.conv_lean(
+            \\        T, //type
+            \\        {s}, //input
+            \\        {s}, //kernel
+            \\        &tensor_{s}, //output
+            \\        {s}, //bias
+            \\        {s}, //stride
+            \\        {s}, //pads
+            \\        {s}, //dilatations
+            \\        {}, //group
+            \\        "{s}", //auto_pad
+            \\    )
+        , .{
+            tensor_X_string, //Input
+            tensor_W_string, //Kernel
+            try utils.getSanitizedName(self.output_Y.name), //Output
+            bias_string, //Bias
+            stride_string, //Strides
+            pads_string, //Pads
+            dilat_string, //Dilatations
+            self.group, //Group
+            self.auto_pad, //auto_pad
+        });
     }
 
     pub fn compute_output_shape(self: Conv) []usize {
