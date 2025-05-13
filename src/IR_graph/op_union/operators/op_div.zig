@@ -12,7 +12,10 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const utils = @import("../../utils.zig");
+const TensorCategory = tensorZant.TensorCategory;
+
+const IR_utils = @import("../../utils.zig"); //this is IR utils
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Div.html
 // INPUTS:
@@ -38,9 +41,51 @@ pub const Div = struct {
     }
 
     pub fn get_output_shape(self: Div) []usize {
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input;
-        return res;
+        return self.output_C.getShape();
+    }
+
+    pub fn get_output_tensor(self: Div) *TensorZant {
+        return self.output_C;
+    }
+
+    pub fn write_op(self: Div, writer: std.fs.File.Writer) !void {
+        //----create tensor_A_string
+        var tensor_A_string: []u8 = undefined;
+        defer allocator.free(tensor_A_string);
+
+        if (self.input_A.tc == TensorCategory.initializer) {
+            tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+
+                try utils.getSanitizedName(self.input_A.name),
+
+                ")",
+            });
+        } else {
+            tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(self.input_A.name), ")" });
+        }
+
+        //----create tensor_B_string
+        var tensor_B_string: []u8 = undefined;
+        defer allocator.free(tensor_B_string);
+        if (self.input_B.tc == TensorCategory.initializer) {
+            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_B.name),
+                ")",
+            });
+        } else {
+            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(self.input_B.name), ")" });
+        }
+
+        _ = try writer.print(
+            \\
+            \\    tensMath.div_lean(T, {s}, ({s}), &tensor_{s})
+        , .{
+            tensor_A_string, // Input tensor A
+            tensor_B_string, // Input tensor B
+            try utils.getSanitizedName(self.output_C.name), // Output tensor C
+        });
     }
 
     pub fn compute_output_shape(self: Div) []usize {
