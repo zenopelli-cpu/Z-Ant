@@ -1,6 +1,7 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("../../../zant.zig");
+const tensorMath = zant.core.tensor.math_standard;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -12,7 +13,9 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Elu.html
 // INPUTS:
@@ -49,17 +52,45 @@ pub const Elu = struct {
         };
     }
 
-    pub fn get_output_shape(self: Elu) []usize { // TODO
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input;
-        return res;
+    pub fn get_output_shape(self: Elu) []usize {
+        return self.output_Y.getShape();
     }
 
-    pub fn compute_output_shape(self: Elu) []usize {
-        var output_shape: []usize = undefined;
-        output_shape = try tensorMath.get_elu_output_shape(self.input_X.get_shape());
-        self.output_Y.shape = output_shape;
-        return output_shape;
+    pub fn get_output_tensor(self: Elu) *TensorZant {
+        return self.output_Y;
+    }
+
+    pub fn write_op(self: Elu, writer: std.fs.File.Writer) !void {
+        var input_tensor_string: []u8 = undefined;
+        defer allocator.free(input_tensor_string);
+        if (self.input_X.tc == TensorCategory.initializer) {
+            input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+                ")",
+            });
+        } else {
+            input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+                ")",
+            });
+        }
+
+        _ = try writer.print(
+            \\
+            \\    tensMath.elu_lean(
+            \\        {s}, // type
+            \\        {s}, // input
+            \\        &tensor_{s}, // output
+            \\        {d} // alpha
+            \\    )
+        , .{
+            self.input_X.ty.toString(),
+            input_tensor_string,
+            try utils.getSanitizedName(self.output_Y.name),
+            self.alpha,
+        });
     }
 
     pub fn print(self: Elu) void { // TODO
