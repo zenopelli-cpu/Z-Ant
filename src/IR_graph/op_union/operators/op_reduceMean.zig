@@ -1,6 +1,7 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("../../../zant.zig");
+const tensorMath = zant.core.tensor.math_standard;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -12,7 +13,8 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
 const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__ReduceMean.html
@@ -57,10 +59,66 @@ pub const ReduceMean = struct {
         };
     }
 
-    pub fn get_output_shape(self: ReduceMean) []usize { // TODO
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input;
-        return res;
+    pub fn get_output_shape(self: ReduceMean) []usize {
+        return self.output_Y.getShape();
+    }
+
+    pub fn get_output_tensor(self: ReduceMean) *TensorZant {
+        return self.output_Y;
+    }
+
+    pub fn write_op(self: ReduceMean, writer: std.fs.File.Writer) !void {
+
+        // Create input tensor string
+        var input_tensor_string: []u8 = undefined;
+        defer allocator.free(input_tensor_string);
+
+        if (self.data.tc == TensorCategory.initializer) {
+            input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.data.name),
+                ")",
+            });
+        } else {
+            input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.data.name) });
+        }
+
+        // Handle axes - either from attribute, input tensor, or as null
+        var axes_str: []const u8 = "null";
+        var needs_free = false;
+
+        if (self.axes != null) {
+            // Get axes from second input
+            const axes_name = try utils.getSanitizedName(self.axes.name);
+
+            if (self.axes.tc == TensorCategory.initializer) {
+                // For initializer tensors, we need to extract the data directly
+                axes_str = try std.fmt.allocPrint(allocator, "(@ptrCast([*]const i64, param_lib.tensor_{s}.data.ptr))[0..param_lib.tensor_{s}.size]", .{ axes_name, axes_name });
+            } else {
+                // For regular tensors
+                axes_str = try std.fmt.allocPrint(allocator, "(@ptrCast([*]const i64, tensor_{s}.data.ptr))[0..tensor_{s}.size]", .{ axes_name, axes_name });
+            }
+            needs_free = true;
+        }
+        defer if (needs_free) allocator.free(axes_str);
+
+        _ = try writer.print(
+            \\
+            \\    tensMath.reduce_mean_lean(
+            \\        T, // type
+            \\        {s}, // input tensor
+            \\        &tensor_{s}, // output tensor
+            \\        {s}, // axes
+            \\        {s}, // keepdims
+            \\        {s} // noop_with_empty_axes
+            \\    )
+        , .{
+            input_tensor_string,
+            try utils.getSanitizedName(self.reduced.name),
+            axes_str,
+            if (self.keepdims) "true" else "false",
+            if (self.noop_with_empty_axes) "true" else "false",
+        });
     }
 
     pub fn compute_output_shape(self: ReduceMean) []usize {
