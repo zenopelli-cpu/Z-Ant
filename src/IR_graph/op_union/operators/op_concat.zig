@@ -1,6 +1,7 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("../../../zant.zig");
+const tensorMath = zant.core.tensor.math_standard;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -12,7 +13,9 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Concat.html
 // INPUTS:
@@ -53,10 +56,104 @@ pub const Concat = struct {
         };
     }
 
-    pub fn get_output_shape(self: Concat) []usize { // TODO
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input;
-        return res;
+    pub fn get_output_shape(self: Concat) []usize {
+        return self.concat_result.getShape();
+    }
+
+    pub fn get_output_tensor(self: Concat) *TensorZant {
+        return self.concat_result;
+    }
+
+    pub fn write_op(self: Concat, writer: std.fs.File.Writer) !void {
+
+        // Special case for axis 0 with different ranks
+        if (self.axis == 0) {
+            // Find if there are tensors with different ranks
+            var has_different_ranks = false;
+            const first_rank = self.inputs.items[0].shape.len;
+
+            for (self.inputs.items[1..]) |input| {
+                if (input.?.shape.len != first_rank) {
+                    has_different_ranks = true;
+                    break;
+                }
+            }
+
+            if (has_different_ranks) {
+                _ = try writer.print(
+                    \\
+                    \\    // Special case for concatenation along axis 0 with different ranks
+                    \\    // This requires custom handling as the standard concatenate function expects same rank
+                    \\    mathHandler_log.warn("\\nWarning: Concatenating tensors with different ranks along axis 0\\n", .{{}});
+                    \\
+                    \\    // Create a list of tensors to concatenate
+                    \\    var concat_tensor_list_{s} = [_]Tensor(T){{
+                , .{try utils.getSanitizedName(self.output.name)});
+
+                for (self.inputs.items, 0..) |input, idx| {
+                    if (idx > 0) {
+                        _ = try writer.print(", ", .{});
+                    }
+
+                    var tensor_string: []u8 = undefined;
+                    defer allocator.free(tensor_string);
+                    if (input.tc == TensorCategory.initializer) {
+                        tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                            "@constCast(&param_lib.tensor_",
+                            try utils.getSanitizedName(input.name),
+                            ")",
+                        });
+                    } else {
+                        tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(input.name) });
+                    }
+                    _ = try writer.print("{s}", .{tensor_string});
+                }
+
+                _ = try writer.print(
+                    \\}};
+                    \\
+                    \\    // Perform concatenation with special handling for different ranks
+                    \\     try tensMath.concatenate_lean(T, &allocator, &concat_tensor_list_{s}, {},tensor_{s})
+                , .{
+                    try utils.getSanitizedName(self.concat_result.name),
+                    self.axis,
+                    try utils.getSanitizedName(self.concat_result.name),
+                });
+
+                return;
+            }
+        }
+
+        // Standard case: all tensors have the same rank
+        // Create a tensor list with all input tensors
+        _ = try writer.print(
+            \\
+            \\    // Create a list of tensors to concatenate
+            \\    var concat_tensor_list_{s} = [_]Tensor(T){{
+        , .{try utils.getSanitizedName(self.name)});
+
+        for (self.inputs.items, 0..) |input, idx| {
+            if (idx > 0) {
+                _ = try writer.print(", ", .{});
+            }
+
+            if (input.tc == TensorCategory.initializer) {
+                _ = try writer.print("param_lib.tensor_{s}", .{try utils.getSanitizedName(input.name)});
+            } else {
+                _ = try writer.print("tensor_{s}", .{try utils.getSanitizedName(input.name)});
+            }
+        }
+
+        _ = try writer.print(
+            \\}};
+            \\
+            \\    // Perform concatenation
+            \\    tensMath.concatenate_lean(T, &allocator, &concat_tensor_list_{s}, {}, &tensor_{s} )
+        , .{
+            try utils.getSanitizedName(self.concat_result.name),
+            self.axis,
+            try utils.getSanitizedName(self.concat_result.name),
+        });
     }
 
     pub fn compute_output_shape(self: Concat) []usize {

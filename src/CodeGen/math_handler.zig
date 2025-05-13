@@ -291,7 +291,7 @@ inline fn write_BatchNormalization(writer: std.fs.File.Writer, node: *ReadyNode)
         tensor_scale_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name), ")" });
     }
 
-    //----create tensor_scale_string
+    //----create tensor_B_string
     var tensor_B_string: []u8 = undefined;
     defer allocator.free(tensor_B_string);
 
