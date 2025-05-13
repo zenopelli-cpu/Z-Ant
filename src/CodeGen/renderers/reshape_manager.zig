@@ -32,7 +32,7 @@ pub fn manage(
     if (shape.len == 0) return RendererError.RankMismatch;
 
     var strides = try alloc.alloc(isize, shape.len);
-    defer alloc.free(strides);
+    errdefer alloc.free(strides);
 
     var stride: isize = 1;
     var i: usize = shape.len;
@@ -43,7 +43,8 @@ pub fn manage(
     }
 
     const src_id = uop.src[0];
-    const src_view = view_map.get(src_id) orelse return RendererError.VarMissing;
+    const get_or_put_result = try view_map.getOrPut(src_id);
+    const src_view = get_or_put_result.value_ptr.*;
 
     // Create output view
     const out_view = ViewInfo{
@@ -52,7 +53,7 @@ pub fn manage(
         .arg = .{
             .view_meta = .{
                 .shape = shape,
-                .strides = strides,
+                .strides = if (strides.len > 0) strides else &.{1},
             },
         },
     };

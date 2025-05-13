@@ -389,7 +389,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
         }
 
         // NEW: Helper function to render a single UOp
-        fn render_uop(self: *Self, uop: UOp, ptr_map: *std.AutoHashMap(usize, []const u8)) !void {
+        pub fn render_uop(self: *Self, uop: UOp, ptr_map: *std.AutoHashMap(usize, []const u8)) !void {
             // Apply indentation based on loop depth
             // --- Indentation applied BEFORE specific op rendering, EXCEPT for ENDRANGE/ENDIF ---
             if (uop.op != .ENDRANGE and uop.op != .ENDIF) {
