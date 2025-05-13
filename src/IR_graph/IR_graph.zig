@@ -36,5 +36,16 @@ pub fn init(modelProto: *ModelProto) !GraphZant {
     //constructing the graph
     try graphZant.build_graph();
 
+    graphZant.print_beafore_linearizzation();
+
+    const linear_nodes = try graphZant.linearize(allocator);
+
+    std.debug.print("Linearized Graph Nodes:\n", .{});
+    for (linear_nodes.items) |node| {
+        std.debug.print(" - Node: {s}\n", .{node.nodeProto.name orelse "<unnamed>"});
+    }
+
+    linear_nodes.deinit();
+
     return graphZant;
 }

@@ -27,6 +27,7 @@ pub const GraphZant = struct {
         // Deinitialize each NodeZant in the nodes list
         for (self.nodes.items) |node| {
             node.deinit();
+            allocator.destroy(node); // Free the node
         }
         self.nodes.deinit();
     }
@@ -37,8 +38,10 @@ pub const GraphZant = struct {
 
         // create all the nodes
         for (self.graphProto.nodes) |nodeProto| {
-            var node = try NodeZant.init(nodeProto);
-            try self.nodes.append(&node);
+            // Alloca il nodo sull'heap
+            const node = try allocator.create(NodeZant);
+            node.* = try NodeZant.init(nodeProto);
+            try self.nodes.append(node);
         }
 
         //hashmap for the outputs for the producers
@@ -65,8 +68,8 @@ pub const GraphZant = struct {
 
     // linearize the graph
     pub fn linearize(self: *GraphZant, alloc: std.mem.Allocator) !std.ArrayList(*NodeZant) {
-        const visited = std.AutoHashMap(*NodeZant, bool).init(alloc);
-        const result = std.ArrayList(*NodeZant).init(alloc);
+        var visited = std.AutoHashMap(*NodeZant, bool).init(alloc);
+        var result = std.ArrayList(*NodeZant).init(alloc);
         defer visited.deinit();
 
         for (self.nodes.items) |node| {
@@ -104,6 +107,13 @@ pub const GraphZant = struct {
 
             i += 1;
             j -= 1;
+        }
+    }
+
+    pub fn print_beafore_linearizzation(self: *GraphZant) void {
+        std.debug.print("GraphZant: {s}\n", .{self.name orelse "<unnamed>"});
+        for (self.nodes.items) |node| {
+            node.nodeProto.print("   ");
         }
     }
 };

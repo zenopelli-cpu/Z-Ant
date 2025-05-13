@@ -35,8 +35,7 @@ pub const NodeZant = struct {
 
     /// Deinitializes a NodeZant instance, freeing allocated resources.
     pub fn deinit(self: *NodeZant) void {
-        //self.next.deinit();
-        _ = self;
+        self.next.deinit();
     }
 
     /// Adds a new node to the next list.
