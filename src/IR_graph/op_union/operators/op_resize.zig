@@ -1,6 +1,7 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("../../../zant.zig");
+const tensorMath = zant.core.tensor.math_standard;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -12,7 +13,9 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Resize.html
 // INPUTS:
@@ -105,7 +108,113 @@ pub const Resize = struct {
     }
 
     pub fn get_output_shape(self: Resize) []usize {
-        return self.output_Y.shape;
+        return self.output_Y.getShape();
+    }
+
+    pub fn get_output_tensor(self: Resize) *TensorZant {
+        return self.output_Y;
+    }
+
+    pub fn write_op(self: Resize, writer: std.fs.File.Writer) !void {
+        //----create tensor_X_string
+        var tensor_X_string: []u8 = undefined;
+        defer allocator.free(tensor_X_string);
+
+        if (self.input_X.tc == TensorCategory.initializer) {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+                ")",
+            });
+        } else {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.input_X.name) });
+        }
+
+        // ---- optional inputs
+        var tensor_roi_string: []const u8 = try allocator.dupe(u8, "null");
+        defer {
+            if (self.input_roi != null) {
+                allocator.free(tensor_roi_string);
+            }
+        }
+        var data_scales_string: []const u8 = try allocator.dupe(u8, "null");
+        defer {
+            if (self.input_scales != null) {
+                allocator.free(data_scales_string);
+            }
+        }
+        var data_sizes_string: []const u8 = try allocator.dupe(u8, "null");
+        defer {
+            if (self.input_sizes != null) {
+                allocator.free(data_sizes_string);
+            }
+        }
+
+        //----create tensor_roi_string
+        if (self.input_roi != null) {
+            if (self.input_roi.tc == TensorCategory.initializer) {
+                tensor_roi_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "@constCast(&param_lib.tensor_",
+                    try utils.getSanitizedName(self.input_roi.name),
+                    ")",
+                });
+            } else {
+                tensor_roi_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.input_roi.name) });
+            }
+        }
+
+        //----create tensor_scales_string
+        if (self.input_scales != null) {
+            if (self.input_scales.tc == TensorCategory.initializer) {
+                data_scales_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "param_lib.tensor_",
+                    try utils.getSanitizedName(self.input_scales.name),
+                    ".data",
+                });
+            } else {
+                data_scales_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "tensor_", try utils.getSanitizedName(self.input_scales.name), ".data" });
+            }
+        }
+
+        //----create tensor_sizes_string
+        if (self.input_sizes != null) {
+            if (self.input_sizes.tc == TensorCategory.initializer) {
+                data_sizes_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "param_lib.tensor_",
+                    try utils.getSanitizedName(self.input_sizes.name),
+                    ".data",
+                });
+            } else {
+                data_sizes_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "tensor_", try utils.getSanitizedName(self.input_sizes.name), ".data" });
+            }
+        }
+
+        // ---- CREATING ATTRIBUTES strings
+        const axes_string = try utils.i64SliceToUsizeArrayString(self.axes);
+        _ = axes_string;
+
+        //pub fn rezise_lean(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales: ?[]const f32, sizes: ?[]const usize, coordinate_transformation_mode: []const u8, output_tensor: *Tensor(T)) !void {
+        _ = try writer.print(
+            \\
+            \\    tensMath.resize_lean(
+            \\      T, 
+            \\      {s}, //*Tensor(T)
+            \\      "{s}", //mode
+            \\      {s}, //scales: ?[]const f32
+            \\      {s}, //sizes: ?[]const usize
+            \\      "{s}", //coordinate_transformation_mode: []const u8
+            \\      &tensor_{s}, //output_tensor: *Tensor(T)
+            \\    )
+        ,
+            .{
+                tensor_X_string, // input
+                self.mode,
+                data_scales_string,
+                data_sizes_string,
+                self.coordinate_transformation_mode,
+                try utils.getSanitizedName(self.output_Y.name), //output
+            },
+        );
     }
 
     pub fn compute_output_shape(self: Resize) []usize {
