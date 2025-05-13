@@ -25,6 +25,6 @@ pub const Useless = struct {
     }
 
     pub fn print(self: Useless) void {
-        std.debug.print("\n SUB:\n {any}", .{self});
+        std.debug.print("\n Useless:\n {any}", .{self});
     }
 };

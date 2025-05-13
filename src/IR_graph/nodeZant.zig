@@ -42,4 +42,8 @@ pub const NodeZant = struct {
     pub fn add_next(self: *NodeZant, next_node: *NodeZant) !void {
         try self.next.append(next_node);
     }
+
+    pub fn write_op(self: *NodeZant) !void {
+        try self.op.write_op();
+    }
 };

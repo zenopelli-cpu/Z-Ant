@@ -51,6 +51,22 @@ pub fn getAnyTensorType(anyTensor: AnyTensor) TensorType {
     };
 }
 
+//Returns the sanitized tensor's name, removes all non alphanumeric chars
+pub inline fn getSanitizedName(name: []const u8) ![]const u8 {
+    var sanitized = try allocator.alloc(u8, name.len);
+
+    for (name, 0..) |char, i| {
+        sanitized[i] = if (std.ascii.isAlphanumeric(char) or char == '_')
+            std.ascii.toLower(char)
+        else
+            '_';
+    }
+
+    //std.log.debug("\nfrom {s} to {s} ", .{ name, sanitized });
+
+    return sanitized;
+}
+
 // ----------------- DATA TYPE management -------------
 
 pub inline fn i64SliceToUsizeSlice(input: []const i64) ![]usize {

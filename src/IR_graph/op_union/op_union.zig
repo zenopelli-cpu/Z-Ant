@@ -42,7 +42,6 @@ pub const Op_union = union(enum) {
 
     pub fn init(nodeProto: *NodeProto) !Op_union {
         const op_type = nodeProto.op_type;
-
         if (std.mem.eql(u8, op_type, "Add")) {
             return Op_union{ .add = try operators.Add.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "AveragePool")) {
@@ -112,8 +111,35 @@ pub const Op_union = union(enum) {
     pub fn get_output_shape(self: Op_union) []usize {
         switch (self) {
             .add => |ptr| return ptr.get_output_shape(),
-            .sub => |ptr| return ptr.get_output_shape(),
+            .averagePool => |ptr| return ptr.get_output_shape(),
+            .batchNormalization => |ptr| return ptr.get_output_shape(),
+            .ceil => |ptr| return ptr.get_output_shape(),
+            .concat => |ptr| return ptr.get_output_shape(),
             .conv => |ptr| return ptr.get_output_shape(),
+            .div => |ptr| return ptr.get_output_shape(),
+            .elu => |ptr| return ptr.get_output_shape(),
+            .flatten => |ptr| return ptr.get_output_shape(),
+            .gather => |ptr| return ptr.get_output_shape(),
+            .gemm => |ptr| return ptr.get_output_shape(),
+            .identity => |ptr| return ptr.get_output_shape(),
+            .leakyRelu => |ptr| return ptr.get_output_shape(),
+            .matMul => |ptr| return ptr.get_output_shape(),
+            .maxPool => |ptr| return ptr.get_output_shape(),
+            .mul => |ptr| return ptr.get_output_shape(),
+            .neg => |ptr| return ptr.get_output_shape(),
+            .reduceMean => |ptr| return ptr.get_output_shape(),
+            .relu => |ptr| return ptr.get_output_shape(),
+            .reshape => |ptr| return ptr.get_output_shape(),
+            .resize => |ptr| return ptr.get_output_shape(),
+            .shape => |ptr| return ptr.get_output_shape(),
+            .sigmoid => |ptr| return ptr.get_output_shape(),
+            .slice => |ptr| return ptr.get_output_shape(),
+            .softmax => |ptr| return ptr.get_output_shape(),
+            .split => |ptr| return ptr.get_output_shape(),
+            .sub => |ptr| return ptr.get_output_shape(),
+            .tanh => |ptr| return ptr.get_output_shape(),
+            .transpose => |ptr| return ptr.get_output_shape(),
+            .unsqueeze => |ptr| return ptr.get_output_shape(),
             else => {
                 std.debug.print("\n\nERROR: get_output_shape() is not available!! \n\n", .{});
                 return error.OpNotAvailable;
@@ -121,14 +147,75 @@ pub const Op_union = union(enum) {
         }
     }
 
-    pub fn print(self: Op_union) void {
+    pub fn get_output_tensor(self: Op_union) void {
+        switch (self) {
+            .add => |ptr| ptr.get_output_tensor(),
+            .averagePool => |ptr| ptr.get_output_tensor(),
+            .batchNormalization => |ptr| ptr.get_output_tensor(),
+            .ceil => |ptr| ptr.get_output_tensor(),
+            .concat => |ptr| ptr.get_output_tensor(),
+            .conv => |ptr| ptr.get_output_tensor(),
+            .div => |ptr| ptr.get_output_tensor(),
+            .elu => |ptr| ptr.get_output_tensor(),
+            else => {
+                std.debug.print("\n\nERROR: get_output_tensor() is not available!! \n\n", .{});
+                return error.write_op_notAvailable;
+            },
+        }
+    }
+
+    pub fn write_op(self: Op_union, writer: std.fs.File.Writer) !void {
+        switch (self) {
+            .add => |ptr| ptr.write_op(writer),
+            .averagePool => |ptr| ptr.write_op(writer),
+            .batchNormalization => |ptr| ptr.write_op(writer),
+            .ceil => |ptr| ptr.write_op(writer),
+            .concat => |ptr| ptr.write_op(writer),
+            .conv => |ptr| ptr.write_op(writer),
+            .div => |ptr| ptr.write_op(writer),
+            .elu => |ptr| ptr.write_op(writer),
+            else => {
+                std.debug.print("\n\nERROR: write_op() is not available!! \n\n", .{});
+                return error.write_op_notAvailable;
+            },
+        }
+    }
+
+    pub fn print(self: Op_union) !void {
         switch (self) {
             .add => |ptr| ptr.print(),
-            .sub => |ptr| ptr.print(),
+            .averagePool => |ptr| ptr.print(),
+            .batchNormalization => |ptr| ptr.print(),
+            .ceil => |ptr| ptr.print(),
+            .concat => |ptr| ptr.print(),
             .conv => |ptr| ptr.print(),
+            .div => |ptr| ptr.print(),
+            .elu => |ptr| ptr.print(),
+            .flatten => |ptr| ptr.print(),
+            .gather => |ptr| ptr.print(),
+            .gemm => |ptr| ptr.print(),
+            .identity => |ptr| ptr.print(),
+            .leakyRelu => |ptr| ptr.print(),
+            .matMul => |ptr| ptr.print(),
+            .maxPool => |ptr| ptr.print(),
+            .mul => |ptr| ptr.print(),
+            .neg => |ptr| ptr.print(),
+            .reduceMean => |ptr| ptr.print(),
+            .relu => |ptr| ptr.print(),
+            .reshape => |ptr| ptr.print(),
+            .resize => |ptr| ptr.print(),
+            .shape => |ptr| ptr.print(),
+            .sigmoid => |ptr| ptr.print(),
+            .slice => |ptr| ptr.print(),
+            .softmax => |ptr| ptr.print(),
+            .split => |ptr| ptr.print(),
+            .sub => |ptr| ptr.print(),
+            .tanh => |ptr| ptr.print(),
+            .transpose => |ptr| ptr.print(),
+            .unsqueeze => |ptr| ptr.print(),
             else => {
                 std.debug.print("\n\nERROR: print() is not available!! \n\n", .{});
-                return error.OpNotAvailable;
+                return error.print_notAvailable;
             },
         }
     }
