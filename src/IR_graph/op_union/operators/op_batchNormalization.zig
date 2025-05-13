@@ -1,6 +1,7 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("../../../zant.zig");
+const tensorMath = zant.core.tensor.math_standard;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -12,7 +13,9 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__BatchNormalization.html
 // INPUTS:
@@ -74,10 +77,118 @@ pub const BatchNormalization = struct {
             .training_mode = training_mode,
         };
     }
-    pub fn get_output_shape(self: BatchNormalization) []usize { // TODO
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input;
-        return res;
+
+    pub fn get_output_shape(self: BatchNormalization) []usize {
+        return self.output_Y.getShape();
+    }
+
+    pub fn get_output_tensor(self: BatchNormalization) *TensorZant {
+        return self.output_Y;
+    }
+
+    pub fn write_op(self: BatchNormalization, writer: std.fs.File.Writer) !void {
+
+        //----create tensor_X_string
+        var tensor_X_string: []u8 = undefined;
+        defer allocator.free(tensor_X_string);
+
+        if (self.input_X.tc == TensorCategory.initializer) {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+                ")",
+            });
+        } else {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(self.input_X.name), ")" });
+        }
+
+        //----create tensor_scale_string
+        var tensor_scale_string: []u8 = undefined;
+        defer allocator.free(tensor_scale_string);
+
+        if (self.scale.tc == TensorCategory.initializer) {
+            tensor_scale_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.scale.name),
+                ")",
+            });
+        } else {
+            tensor_scale_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(self.scale.name), ")" });
+        }
+
+        //----create tensor_B_string
+        var tensor_B_string: []u8 = undefined;
+        defer allocator.free(tensor_B_string);
+
+        if (self.B.tc == TensorCategory.initializer) {
+            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.B.name),
+                ")",
+            });
+        } else {
+            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(self.B.name), ")" });
+        }
+
+        //----create tensor_input_mean_string
+        var tensor_input_mean_string: []u8 = undefined;
+        defer allocator.free(tensor_input_mean_string);
+
+        if (self.input_mean.tc == TensorCategory.initializer) {
+            tensor_input_mean_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_mean.name),
+                ")",
+            });
+        } else {
+            tensor_input_mean_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(self.input_mean.name), ")" });
+        }
+
+        //----create tensor_input_var_string
+        var tensor_input_var_string: []u8 = undefined;
+        defer allocator.free(tensor_input_var_string);
+
+        if (self.input_var.tc == TensorCategory.initializer) {
+            tensor_input_var_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_var.name),
+                ")",
+            });
+        } else {
+            tensor_input_var_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(self.input_var.name), ")" });
+        }
+
+        // pub inline fn batchNormalization_lean( comptime T: anytype, comptime T1: anytype, comptime T2: anytype, input: *Tensor(T), scales: *Tensor(T1), B: *Tensor(T1), input_mean: Tensor(T2), input_var: Tensor(T2), epsilon: f32, momentum: f32, training_mode: bool, output: *Tensor(T))
+        _ = try writer.print(
+            \\    
+            \\
+            \\    tensMath.batchNormalization_lean(
+            \\        {s}, //type 0
+            \\        {s}, //type 1
+            \\        {s}, //type 2
+            \\        {s}, //input
+            \\        {s}, //scales
+            \\        {s}, //B
+            \\        {s}, //input_mean
+            \\        {s}, //input_var
+            \\        {}, //epsilon
+            \\        {}, //momentum
+            \\        false, //training_mode
+            \\        &tensor_{s}, //output
+            \\    )
+        , .{
+            try self.input_X.ty.toString(),
+            try self.scale.ty.toString(),
+            try self.input_mean.ty.toString(),
+            tensor_X_string,
+            tensor_scale_string,
+            tensor_B_string,
+            tensor_input_mean_string,
+            tensor_input_var_string,
+            self.epsilon,
+            self.momentum,
+            try utils.getSanitizedName(self.output_Y.name),
+        });
     }
 
     pub fn compute_output_shape(self: BatchNormalization) []usize {
