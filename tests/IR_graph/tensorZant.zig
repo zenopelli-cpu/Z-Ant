@@ -13,6 +13,8 @@ const protoTensor2AnyTensor = zant.IR_graph.utils.protoTensor2AnyTensor;
 
 // Test for raw data not available
 test "protoTensor2AnyTensor: float32 parsing" {
+    std.debug.print("\n\n ------TEST: protoTensor2AnyTensor: float32 parsing", .{});
+
     var dims = [_]i64{ 2, 2 };
     var values = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
 
@@ -53,6 +55,8 @@ test "protoTensor2AnyTensor: float32 parsing" {
 }
 
 test "computeStride with 3D shape" {
+    std.debug.print("\n\n ------TEST: computeStride with 3D shape", .{});
+
     var shape = [_]usize{ 2, 3, 4 };
     const expected = [_]usize{ 12, 4, 1 };
 
@@ -62,6 +66,8 @@ test "computeStride with 3D shape" {
 }
 
 test "computeStride with 2D shape" {
+    std.debug.print("\n\n ------TEST: computeStride with 2D shape", .{});
+
     var shape = [_]usize{ 5, 10 };
     const expected = [_]usize{ 10, 1 };
 
@@ -71,6 +77,8 @@ test "computeStride with 2D shape" {
 }
 
 test "computeStride with 1D shape" {
+    std.debug.print("\n\n ------TEST: computeStride with 1D shape", .{});
+
     var shape = [_]usize{7};
     const expected = [_]usize{1};
 

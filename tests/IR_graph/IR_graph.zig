@@ -5,5 +5,6 @@ test {
     comptime {
         _ = @import("tensorZant.zig");
         _ = @import("graph_init.zig");
+        _ = @import("linearization.zig");
     }
 }

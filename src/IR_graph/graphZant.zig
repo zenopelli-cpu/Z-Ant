@@ -111,7 +111,7 @@ pub const GraphZant = struct {
     }
 
     pub fn print_beafore_linearizzation(self: *GraphZant) void {
-        std.debug.print("GraphZant: {s}\n", .{self.name orelse "<unnamed>"});
+        std.debug.print("\n\nGraphZant: {s}\n", .{self.name orelse "<unnamed>"});
         for (self.nodes.items) |node| {
             node.nodeProto.print("   ");
         }
