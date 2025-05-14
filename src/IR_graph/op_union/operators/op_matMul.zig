@@ -1,6 +1,9 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("../../../zant.zig");
+const tensorMath = zant.core.tensor.math_standard;
+const globals = @import("../../../CodeGen/globals.zig");
+const mathHandler_log = std.log.scoped(.mathHandler);
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -12,7 +15,9 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__MatMul.html#l-onnx-doc-matmul// INPUTS:
 //      - A (heterogeneous) - T:  input tensor.
@@ -47,10 +52,99 @@ pub const MatMul = struct {
         };
     }
 
-    pub fn get_output_shape(self: MatMul) []usize { // TODO
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input_X;
-        return res;
+    pub fn get_output_shape(self: MatMul) []usize {
+        return self.output_C.getShape();
+    }
+
+    pub fn get_output_tensor(self: MatMul) *TensorZant {
+        return self.output_C;
+    }
+
+    pub fn write_op(self: MatMul, writer: std.fs.File.Writer) !void {
+        //----create tensor_A_string
+        var tensor_A_string: []u8 = undefined;
+        defer allocator.free(tensor_A_string);
+        if (self.input_A.tc == TensorCategory.INITIALIZER) {
+            tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_A.name),
+                ")",
+            });
+        } else {
+            tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.input_A.name) });
+        }
+
+        //----create tensor_B_string
+        var tensor_B_string: []u8 = undefined;
+        defer allocator.free(tensor_B_string);
+        if (self.input_B.tc == TensorCategory.INITIALIZER) {
+            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_B.name),
+                ")",
+            });
+        } else {
+            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.input_B.name) });
+        }
+
+        // Calculate b_width_bytes safely, handling potential null tensorProto
+        // Get type information for tensor B to estimate element size
+        const input_B_name = self.input_B.name;
+        const ready_tensor_B = globals.tensorHashMap.getPtr(input_B_name) orelse {
+            mathHandler_log.warn("Error: Tensor '{s}' not found in globals.tensorHashMap for MatMul.\n", .{input_B_name});
+            return error.TensorNotFound;
+        };
+
+        var element_size_bytes: usize = 4; // Default to f32 size as fallback
+        if (ready_tensor_B.tensorProto) |tp| {
+            const data_type = tp.data_type;
+            // Determine size from DataType enum
+            element_size_bytes = switch (data_type) {
+                .FLOAT => @sizeOf(f32),
+                .FLOAT16 => @sizeOf(f16),
+                .INT64 => @sizeOf(i64),
+                .INT32 => @sizeOf(i32),
+                .INT8 => @sizeOf(i8),
+                .UINT8 => @sizeOf(u8),
+                // Add other supported types as needed
+                else => blk: {
+                    mathHandler_log.warn("Warning: Unsupported DataType '{any}' for MatMul input B '{s}'. Assuming f32 size.\n", .{ data_type, input_B_name });
+                    break :blk 4;
+                },
+            };
+        } else {
+            // Fallback if tensorProto is null - log a warning
+            mathHandler_log.warn("Warning: TensorProto for MatMul input B '{s}' is null. Assuming f32 size for width calculation.\n", .{input_B_name});
+        }
+
+        const b_dims = self.input_B.getShape().len;
+        if (b_dims == 0) {
+            mathHandler_log.warn("Error: MatMul input B '{s}' has zero dimensions.\n", .{input_B_name});
+            return error.InvalidShape; // Avoid panic on empty shape
+        }
+
+        const b_width_elements: usize = self.input_B.shape[b_dims - 1];
+        const b_width_bytes: usize = b_width_elements * element_size_bytes;
+
+        if (b_width_bytes >= std.atomic.cache_line) { //B is large enough for the new mat mul to work;
+            _ = try writer.print(
+                \\
+                \\    tensMath.blocked_mat_mul_lean(T, {s}, {s}, &tensor_{s})
+            , .{
+                tensor_A_string, // Input tensor A
+                tensor_B_string, // Input tensor B
+                try utils.getSanitizedName(self.output_C.name), // Output tensor C
+            });
+        } else { //B is not large enough, so we keep the old but improved mat_mul
+            _ = try writer.print(
+                \\
+                \\    tensMath.mat_mul_lean(T, {s}, {s}, &tensor_{s})
+            , .{
+                tensor_A_string, // Input tensor A
+                tensor_B_string, // Input tensor B
+                try utils.getSanitizedName(self.output_C.name), // Output tensor C
+            });
+        }
     }
 
     pub fn compute_output_shape(self: MatMul) []usize {
