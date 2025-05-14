@@ -26,8 +26,8 @@ pub const Slice = struct {
     input: *TensorZant,
     starts: *TensorZant,
     ends: *TensorZant,
-    axes: *TensorZant,
-    steps: *TensorZant,
+    axes: ?*TensorZant,
+    steps: ?*TensorZant,
     output: *TensorZant,
 
     pub fn init(nodeProto: *NodeProto) !Slice {
@@ -35,9 +35,9 @@ pub const Slice = struct {
         const starts = if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_X_notFound;
         const ends = if (tensorZant.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_X_notFound;
         const output = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
-
-        const axes = if (tensorZant.tensorMap.getPtr(nodeProto.input[4])) |ptr| ptr else return error.input_X_notFound;
-        const steps = if (tensorZant.tensorMap.getPtr(nodeProto.input[5])) |ptr| ptr else return error.input_X_notFound;
+        // Optional inputs
+        const axes: ?*TensorZant = if (nodeProto.input.len >= 4) if (tensorZant.tensorMap.getPtr(nodeProto.input[3])) |ptr| ptr else return error.axes_notFound else null;
+        const steps: ?*TensorZant = if (nodeProto.input.len >= 4) if (tensorZant.tensorMap.getPtr(nodeProto.input[3])) |ptr| ptr else return error.steps_notFound else null;
 
         return Slice{
             .input = input,
@@ -50,8 +50,14 @@ pub const Slice = struct {
     }
 
     pub fn get_output_shape(self: Slice) []usize {
-        return self.output.shape;
+        return self.output.getShape();
     }
+
+    pub fn get_output_tensor(self: Slice) *TensorZant {
+        return self.output;
+    }
+
+    pub fn write_op() !void {} //TODO
 
     pub fn compute_output_shape(self: Slice) []usize {
         var output_shape: []usize = undefined;
