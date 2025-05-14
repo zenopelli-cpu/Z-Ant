@@ -13,6 +13,9 @@ const TensorProto = onnx.TensorProto;
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Shape.html
 // INPUTS:
@@ -53,7 +56,44 @@ pub const Shape = struct {
     }
 
     pub fn get_output_shape(self: Shape) []usize {
+        return self.shape.getShape();
+    }
+
+    pub fn get_output_tensor(self: Shape) *TensorZant {
         return self.shape;
+    }
+
+    pub fn write_op(self: Shape, writer: std.fs.File.Writer) !void {
+        //----create tensor_data_string
+        var tensor_data_string: []u8 = undefined;
+        defer allocator.free(tensor_data_string);
+        if (self.data.tc == TensorCategory.INITIALIZER) {
+            tensor_data_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.data.name),
+                ")",
+            });
+        } else {
+            tensor_data_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.data.name) });
+        }
+
+        //attributes
+        _ = try writer.print(
+            \\
+            \\    tensMath.shape_onnx_lean(
+            \\        T,
+            \\        i64, //output type constraint
+            \\        {s}, //input data tensor
+            \\        {s}, //start
+            \\        {s}, //end
+            \\        &tensor_{s}, //output shape tensor
+            \\    )
+        , .{
+            tensor_data_string,
+            if (self.start) |s| try std.fmt.allocPrint(allocator, "{}", .{s}) else "null",
+            if (self.end) |e| try std.fmt.allocPrint(allocator, "{}", .{e}) else "null",
+            try utils.getSanitizedName(self.shape.name),
+        });
     }
 
     pub fn compute_output_shape(self: Shape) []usize {
