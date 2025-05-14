@@ -1,6 +1,7 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("../../../zant.zig");
+const tensorMath = zant.core.tensor.math_standard;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -12,7 +13,9 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Identity.html#l-onnx-doc-identity
 // INPUTS:
@@ -35,9 +38,36 @@ pub const Identity = struct {
     }
 
     pub fn get_output_shape(self: Identity) []usize { // TODO
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input_X;
-        return res;
+        return self.output.getShape();
+    }
+
+    pub fn get_output_tensor(self: Identity) *TensorZant {
+        return self.output;
+    }
+
+    pub fn write_op(self: Identity, writer: std.fs.File.Writer) !void {
+        // Create input tensor string
+        var input_tensor_string: []u8 = undefined;
+        defer allocator.free(input_tensor_string);
+
+        if (self.input.tc == TensorCategory.INITIALIZER) {
+            input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input.name),
+                ")",
+            });
+        } else {
+            input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.input.name) });
+        }
+
+        _ = try writer.print(
+            \\
+            \\
+            \\    tensMath.identity_lean(T, {s}, &tensor_{s})
+        , .{
+            input_tensor_string,
+            try utils.getSanitizedName(self.output.name),
+        });
     }
 
     pub fn compute_output_shape(self: Identity) []usize {
