@@ -1,6 +1,7 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("../../../zant.zig");
+const tensorMath = zant.core.tensor.math_standard;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -12,7 +13,9 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Mul.html#l-onnx-doc-mul
 // INPUTS:
@@ -39,9 +42,53 @@ pub const Mul = struct {
     }
 
     pub fn get_output_shape(self: Mul) []usize {
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input_X;
-        return res;
+        return self.output_C.getShape();
+    }
+
+    pub fn get_output_tensor(self: Mul) *TensorZant {
+        return self.output_C;
+    }
+
+    pub fn write_op(self: Mul, writer: std.fs.File.Writer) !void {
+        //----create tensor_A_string
+        var tensor_A_string: []u8 = undefined;
+        defer allocator.free(tensor_A_string);
+        if (self.input_A.tc == TensorCategory.INITIALIZER) {
+            tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_A.name),
+                ")",
+            });
+        } else {
+            tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.input_A.name) });
+        }
+
+        //----create tensor_B_string
+        var tensor_B_string: []u8 = undefined;
+        defer allocator.free(tensor_B_string);
+        if (self.input_B.tc == TensorCategory.INITIALIZER) {
+            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_B.name),
+                ")",
+            });
+        } else {
+            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&tensor_",
+                try utils.getSanitizedName(self.input_B.name),
+                ")",
+            });
+        }
+
+        _ = try writer.print(
+            \\
+            \\
+            \\    tensMath.mul_lean(T, {s}, ({s}), &tensor_{s})
+        , .{
+            tensor_A_string, // Input tensor A
+            tensor_B_string, // Input tensor B
+            try utils.getSanitizedName(self.output_C.name), // Output tensor C
+        });
     }
 
     pub fn compute_output_shape(self: Mul) []usize {
