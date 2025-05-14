@@ -1,6 +1,7 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("../../../zant.zig");
+const tensorMath = zant.core.tensor.math_standard;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -12,7 +13,9 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
+const utils = @import("../../../CodeGen/utils.zig");
 
 // https://onnx.ai/onnx/operators/onnx__Gemm.html
 // INPUTS:
@@ -73,10 +76,71 @@ pub const Gemm = struct {
         };
     }
 
-    pub fn get_output_shape(self: Gemm) []usize { // TODO
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input;
-        return res;
+    pub fn get_output_shape(self: Gemm) []usize {
+        return self.output.getShape();
+    }
+
+    pub fn get_output_tensor(self: Gemm) *TensorZant {
+        return self.output;
+    }
+
+    pub fn write_op(self: Gemm, writer: std.fs.File.Writer) !void {
+        //----create tensor_A_string
+        var tensor_A_string: []u8 = undefined;
+        defer allocator.free(tensor_A_string);
+
+        if (self.input_A == TensorCategory.INITIALIZER) {
+            tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_A.name),
+                ")",
+            });
+        } else {
+            tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.input_A.name) });
+        }
+
+        //----create tensor_B_string
+        var tensor_B_string: []u8 = undefined;
+        defer allocator.free(tensor_B_string);
+        if (self.input_B.tc == TensorCategory.INITIALIZER) {
+            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_B.name),
+                ")",
+            });
+        } else {
+            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.input_B.name) });
+        }
+
+        // Input Tensor C is optional! verify the presence
+        var tensor_C_string: []u8 = undefined;
+        if (self.input_C != null) {
+            const sanitized_tensor_C = try utils.getSanitizedName(self.input_C.name);
+            tensor_C_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&",
+                if (self.input_C.?.tc == TensorCategory.INITIALIZER) "param_lib." else "",
+                "tensor_",
+                sanitized_tensor_C,
+                ")",
+            });
+        } else {
+            tensor_C_string = try std.mem.concat(allocator, u8, &[_][]const u8{" null"});
+        }
+
+        _ = try writer.print(
+            \\
+            \\
+            \\    tensMath.gemm_lean(T, {s}, {s}, {s}, {}, {}, {s}, {s}, &tensor_{s} )
+        , .{
+            tensor_A_string, // Input tensor A
+            tensor_B_string, // Input tensor B
+            tensor_C_string,
+            self.alpha,
+            self.beta,
+            if (self.transA) "true" else "false",
+            if (self.transB) "true" else "false",
+            try utils.getSanitizedName(self.output.name), // Output
+        });
     }
 
     pub fn compute_output_shape() []usize {} // TODO
