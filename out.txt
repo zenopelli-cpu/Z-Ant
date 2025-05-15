@@ -1,0 +1,19 @@
+test
++- run test_lib
+   +- zig test test_lib Debug native 1 errors
+src/IR_graph/tensorZant.zig:260:59: error: capture 'i' shadows capture from outer scope
+                    for (node.attributes.ints, 0..) |dim, i| {
+                                                          ^
+src/IR_graph/tensorZant.zig:222:40: note: previous declaration here
+    for (protoGraph.nodes, 0..) |node, i| { //for each NodeProto in the GraphProto
+                                       ^
+error: the following command failed with 1 compilation errors:
+/home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/zig test -ODebug --dep zant --dep codegen --dep IR_graph -Mroot=/home/mirko/Documents/zig/Tiny/Z-Ant/tests/test_lib.zig --dep build_options -Mzant=/home/mirko/Documents/zig/Tiny/Z-Ant/src/zant.zig --dep zant --dep codegen_options -Mcodegen=/home/mirko/Documents/zig/Tiny/Z-Ant/src/CodeGen/codegen.zig --dep zant --dep codegen -MIR_graph=/home/mirko/Documents/zig/Tiny/Z-Ant/src/IR_graph/IR_graph.zig -Mbuild_options=/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/c/ee500120504b357fcd4f02aa58668182/options.zig -Mcodegen_options=/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/c/819333925040932131057e287665e76c/options.zig -lc --cache-dir /home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache --global-cache-dir /home/mirko/.cache/zig --name test_lib --zig-lib-dir /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib/ --listen=- 
+Build Summary: 2/5 steps succeeded; 1 failed
+test transitive failure
++- run test_lib transitive failure
+   +- zig test test_lib Debug native 1 errors
+      +- options cached
+      +- options cached
+error: the following build command failed with exit code 1:
+/home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache/o/3293d6f9ee5503b025dcee6be57cb34d/build /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/zig /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib /home/mirko/Documents/zig/Tiny/Z-Ant /home/mirko/Documents/zig/Tiny/Z-Ant/.zig-cache /home/mirko/.cache/zig --seed 0xfca57b9a -Z2f93c83211a6a25d test --summary all

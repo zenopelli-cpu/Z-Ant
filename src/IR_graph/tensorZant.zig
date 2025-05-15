@@ -62,6 +62,7 @@ pub const TensorCategory = enum {
     output,
     initializer,
     link,
+    constant,
 
     pub fn toString(self: TensorCategory) []const u8 {
         return switch (self) {
@@ -69,6 +70,7 @@ pub const TensorCategory = enum {
             .output => ".output",
             .initializer => ".initializer",
             .link => ".link",
+            .constant => ".constant",
         };
     }
 };
@@ -81,8 +83,8 @@ pub const TensorZant = struct {
     shape: []usize,
     stride: []usize,
 
-    pub fn init(name: []const u8, tensorProto: ?*TensorProto, value_info: ?*ValueInfoProto, tensorCategory: TensorCategory) !TensorZant {
-        std.debug.print("\n ----------- init({s}, {s}, {s}) ", .{ name, if (tensorProto) |_| "tp" else "null", tensorCategory.toString() });
+    pub fn init(name: []const u8, tensorProto: ?*TensorProto, value_info: ?*ValueInfoProto, shape: ?[]usize, tensorCategory: TensorCategory) !TensorZant {
+        std.debug.print("\n ----------- init({s}, {s}, {s}, {s}) ", .{ name, if (tensorProto) |_| "tp" else "null", if (value_info) |_| "vi" else "null", tensorCategory.toString() });
 
         var tensor: ?AnyTensor = null;
         var shape_i64: []i64 = undefined;
@@ -97,6 +99,8 @@ pub const TensorZant = struct {
                 return error.shapeNotfound;
             };
             shape_usize = try utils.i64SliceToUsizeSlice(shape_i64); //saves the shape
+        } else if (shape) |s| {
+            shape_usize = s;
         } else {
             std.debug.print("\n ERROR: {s} not found ", .{name});
             return error.shapeNotfound;
@@ -153,8 +157,11 @@ pub const TensorZant = struct {
 pub var tensorMap: std.StringHashMap(TensorZant) = std.StringHashMap(TensorZant).init(allocator);
 
 // Populates tensorHashMap with the tensors used in the onnx graph, where the key is the name of the tensor
-
 pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
+    //free and reinit the tensorMap
+    tensorMap.deinit();
+    tensorMap = std.StringHashMap(TensorZant).init(allocator);
+
     std.debug.print("\n ---- initialize_tensorZantMap ---- ", .{});
 
     const protoGraph = try if (modelProto.graph) |graph| graph else error.GraphNotAvailable;
@@ -162,11 +169,13 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
     //adding initializers to the hash map
     std.debug.print("\n -------- initializers ", .{});
 
-    for (protoGraph.initializers) |init_ptr| { //initializer : *TensorProto,
+    //initializer : *TensorProto,
+    for (protoGraph.initializers) |init_ptr| {
         //create the readyTensor
         const tensorZant: TensorZant = try TensorZant.init(
             init_ptr.name.?,
             init_ptr,
+            null,
             null,
             TensorCategory.initializer,
         );
@@ -184,6 +193,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
             inputs_ptr.name.?,
             null,
             inputs_ptr,
+            null,
             TensorCategory.input,
         );
         //add the readyTensor to the HashMap
@@ -200,6 +210,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
             outputs_ptr.name.?,
             null,
             outputs_ptr,
+            null,
             TensorCategory.output,
         );
         //add the readyTensor to the HashMap
@@ -208,22 +219,72 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
 
     std.debug.print("\n -------- nodes ", .{});
     //adding all the nodes inputs and outputs
-    for (protoGraph.nodes) |node| { //for each NodeProto in the GraphProto
-        for (node.input) |input_name| {
-            //if the tensor already exists is means it is an onnx_initializer and it don't need to be initialized again
-            if (tensorMap.getPtr(input_name) != null) continue;
-            //create the readyTensor
-            const tensorZant: TensorZant = try TensorZant.init(input_name, null, utils.getValueInfoTensorFromGraphInfo(input_name, protoGraph), TensorCategory.link);
+    for (protoGraph.nodes, 0..) |node, i| { //for each NodeProto in the GraphProto
+        std.debug.print("\n --- {} ", .{i});
+        node.print(null);
+
+        //WHy CONSTANT nodes need a different initialization?
+        if (std.mem.eql(u8, node.op_type, "Constant")) {
+            const tensorZant: TensorZant = try TensorZant.init(
+                node.output[0],
+                node.attribute[0].t.?,
+                null,
+                null,
+                TensorCategory.constant,
+            );
             //add the readyTensor to the HashMap
             try tensorMap.put(tensorZant.name, tensorZant);
-        }
-        for (node.output) |output_name| {
-            //if the tensor already exists is means it is an onnx_initializer and it don't need to be initialized again
-            if (tensorMap.getPtr(output_name) != null) continue;
-            //create the readyTensor
-            const tensorZant: TensorZant = try TensorZant.init(output_name, null, utils.getValueInfoTensorFromGraphInfo(output_name, protoGraph), TensorCategory.link);
-            //add the readyTensor to the HashMap
-            try tensorMap.put(tensorZant.name, tensorZant);
+        } else {
+            for (node.input) |input_name| {
+                //if the tensor is null is represented by an empty string in the onnx, so It must not be initialized in the hashMap
+                if (std.mem.eql(u8, input_name, "")) continue;
+                //if the tensor already exists is means it is an onnx_initializer and it don't need to be initialized again
+                if (tensorMap.getPtr(input_name) != null) continue;
+
+                //create the readyTensor
+                const tensorZant: TensorZant = try TensorZant.init(
+                    input_name,
+                    null,
+                    utils.getValueInfoTensorFromGraphInfo(input_name, protoGraph),
+                    null,
+                    TensorCategory.link,
+                );
+                //add the readyTensor to the HashMap
+                try tensorMap.put(tensorZant.name, tensorZant);
+            }
+            for (node.output) |output_name| {
+
+                // //WHy RESHAPE nodes need a different initialization?
+                // if (std.mem.eql(u8, node.op_type, "Reshape")) {
+                //     var shape = try allocator.alloc(usize, node.attribute[0].ints.len);
+                //     for (node.attribute[0].ints, 0..) |dim, j| {
+                //         shape[j] = @as(usize, @intCast(dim));
+                //     }
+                //     const tensorZant: TensorZant = try TensorZant.init(
+                //         node.output[0],
+                //         null,
+                //         null,
+                //         shape,
+                //         TensorCategory.constant,
+                //     );
+                //     //add the readyTensor to the HashMap
+                //     try tensorMap.put(tensorZant.name, tensorZant);
+                // }
+                //if the tensor is null is represented by an empty string in the onnx, so It must not be initialized in the hashMap
+                if (std.mem.eql(u8, output_name, "")) continue;
+                //if the tensor already exists is means it is an onnx_initializer and it don't need to be initialized again
+                if (tensorMap.getPtr(output_name) != null) continue;
+                //create the readyTensor
+                const tensorZant: TensorZant = try TensorZant.init(
+                    output_name,
+                    null,
+                    utils.getValueInfoTensorFromGraphInfo(output_name, protoGraph),
+                    null,
+                    TensorCategory.link,
+                );
+                //add the readyTensor to the HashMap
+                try tensorMap.put(tensorZant.name, tensorZant);
+            }
         }
     }
 }

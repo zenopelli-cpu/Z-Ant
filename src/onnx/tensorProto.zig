@@ -121,6 +121,7 @@ pub const TensorProto = struct {
 
         var dims = std.ArrayList(i64).init(reader.allocator);
         defer dims.deinit();
+        var dataLen: i64 = 1; //sometimes dims: []i64 is not reported so you have to assume it from the data lenght
         var externalDataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
         defer externalDataList.deinit();
         var metaDataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
@@ -163,6 +164,7 @@ pub const TensorProto = struct {
                         const value = try reader.readFixed32();
                         try data.append(@bitCast(value));
                     }
+                    dataLen = @intCast(data.items.len);
                     tensor.float_data = try data.toOwnedSlice();
                 },
                 5 => { // int32_data
@@ -182,6 +184,7 @@ pub const TensorProto = struct {
                         const value32_truncated = @as(u32, @truncate(value64));
                         try data.append(@bitCast(value32_truncated));
                     }
+                    dataLen = @intCast(data.items.len);
                     tensor.int32_data = try data.toOwnedSlice();
                 },
                 7 => { // int64_data
@@ -197,6 +200,7 @@ pub const TensorProto = struct {
                         const value = try reader.readVarint();
                         try data.append(@bitCast(value));
                     }
+                    dataLen = @intCast(data.items.len);
                     tensor.int64_data = try data.toOwnedSlice();
                 },
                 10 => { // double_data
@@ -213,6 +217,7 @@ pub const TensorProto = struct {
                         const value = try reader.readFixed64();
                         try data.append(@bitCast(value));
                     }
+                    dataLen = @intCast(data.items.len);
                     tensor.double_data = try data.toOwnedSlice();
                 },
                 11 => { // uint64_data
@@ -228,6 +233,7 @@ pub const TensorProto = struct {
                         const value = try reader.readVarint();
                         try data.append(value);
                     }
+                    dataLen = @intCast(data.items.len);
                     tensor.uint64_data = try data.toOwnedSlice();
                 },
                 12 => {
@@ -259,6 +265,8 @@ pub const TensorProto = struct {
         //from Raw data to Data Type
         if (tensor.raw_data) |_| try tensor.fromRawDataToDataType(reader.allocator);
 
+        //check on the dims
+        if (dims.items.len == 0) try dims.append(dataLen);
         tensor.dims = try dims.toOwnedSlice();
         tensor.external_data = try externalDataList.toOwnedSlice();
         tensor.metadata_props = try metaDataList.toOwnedSlice();
