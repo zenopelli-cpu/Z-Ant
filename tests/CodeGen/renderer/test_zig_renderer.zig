@@ -16,7 +16,9 @@ const UOpBuilder = zant.uops.UOpBuilder;
 const DType = zant.uops.DType;
 const DTypeValue = zant.uops.DTypeValue;
 const lowerNeg = zant.core.tensor.math_standard.lowerNeg;
+const lowerReshape = zant.core.tensor.math_standard.lowerReshape;
 const lowerClip = zant.core.tensor.math_standard.lowerClip;
+
 // /* REMOVED OLD TESTS
 // test "Arithmetic operations" { ... }
 // ... etc ...
@@ -734,12 +736,14 @@ test "Test Generated LowerNeg Kernel" {
     std.debug.print("Generated LowerNeg kernel test passed!\n", .{});
 }
 
+
 test "LowerClip Pipeline with f32" {
     std.debug.print("Running zig renderer lowerClip pipeline test with f32\n", .{});
     const allocator = std.testing.allocator;
 
     // 1. Setup UOpBuilder
     var builder = UOpBuilder.init(allocator);
+
 
     // 2. Define inputs for lowerClip
     const A_id: usize = 0; // Simulated input tensor ID
@@ -769,6 +773,7 @@ test "LowerClip Pipeline with f32" {
     defer allocator.free(uops_list);
 
     // DEBUG: Print the generated UOps
+
     std.debug.print("--- Generated UOps (Neg) ---\n", .{});
     for (uops_list) |uop| {
         uop.dump(std.io.getStdErr().writer()) catch {};
@@ -777,11 +782,13 @@ test "LowerClip Pipeline with f32" {
 
     // Defer to free duplicated src slices and view_meta args
     defer {
+
         std.debug.print("DEBUG: Freeing internal src/args for {d} uops in Clip test\n", .{uops_list.len});
         for (uops_list) |uop| {
             if (uop.src.len > 0) {
                 allocator.free(@constCast(uop.src));
             }
+
             if (uop.arg) |arg_val| {
                 if (uop.op == .VIEW) {
                     switch (arg_val) {
@@ -802,6 +809,8 @@ test "LowerClip Pipeline with f32" {
     const Writer = @TypeOf(buffer.writer());
     var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
     defer renderer.deinit();
+
+
 
     const input_ids = &[_]usize{A_id};
     try renderer.render_as_function(uops_list, input_ids);
@@ -973,4 +982,67 @@ test "Test Generated LowerClip Kernel with u16" {
     try std.testing.expectEqualSlices(u16, expected_result, result_slice);
 
     std.debug.print("Generated LowerClip kernel test passed!\n", .{});
+}
+
+
+
+test "LowerShape Pipeline" {
+    const allocator = std.testing.allocator;
+
+    // 1. Setup UOpBuilder
+    var builder = UOpBuilder.init(allocator);
+    const A_id: usize = 0; // Simula
+    const out_dtype = DType.f32;
+    const out_shape = &.{ 2, 3 }; // Shape of input tensor
+
+    const out_buf_id = lowerReshape(
+        &builder,
+        A_id,
+        out_shape,
+        out_dtype,
+    );
+
+    _ = out_buf_id; // Prevent unused warning
+
+    // Take ownership of UOps
+    const uops_list = try builder.toOwnedSlice();
+    builder.deinit();
+    defer allocator.free(uops_list);
+
+    // DEBUG: Print the generated UOps
+    std.debug.print("--- Generated UOps (Reshape) ---\n", .{});
+    for (uops_list) |uop| {
+        uop.dump(std.io.getStdErr().writer()) catch {};
+    }
+    std.debug.print("--------------------------\n", .{});
+
+    // Defer to free duplicated src slices and view_meta args
+    defer {
+        std.debug.print("DEBUG: Freeing internal src/args for {d} uops in Reshape test\n", .{uops_list.len});
+        for (uops_list) |uop| {
+            if (uop.src.len > 0) {
+                allocator.free(@constCast(uop.src));
+            }
+        }
+    }
+
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+    const Writer = @TypeOf(buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    defer renderer.deinit();
+
+    var ptr_map = std.AutoHashMap(usize, []const u8).init(allocator);
+    defer ptr_map.deinit();
+
+    try renderer.render_uop(uops_list[0], &ptr_map);
+
+    var it = renderer.view_map.iterator();
+    while (it.next()) |entry| {
+        const key = entry.key_ptr.*;
+        const view_info = entry.value_ptr.*;
+        try std.testing.expect(key == 0);
+        try std.testing.expectEqualSlices(isize, view_info.arg.view_meta.strides, &.{ 3, 1 });
+        allocator.free(view_info.arg.view_meta.strides);
+    }
 }

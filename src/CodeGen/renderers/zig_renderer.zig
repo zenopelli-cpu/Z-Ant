@@ -12,6 +12,7 @@ const UnaryRender = @import("unary_render.zig");
 const GepRender = @import("gep_render.zig");
 const ControlFlowRender = @import("controlflow_render.zig");
 const ViewManagerModule = @import("view_manager.zig");
+const ReshapeManager = @import("reshape_manager.zig");
 const ViewInfo = ViewManagerModule.ViewInfo;
 
 const Uops = zant.uops;
@@ -388,7 +389,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
         }
 
         // NEW: Helper function to render a single UOp
-        fn render_uop(self: *Self, uop: UOp, ptr_map: *std.AutoHashMap(usize, []const u8)) !void {
+        pub fn render_uop(self: *Self, uop: UOp, ptr_map: *std.AutoHashMap(usize, []const u8)) !void {
             // Apply indentation based on loop depth
             // --- Indentation applied BEFORE specific op rendering, EXCEPT for ENDRANGE/ENDIF ---
             if (uop.op != .ENDRANGE and uop.op != .ENDIF) {
@@ -416,6 +417,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                 .EXP2, .NEG, .CAST, .CLIP => try UnaryRender.render(self.allocator, self.writer, uop, ptr_map),
 
                 .VIEW => try self.render_view(uop, ptr_map),
+                .RESHAPE => try ReshapeManager.manage(self.allocator, self.writer, uop, &self.view_map, &self.buffer_map, ptr_map),
                 .DEFINE_ACC => try self.render_define_acc(uop, ptr_map),
                 .MULACC => try self.render_mulacc(uop, ptr_map),
 
