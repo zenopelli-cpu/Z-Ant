@@ -11,6 +11,8 @@ const TensorProto = onnx.TensorProto;
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+const utils = @import("../../../CodeGen/utils.zig");
 
 //https://onnx.ai/onnx/operators/onnx__Softmax.html
 // INPUTS:
@@ -44,5 +46,35 @@ pub const Softmax = struct {
 
     pub fn print(self: Softmax) void {
         std.debug.print("\n Softmax: {any}", .{self});
+    }
+
+    pub fn write_op(self: Softmax, writer: std.fs.File.Writer) !void {
+        var tensor_input_string: []u8 = undefined;
+        defer allocator.free(tensor_input_string);
+
+        if (self.input_X.tc == TensorCategory.initializer) {
+            tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+                ")",
+            });
+        } else {
+            tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "&tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+            });
+        }
+
+        _ = try writer.print(
+            \\    tensMath.softmax_tensor_lean(
+            \\        T,
+            \\        {s}, // input tensor
+            \\        &tensor_{s} // output tensor
+            \\    );
+            \\
+        , .{
+            tensor_input_string,
+            try utils.getSanitizedName(self.output_Y.name),
+        });
     }
 };
