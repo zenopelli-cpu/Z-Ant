@@ -1,8 +1,15 @@
 const std = @import("std");
 const test_options = @import("test_options");
 const test_name = test_options.test_name;
+    _ = @import("Core/Tensor/TensorMath/test_op_convolution.zig");
+    _ = @import("Core/test_core.zig");
+    _ = @import("Utils/test_utils.zig");
+    _ = @import("ImageToTensor/jpeg/test_jpeg_decoder.zig");
+    _ = @import("ImageToTensor/test_utils.zig");
 
 comptime {
+
+
     // if (test_name.len == 0 or std.mem.eql(u8, test_name, "modelSlimTemplate")) {
     //     _ = @import("CodeGen/test_model.slim.template.zig");
     // }
@@ -51,4 +58,5 @@ comptime {
     if (test_name.len == 0 or std.mem.eql(u8, test_name, "utils")) {
         _ = @import("Utils/test_utils.zig");
     }
+
 }
