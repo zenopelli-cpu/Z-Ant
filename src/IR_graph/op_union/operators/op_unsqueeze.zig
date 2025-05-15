@@ -12,6 +12,7 @@ const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 const tensorMath = zant.core.tensor.math_standard;
 const utils = @import("../../../CodeGen/utils.zig");
+const TensorCategory = tensorZant.TensorCategory;
 
 //https://onnx.ai/onnx/operators/onnx__Unsqueeze.html
 // INPUTS:
@@ -35,10 +36,12 @@ pub const Unsqueeze = struct {
             .output_Y = output_Y,
         };
     }
-    pub fn get_output_shape(self: Unsqueeze) []usize { //TODO
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input_X.shape;
-        return res;
+    pub fn get_output_shape(self: Unsqueeze) []usize {
+        return self.output_Y.getShape();
+    }
+
+    pub fn get_output_tensor(self: Unsqueeze) *TensorZant {
+        return self.output_Y;
     }
 
     pub fn compute_output_shape(self: Unsqueeze) []usize {
@@ -53,5 +56,55 @@ pub const Unsqueeze = struct {
 
     pub fn print(self: Unsqueeze) void {
         std.debug.print("\n Unsqueeze: {any}", .{self});
+    }
+
+    pub fn write_op(self: Unsqueeze, writer: std.fs.File.Writer) !void {
+        // Input tensor string
+        var tensor_X_string: []u8 = undefined;
+        defer allocator.free(tensor_X_string);
+
+        if (self.input_X.tc == TensorCategory.initializer) {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+                ")",
+            });
+        } else {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "&tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+            });
+        }
+
+        // Axes tensor string
+        var axes_string: []u8 = undefined;
+        defer allocator.free(axes_string);
+
+        if (self.input_axes.tc == TensorCategory.initializer) {
+            axes_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_axes.name),
+                ")",
+            });
+        } else {
+            axes_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "&tensor_",
+                try utils.getSanitizedName(self.input_axes.name),
+            });
+        }
+
+        // Print the unsqueeze operation
+        _ = try writer.print(
+            \\    tensMath.unsqueeze_lean(
+            \\        T,
+            \\        {s}, // Input tensor
+            \\        {s}, // Axes tensor
+            \\        &tensor_{s} // Output tensor
+            \\    );
+        , .{
+            tensor_X_string,
+            axes_string,
+            try utils.getSanitizedName(self.output_Y.name),
+        });
     }
 };

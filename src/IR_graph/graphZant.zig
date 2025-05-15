@@ -38,7 +38,7 @@ pub const GraphZant = struct {
 
         // create all the nodes
         for (self.graphProto.nodes) |nodeProto| {
-            // Alloca il nodo sull'heap
+            // allocate memory for the node
             const node = try allocator.create(NodeZant);
             node.* = try NodeZant.init(nodeProto);
             try self.nodes.append(node);

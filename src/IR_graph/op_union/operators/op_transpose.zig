@@ -14,6 +14,7 @@ const TensorProto = onnx.TensorProto;
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
 
 //https://onnx.ai/onnx/operators/onnx__Transpose.html
 // INPUTS:
@@ -48,10 +49,13 @@ pub const Transpose = struct {
             .perm = perm,
         };
     }
-    pub fn get_output_shape(self: Transpose) []usize { //TODO
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input_X.shape;
-        return res;
+
+    pub fn get_output_shape(self: Transpose) []usize {
+        return self.output_Y.getShape();
+    }
+
+    pub fn get_output_tensor(self: Transpose) *TensorZant {
+        return self.output_Y;
     }
 
     pub fn compute_output_shape(self: Transpose) []usize {
@@ -66,5 +70,42 @@ pub const Transpose = struct {
 
     pub fn print(self: Transpose) void {
         std.debug.print("\n Transpose: {any}", .{self});
+    }
+
+    pub fn write_op(self: Transpose, writer: std.fs.File.Writer) !void {
+        // --- Input tensor string
+        var tensor_X_string: []u8 = undefined;
+        defer allocator.free(tensor_X_string);
+
+        if (self.input_X.tc == TensorCategory.initializer) {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+                ")",
+            });
+        } else {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "&tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+            });
+        }
+
+        // --- Perm string
+        var perm_string: []const u8 = undefined;
+        perm_string = try utils.i64SliceToUsizeArrayString(self.perm);
+
+        // --- Write transpose op
+        _ = try writer.print(
+            \\    tensMath.transpose_lean(
+            \\        T,
+            \\        {s}, // input tensor
+            \\        {s}, // perm array
+            \\        &tensor_{s} // output tensor
+            \\    );
+        , .{
+            tensor_X_string,
+            perm_string,
+            try utils.getSanitizedName(self.output_Y.name),
+        });
     }
 };

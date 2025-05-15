@@ -11,6 +11,8 @@ const TensorProto = onnx.TensorProto;
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+const utils = @import("../../../CodeGen/utils.zig");
 
 //https://onnx.ai/onnx/operators/onnx__Tanh.html
 // INPUTS:
@@ -35,6 +37,10 @@ pub const Tanh = struct {
         return self.output_Y.shape;
     }
 
+    pub fn get_output_tensor(self: Tanh) *TensorZant {
+        return self.output_Y;
+    }
+
     pub fn print(self: Tanh) void {
         std.debug.print("\n Tanh: {any}", .{self});
     }
@@ -44,5 +50,36 @@ pub const Tanh = struct {
         const input_shape = self.input_X.shape;
         output_shape = try tensorMath.get_tanh_output_shape(input_shape);
         return output_shape;
+    }
+
+    pub fn write_op(self: Tanh, writer: std.fs.File.Writer) !void {
+        // --- Input tensor string
+        var tensor_X_string: []u8 = undefined;
+        defer allocator.free(tensor_X_string);
+
+        if (self.input_X.tc == TensorCategory.initializer) {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+                ")",
+            });
+        } else {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "&tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+            });
+        }
+
+        // --- Write the Tanh op
+        _ = try writer.print(
+            \\    tensMath.tanh_lean(
+            \\        T,
+            \\        {s}, // input tensor
+            \\        &tensor_{s} // output tensor
+            \\    );
+        , .{
+            tensor_X_string,
+            try utils.getSanitizedName(self.output_Y.name),
+        });
     }
 };
