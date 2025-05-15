@@ -10,6 +10,7 @@ const TensorError = error_handler.TensorError;
 const Uops = zant.uops;
 const UOpBuilder = Uops.UOpBuilder;
 const DType = Uops.DType;
+const DTypeValue = Uops.DTypeValue;
 const Any = Uops.Any;
 
 /// Returns the shape of the output tensor for the clip operation.
@@ -142,13 +143,16 @@ pub fn lowerClip(
     b: *UOpBuilder,
     A_id: usize, // input-tensor SSA ids
     out_shape: []const usize,
+    strideA: []const isize,
     out_dtype: DType, // promoted element type
+    min: DTypeValue,
+    max: DTypeValue,
 ) usize { // returns id of result buffer
 
     // ── Set-up phase ────────────────────────────────────────────────────
     _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
 
-    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = 1 } });
+    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideA } });
 
     const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 
@@ -162,7 +166,7 @@ pub fn lowerClip(
 
     const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
 
-    const id_tanh = b.push(.CLIP, out_dtype, &.{id_loadA}, null);
+    const id_tanh = b.push(.CLIP, out_dtype, &.{id_loadA}, Any{ .clip_bounds = .{ .type = out_dtype, .min = min, .max = max }});
 
     const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
 

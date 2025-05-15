@@ -116,17 +116,41 @@ pub const Any = union(enum) {
     },
 
     cast_meta: struct {
-        to: DType, // target scalar type
+        to: DType, // target scalar tSype
         saturate: bool, // obey float-8 saturation tables (opset-23 attr)
     },
 
+    clip_bounds: struct {
+        type: DType,
+        min: DTypeValue,
+        max: DTypeValue,
+    }
+
     // 👉  add more variants when a new op requires metadata
+};
+
+pub const DTypeValue = union(DType) {
+    f32: f32, 
+    i32: i32, 
+    i8: i8,  
+    bool: bool,
+    u16: u16,
+
+    pub fn getDType(self: DTypeValue) DType {
+        return switch(self){
+            DTypeValue.f32 => DType.f32,
+            DTypeValue.i32 => DType.i32,
+            DTypeValue.i8 => DType.i8,
+            DTypeValue.bool => DType.bool,
+            DTypeValue.u16 => DType.u16,
+        };
+    }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. DType – minimalist scalar element types
 // ─────────────────────────────────────────────────────────────────────────────
-pub const DType = enum { f32, i32, i8, bool, u16 };
+pub const DType = enum { f32, i32, i8, bool, u16};
 
 pub const DTypeInfo = struct {
     pub fn asString(dtype: DType) []const u8 {
