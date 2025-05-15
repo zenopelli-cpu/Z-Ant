@@ -135,8 +135,10 @@ pub const TensorZant = struct {
     pub fn computeStride(shape: []usize) ![]usize {
         const num_dims = shape.len;
         var strides = try allocator.alloc(usize, num_dims);
-        strides[num_dims - 1] = 1;
+
         var i: usize = num_dims - 1;
+        if (i >= 0) strides[i] = 1 else return strides;
+
         while (i > 0) {
             strides[i - 1] = strides[i] * shape[i];
             i -= 1;
