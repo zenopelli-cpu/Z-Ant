@@ -1,6 +1,7 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("../../../zant.zig");
+const tensorMath = zant.core.tensor.math_standard;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -12,7 +13,8 @@ const TensorProto = onnx.TensorProto;
 // --- zant ---
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
-const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+
 const utils = @import("../../../CodeGen/utils.zig");
 
 //https://onnx.ai/onnx/operators/onnx__MaxPool.html
@@ -88,9 +90,85 @@ pub const MaxPool = struct {
     }
 
     pub fn get_output_shape(self: MaxPool) []usize { // TODO
-        const res: []usize = [_]usize{ 0, 0, 1, 1 };
-        res[0] += self.input_X;
-        return res;
+        return self.output_Y.getShape();
+    }
+
+    pub fn get_output_tensor(self: MaxPool) *TensorZant {
+        return self.output_Y;
+    }
+
+    pub fn write_op(self: MaxPool, writer: *std.fs.File.Writer) !void {
+        //input_X string equivalent
+        var tensor_X_string: []u8 = undefined;
+        defer allocator.free(tensor_X_string);
+
+        if (self.input_A.tc == TensorCategory.initializer) {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+                ")",
+            });
+        } else {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "&tensor_",
+                try utils.getSanitizedName(self.input_X.name),
+            });
+        }
+
+        // kernel_shape string equivalent
+        var kernel_shape_string: []const u8 = undefined;
+        if (self.kernel_shape != null) {
+            kernel_shape_string = try utils.i64SliceToUsizeArrayString(self.kernel_shape.?);
+        } else {
+            return error.Kernel_shapeNotFound;
+        }
+
+        // strides string equivalent
+        var strides_string: []const u8 = undefined;
+        if (self.strides != null) {
+            strides_string = try utils.i64SliceToUsizeArrayString(self.strides.?);
+        } else {
+            return error.StridesNotFound;
+        }
+
+        // dilations string equivalent
+        var dilations_string: []const u8 = undefined;
+        if (self.dilations != null) {
+            dilations_string = try utils.i64SliceToUsizeArrayString(self.dilations.?);
+        } else {
+            dilations_string = try utils.i64SliceToUsizeArrayString(&[_]i64{ 1, 1, 1, 1 }); // TODO: Hardcoded in 4D, not the most elegant solution
+        }
+
+        // pads string equivalent
+        var pads_string: []const u8 = undefined;
+        if (self.pads != null) {
+            pads_string = try utils.i64SliceToUsizeArrayString(self.pads.?);
+        } else {
+            return error.PadsNotFound;
+        }
+
+        _ = try writer.print(
+            \\
+            \\
+            \\    tensMath.onnx_maxpool_lean(
+            \\        T,
+            \\        {s}, //Input
+            \\        &tensor_{s}, //Output
+            \\        {s}, //kernel_shape
+            \\        {s}, //strides
+            \\        {s}, //dilations
+            \\        {s}, //pads
+            \\        tensMath.AutoPadType.{s}, //auto_pad
+            \\    )
+        , .{
+            tensor_X_string, //Input
+            try utils.getSanitizedName(self.output_Y.name), //Output
+            kernel_shape_string, //kernel_shape
+            strides_string, //strides
+            dilations_string, //dilatations
+            pads_string, //pads
+            self.auto_pad, //auto_pad
+        });
     }
 
     pub fn compute_output_shape(self: MaxPool) []usize {
