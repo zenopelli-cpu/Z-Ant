@@ -11,6 +11,8 @@ const TensorProto = onnx.TensorProto;
 const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 const tensorMath = zant.core.tensor.math_standard;
+const TensorCategory = tensorZant.TensorCategory;
+const utils = @import("../../../CodeGen/utils.zig");
 
 //https://onnx.ai/onnx/operators/onnx__Split.html
 // INPUTS:
@@ -53,9 +55,72 @@ pub const Split = struct {
         return self.output_Y.shape;
     }
 
+    pub fn get_output_tensor(self: Split) *TensorZant {
+        return self.output_Y;
+    }
+
     pub fn compute_output_shape() ![]usize {} // TODO
 
     pub fn print(self: Split) void {
         std.debug.print("\n Split: {any}", .{self});
+    }
+
+    pub fn write_op(self: Split, writer: std.fs.File.Writer) !void {
+        // --- Crea stringa per input
+        var tensor_input_string: []u8 = undefined;
+        defer allocator.free(tensor_input_string);
+
+        if (self.input.tc == TensorCategory.initializer) {
+            tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input.name),
+                ")",
+            });
+        } else {
+            tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "&tensor_",
+                try utils.getSanitizedName(self.input.name),
+            });
+        }
+
+        // --- Crea stringa per split (se presente)
+        var tensor_split_string: []u8 = undefined;
+        defer allocator.free(tensor_split_string);
+
+        if (self.split != null) {
+            if (self.split.?.tc == TensorCategory.initializer) {
+                tensor_split_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "@constCast(&param_lib.tensor_",
+                    try utils.getSanitizedName(self.split.?.name),
+                    ")",
+                });
+            } else {
+                tensor_split_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "&tensor_",
+                    try utils.getSanitizedName(self.split.?.name),
+                });
+            }
+        }
+
+        // --- Scrivi chiamata a tensMath.split_tensors_lean
+        _ = try writer.print(
+            \\    tensMath.split_tensors_lean(
+            \\        T,
+            \\        {s}, // input tensor
+            \\        {s}, // split tensor
+            \\        &tensor_{s}, // output Y
+            \\        {d}, // axis
+            \\        {d}, // num_outputs (da determinare se presente in modo dinamico)
+            \\    );
+        , .{
+            tensor_input_string,
+            tensor_split_string,
+            try utils.getSanitizedName(self.output_Y.name),
+            self.axis,
+                // Se num_outputs è determinabile, passalo, altrimenti utilizza un valore di default
+                // Per ora supponiamo che self.output_Y abbia più tensori di output
+                // Aggiungere logica per num_outputs se applicabile
+            "num_outputs_value_here", // Placeholder, puoi modificare secondo la logica interna
+        });
     }
 };
