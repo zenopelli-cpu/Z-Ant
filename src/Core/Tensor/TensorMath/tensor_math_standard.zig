@@ -36,6 +36,7 @@ const op_clip = @import("lib_elementWise_math/op_clip.zig");
 
 pub const clip = op_clip.clip;
 pub const clip_lean = op_clip.lean_clip;
+pub const lowerClip = op_clip.lowerClip;
 
 //--unsqueeze
 const op_unsqueeze = @import("lib_shape_math/op_unsqueeze.zig");

@@ -414,7 +414,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
 
                 .ADD, .SUB, .MUL, .FDIV, .MAX, .MIN, .CMPLT => try ArithmeticRender.render(self.allocator, self.writer, uop, ptr_map),
 
-                .EXP2, .NEG, .CAST => try UnaryRender.render(self.allocator, self.writer, uop, ptr_map),
+                .EXP2, .NEG, .CAST, .CLIP => try UnaryRender.render(self.allocator, self.writer, uop, ptr_map),
 
                 .VIEW => try self.render_view(uop, ptr_map),
                 .RESHAPE => try ReshapeManager.manage(self.allocator, self.writer, uop, &self.view_map, &self.buffer_map, ptr_map),
