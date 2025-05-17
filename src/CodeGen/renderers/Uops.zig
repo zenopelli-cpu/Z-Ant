@@ -81,6 +81,11 @@ pub const UOpType = enum {
 
 };
 
+pub const GEPInfo = struct {
+    base: usize, // base UOp ID
+    offset: usize, // offset from base
+    stride: usize, // stride for the GEP operation
+};
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Any – single-slot, type-safe payload attached to `UOp.arg`
 // ─────────────────────────────────────────────────────────────────────────────
@@ -110,10 +115,12 @@ pub const Any = union(enum) {
 
     // ── 2 · 4  Addressing info ──────────────────────────────────────────
     mem_info: struct { // • used by GEP
-        base: usize,
-        offset: usize,
-        stride: usize,
+        base: usize, // base UOp ID
+        offset: usize, // offset from base
+        stride: usize, // stride for the GEP operation
     },
+
+    mem_info_gep_info: GEPInfo,
 
     // ── 2 · 5  NEW ──────────────────────────────────────
     /// Carries **both** the logical shape and the per-dimensional strides

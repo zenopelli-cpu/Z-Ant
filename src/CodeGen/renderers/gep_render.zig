@@ -144,6 +144,26 @@ pub fn render(
 ) !void {
     if (uop.op != .GEP) return RendererError.InvalidOp;
 
+    if (uop.arg) |payload| {
+        switch (payload) {
+            .mem_info_gep_info => {
+                const mem_info = payload.mem_info_gep_info;
+
+                const base_var_name = try getBaseVariableNameForPtrAccess(alloc, mem_info.base, buffer_map);
+                defer alloc.free(base_var_name);
+                const gep_result_name = ptr_map.get(uop.id) orelse return RendererError.VarMissing;
+                const dtype_name = DTypeInfo.asString(uop.dtype);
+
+                try writer.print(
+                    "    const {s} = @intFromPtr({s}.ptr) + ({d}) * @sizeOf({s}); // GEP id={d}\n",
+                    .{ gep_result_name, base_var_name, mem_info.offset * mem_info.stride, dtype_name, uop.id },
+                );
+                return;
+            },
+            else => {},
+        }
+    }
+
     var arena = std.heap.ArenaAllocator.init(alloc);
     defer arena.deinit();
     const temp_alloc = arena.allocator();

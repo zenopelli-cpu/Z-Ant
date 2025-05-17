@@ -27,14 +27,15 @@ pub fn render(
 
     switch (uop.op) {
         .RANGE => {
-            const start = uop.arg.?.loop_bounds.start;
-            const end = uop.arg.?.loop_bounds.end;
             switch (uop.arg.?) {
                 .loop_bounds => {
+                    const start = uop.arg.?.loop_bounds.start;
+                    const end = uop.arg.?.loop_bounds.end;
                     const index_name = ptr_map.get(uop.id) orelse return error.VariableNotFound;
                     try writer.print("var {s}: {s} = {d}; // RANGE (uop {d})\nwhile ({s} < {d}) : ({s} += 1) {{\n", .{ index_name, DTypeInfo.asString(uop.dtype), start, uop.id, index_name, end, index_name });
                 },
                 .loop_bounds_view => {
+                    const start = uop.arg.?.loop_bounds_view.start;
                     const view_id = uop.arg.?.loop_bounds_view.view_id;
                     const view = view_map.get(view_id) orelse return error.VariableNotFound;
                     const strides_len = view.arg.view_meta.strides.len;
