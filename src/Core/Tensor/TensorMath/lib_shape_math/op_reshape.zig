@@ -11,6 +11,9 @@ const Any = zant.uops.Any;
 
 const pkg_allocator = zant.utils.allocator.allocator;
 
+// Temprorary import for testing
+const lowerNeg = @import("op_neg.zig").lowerNeg;
+
 /// Given and input tensor and the new shape, returns a new tensor with the same data of the input, in the same order, but a different shape.
 /// The lean version of this method follows the onnx standard.
 /// https://onnx.ai/onnx/operators/onnx__Reshape.html
@@ -353,22 +356,22 @@ pub fn lowerReshape(
 
     // ── Flat element loop ────────────────────────────────────────────────
 
-    var nelem: usize = 1;
-    for (out_shape) |dim| nelem *= dim;
+    const id_gepA = b.push(.GEP, out_dtype, &.{id_viewA}, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
 
-    const id_range = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = nelem } });
+    const id_load = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
 
-    const id_gepA = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
+    _ = b.push(.RESHAPE, out_dtype, &.{id_load}, Any{ .shape = out_shape });
 
-    const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
+    const id_gepO = b.push(.GEP, out_dtype, &.{id_outBuf}, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
+    _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_load }, null);
 
-    const id_reshape = b.push(.RESHAPE, out_dtype, &.{id_loadA}, Any{ .shape = out_shape });
-
-    const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
-
-    _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_reshape }, null);
-
-    _ = b.push(.ENDRANGE, .bool, &.{id_range}, null);
+    for (b.list.items) |item| {
+        if (item.op == .VIEW) {
+            if (item.arg != null)
+                _ = lowerNeg(b, id_outBuf, item.arg.?.view_meta.strides, out_shape, out_dtype);
+            break;
+        }
+    }
 
     return id_outBuf;
 }

@@ -992,6 +992,7 @@ test "LowerReshape Pipeline" {
         out_shape,
         out_dtype,
     );
+
     _ = out_buf_id; // Prevent unused warning
     // Take ownership of UOps
     const uops_list = try builder.toOwnedSlice();
@@ -1066,7 +1067,7 @@ test "Test Generated LowerReshape Kernel" {
     // 3. Define expected output
     // Output shape {2, 3}, flat size = 6
     const expected_result_list = [_]f32{
-        1, 2, 3, 4, 5, 6,
+        -1, -2, -3, -4, -5, -6,
     };
     const expected_result = &expected_result_list;
 

@@ -16,11 +16,11 @@ pub const RendererError = error{
 /// Main entry point for rendering GEP operations
 pub fn render(
     alloc: std.mem.Allocator,
-    writer: anytype,
+    _: anytype,
     uop: UOp,
     view_map: *std.AutoHashMap(usize, ViewInfo),
     _: *const std.AutoHashMap(usize, BufferInfo),
-    ptr_map: *const std.AutoHashMap(usize, []const u8),
+    _: *const std.AutoHashMap(usize, []const u8),
 ) !void {
     if (uop.op != .RESHAPE) return RendererError.InvalidOp;
     if (uop.src.len != 1) return RendererError.InvalidOp;
@@ -62,8 +62,8 @@ pub fn render(
     try view_map.put(uop.id, out_view);
 
     // Generate the code for the reshape operation
-    const result_var = ptr_map.get(uop.id) orelse return error.VariableNotFound;
-    const src_var = ptr_map.get(uop.src[0]) orelse return error.VariableNotFound;
-    const type_str = DTypeInfo.asString(uop.dtype);
-    try writer.print(" const {s}: {s} = {s}; // Reshape (uop {d})\n", .{ result_var, type_str, src_var, uop.id });
+    // const result_var = ptr_map.get(uop.id) orelse return error.VariableNotFound;
+    // const src_var = ptr_map.get(uop.src[0]) orelse return error.VariableNotFound;
+    // const type_str = DTypeInfo.asString(uop.dtype);
+    // try writer.print(" const {s}: {s} = {s}; // Reshape (uop {d})\n", .{ result_var, type_str, src_var, uop.id });
 }

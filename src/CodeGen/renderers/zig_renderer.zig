@@ -404,14 +404,14 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                 .GEP => try GepRender.render(self.allocator, self.writer, uop, &self.view_map, &self.buffer_map, ptr_map),
 
                 .RANGE => {
-                    try ControlFlowRender.render(self.allocator, self.writer, uop, ptr_map);
+                    try ControlFlowRender.render(self.allocator, self.writer, uop, ptr_map, &self.view_map);
                     self.indent_level += 1; // <<< Use indent_level
                 },
 
                 .ENDRANGE => {
                     if (self.indent_level > 0) self.indent_level -= 1; // <<< Decrement first
                     try self.apply_indentation(); // <<< Apply indent for closing brace
-                    try ControlFlowRender.render(self.allocator, self.writer, uop, ptr_map);
+                    try ControlFlowRender.render(self.allocator, self.writer, uop, ptr_map, &self.view_map);
                 },
 
                 .ADD, .SUB, .MUL, .FDIV, .MAX, .MIN, .CMPLT => try ArithmeticRender.render(self.allocator, self.writer, uop, ptr_map),

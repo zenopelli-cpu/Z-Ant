@@ -90,7 +90,6 @@ pub fn lowerNeg(
     const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 
     // ── Flat element loop ────────────────────────────────────────────────
-
     var nelem: usize = 1;
     for (out_shape) |dim| nelem *= dim;
 

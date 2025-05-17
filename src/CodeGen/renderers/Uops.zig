@@ -100,6 +100,14 @@ pub const Any = union(enum) {
         end: usize,
     },
 
+    // ── 2 · 3 · 1 View based range ──────────────────────────────────────────────
+    loop_bounds_view: struct {
+        start: usize,
+        end: usize,
+        stride_index: usize,
+        view_id: usize,
+    },
+
     // ── 2 · 4  Addressing info ──────────────────────────────────────────
     mem_info: struct { // • used by GEP
         base: usize,
@@ -124,20 +132,20 @@ pub const Any = union(enum) {
         type: DType,
         min: DTypeValue,
         max: DTypeValue,
-    }
+    },
 
     // 👉  add more variants when a new op requires metadata
 };
 
 pub const DTypeValue = union(DType) {
-    f32: f32, 
-    i32: i32, 
-    i8: i8,  
+    f32: f32,
+    i32: i32,
+    i8: i8,
     bool: bool,
     u16: u16,
 
     pub fn getDType(self: DTypeValue) DType {
-        return switch(self){
+        return switch (self) {
             DTypeValue.f32 => DType.f32,
             DTypeValue.i32 => DType.i32,
             DTypeValue.i8 => DType.i8,
@@ -150,7 +158,7 @@ pub const DTypeValue = union(DType) {
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. DType – minimalist scalar element types
 // ─────────────────────────────────────────────────────────────────────────────
-pub const DType = enum { f32, i32, i8, bool, u16};
+pub const DType = enum { f32, i32, i8, bool, u16 };
 
 pub const DTypeInfo = struct {
     pub fn asString(dtype: DType) []const u8 {
