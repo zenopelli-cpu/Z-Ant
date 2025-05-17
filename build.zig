@@ -244,6 +244,29 @@ pub fn build(b: *std.Build) void {
     step_test_oneOp.dependOn(&run_test_all_oneOp.step);
 
     // ************************************************
+    // Write Op Test
+
+    const write_op_test = b.addExecutable(.{
+        .name = "test_write_op",
+        .root_source_file = b.path("tests/IR_graph/test_write_op.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    write_op_test.root_module.addImport("zant", zant_mod);
+    write_op_test.root_module.addImport("codegen", codeGen_mod);
+    write_op_test.root_module.addImport("IR_graph", IR_mod);
+    write_op_test.linkLibC();
+
+    const run_write_op_test = b.addRunArtifact(write_op_test);
+    if (b.args) |args| {
+        run_write_op_test.addArgs(args);
+    }
+
+    const write_op_step = b.step("run-test-write-op", "Run the write_op test on a model");
+    write_op_step.dependOn(&run_write_op_test.step);
+
+    // ************************************************
     // Benchmark
 
     const benchmark = b.addExecutable(.{
@@ -281,6 +304,25 @@ pub fn build(b: *std.Build) void {
     const run_test_onnx_parser = b.addRunArtifact(test_onnx_parser);
     const step_test_onnx_parser = b.step("onnx-parser", "Run generated library tests");
     step_test_onnx_parser.dependOn(&run_test_onnx_parser.step);
+
+    // ************************************************ WRITE OP TESTS ************************************************
+
+    // Test write_op on all oneOp models
+    const test_all_write_op = b.addTest(.{
+        .name = "test_all_write_op",
+        .root_source_file = b.path("tests/IR_graph/test_all_write_op.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    test_all_write_op.root_module.addImport("zant", zant_mod);
+    test_all_write_op.root_module.addImport("codegen", codeGen_mod);
+    test_all_write_op.root_module.addImport("IR_graph", IR_mod);
+    test_all_write_op.linkLibC();
+
+    const run_test_all_write_op = b.addRunArtifact(test_all_write_op);
+    const test_all_write_op_step = b.step("test-all-write-op", "Run write_op test on all oneOp models");
+    test_all_write_op_step.dependOn(&run_test_all_write_op.step);
 
     // Path to the generated model options file (moved here)
     const model_options_path = std.fmt.allocPrint(b.allocator, "{s}model_options.zig", .{generated_path_option}) catch |err| {
