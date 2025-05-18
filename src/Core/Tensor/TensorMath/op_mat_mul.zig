@@ -26,11 +26,11 @@ const UNROLL_FACTOR: usize = 10;
 // TODO: add support for matrix multiplication for matrix distribuited in multi-batch/multi-channel tensors (for example of shape {2, 3, 5, 5}), now supports only tensors with shape {1, 1, N, M}
 /// Performs classic matrix multiplication on given tensors using the least 2 dimensions
 pub inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T)) !Tensor(T) {
-    // std.debug.print("\nStarting matrix multiplication validation...\n", .{});
+    // std.log.debug("\nStarting matrix multiplication validation...\n", .{});
 
     // The two tensors needs to have the same dimensions N
     if (A.shape.len != B.shape.len) {
-        // std.debug.print("Error: Input tensors have different dimensions. A: {}, B: {}\n", .{ A.shape.len, B.shape.len });
+        // std.log.debug("Error: Input tensors have different dimensions. A: {}, B: {}\n", .{ A.shape.len, B.shape.len });
         return TensorMathError.InputTensorDifferentShape;
     }
 
@@ -38,13 +38,13 @@ pub inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor
 
     // The last dimension (number of cols) of A must be equal to the second last dimension (number of rows) of B
     if (A.shape[dim_num - 1] != B.shape[dim_num - 2]) {
-        // std.debug.print("Error: Incompatible matrix dimensions for multiplication. A[{}]={}, B[{}]={}\n", .{ dim_num - 1, A.shape[dim_num - 1], dim_num - 2, B.shape[dim_num - 2] });
+        // std.log.debug("Error: Incompatible matrix dimensions for multiplication. A[{}]={}, B[{}]={}\n", .{ dim_num - 1, A.shape[dim_num - 1], dim_num - 2, B.shape[dim_num - 2] });
         return TensorMathError.InputTensorsWrongShape;
     }
 
     // The input tensors must have at least 2 dimensions
     if (dim_num < 2) {
-        // std.debug.print("Error: Input tensors must have at least 2 dimensions. Got: {}\n", .{dim_num});
+        // std.log.debug("Error: Input tensors must have at least 2 dimensions. Got: {}\n", .{dim_num});
         return TensorMathError.InputTensorsWrongShape;
     }
 
@@ -56,11 +56,11 @@ pub inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor
 
     // Check if the input tensors are empty
     if (M * N == 0 or K == 0) {
-        // std.debug.print("Error: Empty input tensors. M={}, N={}, K={}\n", .{ M, N, K });
+        // std.log.debug("Error: Empty input tensors. M={}, N={}, K={}\n", .{ M, N, K });
         return TensorMathError.InputTensorsWrongShape;
     }
 
-    // std.debug.print("Validation passed, proceeding with multiplication\n", .{});
+    // std.log.debug("Validation passed, proceeding with multiplication\n", .{});
 
     // Setup output tensor shape
 
@@ -83,9 +83,9 @@ pub inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor
     var Y = try Tensor(T).fromShape(&allocator, out_shape);
     errdefer Y.deinit();
 
-    // std.debug.print("Output tensor shape: ", .{});
-    // for (Y.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\n", .{});
+    // std.log.debug("Output tensor shape: ", .{});
+    // for (Y.shape) |dim| std.log.debug("{} ", .{dim});
+    // std.log.debug("\n", .{});
 
     @memset(Y.data, 0);
 
@@ -122,14 +122,14 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
 
     // Debug prints only when needed
     if (false) {
-        std.debug.print("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
-        std.debug.print("Input tensor A shape: ", .{});
-        for (A.shape) |dim| std.debug.print("{} ", .{dim});
-        std.debug.print("\nInput tensor B shape: ", .{});
-        for (B.shape) |dim| std.debug.print("{} ", .{dim});
-        std.debug.print("\nOutput tensor Y shape: ", .{});
-        for (Y.shape) |dim| std.debug.print("{} ", .{dim});
-        std.debug.print("\n", .{});
+        std.log.debug("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
+        std.log.debug("Input tensor A shape: ", .{});
+        for (A.shape) |dim| std.log.debug("{} ", .{dim});
+        std.log.debug("\nInput tensor B shape: ", .{});
+        for (B.shape) |dim| std.log.debug("{} ", .{dim});
+        std.log.debug("\nOutput tensor Y shape: ", .{});
+        for (Y.shape) |dim| std.log.debug("{} ", .{dim});
+        std.log.debug("\n", .{});
     }
 
     // SIMD vector type
@@ -144,7 +144,7 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     // Main matrix multiplication loop with SIMD
     var i: usize = 0;
     while (i < M) : (i += 1) {
-        // if (i % 100 == 0) std.debug.print("Processing row {}/{}\n", .{ i, M });
+        // if (i % 100 == 0) std.log.debug("Processing row {}/{}\n", .{ i, M });
         const row_offset = i * K;
         const out_offset = i * N;
 
@@ -193,17 +193,17 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
         }
     }
 
-    // std.debug.print("Matrix multiplication completed\n", .{});
+    // std.log.debug("Matrix multiplication completed\n", .{});
 }
 
 const CACHE_BLOCK_SIZE_BYTES: usize = std.atomic.cache_line;
 
 pub inline fn blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T)) !Tensor(T) {
-    // std.debug.print("\nStarting matrix multiplication validation...\n", .{});
+    // std.log.debug("\nStarting matrix multiplication validation...\n", .{});
 
     // The two tensors needs to have the same dimensions N
     if (A.shape.len != B.shape.len) {
-        // std.debug.print("Error: Input tensors have different dimensions. A: {}, B: {}\n", .{ A.shape.len, B.shape.len });
+        // std.log.debug("Error: Input tensors have different dimensions. A: {}, B: {}\n", .{ A.shape.len, B.shape.len });
         return TensorMathError.InputTensorDifferentShape;
     }
 
@@ -211,13 +211,13 @@ pub inline fn blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *cons
 
     // The last dimension (number of cols) of A must be equal to the second last dimension (number of rows) of B
     if (A.shape[dim_num - 1] != B.shape[dim_num - 2]) {
-        // std.debug.print("Error: Incompatible matrix dimensions for multiplication. A[{}]={}, B[{}]={}\n", .{ dim_num - 1, A.shape[dim_num - 1], dim_num - 2, B.shape[dim_num - 2] });
+        // std.log.debug("Error: Incompatible matrix dimensions for multiplication. A[{}]={}, B[{}]={}\n", .{ dim_num - 1, A.shape[dim_num - 1], dim_num - 2, B.shape[dim_num - 2] });
         return TensorMathError.InputTensorsWrongShape;
     }
 
     // The input tensors must have at least 2 dimensions
     if (dim_num < 2) {
-        // std.debug.print("Error: Input tensors must have at least 2 dimensions. Got: {}\n", .{dim_num});
+        // std.log.debug("Error: Input tensors must have at least 2 dimensions. Got: {}\n", .{dim_num});
         return TensorMathError.InputTensorsWrongShape;
     }
 
@@ -229,11 +229,11 @@ pub inline fn blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *cons
 
     // Check if the input tensors are empty
     if (M * N == 0 or K == 0) {
-        // std.debug.print("Error: Empty input tensors. M={}, N={}, K={}\n", .{ M, N, K });
+        // std.log.debug("Error: Empty input tensors. M={}, N={}, K={}\n", .{ M, N, K });
         return TensorMathError.InputTensorsWrongShape;
     }
 
-    // std.debug.print("Validation passed, proceeding with multiplication\n", .{});
+    // std.log.debug("Validation passed, proceeding with multiplication\n", .{});
 
     // Setup output tensor shape
 
@@ -256,9 +256,9 @@ pub inline fn blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *cons
     var Y = try Tensor(T).fromShape(&allocator, out_shape);
     errdefer Y.deinit();
 
-    // std.debug.print("Output tensor shape: ", .{});
-    // for (Y.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\n", .{});
+    // std.log.debug("Output tensor shape: ", .{});
+    // for (Y.shape) |dim| std.log.debug("{} ", .{dim});
+    // std.log.debug("\n", .{});
 
     @memset(Y.data, 0);
 
@@ -486,7 +486,7 @@ fn multidim_multiplication(comptime inputType: anytype, comptime outputType: any
     } else {
         for (0..t1.shape[current_depth]) |element_at_current_depth| {
             //print location:
-            //std.debug.print("\n depth: {} element_at_current_depth: {}", .{ current_depth, element_at_current_depth });
+            //std.log.debug("\n depth: {} element_at_current_depth: {}", .{ current_depth, element_at_current_depth });
             location[current_depth] = element_at_current_depth;
             //otherwise I have to go deeper
             try multidim_multiplication(
@@ -544,19 +544,19 @@ pub fn benchmark_dot_product() !void {
     const recursive_time = timer3.lap();
 
     // Print results
-    std.debug.print("\nBenchmark Results:\n", .{});
-    std.debug.print("SIMD version: {d:.2} ms\n", .{@as(f64, @floatFromInt(simd_time)) / 1_000_000.0});
-    std.debug.print("Flat version: {d:.2} ms\n", .{@as(f64, @floatFromInt(flat_time)) / 1_000_000.0});
-    std.debug.print("Recursive version: {d:.2} ms\n", .{@as(f64, @floatFromInt(recursive_time)) / 1_000_000.0});
-    std.debug.print("\nSpeedups:\n", .{});
-    std.debug.print("SIMD vs Recursive: {d:.2}x\n", .{@as(f64, @floatFromInt(recursive_time)) / @as(f64, @floatFromInt(simd_time))});
-    std.debug.print("Flat vs Recursive: {d:.2}x\n", .{@as(f64, @floatFromInt(recursive_time)) / @as(f64, @floatFromInt(flat_time))});
-    std.debug.print("SIMD vs Flat: {d:.2}x\n", .{@as(f64, @floatFromInt(flat_time)) / @as(f64, @floatFromInt(simd_time))});
+    std.log.debug("\nBenchmark Results:\n", .{});
+    std.log.debug("SIMD version: {d:.2} ms\n", .{@as(f64, @floatFromInt(simd_time)) / 1_000_000.0});
+    std.log.debug("Flat version: {d:.2} ms\n", .{@as(f64, @floatFromInt(flat_time)) / 1_000_000.0});
+    std.log.debug("Recursive version: {d:.2} ms\n", .{@as(f64, @floatFromInt(recursive_time)) / 1_000_000.0});
+    std.log.debug("\nSpeedups:\n", .{});
+    std.log.debug("SIMD vs Recursive: {d:.2}x\n", .{@as(f64, @floatFromInt(recursive_time)) / @as(f64, @floatFromInt(simd_time))});
+    std.log.debug("Flat vs Recursive: {d:.2}x\n", .{@as(f64, @floatFromInt(recursive_time)) / @as(f64, @floatFromInt(flat_time))});
+    std.log.debug("SIMD vs Flat: {d:.2}x\n", .{@as(f64, @floatFromInt(flat_time)) / @as(f64, @floatFromInt(simd_time))});
 
     // Verify results are the same
     for (result1.data, result2.data, result3.data) |v1, v2, v3| {
         if (@abs(v1 - v2) > 0.001 or @abs(v1 - v3) > 0.001) {
-            std.debug.print("Warning: Results differ!\n", .{});
+            std.log.warn("Warning: Results differ!\n", .{});
             break;
         }
     }

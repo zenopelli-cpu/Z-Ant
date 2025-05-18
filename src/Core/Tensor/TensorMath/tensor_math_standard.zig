@@ -15,6 +15,14 @@ pub const reshape_lean_f32 = op_reshape.reshape_lean_f32;
 pub const reshape_lean_common = op_reshape.reshape_lean_common;
 pub const get_reshape_output_shape = op_reshape.get_reshape_output_shape;
 pub const lowerReshape = op_reshape.lowerReshape;
+
+//---flatten
+const op_flatten = @import("lib_shape_math/op_flatten.zig");
+
+pub const flatten = op_flatten.flatten;
+pub const flatten_lean = op_flatten.flatten_lean;
+pub const get_flatten_output_shape = op_flatten.get_flatten_output_shape;
+
 //---gather
 
 const op_gather = @import("lib_shape_math/op_gather.zig");
@@ -95,6 +103,13 @@ pub const blocked_mat_mul_lean = op_mat_mul.lean_blocked_mat_mul;
 pub const get_mat_mul_output_shape = op_mat_mul.get_mat_mul_output_shape;
 
 pub const dot_product_tensor_flat = op_mat_mul.dot_product_tensor_flat;
+
+//----------- importing standard elu method -----------
+const op_elu = @import("op_elu.zig");
+
+pub const elu = op_elu.elu;
+pub const elu_lean = op_elu.elu_lean;
+pub const get_elu_output_shape = op_elu.get_elu_output_shape;
 
 // ---------- importing standard gemm method ----------
 const op_gemm = @import("op_gemm.zig");

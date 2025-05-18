@@ -83,7 +83,7 @@ fn calculate_broadcasted_shape(alloc: *const std.mem.Allocator, shape1_in: []con
         if (shape1_padded[dim] != shape2_padded[dim] and shape1_padded[dim] != 1 and shape2_padded[dim] != 1) {
             // Need to free out_shape before returning error
             alloc.free(out_shape);
-            std.debug.print("Incompatible broadcast shapes at dim {}: {} vs {}\n", .{ dim, shape1_padded[dim], shape2_padded[dim] }); // DEBUG PRINT
+            std.log.warn("Incompatible broadcast shapes at dim {}: {} vs {}\n", .{ dim, shape1_padded[dim], shape2_padded[dim] }); // DEBUG PRINT
             return TensorMathError.IncompatibleBroadcastShapes;
         }
         out_shape[dim] = @max(shape1_padded[dim], shape2_padded[dim]);
@@ -132,9 +132,9 @@ pub fn sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
 
 // --------- lean SUM
 pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *const Tensor(inputType), t2: *const Tensor(inputType), outputTensor: *Tensor(outputType)) !void {
-    // std.debug.print("\nINFO: Summing tensors with sizes: {d}, {d}\n", .{ t1.size, t2.size }); // DEBUG PRINT
-    // std.debug.print("\nINFO: t1 shape: {any}, t2 shape: {any}\n", .{ t1.shape, t2.shape }); // DEBUG PRINT
-    // std.debug.print("\nINFO: outputTensor shape: {any}\n", .{outputTensor.shape}); // DEBUG PRINT
+    // std.log.debug("\nINFO: Summing tensors with sizes: {d}, {d}\n", .{ t1.size, t2.size }); // DEBUG PRINT
+    // std.log.debug("\nINFO: t1 shape: {any}, t2 shape: {any}\n", .{ t1.shape, t2.shape }); // DEBUG PRINT
+    // std.log.debug("\nINFO: outputTensor shape: {any}\n", .{outputTensor.shape}); // DEBUG PRINT
     // // Simple case: same size tensors
     if (t1.size == t2.size) {
         // Use unrolled loop for small sizes to avoid SIMD overhead
@@ -235,7 +235,7 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
         @memset(full_output_shape_slice[0..output_rank_diff], 1); // Pad with leading 1s
     }
     @memcpy(full_output_shape_slice[output_rank_diff..], outputTensor.shape);
-    // std.debug.print("DEBUG: Original output shape: {any}, Reconstructed full shape: {any}\\n", .{ outputTensor.shape, full_output_shape_slice });
+    // std.log.debug("DEBUG: Original output shape: {any}, Reconstructed full shape: {any}\\n", .{ outputTensor.shape, full_output_shape_slice });
     // --- END WORKAROUND ---
 
     // Calculate strides from right to left using the reconstructed full shape

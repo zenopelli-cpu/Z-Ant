@@ -190,9 +190,9 @@ pub fn get_mul_output_shape(lhs: []const usize, rhs: []const usize) ![]usize {
         const dim2 = if (rank2 + i >= max_rank) rhs[rank2 + i - max_rank] else 1;
 
         if (dim1 != dim2 and dim1 != 1 and dim2 != 1) {
-            std.debug.print("Incompatible broadcast shapes: dim1={}, dim2={}, index={}\n", .{ dim1, dim2, i });
-            std.debug.print("lhs shape: {any}\n", .{lhs});
-            std.debug.print("rhs shape: {any}\n", .{rhs});
+            std.log.warn("Incompatible broadcast shapes: dim1={}, dim2={}, index={}\n", .{ dim1, dim2, i });
+            std.log.warn("lhs shape: {any}\n", .{lhs});
+            std.log.warn("rhs shape: {any}\n", .{rhs});
             return TensorMathError.IncompatibleBroadcastShapes;
         }
         out_shape[i] = @max(dim1, dim2);

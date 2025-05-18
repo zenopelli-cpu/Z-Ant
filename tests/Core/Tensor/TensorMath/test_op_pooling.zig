@@ -6,6 +6,8 @@ const Tensor = zant.core.tensor.Tensor;
 const PoolingType = zant.core.tensor.math_standard.PoolingType;
 const AutoPadType = zant.core.tensor.math_standard.AutoPadType;
 
+const tests_log = std.log.scoped(.test_pooling);
+
 const Uops = zant.uops;
 const UOpBuilder = Uops.UOpBuilder;
 const DType = Uops.DType;
@@ -68,7 +70,7 @@ test "lowerMaxPool2d - print UOps sequence" {
 }
 
 test "Pooling 2D" {
-    std.debug.print("\n     test: Pooling 2D\n", .{});
+    tests_log.info("\n     test: Pooling 2D\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -162,7 +164,7 @@ test "Pooling 2D" {
 }
 
 test "Pooling multidim" {
-    std.debug.print("\n     test: Pooling multidim\n", .{});
+    tests_log.info("\n     test: Pooling multidim\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -215,7 +217,7 @@ test "Pooling multidim" {
 }
 
 test "ONNX MaxPool - NOTSET padding" {
-    std.debug.print("\n     test: ONNX MaxPool - NOTSET padding\n", .{});
+    tests_log.info("\n     test: ONNX MaxPool - NOTSET padding\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -263,7 +265,7 @@ test "ONNX MaxPool - NOTSET padding" {
 }
 
 test "ONNX MaxPool - SAME_UPPER padding" {
-    std.debug.print("\n     test: ONNX MaxPool - SAME_UPPER padding\n", .{});
+    tests_log.info("\n     test: ONNX MaxPool - SAME_UPPER padding\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -315,7 +317,7 @@ test "ONNX MaxPool - SAME_UPPER padding" {
 }
 
 test "ONNX MaxPool - with dilation" {
-    std.debug.print("\n     test: ONNX MaxPool - with dilation\n", .{});
+    tests_log.info("\n     test: ONNX MaxPool - with dilation\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -365,7 +367,7 @@ test "ONNX MaxPool - with dilation" {
 }
 
 test "ONNX MaxPool - ceil mode" {
-    std.debug.print("\n     test: ONNX MaxPool - ceil mode\n", .{});
+    tests_log.info("\n     test: ONNX MaxPool - ceil mode\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -412,7 +414,7 @@ test "ONNX MaxPool - ceil mode" {
 }
 
 test "ONNX MaxPool - explicit padding" {
-    std.debug.print("\n     test: ONNX MaxPool - explicit padding\n", .{});
+    tests_log.info("\n     test: ONNX MaxPool - explicit padding\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -477,7 +479,7 @@ test "ONNX MaxPool - explicit padding" {
 }
 
 test "ONNX AveragePool - NOTSET padding" {
-    std.debug.print("\n     test: ONNX AveragePool - NOTSET padding\n", .{});
+    tests_log.info("\n     test: ONNX AveragePool - NOTSET padding\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -523,7 +525,7 @@ test "ONNX AveragePool - NOTSET padding" {
 }
 
 test "ONNX AveragePool - SAME_UPPER padding" {
-    std.debug.print("\n     test: ONNX AveragePool - SAME_UPPER padding\n", .{});
+    tests_log.info("\n     test: ONNX AveragePool - SAME_UPPER padding\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -573,7 +575,7 @@ test "ONNX AveragePool - SAME_UPPER padding" {
 }
 
 test "ONNX AveragePool - with dilation" {
-    std.debug.print("\n     test: ONNX AveragePool - with dilation\n", .{});
+    tests_log.info("\n     test: ONNX AveragePool - with dilation\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -619,7 +621,7 @@ test "ONNX AveragePool - with dilation" {
 }
 
 test "ONNX AveragePool - ceil mode" {
-    std.debug.print("\n     test: ONNX AveragePool - ceil mode\n", .{});
+    tests_log.info("\n     test: ONNX AveragePool - ceil mode\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -664,7 +666,7 @@ test "ONNX AveragePool - ceil mode" {
 }
 
 test "ONNX AveragePool - explicit padding with count_include_pad" {
-    std.debug.print("\n     test: ONNX AveragePool - explicit padding with count_include_pad\n", .{});
+    tests_log.info("\n     test: ONNX AveragePool - explicit padding with count_include_pad\n", .{});
 
     const allocator = pkgAllocator.allocator;
 

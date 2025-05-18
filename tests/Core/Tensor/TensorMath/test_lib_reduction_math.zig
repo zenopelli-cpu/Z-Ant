@@ -9,8 +9,10 @@ const DType = Uops.DType;
 const Any = Uops.Any;
 const lowerReduceMean = TensMath.lowerReduceMean;
 
+const tests_log = std.log.scoped(.test_lib_reduction);
+
 test "mean" {
-    std.debug.print("\n     test:mean", .{});
+    tests_log.info("\n     test:mean", .{});
     const allocator = pkgAllocator.allocator;
 
     var shape_tensor: [1]usize = [_]usize{3}; // 2x3 matrix
@@ -24,7 +26,7 @@ test "mean" {
 }
 
 test "reduce_mean" {
-    std.debug.print("\n     test:reduce_mean", .{});
+    tests_log.info("\n     test:reduce_mean", .{});
     const allocator = pkgAllocator.allocator;
 
     // Test case 1: 2D tensor, reduce along axis 0
@@ -125,7 +127,7 @@ test "reduce_mean" {
 }
 
 test "reduce_mean_advanced" {
-    std.debug.print("\n     test:reduce_mean_advanced", .{});
+    tests_log.info("\n     test:reduce_mean_advanced", .{});
     const allocator = pkgAllocator.allocator;
 
     // Test case 1: 3D tensor with non-contiguous axes

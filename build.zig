@@ -16,12 +16,11 @@ pub fn build(b: *std.Build) void {
         .arch_os_abi = target_str,
         .cpu_features = cpu_str,
     }) catch |err| {
-        std.debug.print("Error parsing target: {}\n", .{err});
+        std.log.scoped(.build).warn("Error parsing target: {}\n", .{err});
         return;
     };
 
     const target = b.resolveTargetQuery(target_query);
-
     const optimize = b.standardOptimizeOption(.{});
 
     // -------------------- Modules creation
@@ -29,9 +28,14 @@ pub fn build(b: *std.Build) void {
     const zant_mod = b.createModule(.{ .root_source_file = b.path("src/zant.zig") });
     zant_mod.addOptions("build_options", build_options);
 
-    //************************************************UNIT TESTS************************************************
     const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/CodeGen/codegen.zig") });
     codeGen_mod.addImport("zant", zant_mod);
+
+    const IR_mod = b.createModule(.{ .root_source_file = b.path("src/IR_graph/IR_graph.zig") });
+    IR_mod.addImport("zant", zant_mod);
+    IR_mod.addImport("codegen", codeGen_mod);
+
+    //************************************************UNIT TESTS************************************************
 
     // Define unified tests for the project.
     const unit_tests = b.addTest(.{
@@ -43,6 +47,7 @@ pub fn build(b: *std.Build) void {
 
     unit_tests.root_module.addImport("zant", zant_mod);
     unit_tests.root_module.addImport("codegen", codeGen_mod);
+    unit_tests.root_module.addImport("IR_graph", IR_mod);
 
     unit_tests.linkLibC();
 
@@ -69,7 +74,7 @@ pub fn build(b: *std.Build) void {
     // Name and path of the model
     const model_name_option = b.option([]const u8, "model", "Model name") orelse "mnist-8";
     const model_path_option = b.option([]const u8, "model_path", "Model path") orelse std.fmt.allocPrint(b.allocator, "datasets/models/{s}/{s}.onnx", .{ model_name_option, model_name_option }) catch |err| {
-        std.debug.print("Error allocating model path: {}\n", .{err});
+        std.log.scoped(.build).warn("Error allocating model path: {}\n", .{err});
         return;
     };
 
@@ -77,18 +82,18 @@ pub fn build(b: *std.Build) void {
     var generated_path_option = b.option([]const u8, "generated_path", "Generated path") orelse "";
     if (generated_path_option.len == 0) {
         generated_path_option = std.fmt.allocPrint(b.allocator, "generated/{s}/", .{model_name_option}) catch |err| {
-            std.debug.print("Error allocating generated path: {}\n", .{err});
+            std.log.scoped(.build).warn("Error allocating generated path: {}\n", .{err});
             return;
         };
     } else {
         if (!std.mem.endsWith(u8, generated_path_option, "/")) {
             generated_path_option = std.fmt.allocPrint(b.allocator, "{s}/", .{generated_path_option}) catch |err| {
-                std.debug.print("Error normalizing path: {}\n", .{err});
+                std.log.scoped(.build).warn("Error normalizing path: {}\n", .{err});
                 return;
             };
         }
         generated_path_option = std.fmt.allocPrint(b.allocator, "{s}{s}/", .{ generated_path_option, model_name_option }) catch |err| {
-            std.debug.print("Error allocating generated path: {}\n", .{err});
+            std.log.scoped(.build).warn("Error allocating generated path: {}\n", .{err});
             return;
         };
     }
@@ -122,7 +127,7 @@ pub fn build(b: *std.Build) void {
     // ************************************************ STATIC LIBRARY CREATION ************************************************
 
     const lib_model_path = std.fmt.allocPrint(b.allocator, "{s}lib_{s}.zig", .{ generated_path_option, model_name_option }) catch |err| {
-        std.debug.print("Error allocating lib model path: {}\n", .{err});
+        std.log.scoped(.build).warn("Error allocating lib model path: {}\n", .{err});
         return;
     };
 
@@ -145,16 +150,16 @@ pub fn build(b: *std.Build) void {
     if (output_path_option.len != 0) {
         if (!std.mem.endsWith(u8, output_path_option, "/")) {
             output_path_option = std.fmt.allocPrint(b.allocator, "{s}/", .{output_path_option}) catch |err| {
-                std.debug.print("Error normalizing path: {}\n", .{err});
+                std.log.scoped(.build).warn("Error normalizing path: {}\n", .{err});
                 return;
             };
         }
         const old_path = std.fmt.allocPrint(b.allocator, "zig-out/{s}/", .{model_name_option}) catch |err| {
-            std.debug.print("Error allocating old path: {}\n", .{err});
+            std.log.scoped(.build).warn("Error allocating old path: {}\n", .{err});
             return;
         };
         output_path_option = std.fmt.allocPrint(b.allocator, "{s}{s}/", .{ output_path_option, model_name_option }) catch |err| {
-            std.debug.print("Error allocating output path: {}\n", .{err});
+            std.log.scoped(.build).warn("Error allocating output path: {}\n", .{err});
             return;
         };
         const move_step = b.addSystemCommand(&[_][]const u8{
@@ -172,7 +177,7 @@ pub fn build(b: *std.Build) void {
 
     // Add test for generated library
     const test_model_path = std.fmt.allocPrint(b.allocator, "{s}test_{s}.zig", .{ generated_path_option, model_name_option }) catch |err| {
-        std.debug.print("Error allocating test model path: {}\n", .{err});
+        std.log.scoped(.build).warn("Error allocating test model path: {}\n", .{err});
         return;
     };
 
@@ -279,7 +284,7 @@ pub fn build(b: *std.Build) void {
 
     // Path to the generated model options file (moved here)
     const model_options_path = std.fmt.allocPrint(b.allocator, "{s}model_options.zig", .{generated_path_option}) catch |err| {
-        std.debug.print("Error allocating model options path: {}\n", .{err});
+        std.log.scoped(.build).warn("Error allocating model options path: {}\n", .{err});
         return;
     };
 

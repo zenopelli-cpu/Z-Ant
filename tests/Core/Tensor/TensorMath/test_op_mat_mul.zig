@@ -6,8 +6,10 @@ const Tensor = zant.core.tensor.Tensor;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 const ErrorHandler = zant.utils.error_handler;
 
+const tests_log = std.log.scoped(.test_matMul);
+
 test "MatMul 2x2" {
-    std.debug.print("\n     test:MatMul 2x2", .{});
+    tests_log.info("\n     test:MatMul 2x2", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -42,14 +44,14 @@ test "Error when input tensors have incompatible sizes for MatMul" {
     try std.testing.expectError(TensorMathError.InputTensorsWrongShape, TensMath.mat_mul(f32, &t1, &t2));
 
     _ = TensMath.mat_mul(f32, &t1, &t2) catch |err| {
-        std.debug.print("\n _______ {s} ______", .{ErrorHandler.errorDetails(err)});
+        tests_log.warn("\n _______ {s} ______", .{ErrorHandler.errorDetails(err)});
     };
     t1.deinit();
     t2.deinit();
 }
 
 test "Error when input tensors have incompatible shapes for MatMul" {
-    std.debug.print("\n     test: Error when input tensors have incompatible shapes for MatMul", .{});
+    tests_log.info("\n     test: Error when input tensors have incompatible shapes for MatMul", .{});
     const allocator = pkgAllocator.allocator;
 
     var shape1: [2]usize = [_]usize{ 2, 2 }; // 2x2 matrix
@@ -64,7 +66,7 @@ test "Error when input tensors have incompatible shapes for MatMul" {
 }
 
 test "Compare MatMul implementations with execution time" {
-    std.debug.print("\nTest: Compare MatMul implementations with execution time\n", .{});
+    tests_log.info("\nTest: Compare MatMul implementations with execution time\n", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create test tensors
@@ -108,10 +110,10 @@ test "Compare MatMul implementations with execution time" {
     const avg_simd = @divFloor(total_simd, iterations);
     const avg_flat = @divFloor(total_flat, iterations);
 
-    std.debug.print("Average over {d} iterations:\n", .{iterations});
-    std.debug.print("SIMD execution time: {d} ns\n", .{avg_simd});
-    std.debug.print("Flat execution time: {d} ns\n", .{avg_flat});
-    std.debug.print("SIMD is {d:.2}x {s}\n", .{ if (avg_simd < avg_flat)
+    tests_log.debug("Average over {d} iterations:\n", .{iterations});
+    tests_log.debug("SIMD execution time: {d} ns\n", .{avg_simd});
+    tests_log.debug("Flat execution time: {d} ns\n", .{avg_flat});
+    tests_log.debug("SIMD is {d:.2}x {s}\n", .{ if (avg_simd < avg_flat)
         @as(f64, @floatFromInt(avg_flat)) / @as(f64, @floatFromInt(avg_simd))
     else
         @as(f64, @floatFromInt(avg_simd)) / @as(f64, @floatFromInt(avg_flat)), if (avg_simd < avg_flat) "faster" else "slower" });

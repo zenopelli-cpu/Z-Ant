@@ -10,28 +10,6 @@ import json
 import os  
 
 
-# Gemm
-# Sub
-# Div
-# Add
-# Concat
-# Conv
-# Div
-# Gather
-# MatMul
-# MaxPool
-# Relu
-# Reshape
-# Sigmoid
-# Slice
-# Transpose
-# Ceil
-# Identity
-# LeakyRelu
-# Mul
-# Split
-# BatchNormalization
-
 def random_shape(rank, min_dim=1, max_dim=10):
     """Generates a random shape of length 'rank'."""
     return [random.randint(min_dim, max_dim) for _ in range(rank)]
@@ -224,6 +202,83 @@ def generate_fuzz_model(op_name):
             "axis": axis,
             "indices": indices_data.tolist()
         }
+        return [input_info], output_info, [node], initializers, metadata
+    
+    elif op_name == "Elu":
+        # generate 1D tensor 
+        shape = [random.randint(1, 10)]  
+        alpha = round(random.uniform(0.5, 2.0), 3)  
+        data = np.random.randn(*shape).astype(np.float32)
+
+        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
+        initializers.append(init_tensor)
+
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, shape)
+
+        node = helper.make_node(op_name,
+                                inputs=[input_names[0]],
+                                outputs=[output_names[0]], 
+                                alpha=alpha,
+                                name=f"{op_name}node_alpha{alpha}"
+                                )
+        metadata = {"input_shapes": [shape],
+                    "output_shapes": [shape],
+                    "alpha": alpha
+                    }
+        
+        return [input_info], output_info, [node], initializers, metadata
+    
+    elif op_name == "Flatten":
+        # Generate casual rank and shape
+        rank = random.randint(0, 4)
+        if rank == 0:
+            shape = []  
+        else:
+            shape = random_shape(rank, min_dim=1, max_dim=10)
+
+        # Generate casual data
+        total_size = 1 if rank == 0 else np.prod(shape)
+        data = np.random.randn(total_size).astype(np.float32)
+        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
+        initializers.append(init_tensor)
+
+        # choosing right axis
+        axis = random.randint(-rank, rank) if rank > 0 else 0  # for scalar, axis is 0
+
+        # Calculate output shape
+        if rank == 0:
+            out_shape = [1, 1]  # Scalare -> [1, 1]
+        else:
+            outer_dim = 1
+            normalized_axis = axis if axis >= 0 else axis + rank
+            for i in range(normalized_axis):
+                outer_dim *= shape[i]
+            inner_dim = 1
+            for i in range(normalized_axis, rank):
+                inner_dim *= shape[i]
+            out_shape = [outer_dim, inner_dim]
+
+        # create input and output info
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
+
+        # Create Flatten node
+        node = helper.make_node(
+            op_name,
+            inputs=[input_names[0]],
+            outputs=[output_names[0]],
+            axis=axis,
+            name=f"{op_name}node_axis{axis}"
+        )
+
+        # Metadati
+        metadata = {
+            "input_shapes": [shape],
+            "output_shapes": [out_shape],
+            "axis": axis
+        }
+
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "Pad":

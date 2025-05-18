@@ -9,8 +9,9 @@ const TensorMathError = zant.utils.error_handler.TensorMathError;
 const Uops = zant.uops;
 const lowerCast = zant.core.tensor.math_standard.lowerCast;
 
+const tests_log = std.log.scoped(.lib_elementWise);
 test "Sum two tensors on CPU architecture" {
-    std.debug.print("\n     test: Sum two tensors on CPU architecture", .{});
+    tests_log.info("\n     test: Sum two tensors on CPU architecture", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray: [2][2]f32 = [_][2]f32{
@@ -34,7 +35,7 @@ test "Sum two tensors on CPU architecture" {
 }
 
 test "test tensor element-wise multiplication" {
-    std.debug.print("\n     test: tensor element-wise multiplication ", .{});
+    tests_log.info("\n     test: tensor element-wise multiplication ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Inizializzazione degli array di input
@@ -65,7 +66,7 @@ test "test tensor element-wise multiplication" {
 }
 
 test "Error when input tensors have different sizes" {
-    std.debug.print("\n     test: Error when input tensors have different sizes", .{});
+    tests_log.info("\n     test: Error when input tensors have different sizes", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray: [2][2]f32 = [_][2]f32{
@@ -89,7 +90,7 @@ test "Error when input tensors have different sizes" {
 }
 
 test "add bias" {
-    std.debug.print("\n     test:add bias", .{});
+    tests_log.info("\n     test:add bias", .{});
     const allocator = pkgAllocator.allocator;
 
     var shape_tensor: [2]usize = [_]usize{ 2, 3 }; // 2x3 matrix
@@ -116,7 +117,7 @@ test "add bias" {
 }
 
 test "Subtraction with same shape tensors" {
-    std.debug.print("\n     test: Subtraction with same shape tensors", .{});
+    tests_log.info("\n     test: Subtraction with same shape tensors", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray1: [2][2]f32 = [_][2]f32{
@@ -146,7 +147,7 @@ test "Subtraction with same shape tensors" {
 }
 
 test "Subtraction with broadcasting - scalar and matrix" {
-    std.debug.print("\n     test: Subtraction with broadcasting - scalar and matrix", .{});
+    tests_log.info("\n     test: Subtraction with broadcasting - scalar and matrix", .{});
     const allocator = pkgAllocator.allocator;
 
     // Matrix 2x2
@@ -175,7 +176,7 @@ test "Subtraction with broadcasting - scalar and matrix" {
 }
 
 test "Subtraction with broadcasting - row and matrix" {
-    std.debug.print("\n     test: Subtraction with broadcasting - row and matrix", .{});
+    tests_log.info("\n     test: Subtraction with broadcasting - row and matrix", .{});
     const allocator = pkgAllocator.allocator;
 
     // Matrix 2x2
@@ -206,7 +207,7 @@ test "Subtraction with broadcasting - row and matrix" {
 }
 
 test "Subtraction with incompatible shapes" {
-    std.debug.print("\n     test: Subtraction with incompatible shapes", .{});
+    tests_log.info("\n     test: Subtraction with incompatible shapes", .{});
     const allocator = pkgAllocator.allocator;
 
     // Matrix 2x2
@@ -233,7 +234,7 @@ test "Subtraction with incompatible shapes" {
 }
 
 test "Lean subtraction with SIMD optimization" {
-    std.debug.print("\n     test: Lean subtraction with SIMD optimization", .{});
+    tests_log.info("\n     test: Lean subtraction with SIMD optimization", .{});
     const allocator = pkgAllocator.allocator;
 
     // Create larger tensors to test SIMD optimization
@@ -277,7 +278,7 @@ test "Lean subtraction with SIMD optimization" {
 }
 
 test "test tensor element-wise division" {
-    std.debug.print("\n     test: tensor element-wise division ", .{});
+    tests_log.info("\n     test: tensor element-wise division ", .{});
     const allocator = pkgAllocator.allocator;
 
     // Inizializzazione degli array di input
@@ -308,7 +309,7 @@ test "test tensor element-wise division" {
 }
 
 test "Sum list of tensors - normal case" {
-    std.debug.print("\n     test: Sum list of tensors - normal case", .{});
+    tests_log.info("\n     test: Sum list of tensors - normal case", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray1: [2][2]f32 = [_][2]f32{
@@ -344,7 +345,7 @@ test "Sum list of tensors - normal case" {
 }
 
 test "Sum list of tensors - single tensor case" {
-    std.debug.print("\n     test: Sum list of tensors - single tensor case", .{});
+    tests_log.info("\n     test: Sum list of tensors - single tensor case", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray: [2][2]f32 = [_][2]f32{
@@ -367,14 +368,14 @@ test "Sum list of tensors - single tensor case" {
 }
 
 test "Sum list of tensors - empty list error" {
-    std.debug.print("\n     test: Sum list of tensors - empty list error", .{});
+    tests_log.info("\n     test: Sum list of tensors - empty list error", .{});
 
     var tensors = [_]*Tensor(f32){};
     try std.testing.expectError(TensorMathError.EmptyTensorList, TensMath.sum_tensor_list(f32, f32, &tensors));
 }
 
 test "Sum list of tensors - different sizes error" {
-    std.debug.print("\n     test: Sum list of tensors - different sizes error", .{});
+    tests_log.info("\n     test: Sum list of tensors - different sizes error", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray1: [2][2]f32 = [_][2]f32{
@@ -400,7 +401,7 @@ test "Sum list of tensors - different sizes error" {
 }
 
 test "Sum list of tensors - type promotion" {
-    std.debug.print("\n     test: Sum list of tensors - type promotion", .{});
+    tests_log.info("\n     test: Sum list of tensors - type promotion", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray1: [2][2]u8 = [_][2]u8{
@@ -430,7 +431,7 @@ test "Sum list of tensors - type promotion" {
 }
 
 test "test tensor element-wise tanh with valid f32 tensor" {
-    std.debug.print("\n     test: tensor element-wise tanh with valid f32 tensor", .{});
+    tests_log.info("\n     test: tensor element-wise tanh with valid f32 tensor", .{});
     const allocator = std.testing.allocator;
 
     var inputArray: [2][3]f32 = [_][3]f32{
@@ -454,7 +455,7 @@ test "test tensor element-wise tanh with valid f32 tensor" {
 }
 
 test "test tensor element-wise ceil with valid f32 tensor" {
-    std.debug.print("\n     test: tensor element-wise ceil with valid f32 tensor", .{});
+    tests_log.info("\n     test: tensor element-wise ceil with valid f32 tensor", .{});
     const allocator = std.testing.allocator;
 
     var inputArray: [2][3]f32 = [_][3]f32{
@@ -478,7 +479,7 @@ test "test tensor element-wise ceil with valid f32 tensor" {
 }
 
 test "clip f32 basic" {
-    std.debug.print("\n     test: clip f32 basic", .{});
+    tests_log.info("\n     test: clip f32 basic", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{5};
     var input = try Tensor(f32).fromArray(&allocator, &[_]f32{ -5.0, 0.0, 5.0, 10.0, 15.0 }, &shape);
@@ -502,7 +503,7 @@ test "clip f32 basic" {
 }
 
 test "clip i32 with defaults" {
-    std.debug.print("\n     test: clip i32 with defaults", .{});
+    tests_log.info("\n     test: clip i32 with defaults", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{4};
     var input = try Tensor(i32).fromArray(&allocator, &[_]i32{ -100, 0, 100, 200 }, &shape);
@@ -517,7 +518,7 @@ test "clip i32 with defaults" {
 }
 
 test "clip f32 min only" {
-    std.debug.print("\n     test: clip f32 min only", .{});
+    tests_log.info("\n     test: clip f32 min only", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{4};
     var input = try Tensor(f32).fromArray(&allocator, &[_]f32{ -5.0, -1.0, 0.0, 5.0 }, &shape);
@@ -536,7 +537,7 @@ test "clip f32 min only" {
 }
 
 test "clip f32 max only" {
-    std.debug.print("\n     test: clip f32 max only", .{});
+    tests_log.info("\n     test: clip f32 max only", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{4};
     var input = try Tensor(f32).fromArray(&allocator, &[_]f32{ -5.0, 0.0, 5.0, 15.0 }, &shape);
@@ -555,7 +556,7 @@ test "clip f32 max only" {
 }
 
 test "clip f32 min > max" {
-    std.debug.print("\n     test: clip f32 min > max", .{});
+    tests_log.info("\n     test: clip f32 min > max", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{4};
     var input = try Tensor(f32).fromArray(&allocator, &[_]f32{ -5.0, 0.0, 5.0, 10.0 }, &shape);
@@ -578,7 +579,7 @@ test "clip f32 min > max" {
 }
 
 test "clip error: min not scalar" {
-    std.debug.print("\n     test: clip error: min not scalar", .{});
+    tests_log.info("\n     test: clip error: min not scalar", .{});
     const allocator = pkgAllocator.allocator;
     var shape1 = [_]usize{1};
     var input = try Tensor(f32).fromArray(&allocator, &[_]f32{1.0}, &shape1);
@@ -592,7 +593,7 @@ test "clip error: min not scalar" {
 }
 
 test "clip error: max not scalar" {
-    std.debug.print("\n     test: clip error: max not scalar", .{});
+    tests_log.info("\n     test: clip error: max not scalar", .{});
     const allocator = pkgAllocator.allocator;
     var shape1 = [_]usize{1};
     var input = try Tensor(f32).fromArray(&allocator, &[_]f32{1.0}, &shape1);
@@ -606,7 +607,7 @@ test "clip error: max not scalar" {
 }
 
 test "clip empty input" {
-    std.debug.print("\n     test: clip empty input", .{});
+    tests_log.info("\n     test: clip empty input", .{});
     const allocator = pkgAllocator.allocator;
     var input = try Tensor(f32).init(&allocator);
     // No need to deinit empty tensor if init doesn't allocate
@@ -616,7 +617,7 @@ test "clip empty input" {
 }
 
 test "clip with SIMD vector size 1" {
-    std.debug.print("\n     test: clip with SIMD vector size 1", .{});
+    tests_log.info("\n     test: clip with SIMD vector size 1", .{});
     // Test case for types where SIMD might not be beneficial or available
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{6};
@@ -639,7 +640,7 @@ test "clip with SIMD vector size 1" {
 }
 
 test "clip f32 large tensor with SIMD" {
-    std.debug.print("\n     test: clip f32 large tensor with SIMD", .{});
+    tests_log.info("\n     test: clip f32 large tensor with SIMD", .{});
     const allocator = pkgAllocator.allocator;
     const size = 1024;
     var input_data = try allocator.alloc(f32, size);
