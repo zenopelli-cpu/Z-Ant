@@ -118,6 +118,7 @@ pub const AveragePool = struct {
         var kernel_shape_string: []const u8 = undefined;
         if (self.kernel_shape != null) {
             kernel_shape_string = try utils.i64SliceToUsizeArrayString(self.kernel_shape.?);
+            defer allocator.free(kernel_shape_string);
         } else {
             return error.Kernel_shapeNotFound;
         }
@@ -126,6 +127,7 @@ pub const AveragePool = struct {
         var strides_string: []const u8 = undefined;
         if (self.strides != null) {
             strides_string = try utils.i64SliceToUsizeArrayString(self.strides.?);
+            defer allocator.free(strides_string);
         } else {
             return error.StridesNotFound;
         }
@@ -134,6 +136,7 @@ pub const AveragePool = struct {
         var dilations_string: []const u8 = undefined;
         if (self.dilations != null) {
             dilations_string = try utils.i64SliceToUsizeArrayString(self.dilations.?);
+            defer allocator.free(dilations_string);
         } else {
             dilations_string = try utils.i64SliceToUsizeArrayString(&[_]i64{ 1, 1, 1, 1 }); // TODO: Hardcoded in 4D, not the most elegant solution
         }
@@ -142,6 +145,7 @@ pub const AveragePool = struct {
         var pads_string: []const u8 = undefined;
         if (self.pads != null) {
             pads_string = try utils.i64SliceToUsizeArrayString(self.pads.?);
+            defer allocator.free(pads_string);
         } else {
             return error.PadsNotFound;
         }
