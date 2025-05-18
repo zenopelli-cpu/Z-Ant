@@ -53,6 +53,7 @@ pub const TensorType = enum {
             .u64 => "u64",
             .bool => "bool",
             .undefined => "undefined",
+            else => @panic("Unknown tensor type"),
         };
     }
 };

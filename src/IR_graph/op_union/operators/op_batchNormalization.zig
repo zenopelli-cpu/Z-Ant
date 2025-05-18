@@ -177,9 +177,9 @@ pub const BatchNormalization = struct {
             \\        &tensor_{s}, //output
             \\    )
         , .{
-            try self.input_X.ty.toString(),
-            try self.scale.ty.toString(),
-            try self.input_mean.ty.toString(),
+            self.input_X.ty.toString(),
+            self.scale.ty.toString(),
+            self.input_mean.ty.toString(),
             tensor_X_string,
             tensor_scale_string,
             tensor_B_string,

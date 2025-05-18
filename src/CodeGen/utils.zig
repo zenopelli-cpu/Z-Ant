@@ -1,5 +1,5 @@
 const std = @import("std");
-const zant = @import("zant");
+const zant = @import("../zant.zig");
 const onnx = zant.onnx;
 const DataType = onnx.DataType;
 const GraphProto = onnx.GraphProto;
