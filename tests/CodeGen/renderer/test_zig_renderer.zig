@@ -1076,3 +1076,102 @@ test "Test Generated LowerReshape Kernel" {
 
     std.debug.print("Generated LowerReshape kernel test passed!\n", .{});
 }
+
+test "LowerReshape Pipeline 2" {
+    std.debug.print("Running zig renderer lowerReshape pipeline test\n", .{});
+    const allocator = std.testing.allocator;
+    // 1. Setup UOpBuilder
+    var builder = UOpBuilder.init(allocator);
+    const A_id: usize = 0; // Simula
+    const out_dtype = DType.f32;
+    const out_shape = &.{ 2, 3, 4 }; // Shape of input tensor
+    const out_buf_id = lowerReshape(
+        &builder,
+        A_id,
+        out_shape,
+        out_dtype,
+    );
+
+    _ = out_buf_id; // Prevent unused warning
+    // Take ownership of UOps
+    const uops_list = try builder.toOwnedSlice();
+    builder.deinit();
+    defer allocator.free(uops_list);
+    // DEBUG: Print the generated UOps
+    std.debug.print("--- Generated UOps (Reshape) ---\n", .{});
+    for (uops_list) |uop| {
+        uop.dump(std.io.getStdErr().writer()) catch {};
+    }
+    std.debug.print("--------------------------\n", .{});
+    // Defer to free duplicated src slices and view_meta args
+    defer {
+        std.debug.print("DEBUG: Freeing internal src/args for {d} uops in Clip test\n", .{uops_list.len});
+        for (uops_list) |uop| {
+            if (uop.src.len > 0) {
+                allocator.free(@constCast(uop.src));
+            }
+            if (uop.arg) |arg_val| {
+                if (uop.op == .VIEW) {
+                    switch (arg_val) {
+                        .view_meta => |vm| {
+                            if (vm.shape.len > 0) allocator.free(@constCast(vm.shape));
+                            if (vm.strides.len > 0) allocator.free(@constCast(vm.strides));
+                        },
+                        else => {},
+                    }
+                }
+            }
+        }
+    }
+
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+    const Writer = @TypeOf(buffer.writer());
+
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    defer renderer.deinit();
+
+    const input_ids = &[_]usize{A_id};
+    try renderer.render_as_function(uops_list, input_ids);
+    const actual_code = try buffer.toOwnedSlice();
+    defer allocator.free(actual_code);
+    std.debug.print("\n--- Generated Function (Reshape) ---\n{s}\n--------------------------------\n", .{actual_code});
+    // 5. Save output to a file
+    const output_filename = "tests/CodeGen/renderer/lowerreshape_output_function2.zig";
+    var file = try std.fs.cwd().createFile(output_filename, .{ .read = true });
+    defer file.close();
+    _ = try file.write(actual_code);
+    std.debug.print("Generated reshape function saved to {s}\n", .{output_filename});
+    // Optional: Clean up
+    // try std.fs.cwd().deleteFile(output_filename);
+}
+
+test "Test Generated LowerReshape Kernel 2" {
+    std.debug.print("Testing generated kernel from lowerreshape_output_function2.zig\n", .{});
+    const allocator = std.testing.allocator;
+    const kernel = @import("lowerreshape_output_function2.zig");
+
+    // 1. Define input data
+    // Input shape {2, 3}, flat size = 6
+    const input_data_0_list = [_]f32{
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+    };
+    const input_data_0 = &input_data_0_list;
+
+    // 2. Call the generated kernel
+    // Signature: pub fn generated_kernel(allocator: std.mem.Allocator, input_0: []const f32) ![]f32
+    const result_slice = try kernel.generated_kernel(allocator, input_data_0);
+    defer allocator.free(result_slice); // Kernel allocates the output slice (size 6)
+
+    // 3. Define expected output
+    // Output shape {2, 3}, flat size = 6
+    const expected_result_list = [_]f32{
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+    };
+    const expected_result = &expected_result_list;
+
+    // 4. Compare results
+    try std.testing.expectEqualSlices(f32, expected_result, result_slice);
+
+    std.debug.print("Generated LowerReshape kernel test passed!\n", .{});
+}

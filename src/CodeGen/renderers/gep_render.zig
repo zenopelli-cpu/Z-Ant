@@ -155,8 +155,8 @@ pub fn render(
                 const dtype_name = DTypeInfo.asString(uop.dtype);
 
                 try writer.print(
-                    "    const {s} = @intFromPtr({s}.ptr) + ({d}) * @sizeOf({s}); // GEP id={d}\n",
-                    .{ gep_result_name, base_var_name, mem_info.offset * mem_info.stride, dtype_name, uop.id },
+                    "    const {s} = @intFromPtr({s}.ptr) + (@as(usize, @intCast(idx_{d}))) * @sizeOf({s}); // GEP id={d}\n",
+                    .{ gep_result_name, base_var_name, uop.src[1], dtype_name, uop.id },
                 );
                 return;
             },

@@ -350,7 +350,7 @@ pub fn lowerReshape(
     // ── Set-up phase ────────────────────────────────────────────────────
     _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
 
-    //const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = &.{ 1, 1 } } });
+    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = &.{ 1, 1 } } });
 
     const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 
@@ -359,27 +359,29 @@ pub fn lowerReshape(
     var nelem: usize = 1;
     for (out_shape) |dim| nelem *= dim;
 
-    var i: u32 = 0; // Loop counter for UOps, GEP offsets are 0-indexed element counts
-    while (i < nelem) : (i += 1) {
-        // GEP and LOAD from A_id (source)
-        // Use the explicitly defined named struct type zant.uops.GEPInfo
-        const gep_A_mem_info_payload = zant.uops.GEPInfo{
-            .base = A_id, // usize
-            .offset = @as(usize, i), // Cast u32 loop var to usize for GEPInfo.offset
-            .stride = @as(usize, 1), // Cast literal to usize for GEPInfo.stride
-        };
-        const id_gep_A = b.push(.GEP, out_dtype, &.{A_id}, Any{ .mem_info_gep_info = gep_A_mem_info_payload });
-        const id_load_A = b.push(.LOAD, out_dtype, &.{id_gep_A}, null);
+    const id_range = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = nelem } });
 
-        // GEP and STORE to id_outBuf (destination)
-        const gep_O_mem_info_payload = zant.uops.GEPInfo{
-            .base = id_outBuf, // usize
-            .offset = @as(usize, i), // Cast u32 loop var to usize for GEPInfo.offset
-            .stride = @as(usize, 1), // Cast literal to usize for GEPInfo.stride
-        };
-        const id_gep_O = b.push(.GEP, out_dtype, &.{id_outBuf}, Any{ .mem_info_gep_info = gep_O_mem_info_payload });
-        _ = b.push(.STORE, out_dtype, &.{ id_gep_O, id_load_A }, null);
-    }
+    // GEP and LOAD from A_id (source)
+    // Use the explicitly defined named struct type zant.uops.GEPInfo
+    const gep_A_mem_info_payload = zant.uops.GEPInfo{
+        .base = A_id, // usize
+        .offset = @as(usize, id_range), // Cast u32 loop var to usize for GEPInfo.offset
+        .stride = @as(usize, 1), // Cast literal to usize for GEPInfo.stride
+    };
+
+    const id_gep_A = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info_gep_info = gep_A_mem_info_payload });
+    const id_load_A = b.push(.LOAD, out_dtype, &.{id_gep_A}, null);
+
+    // GEP and STORE to id_outBuf (destination)
+    const gep_O_mem_info_payload = zant.uops.GEPInfo{
+        .base = id_outBuf, // usize
+        .offset = @as(usize, id_range), // Cast u32 loop var to usize for GEPInfo.offset
+        .stride = @as(usize, 1), // Cast literal to usize for GEPInfo.stride
+    };
+    const id_gep_O = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info_gep_info = gep_O_mem_info_payload });
+    _ = b.push(.STORE, out_dtype, &.{ id_gep_O, id_load_A }, null);
+
+    _ = b.push(.ENDRANGE, .bool, &.{id_range}, null);
 
     return id_outBuf;
 }
