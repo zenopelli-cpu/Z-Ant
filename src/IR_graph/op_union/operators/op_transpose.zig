@@ -77,7 +77,7 @@ pub const Transpose = struct {
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);
 
-        if (self.input_X.tc == TensorCategory.initializer) {
+        if (self.input_X.tc == TensorCategory.INITIALIZER) {
             tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_X.name),

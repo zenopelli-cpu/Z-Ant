@@ -63,7 +63,7 @@ pub const Elu = struct {
     pub fn write_op(self: Elu, writer: std.fs.File.Writer) !void {
         var input_tensor_string: []u8 = undefined;
         defer allocator.free(input_tensor_string);
-        if (self.input_X.tc == TensorCategory.initializer) {
+        if (self.input_X.tc == TensorCategory.INITIALIZER) {
             input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_X.name),

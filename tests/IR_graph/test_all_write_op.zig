@@ -50,7 +50,7 @@ test "Test write_op on all oneOp models" {
         const maybe_line = lines_iter.next();
 
         if (maybe_line) |_| std.debug.print("\n\n", .{}) else {
-            std.debug.print(" no more models -----> break\n", .{});
+            std.debug.print(" \n\n no more models -----> break\n", .{});
             break;
         }
 
@@ -90,6 +90,7 @@ test "Test write_op on all oneOp models" {
         defer model.deinit(allocator);
 
         try writer.print("\n\n// ---------- onnx Model: {s} ----------\n", .{model.graph.?.name.?});
+        std.debug.print("\n\n - onnx Model: {s} --------------------------------n", .{model.graph.?.name.?});
 
         // Create GraphZant
         var graphZant = zant.IR_graph.init(&model) catch |err| {
@@ -109,23 +110,23 @@ test "Test write_op on all oneOp models" {
 
         std.debug.print("\n  Linearized Graph for {s} has {d} nodes\n", .{ model_name, linearizedGraph.items.len });
 
-        // // Test write_op on each node
-        // for (linearizedGraph.items, 0..) |node, i| {
-        //     const node_name = node.name orelse "<unnamed>";
-        //     std.debug.print("\n   - Testing node {d}: {s} (type: {s})", .{ i, node_name, node.op_type });
+        // Test write_op on each node
+        for (linearizedGraph.items, 0..) |node, i| {
+            const node_name = node.name orelse "<unnamed>";
+            std.debug.print("\n   - Testing node {d}: {s} (type: {s})", .{ i, node_name, node.op_type });
 
-        //     try writer.print("\n// Node {d}: {s} (type: {s})\n", .{ i, node_name, node.op_type });
+            try writer.print("\n// Node {d}: {s} (type: {s})\n", .{ i, node_name, node.op_type });
 
-        //     // Try to call write_op on this node
-        //     node.write_op(writer) catch |err| {
-        //         std.debug.print("\n     ERROR: Failed to write_op for node {s} in model {s}: {any}\n", .{ node_name, model_name, err });
-        //         try failed_write_op_models.append(.{ .modelName = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ model_name, node_name }), .errorLoad = err });
-        //         try writer.print("// ERROR: write_op failed with error: {any}\n", .{err});
-        //         continue;
-        //     };
+            // Try to call write_op on this node
+            node.write_op(writer) catch |err| {
+                std.debug.print("\n     ERROR: Failed to write_op for node {s} in model {s}: {any}\n", .{ node_name, model_name, err });
+                try failed_write_op_models.append(.{ .modelName = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ model_name, node_name }), .errorLoad = err });
+                try writer.print("// ERROR: write_op failed with error: {any}\n", .{err});
+                continue;
+            };
 
-        //     try writer.print("// write_op completed successfully\n", .{});
-        // }
+            try writer.print("// write_op completed successfully\n", .{});
+        }
     }
 
     // ----------- PRINTING THE RESULTS-----------

@@ -60,7 +60,7 @@ pub const LeakyRelu = struct {
         // Create input tensor string
         var input_tensor_string: []u8 = undefined;
         defer allocator.free(input_tensor_string);
-        if (self.input_X == TensorCategory.INITIALIZER) {
+        if (self.input_X.tc == TensorCategory.INITIALIZER) {
             input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_X.name),

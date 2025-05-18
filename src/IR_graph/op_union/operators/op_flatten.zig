@@ -26,7 +26,7 @@ pub const Flatten = struct {
     data: *TensorZant,
     output: *TensorZant,
     //attributes:
-    axis: i64 = 1 , // default = 1,
+    axis: i64 = 1, // default = 1,
 
     pub fn init(nodeProto: *NodeProto) !Flatten {
         const data = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
@@ -70,7 +70,7 @@ pub const Flatten = struct {
         var input_string: []u8 = undefined;
         defer allocator.free(input_string);
 
-        if (self.data.tc == TensorZant.TensorCategory.INITIALIZER) {
+        if (self.data.tc == tensorZant.TensorCategory.INITIALIZER) {
             input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.data.name),
@@ -93,11 +93,10 @@ pub const Flatten = struct {
         , .{
             input_string,
             output_name,
-        }); 
+        });
     }
 
-    pub fn print(self: Flatten) void {//TODO
+    pub fn print(self: Flatten) void { //TODO
         std.debug.print("\n Flatten:\n {any}", .{self});
     }
 };
-

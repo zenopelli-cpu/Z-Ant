@@ -49,7 +49,7 @@ pub const Relu = struct {
         //----create tensor_A_string
         var tensor_A_string: []u8 = undefined;
         defer allocator.free(tensor_A_string);
-        if (self.input_X.tc == TensorCategory.initializer) {
+        if (self.input_X.tc == TensorCategory.INITIALIZER) {
             tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_X.name),

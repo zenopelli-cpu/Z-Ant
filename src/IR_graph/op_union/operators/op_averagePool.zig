@@ -101,7 +101,7 @@ pub const AveragePool = struct {
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);
 
-        if (self.input_X.tc == TensorCategory.initializer) {
+        if (self.input_X.tc == TensorCategory.INITIALIZER) {
             tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_X.name),
@@ -118,7 +118,7 @@ pub const AveragePool = struct {
         var kernel_shape_string: []const u8 = undefined;
         if (self.kernel_shape != null) {
             kernel_shape_string = try utils.i64SliceToUsizeArrayString(self.kernel_shape.?);
-            defer allocator.free(kernel_shape_string);
+            // defer allocator.free(kernel_shape_string);
         } else {
             return error.Kernel_shapeNotFound;
         }
@@ -127,7 +127,7 @@ pub const AveragePool = struct {
         var strides_string: []const u8 = undefined;
         if (self.strides != null) {
             strides_string = try utils.i64SliceToUsizeArrayString(self.strides.?);
-            defer allocator.free(strides_string);
+            // defer allocator.free(strides_string);
         } else {
             return error.StridesNotFound;
         }
@@ -136,7 +136,7 @@ pub const AveragePool = struct {
         var dilations_string: []const u8 = undefined;
         if (self.dilations != null) {
             dilations_string = try utils.i64SliceToUsizeArrayString(self.dilations.?);
-            defer allocator.free(dilations_string);
+            // defer allocator.free(dilations_string);
         } else {
             dilations_string = try utils.i64SliceToUsizeArrayString(&[_]i64{ 1, 1, 1, 1 }); // TODO: Hardcoded in 4D, not the most elegant solution
         }
@@ -145,7 +145,7 @@ pub const AveragePool = struct {
         var pads_string: []const u8 = undefined;
         if (self.pads != null) {
             pads_string = try utils.i64SliceToUsizeArrayString(self.pads.?);
-            defer allocator.free(pads_string);
+            // defer allocator.free(pads_string);
         } else {
             return error.PadsNotFound;
         }

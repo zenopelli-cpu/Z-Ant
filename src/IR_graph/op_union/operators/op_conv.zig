@@ -2,7 +2,7 @@ const std = @import("std");
 const zant = @import("../../../zant.zig");
 const tensorMath = zant.core.tensor.math_standard;
 
-const allocator = std.heap.page_allocator;
+const allocator = zant.utils.allocator.allocator;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -102,7 +102,7 @@ pub const Conv = struct {
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);
 
-        if (self.input_X.tc == TensorCategory.initializer) {
+        if (self.input_X.tc == TensorCategory.INITIALIZER) {
             tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_X.name),
@@ -115,7 +115,7 @@ pub const Conv = struct {
         //----create tensor_W_string
         var tensor_W_string: []u8 = undefined;
         defer allocator.free(tensor_W_string);
-        if (self.input_W.tc == TensorCategory.initializer) {
+        if (self.input_W.tc == TensorCategory.INITIALIZER) {
             tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_W.name),

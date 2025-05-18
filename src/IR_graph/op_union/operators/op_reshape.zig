@@ -71,7 +71,7 @@ pub const Reshape = struct {
         // Input tensor string creation
         const sanitized_input_name = try utils.getSanitizedName(self.data.name);
         const input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-            if (self.data.tc == TensorCategory.initializer) "param_lib." else "",
+            if (self.data.tc == TensorCategory.INITIALIZER) "param_lib." else "",
             "tensor_",
             sanitized_input_name,
         });
@@ -98,7 +98,7 @@ pub const Reshape = struct {
             const shape_input_tensor = self.shape;
             const sanitized_shape_name = try utils.getSanitizedName(shape_input_tensor.name);
             const shape_tensor_name = try std.mem.concat(allocator, u8, &[_][]const u8{
-                if (self.shape.tc == TensorCategory.initializer) "param_lib." else "",
+                if (self.shape.tc == TensorCategory.INITIALIZER) "param_lib." else "",
                 "tensor_",
                 sanitized_shape_name,
             });

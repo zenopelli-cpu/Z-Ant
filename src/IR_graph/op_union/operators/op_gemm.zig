@@ -89,7 +89,7 @@ pub const Gemm = struct {
         var tensor_A_string: []u8 = undefined;
         defer allocator.free(tensor_A_string);
 
-        if (self.input_A == TensorCategory.INITIALIZER) {
+        if (self.input_A.tc == TensorCategory.INITIALIZER) {
             tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_A.name),
@@ -114,11 +114,11 @@ pub const Gemm = struct {
 
         // Input Tensor C is optional! verify the presence
         var tensor_C_string: []u8 = undefined;
-        if (self.input_C != null) {
-            const sanitized_tensor_C = try utils.getSanitizedName(self.input_C.name);
+        if (self.input_C) |in_C| {
+            const sanitized_tensor_C = try utils.getSanitizedName(in_C.name);
             tensor_C_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&",
-                if (self.input_C.?.tc == TensorCategory.INITIALIZER) "param_lib." else "",
+                if (in_C.tc == TensorCategory.INITIALIZER) "param_lib." else "",
                 "tensor_",
                 sanitized_tensor_C,
                 ")",

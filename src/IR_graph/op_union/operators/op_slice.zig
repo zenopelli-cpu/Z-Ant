@@ -59,7 +59,7 @@ pub const Slice = struct {
         return self.output;
     }
 
-    pub fn write_op() !void {} //TODO
+    pub fn write_op() !void {} //TODO manuel
 
     pub fn compute_output_shape(self: Slice) []usize {
         var output_shape: []usize = undefined;

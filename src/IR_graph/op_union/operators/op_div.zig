@@ -53,7 +53,7 @@ pub const Div = struct {
         var tensor_A_string: []u8 = undefined;
         defer allocator.free(tensor_A_string);
 
-        if (self.input_A.tc == TensorCategory.initializer) {
+        if (self.input_A.tc == TensorCategory.INITIALIZER) {
             tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
 
@@ -68,7 +68,7 @@ pub const Div = struct {
         //----create tensor_B_string
         var tensor_B_string: []u8 = undefined;
         defer allocator.free(tensor_B_string);
-        if (self.input_B.tc == TensorCategory.initializer) {
+        if (self.input_B.tc == TensorCategory.INITIALIZER) {
             tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_B.name),
