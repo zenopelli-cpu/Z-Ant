@@ -128,8 +128,8 @@ pub const Conv = struct {
         //----create ?bias string
         var bias_string: []u8 = undefined;
         // Bias Tensor B is optional! verify the presence
-        if (self.input_B != null) {
-            const B_name = try utils.getSanitizedName(self.input_B.name);
+        if (self.input_B) |input_B| {
+            const B_name = try utils.getSanitizedName(input_B.name);
             bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", B_name, ")" });
         } else {
             bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{"null"});

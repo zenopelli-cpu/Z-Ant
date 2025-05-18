@@ -166,14 +166,14 @@ pub const Op_union = union(enum) {
 
     pub fn write_op(self: Op_union, writer: std.fs.File.Writer) !void {
         switch (self) {
-            .add => |ptr| ptr.write_op(writer),
-            .averagePool => |ptr| ptr.write_op(writer),
-            .batchNormalization => |ptr| ptr.write_op(writer),
-            .ceil => |ptr| ptr.write_op(writer),
-            .concat => |ptr| ptr.write_op(writer),
-            .conv => |ptr| ptr.write_op(writer),
-            .div => |ptr| ptr.write_op(writer),
-            .elu => |ptr| ptr.write_op(writer),
+            .add => |ptr| try ptr.write_op(writer),
+            .averagePool => |ptr| try ptr.write_op(writer),
+            .batchNormalization => |ptr| try ptr.write_op(writer),
+            .ceil => |ptr| try ptr.write_op(writer),
+            .concat => |ptr| try ptr.write_op(writer),
+            .conv => |ptr| try ptr.write_op(writer),
+            .div => |ptr| try ptr.write_op(writer),
+            .elu => |ptr| try ptr.write_op(writer),
             else => {
                 std.debug.print("\n\nERROR: write_op() is not available!! \n\n", .{});
                 return error.write_op_notAvailable;

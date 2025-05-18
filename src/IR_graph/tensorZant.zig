@@ -38,7 +38,7 @@ pub const TensorType = enum {
 
     undefined,
 
-    pub fn toString(self: *TensorType) []const u8 {
+    pub fn toString(self: TensorType) []const u8 {
         return switch (self) {
             .f16 => "f16",
             .f32 => "f32",
@@ -53,7 +53,6 @@ pub const TensorType = enum {
             .u64 => "u64",
             .bool => "bool",
             .undefined => "undefined",
-            else => @panic("Unknown tensor type"),
         };
     }
 };
