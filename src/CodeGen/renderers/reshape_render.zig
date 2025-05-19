@@ -30,40 +30,45 @@ pub fn render(
     if (shape.len == 0) return RendererError.RankMismatch;
 
     // Calculate strides
-    var strides = try alloc.alloc(isize, shape.len);
-    defer alloc.free(strides);
-    // No errdefer here as we'll be transferring ownership to the VIEW_META
+
+    var strides = std.ArrayList(isize).init(alloc);
+    defer strides.deinit();
+
+    try strides.resize(shape.len);
 
     var stride: isize = 1;
     var i: usize = shape.len;
     while (i > 0) : (i -= 1) {
-        strides[i - 1] = stride;
+        strides.items[i - 1] = stride;
         stride *= @intCast(shape[i - 1]);
     }
 
     const src_id = uop.src[0];
-    const get_or_put_result = try view_map.getOrPut(src_id);
-    const src_view = get_or_put_result.value_ptr.*;
+
+    if (view_map.get(src_id)) |vinfo| {
+        var view_info = vinfo;
+        view_info.arg.view_meta.strides = if (strides.items.len > 0) try alloc.dupe(isize, strides.items) else &.{1};
+        try view_map.put(src_id, view_info);
+        return;
+    }
 
     // Create output view and transfer ownership of strides
     // Directly use strides without duplicating, since free management happens in the test
     const out_view = ViewInfo{
-        .dtype = src_view.dtype,
+        .dtype = uop.dtype,
         .src = &.{src_id},
         .arg = .{
             .view_meta = .{
                 .shape = shape,
-                .strides = if (strides.len > 0) strides else &.{1},
+                .strides = if (strides.items.len > 0) try alloc.dupe(isize, strides.items) else &.{1},
             },
         },
     };
 
     // Store the new view in the view map - the strides ownership is now transferred
     try view_map.put(uop.id, out_view);
-
-    // Generate the code for the reshape operation
-    // const result_var = ptr_map.get(uop.id) orelse return error.VariableNotFound;
-    // const src_var = ptr_map.get(uop.src[0]) orelse return error.VariableNotFound;
-    // const type_str = DTypeInfo.asString(uop.dtype);
-    // try writer.print(" const {s}: {s} = {s}; // Reshape (uop {d})\n", .{ result_var, type_str, src_var, uop.id });
+    // // Render new strides
+    // try writer.print("    const stride_{d}: []const isize = &.{{", .{src_id});
+    // for (strides) |stride_num| try writer.print("{d},", .{stride_num});
+    // try writer.print("}};", .{});
 }

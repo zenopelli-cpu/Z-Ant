@@ -343,9 +343,10 @@ fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: [
 pub fn lowerReshape(
     b: *UOpBuilder,
     A_id: usize, // input-tensor SSA id
+    stride_A: []const isize,
     out_shape: []const usize,
     out_dtype: DType, // promoted element type
-) usize { // returns id of result buffer
+) !usize { // returns id of result buffer
 
     // ── Set-up phase ────────────────────────────────────────────────────
     _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
@@ -355,33 +356,45 @@ pub fn lowerReshape(
     const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 
     // ── Flat element loop ────────────────────────────────────────────────
-
     var nelem: usize = 1;
     for (out_shape) |dim| nelem *= dim;
 
-    const id_range = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = nelem } });
+    var id_ranges = std.ArrayList(usize).init(pkg_allocator);
+    defer id_ranges.deinit();
 
-    // GEP and LOAD from A_id (source)
-    // Use the explicitly defined named struct type zant.uops.GEPInfo
-    const gep_A_mem_info_payload = zant.uops.GEPInfo{
-        .base = A_id, // usize
-        .offset = @as(usize, id_range), // Cast u32 loop var to usize for GEPInfo.offset
-        .stride = @as(usize, 1), // Cast literal to usize for GEPInfo.stride
-    };
+    _ = b.push(.RESHAPE, out_dtype, &.{id_viewA}, Any{ .shape = out_shape });
 
-    const id_gep_A = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info_gep_info = gep_A_mem_info_payload });
-    const id_load_A = b.push(.LOAD, out_dtype, &.{id_gep_A}, null);
+    for (stride_A, 0..) |_, idx| {
+        const id_range = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = out_shape[idx] } });
+        id_ranges.append(id_range) catch {};
+    }
 
-    // GEP and STORE to id_outBuf (destination)
-    const gep_O_mem_info_payload = zant.uops.GEPInfo{
-        .base = id_outBuf, // usize
-        .offset = @as(usize, id_range), // Cast u32 loop var to usize for GEPInfo.offset
-        .stride = @as(usize, 1), // Cast literal to usize for GEPInfo.stride
-    };
-    const id_gep_O = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info_gep_info = gep_O_mem_info_payload });
-    _ = b.push(.STORE, out_dtype, &.{ id_gep_O, id_load_A }, null);
+    var src_A = std.ArrayList(usize).init(pkg_allocator);
+    defer src_A.deinit();
+    try src_A.append(id_viewA);
+    for (id_ranges.items) |range| {
+        try src_A.append(range);
+    }
 
-    _ = b.push(.ENDRANGE, .bool, &.{id_range}, null);
+    const id_gepA = b.push(.GEP, out_dtype, src_A.items, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
+
+    const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
+
+    var src_0 = std.ArrayList(usize).init(pkg_allocator);
+    defer src_0.deinit();
+
+    try src_0.append(id_outBuf);
+    for (id_ranges.items) |range| {
+        try src_0.append(range);
+    }
+
+    const id_gepO = b.push(.GEP, out_dtype, src_0.items, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
+
+    _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_loadA }, null);
+
+    for (id_ranges.items) |i| {
+        _ = b.push(.ENDRANGE, .bool, &.{i}, null);
+    }
 
     return id_outBuf;
 }

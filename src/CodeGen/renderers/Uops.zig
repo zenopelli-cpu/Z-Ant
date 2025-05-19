@@ -141,6 +141,8 @@ pub const Any = union(enum) {
         max: DTypeValue,
     },
 
+    stride_id: usize,
+
     // 👉  add more variants when a new op requires metadata
 };
 
