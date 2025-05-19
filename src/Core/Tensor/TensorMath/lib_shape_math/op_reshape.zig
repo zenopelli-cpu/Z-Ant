@@ -343,7 +343,6 @@ fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: [
 pub fn lowerReshape(
     b: *UOpBuilder,
     A_id: usize, // input-tensor SSA id
-    stride_A: []const isize,
     out_shape: []const usize,
     out_dtype: DType, // promoted element type
 ) !usize { // returns id of result buffer
@@ -364,8 +363,8 @@ pub fn lowerReshape(
 
     _ = b.push(.RESHAPE, out_dtype, &.{id_viewA}, Any{ .shape = out_shape });
 
-    for (stride_A, 0..) |_, idx| {
-        const id_range = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = out_shape[idx] } });
+    for (out_shape) |dim| {
+        const id_range = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = dim } });
         id_ranges.append(id_range) catch {};
     }
 
