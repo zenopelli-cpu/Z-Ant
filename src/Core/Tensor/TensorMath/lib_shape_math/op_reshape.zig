@@ -355,6 +355,10 @@ pub fn lowerReshape(
     const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 
     // ── Flat element loop ────────────────────────────────────────────────
+
+    // For dim = -1 calculate -1 from number elemets
+    // For dim = 0 get the previous dim value from the previous shape
+
     var nelem: usize = 1;
     for (out_shape) |dim| nelem *= dim;
 
