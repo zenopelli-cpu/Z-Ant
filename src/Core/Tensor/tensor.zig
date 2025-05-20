@@ -186,7 +186,11 @@ pub fn Tensor(comptime T: type) type {
             @memcpy(tensorShape, shape);
 
             const tensorData = try allocator.alloc(T, total_size);
-            @memset(tensorData, 0);
+            if (T == bool) {
+                @memset(tensorData, false);
+            } else {
+                @memset(tensorData, 0);
+            }
 
             return @This(){
                 .data = tensorData,
@@ -576,7 +580,7 @@ pub fn Tensor(comptime T: type) type {
         }
 
         // Helper function to calculate the flat index from multi-dimensional indices
-        fn get_flat_index(self: *Tensor(T), indices: []usize) !usize {
+        pub fn get_flat_index(self: *Tensor(T), indices: []usize) !usize {
             if (indices.len != self.shape.len) return TensorError.InvalidIndices;
 
             var flat_index: usize = 0;
