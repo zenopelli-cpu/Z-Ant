@@ -19,36 +19,26 @@ const TensorCategory = tensorZant.TensorCategory;
 
 const utils = @import("../../../CodeGen/utils.zig");
 
-// https://onnx.ai/onnx/operators/onnx__MatMul.html#l-onnx-doc-matmul// INPUTS:
+// https://onnx.ai/onnx/operators/onnx__MatMul.html#l-onnx-doc-matmul
+// INPUTS:
 //      - A (heterogeneous) - T:  input tensor.
 // OUTPUTS:
 //      - C (heterogeneous) - T:  output tensor.
-// ATTRIBUTES:
-//      - alpha (float) - coefficent of leakage. Default is 0.01.
 
 pub const MatMul = struct {
     input_A: *TensorZant,
     input_B: *TensorZant,
     output_C: *TensorZant,
-    alpha: f32 = 0.01, // default value
 
     pub fn init(nodeProto: *NodeProto) !MatMul {
         const input_A = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_A_notFound;
         const input_B = if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_B_notFound;
         const output_C = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_C_notFound;
 
-        var alpha: f32 = 0.01; // default value
-        for (nodeProto.attribute) |attr| {
-            if (std.mem.eql(u8, attr.name, "alpha")) {
-                alpha = attr.f;
-            }
-        }
-
         return MatMul{
             .input_A = input_A,
             .input_B = input_B,
             .output_C = output_C,
-            .alpha = alpha,
         };
     }
 
@@ -87,39 +77,26 @@ pub const MatMul = struct {
             tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.input_B.name) });
         }
 
-        // Calculate b_width_bytes safely, handling potential null tensorProto
-        // Get type information for tensor B to estimate element size
-        const input_B_name = self.input_B.name;
-        const ready_tensor_B = globals.tensorHashMap.getPtr(input_B_name) orelse {
-            mathHandler_log.warn("Error: Tensor '{s}' not found in globals.tensorHashMap for MatMul.\n", .{input_B_name});
-            return error.TensorNotFound;
-        };
-
         var element_size_bytes: usize = 4; // Default to f32 size as fallback
-        if (ready_tensor_B.tensorProto) |tp| {
-            const data_type = tp.data_type;
-            // Determine size from DataType enum
-            element_size_bytes = switch (data_type) {
-                .FLOAT => @sizeOf(f32),
-                .FLOAT16 => @sizeOf(f16),
-                .INT64 => @sizeOf(i64),
-                .INT32 => @sizeOf(i32),
-                .INT8 => @sizeOf(i8),
-                .UINT8 => @sizeOf(u8),
-                // Add other supported types as needed
-                else => blk: {
-                    mathHandler_log.warn("Warning: Unsupported DataType '{any}' for MatMul input B '{s}'. Assuming f32 size.\n", .{ data_type, input_B_name });
-                    break :blk 4;
-                },
-            };
-        } else {
-            // Fallback if tensorProto is null - log a warning
-            mathHandler_log.warn("Warning: TensorProto for MatMul input B '{s}' is null. Assuming f32 size for width calculation.\n", .{input_B_name});
-        }
+
+        // Determine size from DataType enum
+        element_size_bytes = switch (self.input_B.ty) {
+            .f32 => @sizeOf(f32),
+            .f16 => @sizeOf(f16),
+            .i64 => @sizeOf(i64),
+            .i32 => @sizeOf(i32),
+            .i8 => @sizeOf(i8),
+            .u8 => @sizeOf(u8),
+            // Add other supported types as needed
+            else => blk: {
+                mathHandler_log.warn("Warning: Unsupported DataType '{any}' for MatMul input B '{s}'. Assuming f32 size.\n", .{ self.input_B.ty, tensor_B_string });
+                break :blk 4;
+            },
+        };
 
         const b_dims = self.input_B.getShape().len;
         if (b_dims == 0) {
-            mathHandler_log.warn("Error: MatMul input B '{s}' has zero dimensions.\n", .{input_B_name});
+            mathHandler_log.warn("Error: MatMul input B '{s}' has zero dimensions.\n", .{tensor_B_string});
             return error.InvalidShape; // Avoid panic on empty shape
         }
 
