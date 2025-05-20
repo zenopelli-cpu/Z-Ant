@@ -15,6 +15,9 @@ const allocator = std.heap.page_allocator;
 
 // --- zant ---
 const TensorType = @import("tensorZant.zig").TensorType;
+pub const tensorZant_lib = @import("tensorZant.zig");
+pub const TensorZant = tensorZant_lib.TensorZant;
+pub const TensorCategory = tensorZant_lib.TensorCategory;
 
 pub fn getValueInfoTensorFromGraphInfo(name: []const u8, protoGraph: *GraphProto) ?*ValueInfoProto {
     for (protoGraph.value_info) |vi| {
@@ -164,4 +167,15 @@ pub fn broadcastShapes(general_allocator: std.mem.Allocator, shape1: []usize, sh
         }
     }
     return output;
+}
+
+pub fn getInitializers(hashMap: *std.StringHashMap(TensorZant)) []TensorZant {
+    var initializers = std.ArrayList(TensorZant).init(allocator);
+    var it = hashMap.iterator();
+    while (it.next()) |entry| {
+        if (entry.value_ptr.tc == TensorCategory.INITIALIZER) {
+            try initializers.append(entry.value_ptr.*);
+        }
+    }
+    return initializers.toOwnedSlice();
 }
