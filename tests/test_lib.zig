@@ -9,12 +9,6 @@ comptime {
     _ = @import("ImageToTensor/jpeg/test_jpeg_decoder.zig");
     _ = @import("ImageToTensor/test_utils.zig");
 
-    if (test_name.len == 0 or std.mem.eql(u8, test_name, "modelSlimTemplate")) {
-        _ = @import("CodeGen/test_model.slim.template.zig");
-    }
-    if (test_name.len == 0 or std.mem.eql(u8, test_name, "modelTemplate")) {
-        _ = @import("Codegen/test_model.template.zig");
-    }
     if (test_name.len == 0 or std.mem.eql(u8, test_name, "libElementWise")) {
         _ = @import("Core/Tensor/TensorMath/test_lib_elementWise_math.zig");
     }
