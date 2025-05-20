@@ -214,7 +214,7 @@ inline fn write_add(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             ")",
         });
     } else {
-        tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name) });
+        tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name), ")" });
     }
 
     //----create tensor_B_string
@@ -227,7 +227,7 @@ inline fn write_add(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             ")",
         });
     } else {
-        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name) });
+        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name) });
     }
 
     _ = try writer.print(
@@ -358,9 +358,9 @@ inline fn write_BatchNormalization(writer: std.fs.File.Writer, node: *ReadyNode)
         \\        &tensor_{s}, //output
         \\    )
     , .{
-        try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[0].?.name).?.tensorProto.?.data_type),
-        try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[1].?.name).?.tensorProto.?.data_type),
-        try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[3].?.name).?.tensorProto.?.data_type),
+        try getSafeTensorTypeString(node.inputs.items[0].?, node.nodeProto.name orelse "UnnamedBatchNormInput0"), // MODIFIED: Use helper for input X type
+        try getSafeTensorTypeString(node.inputs.items[1].?, node.nodeProto.name orelse "UnnamedBatchNormInput1"), // MODIFIED: Use helper for input scale type
+        try getSafeTensorTypeString(node.inputs.items[3].?, node.nodeProto.name orelse "UnnamedBatchNormInput3"), // MODIFIED: Use helper for input mean/var type (check ONNX spec for correct index if this is not mean's type)
         tensor_X_string,
         tensor_scale_string,
         tensor_B_string,
@@ -3438,5 +3438,167 @@ inline fn write_convInteger(writer: std.fs.File.Writer, node: *ReadyNode) !void 
         dilat_string, // Dilations
         group, // Group
         auto_pad, // auto_pad
+    });
+}
+
+// Helper function to safely get tensor type string
+fn getSafeTensorTypeString(input_node_item: *globals.ReadyTensor, parent_node_name: []const u8) ![]const u8 {
+    const input_name = input_node_item.name; // Name is not optional on ReadyTensor
+    const tensor_global = input_node_item; // tensor_global is the input_node_item itself
+
+    // Prioritize ReadyTensor.dtype if available and valid
+    if (tensor_global.dtype != .UNDEFINED) {
+        return utils.getTypeString(tensor_global.dtype);
+    }
+
+    // Fallback to tensorProto if dtype is not available/valid
+    const onnx_tensor_proto = tensor_global.tensorProto orelse {
+        std.log.err(
+            \\Error in node '{s}': tensorProto is null AND ReadyTensor.dtype is UNDEFINED for input tensor '{s}'.
+            \\Tensor details: ready={}, tag={s}, shape={any}, dtype={s}.
+            \\This means type information is missing for this tensor.
+        , .{
+            parent_node_name,
+            input_name,
+            tensor_global.ready,
+            @tagName(tensor_global.tag),
+            tensor_global.shape,
+            @tagName(tensor_global.dtype), // Also log the dtype
+        });
+        return error.CodegenMissingTypeInformation; // New, more specific error (ensure this is defined)
+    };
+
+    return utils.getTypeString(onnx_tensor_proto.data_type);
+}
+
+inline fn write_batch_norm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__BatchNormalization.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input data tensor from the previous operator; dimensions are in the form of (N x C x D1 x D2 … Dn), where N is the batch size, C is the number of channels. Statistics are computed for every channel of C over N and D1 to Dn dimensions. For image data, input dimensions become (N x C x H x W). The op also accepts single dimension input of size N in which case C is assumed to be 1
+    //      - scale (heterogeneous) - T1: Scale tensor of shape ©.
+    //      - B (heterogeneous) - T1: Bias tensor of shape ©.
+    //      - input_mean (heterogeneous) - T2: running (training) or estimated (testing) mean tensor of shape ©.
+    //      - input_var (heterogeneous) - T2: running (training) or estimated (testing) variance tensor of shape ©.
+    // OUTPUT:
+    //      - Y (heterogeneous) - T: The output tensor of the same shape as X
+    // ATTRIBUTES:
+    //      - epsilon - FLOAT (default is '1e-05'): The epsilon value to use to avoid division by zero.
+    //      - momentum - FLOAT (default is '0.9'): Factor used in computing the running mean and variance.e.g., running_mean = running_mean * momentum + mean * (1 - momentum).
+    //      - training_mode - INT (default is '0'): If set to true, it indicates BatchNormalization is being used for training, and outputs 1 and 2 are to be computed.
+
+    var epsilon: f32 = 1e-05;
+    var momentum: f32 = 0.9;
+    // var training_mode: bool = false; -> NOT USED, ALWAYS FALSE for Zant
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.indexOf(u8, attr.name, "epsilon")) |_| {
+            if (attr.type == AttributeType.FLOAT) epsilon = attr.f else return error.BatchNorm_epsilon_NotFloat;
+        } else if (std.mem.indexOf(u8, attr.name, "momentum")) |_| {
+            if (attr.type == AttributeType.FLOAT) momentum = attr.f else return error.BatchNorm_momentum_NotFloat;
+        } else if (std.mem.indexOf(u8, attr.name, "training_mode")) |_| {
+            if (attr.type == AttributeType.INT) if (attr.i != 0) return error.BatchNorm_training_NotAvailable;
+        }
+    }
+
+    //----create tensor_X_string
+    var tensor_X_string: []u8 = undefined;
+    defer allocator.free(tensor_X_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name), ")" });
+    }
+
+    //----create tensor_scale_string
+    var tensor_scale_string: []u8 = undefined;
+    defer allocator.free(tensor_scale_string);
+
+    if (node.inputs.items[1].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_scale_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[1].?.name),
+            ")",
+        });
+    } else {
+        tensor_scale_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name), ")" });
+    }
+
+    //----create tensor_scale_string
+    var tensor_B_string: []u8 = undefined;
+    defer allocator.free(tensor_B_string);
+
+    if (node.inputs.items[2].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[2].?.name),
+            ")",
+        });
+    } else {
+        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[2].?.name), ")" });
+    }
+
+    //----create tensor_input_mean_string
+    var tensor_input_mean_string: []u8 = undefined;
+    defer allocator.free(tensor_input_mean_string);
+
+    if (node.inputs.items[3].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_input_mean_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[3].?.name),
+            ")",
+        });
+    } else {
+        tensor_input_mean_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[3].?.name), ")" });
+    }
+
+    //----create tensor_input_var_string
+    var tensor_input_var_string: []u8 = undefined;
+    defer allocator.free(tensor_input_var_string);
+
+    if (node.inputs.items[4].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_input_var_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[4].?.name),
+            ")",
+        });
+    } else {
+        tensor_input_var_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[4].?.name), ")" });
+    }
+
+    // pub inline fn batchNormalization_lean( comptime T: anytype, comptime T1: anytype, comptime T2: anytype, input: *Tensor(T), scales: *Tensor(T1), B: *Tensor(T1), input_mean: Tensor(T2), input_var: Tensor(T2), epsilon: f32, momentum: f32, training_mode: bool, output: *Tensor(T))
+    _ = try writer.print(
+        \\    
+        \\
+        \\    tensMath.batchNormalization_lean(
+        \\        {s}, //type 0
+        \\        {s}, //type 1
+        \\        {s}, //type 2
+        \\        {s}, //input
+        \\        {s}, //scales
+        \\        {s}, //B
+        \\        {s}, //input_mean
+        \\        {s}, //input_var
+        \\        {}, //epsilon
+        \\        {}, //momentum
+        \\        false, //training_mode
+        \\        &tensor_{s}, //output
+        \\    )
+    , .{
+        try getSafeTensorTypeString(node.inputs.items[0].?, node.nodeProto.name orelse "UnnamedBatchNormInput0"), // MODIFIED: Use helper for input X type
+        try getSafeTensorTypeString(node.inputs.items[1].?, node.nodeProto.name orelse "UnnamedBatchNormInput1"), // MODIFIED: Use helper for input scale type
+        try getSafeTensorTypeString(node.inputs.items[3].?, node.nodeProto.name orelse "UnnamedBatchNormInput3"), // MODIFIED: Use helper for input mean/var type (check ONNX spec for correct index if this is not mean's type)
+        tensor_X_string,
+        tensor_scale_string,
+        tensor_B_string,
+        tensor_input_mean_string,
+        tensor_input_var_string,
+        epsilon,
+        momentum,
+        try utils.getSanitizedName(node.outputs.items[0].name),
     });
 }
