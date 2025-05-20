@@ -42,7 +42,7 @@ oneOp model generator: ✅ if the oneOpModel is created, remember to add the onn
 | Slice| [Slice](https://onnx.ai/onnx/operators/onnx__Slice.html) | [op_slice](../src/Core/Tensor/TensorMath/lib_shape_math/op_slice.zig) | ✅ | ✅ | ✅ |
 | Softmax| [Softmax](https://onnx.ai/onnx/operators/onnx__Softmax.html) | [op_Softmax](../src/Core/Tensor/TensorMath/lib_activation_function_math/op_softmax.zig) | ✅ | ✅ | ✅ |
 | Split  | [Split](https://onnx.ai/onnx/operators/onnx__Split.html) | [op_split](../src/Core/Tensor/TensorMath/lib_shape_math/op_split.zig)| ✅ | ✅ | ✅ | 
-|Sqrt| [Sqrt](https://onnx.ai/onnx/operators/onnx__Sqrt.html) | [op_sqrt](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_sqrt.zig) | ✅ | ✅ | ✅ |
+|Sqrt| [Sqrt](https://onnx.ai/onnx/operators/onnx__Sqrt.html) | [op_sqrt](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_sqrt.zig) | 🔴 | ✅ | ✅ |
 | Sub| [Sub](https://onnx.ai/onnx/operators/onnx__Sub.html) |[op_Sub](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_subtraction.zig) | ✅ | ✅| ✅|
 | Tanh | [Tanh](https://onnx.ai/onnx/operators/onnx__Tanh.html) | [op_tanh](../src/Core/Tensor/TensorMath/lib_elementWise_math/op_tanh.zig) | ✅ | ✅ | ✅ |
 | Transpose| [Transpose](https://onnx.ai/onnx/operators/onnx__Transpose.html)| [op_Transose](../src/Core/Tensor/TensorMath/lib_shape_math/op_transpose.zig) | ✅ | ✅ | ✅ |
