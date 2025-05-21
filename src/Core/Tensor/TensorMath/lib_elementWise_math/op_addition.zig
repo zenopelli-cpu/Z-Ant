@@ -248,34 +248,44 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
 
     // Perform addition with broadcasting
     // Use stack arrays for common tensor ranks (up to 4D) - indices were already allocated above
-    var stack_loop_indices: [4]usize = [_]usize{0} ** 4;
-    const loop_indices = if (max_rank <= 4) stack_loop_indices[0..max_rank] else indices; // Reuse allocated 'indices' if max_rank > 4
-
-    // Initialize loop_indices if using the stack allocation
+    const loop_indices = if (max_rank <= 4) stack_indices[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    if (max_rank > 4) {
+        defer pkg_allocator.free(loop_indices);
+    }
     if (max_rank <= 4) {
         @memset(loop_indices, 0);
     }
 
-    i = 0; // Reset i before the loop, don't redeclare
+    i = 0; // Reset i before the loop
     while (i < outputTensor.size) : (i += 1) {
         // Calculate multi-dimensional indices for current output position 'i'
-        var temp = i;
-        for (0..max_rank) |dim| {
-            const idx = max_rank - 1 - dim; // Iterate dimensions from right-to-left
-            loop_indices[idx] = temp / out_strides[idx];
-            temp = temp % out_strides[idx];
+        var current_flat_index = i;
+        for (0..max_rank) |dim| { // Iterate dimensions from 0 to max_rank-1
+            const current_stride = out_strides[dim];
+            // Calculate index for this dimension
+            loop_indices[dim] = @divFloor(current_flat_index, current_stride);
+            // Update remaining index for the next, smaller dimensions
+            current_flat_index = @mod(current_flat_index, current_stride);
         }
 
-        // Calculate linear input indices (idx1, idx2) using multi-dimensional indices and strides
+        // Calculate linear input indices (idx1, idx2) using multi-dimensional indices
+        // Respect broadcasting: only add stride contribution if dimension is not broadcasted
         var idx1: usize = 0;
         var idx2: usize = 0;
         for (0..max_rank) |dim| {
-            // stridesN[dim] is 0 if shapeN[dim] is 1, handling broadcasting implicitly
-            idx1 += loop_indices[dim] * strides1[dim];
-            idx2 += loop_indices[dim] * strides2[dim];
+            const current_loop_index = loop_indices[dim];
+            // If shape1[dim] is 1, strides1[dim] is 0, so this adds 0. Correct.
+            idx1 += current_loop_index * strides1[dim];
+
+            // If shape2[dim] is 1, strides2[dim] is 0, so this adds 0. Correct.
+            idx2 += current_loop_index * strides2[dim];
         }
 
         // Perform the addition
+        // Ensure indices are within bounds (should be implicitly handled by stride calculation, but belt-and-suspenders)
+        // idx1 = @min(idx1, t1.size - 1); // Optional safety, maybe remove if confident
+        // idx2 = @min(idx2, t2.size - 1); // Optional safety, maybe remove if confident
+
         outputTensor.data[i] = t1.data[idx1] + t2.data[idx2];
     }
 }

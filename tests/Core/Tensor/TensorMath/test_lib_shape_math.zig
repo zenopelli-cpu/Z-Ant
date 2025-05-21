@@ -6,6 +6,13 @@ const Tensor = zant.core.tensor.Tensor;
 const TensorError = zant.utils.error_handler.TensorError;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 
+const Uops = zant.uops;
+const UOpBuilder = Uops.UOpBuilder;
+const DType = Uops.DType;
+const Any = Uops.Any;
+
+const lowerIdentity = zant.core.tensor.math_standard.lowerIdentity;
+const lowerNeg = zant.core.tensor.math_standard.lowerNeg;
 const tests_log = std.log.scoped(.test_lib_shape);
 
 test "Concatenate tensors along axis 0" {
@@ -2411,6 +2418,45 @@ test "neg - 3D tensor" {
     try std.testing.expectEqual(@as(usize, 8), flipped.size);
 }
 
+test "lowerNeg - print Uops sequence" {
+    std.debug.print("\n test: lowerNeg - print Uops sequence\n", .{});
+    const allocator = pkgAllocator.allocator;
+    var b = UOpBuilder.init(allocator);
+    defer b.deinit();
+
+    var input_array: [1][2][2][3]f32 = [_][2][2][3]f32{
+        [_][2][3]f32{
+            [_][3]f32{
+                [_]f32{ 1, 2, 3 },
+                [_]f32{ 4, 5, 6 },
+            },
+            [_][3]f32{
+                [_]f32{ 7, 8, 9 },
+                [_]f32{ 10, 11, 12 },
+            },
+        },
+    };
+    var shape = [_]usize{ 1, 2, 2, 3 };
+    var strides = [_]isize{ 12, 6, 3, 1 };
+    var input_tensor = try Tensor(f32).fromArray(&allocator, &input_array, &shape);
+    defer input_tensor.deinit();
+
+    const X_id = b.push(.DEFINE_GLOBAL, .f32, &.{}, Any{ .shape = &shape });
+
+    _ = lowerNeg(
+        &b,
+        X_id,
+        &strides,
+        &shape,
+        .f32,
+    );
+
+    std.debug.print("\nUOps sequence:\n", .{});
+    for (b.list.items, 0..) |op, i| {
+        std.debug.print("{d:3}: {s}\n", .{ i, @tagName(op.op) });
+    }
+}
+
 test "get_split_output_shapes - basic functionality" {
     tests_log.info("\n     test: get_split_output_shapes - basic functionality", .{});
 
@@ -2913,6 +2959,45 @@ test "identity" {
         try std.testing.expect(result.data.ptr != tensor.data.ptr);
 
         tests_log.debug("OK: identity test passed.\n", .{});
+    }
+}
+
+test "lowerIdentity - print Uops sequence" {
+    std.debug.print("\n test: lowerIdentity - print Uops sequence\n", .{});
+    const allocator = pkgAllocator.allocator;
+    var b = UOpBuilder.init(allocator);
+    defer b.deinit();
+
+    var input_array: [1][2][2][3]f32 = [_][2][2][3]f32{
+        [_][2][3]f32{
+            [_][3]f32{
+                [_]f32{ 1, 2, 3 },
+                [_]f32{ 4, 5, 6 },
+            },
+            [_][3]f32{
+                [_]f32{ 7, 8, 9 },
+                [_]f32{ 10, 11, 12 },
+            },
+        },
+    };
+    var shape = [_]usize{ 1, 2, 2, 3 };
+    var strides = [_]isize{ 12, 6, 3, 1 };
+    var input_tensor = try Tensor(f32).fromArray(&allocator, &input_array, &shape);
+    defer input_tensor.deinit();
+
+    const X_id = b.push(.DEFINE_GLOBAL, .f32, &.{}, Any{ .shape = &shape });
+
+    _ = lowerIdentity(
+        &b,
+        X_id,
+        &strides,
+        &shape,
+        .f32,
+    );
+
+    std.debug.print("\nUOps sequence:\n", .{});
+    for (b.list.items, 0..) |op, i| {
+        std.debug.print("{d:3}: {s}\n", .{ i, @tagName(op.op) });
     }
 }
 

@@ -5,6 +5,10 @@ const Tensor = zant.core.tensor.Tensor;
 const TensorError = zant.utils.error_handler.TensorError;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 
+const UOpBuilder = zant.uops.UOpBuilder;
+const DType = zant.uops.DType;
+const Any = zant.uops.Any;
+
 const pkg_allocator = zant.utils.allocator.allocator;
 
 /// Given and input tensor and the new shape, returns a new tensor with the same data of the input, in the same order, but a different shape.
@@ -330,4 +334,17 @@ fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: [
         // If lengths match, copy the data
         @memcpy(output.data, input.data);
     }
+}
+
+/// https://onnx.ai/onnx/operators/onnx__Reshape.html
+pub fn lowerReshape(
+    b: *UOpBuilder,
+    A_id: usize, // input-tensor SSA ids
+    out_shape: []const usize,
+    out_dtype: DType, // promoted element type
+) usize { // returns id of result buffer
+
+    const id_outBuf = b.push(.RESHAPE, out_dtype, &.{A_id}, Any{ .shape = out_shape });
+
+    return id_outBuf; // SSA id of the output tensor
 }

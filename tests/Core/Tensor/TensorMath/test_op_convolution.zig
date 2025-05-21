@@ -5,6 +5,12 @@ const TensMath = zant.core.tensor.math_standard;
 const Tensor = zant.core.tensor.Tensor;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 
+const Uops = zant.uops;
+const UOpBuilder = Uops.UOpBuilder;
+const DType = Uops.DType;
+const Any = Uops.Any;
+const lowerConv2d = zant.core.tensor.math_standard.lowerConv2d;
+
 const tests_log = std.log.scoped(.test_conv);
 
 test "Convolution 4D Input with 2x2x2x2 Kernel shape" {
