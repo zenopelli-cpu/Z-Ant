@@ -46,6 +46,13 @@ pub const clip = op_clip.clip;
 pub const clip_lean = op_clip.lean_clip;
 pub const lowerClip = op_clip.lowerClip;
 
+//--floor
+const op_floor = @import("lib_elementWise_math/op_floor.zig");
+
+pub const floor = op_floor.floor;
+pub const floor_lean = op_floor.floor_lean;
+pub const get_floor_output_shape = op_floor.get_floor_output_shape;
+
 //--unsqueeze
 const op_unsqueeze = @import("lib_shape_math/op_unsqueeze.zig");
 
@@ -122,6 +129,13 @@ pub const mean_standard = op_mean.mean_standard;
 pub const mean_lean = op_mean.mean_lean;
 pub const get_mean_output_shape = op_mean.get_mean_output_shape;
 
+//----------- importing standard onehot method ----------
+const op_oneHot = @import("op_oneHot.zig");
+
+pub const oneHot = op_oneHot.onehot;
+pub const oneHot_lean = op_oneHot.onehot_lean;
+pub const get_oneHot_output_shape = op_oneHot.get_onehot_output_shape;
+
 // ---------- importing standard Batch Normalization ----------
 const op_bachNorm = @import("op_batchNormalization.zig");
 pub const batchNormalization = op_bachNorm.batchNormalization;
@@ -147,7 +161,7 @@ pub const setLogFunctionC = convolution_math_lib.setLogFunctionC;
 //CONV INTEGER
 
 pub const convInteger_lean = convolution_math_lib.convInteger_lean;
-pub const lowerConv2d = convolution_math_lib.lowerConv2d;
+
 // ---------- importing standard Pooling methods ----------
 const pooling_math_lib = @import("op_pooling.zig");
 pub const pool_tensor = pooling_math_lib.pool_tensor;
@@ -174,9 +188,6 @@ pub const mean = reduction_math_lib.mean;
 pub const reduce_mean = reduction_math_lib.reduce_mean;
 pub const reduce_mean_lean = reduction_math_lib.lean_reduce_mean;
 pub const get_reduce_mean_output_shape = reduction_math_lib.get_reduce_mean_output_shape;
-const op_lower_reduceMean = @import("Op_Lowering/lower_reduceMean.zig");
-pub const lowerReduceMean = op_lower_reduceMean.lowerReduceMean;
-
 // ---------- importing standard Element-Wise math ----------
 const add = @import("lib_elementWise_math/op_addition.zig");
 //--add bias
@@ -187,14 +198,12 @@ pub const sum_tensors_lean = add.lean_sum_tensors;
 //--sum tensor list
 pub const sum_tensor_list = add.sum_tensor_list;
 pub const sum_tensor_list_lean = add.lean_sum_tensor_list;
-pub const lowerAdd = add.lowerAdd;
-
 //--sub
 const sub = @import("lib_elementWise_math/op_subtraction.zig");
 
 pub const sub_tensors = sub.sub_tensors;
 pub const sub_tensors_lean = sub.lean_sub_tensors;
-pub const lowerSub = sub.lowerSub;
+
 //--shape
 const op_shape = @import("lib_shape_math/op_shape.zig");
 pub const shape_onnx = op_shape.shape_onnx;
@@ -215,7 +224,7 @@ pub const lean_matmul = op_mat_mul.lean_mat_mul;
 pub const mul = mult.mul;
 pub const mul_lean = mult.mul_lean;
 pub const get_mul_output_shape = mult.get_mul_output_shape;
-pub const lowerMatMul = op_mat_mul.lowerMatMul;
+
 //--div
 const division = @import("lib_elementWise_math/op_division.zig");
 
@@ -226,14 +235,18 @@ pub const div_lean = division.div_lean;
 const op_cast = @import("op_cast.zig");
 pub const cast_lean = op_cast.cast_lean;
 
-const op_lower_cast = @import("Op_Lowering/lower_cast.zig");
-pub const lowerCast = op_lower_cast.lowerCast;
-
 //--tanh
 const tanhy = @import("lib_elementWise_math/op_tanh.zig");
 pub const tanh = tanhy.tanh;
 pub const tanh_lean = tanhy.tanh_lean;
 pub const get_tanh_output_shape = tanhy.get_tanh_output_shape;
+
+//--gelu
+const Gelu = @import("lib_elementWise_math/op_gelu.zig");
+
+pub const gelu = Gelu.gelu;
+pub const gelu_lean = Gelu.gelu_lean;
+pub const get_gelu_output_shape = Gelu.get_gelu_output_shape;
 
 //--ceil
 const Ceil = @import("lib_elementWise_math/op_ceil.zig");
@@ -241,6 +254,13 @@ const Ceil = @import("lib_elementWise_math/op_ceil.zig");
 pub const ceil = Ceil.ceil;
 pub const ceil_lean = Ceil.ceil_lean;
 pub const get_ceil_output_shape = Ceil.get_ceil_output_shape;
+
+//--sqrt
+const Sqrt = @import("lib_elementWise_math/op_sqrt.zig");
+
+pub const sqrt = Sqrt.sqrt;
+pub const sqrt_lean = Sqrt.sqrt_lean;
+pub const get_sqrt_output_shape = Sqrt.get_sqrt_output_shape;
 
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");

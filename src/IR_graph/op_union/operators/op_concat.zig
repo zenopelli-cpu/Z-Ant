@@ -73,7 +73,7 @@ pub const Concat = struct {
             const first_rank = self.inputs.items[0].shape.len;
 
             for (self.inputs.items[1..]) |input| {
-                if (input.?.shape.len != first_rank) {
+                if (input.shape.len != first_rank) {
                     has_different_ranks = true;
                     break;
                 }
@@ -88,7 +88,7 @@ pub const Concat = struct {
                     \\
                     \\    // Create a list of tensors to concatenate
                     \\    var concat_tensor_list_{s} = [_]Tensor(T){{
-                , .{try utils.getSanitizedName(self.output.name)});
+                , .{try utils.getSanitizedName(self.concat_result.name)});
 
                 for (self.inputs.items, 0..) |input, idx| {
                     if (idx > 0) {
@@ -97,7 +97,7 @@ pub const Concat = struct {
 
                     var tensor_string: []u8 = undefined;
                     defer allocator.free(tensor_string);
-                    if (input.tc == TensorCategory.initializer) {
+                    if (input.tc == TensorCategory.INITIALIZER) {
                         tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                             "@constCast(&param_lib.tensor_",
                             try utils.getSanitizedName(input.name),
@@ -130,14 +130,14 @@ pub const Concat = struct {
             \\
             \\    // Create a list of tensors to concatenate
             \\    var concat_tensor_list_{s} = [_]Tensor(T){{
-        , .{try utils.getSanitizedName(self.name)});
+        , .{try utils.getSanitizedName(self.concat_result.name)});
 
         for (self.inputs.items, 0..) |input, idx| {
             if (idx > 0) {
                 _ = try writer.print(", ", .{});
             }
 
-            if (input.tc == TensorCategory.initializer) {
+            if (input.tc == TensorCategory.INITIALIZER) {
                 _ = try writer.print("param_lib.tensor_{s}", .{try utils.getSanitizedName(input.name)});
             } else {
                 _ = try writer.print("tensor_{s}", .{try utils.getSanitizedName(input.name)});

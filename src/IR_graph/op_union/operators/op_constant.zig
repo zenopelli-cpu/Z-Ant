@@ -86,4 +86,143 @@ pub const Constant = struct {
             .value_strings = value_strings,
         };
     }
+
+    pub fn get_output_shape(self: Constant) []usize {
+        return self.output.getShape();
+    }
+
+    pub fn get_output_tensor(self: Constant) *TensorZant {
+        return self.output;
+    }
+
+    pub fn write_op(self: Constant, writer: std.fs.File.Writer) !void {
+        const output_name = try utils.getSanitizedName(self.output.name);
+
+        if (self.value != null) {
+            try writer.print(
+                \\
+                \\    // Constant tensor_{s} already declared and initialized in predict.zig
+            , .{output_name});
+            return;
+        } else if (self.value_float != null) {
+            try writer.print(
+                \\
+                \\    // Initialize scalar float constant
+                \\    tensor_{s} = Tensor(T).initScalar(&allocator, {d}) catch return;
+            , .{ output_name, self.value_float.? });
+            return;
+        } else if (self.value_floats != null) {
+            try writer.print(
+                \\
+                \\    // Initialize 1D float array constant
+                \\    const data_{s} = [_]T{{
+            , .{output_name});
+
+            for (self.value_floats.?, 0..) |val, i| {
+                if (i > 0) try writer.writeAll(", ");
+                try writer.print("{d}", .{val});
+            }
+
+            try writer.print(
+                \\
+                \\    }};
+                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
+            , .{ output_name, output_name, self.value_floats.?.len });
+            return;
+        } else if (self.value_int != null) {
+            try writer.print(
+                \\
+                \\    // Initialize scalar int constant
+                \\    tensor_{s} = Tensor(T).initScalar(&allocator, @as(T, @floatFromInt({d}))) catch return;
+            , .{ output_name, self.value_int.? });
+            return;
+        } else if (self.value_ints != null) {
+            try writer.print(
+                \\
+                \\    // Initialize 1D int array constant
+                \\    const data_{s} = [_]T{{
+            , .{output_name});
+
+            for (self.value_ints.?, 0..) |val, i| {
+                if (i > 0) try writer.writeAll(", ");
+                try writer.print("@as(T, @floatFromInt({d}))", .{val});
+            }
+
+            try writer.print(
+                \\
+                \\    }};
+                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
+            , .{ output_name, output_name, self.value_ints.?.len });
+            return;
+        } else if (self.value_string != null) {
+            try writer.print(
+                \\
+                \\    // String constants are not directly supported in this numeric tensor library
+                \\    // For now, we'll create a placeholder tensor with a single value
+                \\    tensor_{s} = Tensor(T).initScalar(&allocator, 0) catch return;
+                \\    // The actual string value was: "{s}"
+            , .{ output_name, self.value_string.? });
+            return;
+        } else if (self.value_strings != null) {
+            try writer.print(
+                \\
+                \\    // String array constants are not directly supported in this numeric tensor library
+                \\    // For now, we'll create a placeholder tensor with zeros
+                \\    const data_{s} = [_]T{{
+            , .{output_name});
+
+            for (self.value_strings.?, 0..) |_, i| {
+                if (i > 0) try writer.writeAll(", ");
+                try writer.print("0", .{});
+            }
+
+            try writer.print(
+                \\
+                \\    }};
+                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
+                \\    // Note: This is a placeholder for string values that cannot be directly represented
+            , .{ output_name, output_name, self.value_strings.?.len });
+            return;
+        } else if (self.sparse_value != null) {
+            try writer.print(
+                \\
+                \\    // Sparse tensor constants are not yet fully supported
+                \\    // Creating a placeholder tensor for sparse_value
+                \\    tensor_{s} = Tensor(T).initScalar(&allocator, 0) catch return;
+                \\    mathHandler_log.warn("Warning: sparse_value attribute used but not fully supported\\n", .{{}});
+            , .{output_name});
+            return;
+        }
+
+        try writer.writeAll(
+            \\
+            \\    return error.ConstantValueNotFound;
+        );
+    }
+
+    pub fn compute_output_shape(self: Constant) []usize {
+        var output_shape: []usize = undefined;
+        var lenght: usize = 0;
+        if (self.value != null) {
+            if (output_shape.len == 0) {
+                output_shape = try allocator.dupe(usize, &[_]usize{1});
+            } else {
+                output_shape = self.value.?.getShape();
+            }
+        } else if (self.value_float != null or self.value_int != null or self.value_string != null) {
+            output_shape = try allocator.dupe(usize, &[_]usize{1});
+        } else if (self.value_floats != null) {
+            lenght = self.value_floats.?.len;
+            output_shape = try allocator.dupe(usize, &[_]usize{lenght});
+        } else if (self.value_ints != null) {
+            lenght = self.value_ints.?.len;
+            output_shape = try allocator.dupe(usize, &[_]usize{lenght});
+        } else if (self.value_strings != null) {
+            lenght = self.value_strings.?.len;
+            output_shape = try allocator.dupe(usize, &[_]usize{lenght});
+        } else if (self.sparse_value != null) {
+            output_shape = self.sparse_value.?.getShape();
+        }
+        return output_shape;
+    }
 };

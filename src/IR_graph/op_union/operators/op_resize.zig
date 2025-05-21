@@ -120,7 +120,7 @@ pub const Resize = struct {
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);
 
-        if (self.input_X.tc == TensorCategory.initializer) {
+        if (self.input_X.tc == TensorCategory.INITIALIZER) {
             tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_X.name),
@@ -151,41 +151,41 @@ pub const Resize = struct {
         }
 
         //----create tensor_roi_string
-        if (self.input_roi != null) {
-            if (self.input_roi.tc == TensorCategory.initializer) {
+        if (self.input_roi) |roi| {
+            if (roi.tc == TensorCategory.INITIALIZER) {
                 tensor_roi_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                     "@constCast(&param_lib.tensor_",
-                    try utils.getSanitizedName(self.input_roi.name),
+                    try utils.getSanitizedName(roi.name),
                     ")",
                 });
             } else {
-                tensor_roi_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(self.input_roi.name) });
+                tensor_roi_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(roi.name) });
             }
         }
 
         //----create tensor_scales_string
-        if (self.input_scales != null) {
-            if (self.input_scales.tc == TensorCategory.initializer) {
+        if (self.input_scales) |scales| {
+            if (scales.tc == TensorCategory.INITIALIZER) {
                 data_scales_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                     "param_lib.tensor_",
-                    try utils.getSanitizedName(self.input_scales.name),
+                    try utils.getSanitizedName(scales.name),
                     ".data",
                 });
             } else {
-                data_scales_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "tensor_", try utils.getSanitizedName(self.input_scales.name), ".data" });
+                data_scales_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "tensor_", try utils.getSanitizedName(scales.name), ".data" });
             }
         }
 
         //----create tensor_sizes_string
-        if (self.input_sizes != null) {
-            if (self.input_sizes.tc == TensorCategory.initializer) {
+        if (self.input_sizes) |sizes| {
+            if (sizes.tc == TensorCategory.INITIALIZER) {
                 data_sizes_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                     "param_lib.tensor_",
-                    try utils.getSanitizedName(self.input_sizes.name),
+                    try utils.getSanitizedName(sizes.name),
                     ".data",
                 });
             } else {
-                data_sizes_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "tensor_", try utils.getSanitizedName(self.input_sizes.name), ".data" });
+                data_sizes_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "tensor_", try utils.getSanitizedName(sizes.name), ".data" });
             }
         }
 

@@ -92,7 +92,7 @@ pub const BatchNormalization = struct {
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);
 
-        if (self.input_X.tc == TensorCategory.initializer) {
+        if (self.input_X.tc == TensorCategory.INITIALIZER) {
             tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_X.name),
@@ -106,7 +106,7 @@ pub const BatchNormalization = struct {
         var tensor_scale_string: []u8 = undefined;
         defer allocator.free(tensor_scale_string);
 
-        if (self.scale.tc == TensorCategory.initializer) {
+        if (self.scale.tc == TensorCategory.INITIALIZER) {
             tensor_scale_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.scale.name),
@@ -120,7 +120,7 @@ pub const BatchNormalization = struct {
         var tensor_B_string: []u8 = undefined;
         defer allocator.free(tensor_B_string);
 
-        if (self.B.tc == TensorCategory.initializer) {
+        if (self.B.tc == TensorCategory.INITIALIZER) {
             tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.B.name),
@@ -134,7 +134,7 @@ pub const BatchNormalization = struct {
         var tensor_input_mean_string: []u8 = undefined;
         defer allocator.free(tensor_input_mean_string);
 
-        if (self.input_mean.tc == TensorCategory.initializer) {
+        if (self.input_mean.tc == TensorCategory.INITIALIZER) {
             tensor_input_mean_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_mean.name),
@@ -148,7 +148,7 @@ pub const BatchNormalization = struct {
         var tensor_input_var_string: []u8 = undefined;
         defer allocator.free(tensor_input_var_string);
 
-        if (self.input_var.tc == TensorCategory.initializer) {
+        if (self.input_var.tc == TensorCategory.INITIALIZER) {
             tensor_input_var_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_var.name),
@@ -177,9 +177,9 @@ pub const BatchNormalization = struct {
             \\        &tensor_{s}, //output
             \\    )
         , .{
-            try self.input_X.ty.toString(),
-            try self.scale.ty.toString(),
-            try self.input_mean.ty.toString(),
+            self.input_X.ty.toString(),
+            self.scale.ty.toString(),
+            self.input_mean.ty.toString(),
             tensor_X_string,
             tensor_scale_string,
             tensor_B_string,

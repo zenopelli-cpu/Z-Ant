@@ -166,7 +166,7 @@ pub fn lowerClip(
 
     const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
 
-    const id_tanh = b.push(.CLIP, out_dtype, &.{id_loadA}, Any{ .clip_bounds = .{ .type = out_dtype, .min = min, .max = max }});
+    const id_tanh = b.push(.CLIP, out_dtype, &.{id_loadA}, Any{ .clip_bounds = .{ .type = out_dtype, .min = min, .max = max } });
 
     const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
 

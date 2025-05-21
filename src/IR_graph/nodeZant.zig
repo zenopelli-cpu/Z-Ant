@@ -43,7 +43,7 @@ pub const NodeZant = struct {
         try self.next.append(next_node);
     }
 
-    pub fn write_op(self: *NodeZant) !void {
-        try self.op.write_op();
+    pub fn write_op(self: *NodeZant, writer: std.fs.File.Writer) !void {
+        try self.op.write_op(writer);
     }
 };

@@ -8,8 +8,10 @@ Div
 Div  
 Elu  
 Flatten
+Floor
 Gather  
 Gemm  
+Gelu
 Identity  
 LeakyRelu  
 MatMul  
@@ -20,7 +22,8 @@ Relu
 Reshape  
 Sigmoid  
 Slice  
-Split  
+Split 
+Sqrt 
 Sub  
 Tanh
 Transpose  

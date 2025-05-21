@@ -27,11 +27,14 @@ def generate_fuzz_model(op_name):
     output_names = [f"{op_name}_param_out_{i}" for i in range(5)]
     metadata = {}
 
-    if op_name in ["Relu", "Sigmoid", "Ceil", "Tanh", "Identity", "Neg", "Shape"]:
+    if op_name in ["Relu", "Sigmoid", "Ceil", "Tanh", "Identity", "Neg", "Shape", "Floor", "Sqrt"]:
         # Operatori a singolo input con forma casuale (rank=4)
         shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
         # Crea dati casuali e li inserisce come initializer
-        data = np.random.randn(*shape).astype(np.float32)
+        if op_name == "Sqrt":
+            data = np.abs(np.random.randn(*shape)).astype(np.float32)
+        else:
+            data = np.random.randn(*shape).astype(np.float32)
         init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
         initializers.append(init_tensor)
 
@@ -42,6 +45,30 @@ def generate_fuzz_model(op_name):
                                 name=f"{op_name}_node")
         metadata = {"input_shapes": [shape], "output_shapes": [shape]}
         return [input_info], output_info, [node], initializers, metadata
+    
+    elif op_name == "Gelu":
+        shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
+        approximate = random.choice(["none", "tanh"])
+
+        data = np.random.randn(*shape).astype(np.float32)
+
+        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
+        initializers.append(init_tensor)
+
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, shape)
+
+        node = helper.make_node(
+            op_name, 
+            inputs=[input_names[0]], 
+            outputs=[output_names[0]], 
+            approximate=approximate, 
+            name=f"{op_name}node_approx{approximate}",
+            )
+
+        metadata = {"input_shapes": [shape], "output_shapes": [shape], "approximate": approximate}
+        return [input_info], output_info, [node], initializers, metadata
+
 
     elif op_name == "LeakyRelu":
         shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
@@ -170,6 +197,61 @@ def generate_fuzz_model(op_name):
         metadata = {"input_shapes": [shape, shape2], "output_shapes": [out_shape]}
         return [input_info], output_info, [node], initializers, metadata
 
+    elif op_name == "OneHot":
+        # Operatore OneHot: genera indices, depth e values come initializer
+        # Genera un tensore indices con rango casuale (1 o 2)
+        rank = random.randint(1, 2)
+        indices_shape = random_shape(rank, min_dim=2, max_dim=3)
+        max_index = 3  # Limite massimo per gli indici
+        indices_data = np.random.randint(0, max_index, size=indices_shape).astype(np.int64)
+        indices_tensor = helper.make_tensor(input_names[0], TensorProto.INT64, indices_shape, indices_data.flatten().tolist())
+        initializers.append(indices_tensor)
+
+        # Genera depth (scalare)
+        depth_value = random.randint(3, max_index)  # Valore positivo per depth
+        depth_tensor = helper.make_tensor(input_names[1], TensorProto.INT64, [], [depth_value])
+        initializers.append(depth_tensor)
+
+        # Genera values (tensore 1D di lunghezza 2, tipo float32)
+        values_data = np.array([0.0, 1.0], dtype=np.float32)  # [off_value, on_value]
+        values_tensor = helper.make_tensor(input_names[2], TensorProto.FLOAT, [2], values_data.tolist())
+        initializers.append(values_tensor)
+
+        # Scegli un axis valido
+        output_rank = rank + 1
+        # axis = random.randint(-output_rank, output_rank - 1)
+        axis = random.randint(max(-output_rank, -1000), min(output_rank - 1, 1000))
+
+        # Calcola la forma dell'output
+        out_shape = indices_shape.copy()
+        normalized_axis = axis if axis >= 0 else axis + output_rank
+        out_shape.insert(normalized_axis, depth_value)
+
+        # Crea il nodo OneHot
+        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
+        node = helper.make_node(
+            op_name,
+            inputs=[input_names[0], input_names[1], input_names[2]],
+            outputs=[output_names[0]],
+            axis=axis,
+            name=f"{op_name}_node_axis{axis}"
+        )
+
+        # Input info fittizio
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.INT64, indices_shape)
+
+        # Metadati
+        metadata = {
+            "input_shapes": [indices_shape, [], [2]],  # Forme di indices, depth, values
+            "output_shapes": [out_shape],
+            "axis": axis,
+            "depth": depth_value,
+            "indices": indices_data.flatten().tolist()[:5],  # Solo i primi 5 per debug
+            "values": values_data.tolist()
+        }
+
+        return [input_info], output_info, [node], initializers, metadata
+    
     elif op_name == "Gather":
         # First input: data; second input: indices
         shape = [5, random.randint(5,10)]
@@ -459,7 +541,8 @@ def generate_fuzz_model(op_name):
             inputs=[input_names[0]], 
             outputs=[split_output1, split_output2],
             axis=axis, 
-            name=f"{op_name}_split_node"
+            name=f"{op_name}_split_node",
+            num_outputs=2  # Add this line
         )
         
         # Process the first split part with Relu
@@ -943,7 +1026,10 @@ def generate_model(op_name, filename, model_id=0):
         doc_string=f"Test graph for {op_name} operation with configuration: {metadata}"
     )
     
-    opset_imports = [helper.make_opsetid("", 13)]
+    opset_imports = [
+        helper.make_opsetid("", 13),  # Standard ONNX opset
+        helper.make_opsetid("", 20)
+    ]
     
     model = helper.make_model(
         graph, 

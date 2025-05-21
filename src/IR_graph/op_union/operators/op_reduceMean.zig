@@ -73,7 +73,7 @@ pub const ReduceMean = struct {
         var input_tensor_string: []u8 = undefined;
         defer allocator.free(input_tensor_string);
 
-        if (self.data.tc == TensorCategory.initializer) {
+        if (self.data.tc == TensorCategory.INITIALIZER) {
             input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.data.name),
@@ -87,11 +87,11 @@ pub const ReduceMean = struct {
         var axes_str: []const u8 = "null";
         var needs_free = false;
 
-        if (self.axes != null) {
+        if (self.axes) |axes| {
             // Get axes from second input
-            const axes_name = try utils.getSanitizedName(self.axes.name);
+            const axes_name = try utils.getSanitizedName(axes.name);
 
-            if (self.axes.tc == TensorCategory.initializer) {
+            if (axes.tc == TensorCategory.INITIALIZER) {
                 // For initializer tensors, we need to extract the data directly
                 axes_str = try std.fmt.allocPrint(allocator, "(@ptrCast([*]const i64, param_lib.tensor_{s}.data.ptr))[0..param_lib.tensor_{s}.size]", .{ axes_name, axes_name });
             } else {

@@ -97,12 +97,12 @@ pub const MaxPool = struct {
         return self.output_Y;
     }
 
-    pub fn write_op(self: MaxPool, writer: *std.fs.File.Writer) !void {
+    pub fn write_op(self: MaxPool, writer: std.fs.File.Writer) !void {
         //input_X string equivalent
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);
 
-        if (self.input_A.tc == TensorCategory.initializer) {
+        if (self.input_X.tc == TensorCategory.INITIALIZER) {
             tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input_X.name),

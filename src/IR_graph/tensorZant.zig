@@ -38,7 +38,7 @@ pub const TensorType = enum {
 
     undefined,
 
-    pub fn toString(self: *TensorType) []const u8 {
+    pub fn toString(self: TensorType) []const u8 {
         return switch (self) {
             .f16 => "f16",
             .f32 => "f32",
@@ -58,19 +58,19 @@ pub const TensorType = enum {
 };
 
 pub const TensorCategory = enum {
-    input,
-    output,
-    initializer,
-    link,
-    constant,
+    INPUT,
+    OUTPUT,
+    INITIALIZER,
+    LINK,
+    CONSTANT,
 
     pub fn toString(self: TensorCategory) []const u8 {
         return switch (self) {
-            .input => ".input",
-            .output => ".output",
-            .initializer => ".initializer",
-            .link => ".link",
-            .constant => ".constant",
+            .INPUT => ".INPUT",
+            .OUTPUT => ".OUTPUT",
+            .INITIALIZER => ".INITIALIZER",
+            .LINK => ".LINK",
+            .CONSTANT => ".CONSTANT",
         };
     }
 };
@@ -179,7 +179,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
             init_ptr,
             null,
             null,
-            TensorCategory.initializer,
+            TensorCategory.INITIALIZER,
         );
         //add the readyTensor to the HashMap
         try tensorMap.put(tensorZant.name, tensorZant);
@@ -196,7 +196,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
             null,
             inputs_ptr,
             null,
-            TensorCategory.input,
+            TensorCategory.INPUT,
         );
         //add the readyTensor to the HashMap
         try tensorMap.put(tensorZant.name, tensorZant);
@@ -213,7 +213,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
             null,
             outputs_ptr,
             null,
-            TensorCategory.output,
+            TensorCategory.OUTPUT,
         );
         //add the readyTensor to the HashMap
         try tensorMap.put(tensorZant.name, tensorZant);
@@ -223,7 +223,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
     //adding all the nodes inputs and outputs
     for (protoGraph.nodes, 0..) |node, i| { //for each NodeProto in the GraphProto
         std.debug.print("\n --- {} ", .{i});
-        node.print(null);
+        // node.print(null); //DEBUG
 
         //WHy CONSTANT nodes need a different initialization?
         if (std.mem.eql(u8, node.op_type, "Constant")) {
@@ -232,7 +232,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                 node.attribute[0].t.?,
                 null,
                 null,
-                TensorCategory.constant,
+                TensorCategory.CONSTANT,
             );
             //add the readyTensor to the HashMap
             try tensorMap.put(tensorZant.name, tensorZant);
@@ -249,7 +249,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                     null,
                     utils.getValueInfoTensorFromGraphInfo(input_name, protoGraph),
                     null,
-                    TensorCategory.link,
+                    TensorCategory.LINK,
                 );
                 //add the readyTensor to the HashMap
                 try tensorMap.put(tensorZant.name, tensorZant);
@@ -267,7 +267,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                 //         null,
                 //         null,
                 //         shape,
-                //         TensorCategory.constant,
+                //         TensorCategory.CONSTANT,
                 //     );
                 //     //add the readyTensor to the HashMap
                 //     try tensorMap.put(tensorZant.name, tensorZant);
@@ -282,7 +282,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                     null,
                     utils.getValueInfoTensorFromGraphInfo(output_name, protoGraph),
                     null,
-                    TensorCategory.link,
+                    TensorCategory.LINK,
                 );
                 //add the readyTensor to the HashMap
                 try tensorMap.put(tensorZant.name, tensorZant);

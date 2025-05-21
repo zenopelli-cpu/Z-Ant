@@ -70,7 +70,7 @@ pub const Split = struct {
         var tensor_input_string: []u8 = undefined;
         defer allocator.free(tensor_input_string);
 
-        if (self.input.tc == TensorCategory.initializer) {
+        if (self.input.tc == TensorCategory.INITIALIZER) {
             tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
                 try utils.getSanitizedName(self.input.name),
@@ -88,7 +88,7 @@ pub const Split = struct {
         defer allocator.free(tensor_split_string);
 
         if (self.split != null) {
-            if (self.split.?.tc == TensorCategory.initializer) {
+            if (self.split.?.tc == TensorCategory.INITIALIZER) {
                 tensor_split_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                     "@constCast(&param_lib.tensor_",
                     try utils.getSanitizedName(self.split.?.name),
