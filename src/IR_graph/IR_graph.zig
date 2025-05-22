@@ -18,6 +18,7 @@ pub const NodeZant = NodeZant_lib.NodeZant;
 
 pub const tensorZant_lib = @import("tensorZant.zig");
 pub const TensorZant = tensorZant_lib.TensorZant;
+pub const TensorCategory = tensorZant_lib.TensorCategory;
 
 pub const operators = @import("op_union/op_union.zig").operators;
 pub const utils = @import("utils.zig");

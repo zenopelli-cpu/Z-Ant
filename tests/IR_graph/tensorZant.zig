@@ -8,6 +8,7 @@ const allocator = zant.utils.allocator.allocator;
 
 const TensorProto = zant.onnx.TensorProto;
 const Tensor = zant.core.tensor.Tensor;
+const TensorCategory = zant.IR_graph.TensorCategory;
 
 const protoTensor2AnyTensor = zant.IR_graph.utils.protoTensor2AnyTensor;
 
@@ -85,4 +86,31 @@ test "computeStride with 1D shape" {
     const strides = try TensorZant.computeStride(&shape);
 
     try std.testing.expectEqualSlices(usize, &expected, strides);
+}
+test "get_tensorZantID generates consistent ID for same name" {
+    std.debug.print("\n\n ------TEST: get_tensorZantID consistency", .{});
+
+    var shape_data = [_]usize{ 2, 2 };
+    const shape = shape_data[0..]; // equivale a `&shape_data`
+
+    var tensor1 = try TensorZant.init(
+        "my_tensor",
+        null,
+        null,
+        shape,
+        TensorCategory.INPUT,
+    );
+
+    var tensor2 = try TensorZant.init(
+        "my_tensor",
+        null,
+        null,
+        shape,
+        TensorCategory.OUTPUT,
+    );
+
+    const id1 = (&tensor1).get_tensorZantID();
+    const id2 = (&tensor2).get_tensorZantID();
+
+    try std.testing.expectEqual(id1, id2);
 }

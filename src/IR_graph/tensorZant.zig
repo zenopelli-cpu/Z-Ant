@@ -157,7 +157,7 @@ pub const TensorZant = struct {
     // Returns the id of a tensorZant from the hashMap
     pub fn get_tensorZantID(self: *TensorZant) usize {
         var hasher = std.hash.Wyhash.init(0);
-        std.hash.hash(&hasher, self.name, .Deep);
+        std.hash.autoHashStrat(&hasher, self.name, .Deep);
         return @as(usize, @intCast(hasher.final()));
     }
 };
