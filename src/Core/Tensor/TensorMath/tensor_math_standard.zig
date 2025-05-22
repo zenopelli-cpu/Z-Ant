@@ -22,6 +22,13 @@ pub const flatten = op_flatten.flatten;
 pub const flatten_lean = op_flatten.flatten_lean;
 pub const get_flatten_output_shape = op_flatten.get_flatten_output_shape;
 
+//---squeeze
+const op_squeeze = @import("lib_shape_math/op_squeeze.zig");
+
+pub const squeeze = op_squeeze.squeeze;
+pub const squeeze_lean = op_squeeze.squeeze_lean;
+pub const get_squeeze_output_shape = op_squeeze.get_squeeze_output_shape;
+
 //---gather
 
 const op_gather = @import("lib_shape_math/op_gather.zig");

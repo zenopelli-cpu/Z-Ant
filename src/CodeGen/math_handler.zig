@@ -94,6 +94,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_flatten(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Floor")) {
         try write_floor(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Squeeze")) {
+        try write_squeeze(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gather")) {
         try write_gather(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gemm")) {
@@ -1716,6 +1718,50 @@ inline fn write_flatten(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     _ = try writer.print(
         \\
         \\    tensMath.flatten_lean(
+        \\        {s}, // type
+        \\        {s}, // input
+        \\        &tensor_{s}, // output
+        \\    )
+    , .{
+        tensor_type,
+        tensor_input_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_squeeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+
+    // Squeeze - 23 : https://onnx.ai/onnx/operators/onnx__Squeeze.html
+    // Inputs:
+    //  - data (heterogeneous) - T: Tensors with at least max(dims) dimensions
+    //  - axes (optional, heterogeneous) - tensor(int64): List of integers indicating the dimensions to squeeze
+    //      Negative value means counting dimensions from the back
+    //      Accepted range is [-r, r-1] where r = rank(data)
+    // Outputs:
+    //  - squeezed (heterogeneous) - T: Reshaped tensor with same data as input
+
+    var tensor_input_string: []u8 = undefined;
+    defer allocator.free(tensor_input_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    }
+
+    const tensor_type = try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[0].?.name).?.tensorProto.?.data_type);
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.squeeze_lean(
         \\        {s}, // type
         \\        {s}, // input
         \\        &tensor_{s}, // output
