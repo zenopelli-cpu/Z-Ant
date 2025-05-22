@@ -153,6 +153,13 @@ pub const TensorZant = struct {
         }
         self.ty = ty;
     }
+
+    // Returns the id of a tensorZant from the hashMap
+    pub fn get_tensorZantID(self: TensorZant) u64 {
+        var hasher = std.hash.Wyhash.init(0);
+        std.hash.hash(&hasher, self.name, .Deep);
+        return hasher.final();
+    }
 };
 
 // ----------------------- HASH MAP -----------------------
