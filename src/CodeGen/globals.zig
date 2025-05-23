@@ -1,5 +1,5 @@
 const std = @import("std");
-const zant = @import("../zant.zig");
+const zant = @import("zant");
 const Tensor = zant.tensor.Tensor;
 const onnx = zant.onnx;
 const ModelOnnx = onnx.ModelProto;

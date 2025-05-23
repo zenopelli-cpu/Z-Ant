@@ -35,6 +35,10 @@ pub fn build(b: *std.Build) void {
     IR_mod.addImport("zant", zant_mod);
     IR_mod.addImport("codegen", codeGen_mod);
 
+    const Img2Tens_mod = b.createModule(.{ .root_source_file = b.path("src/ImageToTensor/imageToTensor.zig") });
+    Img2Tens_mod.addImport("zant", zant_mod);
+    Img2Tens_mod.addImport("codegen", codeGen_mod);
+
     //************************************************UNIT TESTS************************************************
 
     // Define unified tests for the project.

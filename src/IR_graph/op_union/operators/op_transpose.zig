@@ -1,7 +1,7 @@
 const std = @import("std");
-const zant = @import("../../../zant.zig");
+const zant = @import("zant");
 const allocator = std.heap.page_allocator;
-const utils = @import("../../../CodeGen/utils.zig");
+const utils = @import("codegen").utils;
 
 // --- onnx ---
 const onnx = zant.onnx;
