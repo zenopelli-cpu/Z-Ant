@@ -229,7 +229,7 @@ inline fn write_add(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             ")",
         });
     } else {
-        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name) });
+        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name), ")" });
     }
 
     _ = try writer.print(
@@ -961,7 +961,7 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     //      - output (heterogeneous) - T: Tensor of rank q + r - 1.
     // ATTRIBUTES:
     //      - axis (int, default is 0): Which axis to gather on. Negative value means counting dimensions from the back.
-    
+
     var axis: i64 = 0;
     for (node.nodeProto.attribute) |attr| {
         if (std.mem.eql(u8, attr.name, "axis")) {
