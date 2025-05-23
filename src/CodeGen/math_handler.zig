@@ -1757,7 +1757,22 @@ inline fn write_squeeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         });
     }
 
-    const tensor_type = try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[0].?.name).?.tensorProto.?.data_type);
+    var tensor_type: []const u8 = undefined;
+    const input_ready_tensor = globals.tensorHashMap.getPtr(node.inputs.items[0].?.name);
+
+    if (input_ready_tensor) |rt| {
+        if (rt.tensorProto) |tp| {
+            tensor_type = try utils.getTypeString(tp.data_type);
+        } else {
+            // Fallback if tensorProto is null
+            mathHandler_log.warn("Warning: tensorProto is null for Squeeze input '{s}'. Falling back to f32 type.\n", .{node.inputs.items[0].?.name});
+            tensor_type = "f32";
+        }
+    } else {
+        // Fallback if ReadyTensor is not found in the map
+        mathHandler_log.warn("Warning: ReadyTensor not found for Squeeze input '{s}'. Falling back to f32 type.\n", .{node.inputs.items[0].?.name});
+        tensor_type = "f32";
+    }
 
     _ = try writer.print(
         \\

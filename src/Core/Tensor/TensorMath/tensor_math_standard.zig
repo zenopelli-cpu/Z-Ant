@@ -116,8 +116,6 @@ pub const blocked_mat_mul_lean = op_mat_mul.lean_blocked_mat_mul;
 
 pub const get_mat_mul_output_shape = op_mat_mul.get_mat_mul_output_shape;
 
-pub const dot_product_tensor_flat = op_mat_mul.dot_product_tensor_flat;
-
 //----------- importing standard elu method -----------
 const op_elu = @import("op_elu.zig");
 

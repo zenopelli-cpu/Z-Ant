@@ -384,8 +384,22 @@ inline fn compute_reshape_output_shape(readyNode: *ReadyNode) !void {
             shape_spec_found = true;
             Codegen_log.debug("\n new shape spec from attribute: []isize = {any}", .{new_shape_spec});
         } else {
-            Codegen_log.warn("ERROR: Reshape requires a shape input (tensor or attribute), but none was found.", .{});
-            return error.ShapeNotFound;
+            // Default behavior: use the inverse of the input shape
+            Codegen_log.debug("No shape tensor or attribute found, using inverse of input shape as default.", .{});
+
+            // Allocate space for the inverse shape
+            var temp_shape_spec = try allocator.alloc(isize, input_shape_i64.len);
+
+            // Create inverse shape by reversing the dimensions
+            for (input_shape_i64, 0..) |dim, i| {
+                const inverse_index = input_shape_i64.len - 1 - i;
+                temp_shape_spec[inverse_index] = dim;
+            }
+
+            new_shape_spec = temp_shape_spec;
+            shape_input_needs_free = true; // Mark that we allocated this
+            shape_spec_found = true;
+            Codegen_log.debug("\n using inverse shape as default: []isize = {any}", .{new_shape_spec});
         }
     } else {
         // Ensure cleanup if we allocated the shape spec FROM THE INPUT PATH

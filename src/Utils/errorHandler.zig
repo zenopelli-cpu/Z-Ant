@@ -69,6 +69,7 @@ pub const TensorMathError = error{
     IndexOutOfBounds,
     InvalidShape,
     InvalidOutputLength,
+    UnsupportedTensorDimensions,
 };
 
 /// Tensor errors
