@@ -83,6 +83,9 @@ pub fn compute_output_shape(readyNode: *ReadyNode) !void {
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Floor")) {
         //https://onnx.ai/onnx/operators/onnx__Floor.html
         try compute_floor_output_shape(readyNode);
+    } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Squeeze")) {
+        //https://onnx.ai/onnx/operators/onnx__Squeeze.html
+        try compute_squeeze_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gather")) {
         try compute_gather_output_shape(readyNode);
     } else if (std.mem.eql(u8, readyNode.nodeProto.op_type, "Gemm")) {
@@ -1617,6 +1620,64 @@ inline fn compute_flatten_output_shape(readyNode: *ReadyNode) !void {
 
         const output_shape_usize = try tensorMath.get_flatten_output_shape(input_shape_usize, @intCast(axis));
         //defer allocator.free(output_shape_usize); // Libera il risultato di get_flatten_output_shape
+        Codegen_log.debug("\n output_shape_usize: []usize = {any}", .{output_shape_usize});
+
+        shape = try utils.usizeSliceToI64Slice(@constCast(output_shape_usize));
+    }
+
+    readyNode.outputs.items[0].shape = shape;
+    Codegen_log.info("\n output_shape: []i64 = {any}", .{readyNode.outputs.items[0].shape});
+}
+
+inline fn compute_squeeze_output_shape(readyNode: *ReadyNode) !void {
+    Codegen_log.info("\n====== compute_squeeze_output_shape node: {s}======", .{readyNode.nodeProto.name orelse "(unnamed)"});
+    var shape: []const i64 = undefined;
+
+    if (utils.getTensorShape(readyNode.outputs.items[0].name)) |tensorShape| {
+        shape = tensorShape;
+    } else {
+        if (readyNode.inputs.items.len == 0) {
+            return error.EmptyInputList;
+        }
+
+        const input_shape_i64 = readyNode.inputs.items[0].?.shape;
+        Codegen_log.info("\n input_shape: []i64 = {any}", .{input_shape_i64});
+
+        const input_shape_usize = try utils.i64SliceToUsizeSlice(input_shape_i64);
+        defer allocator.free(input_shape_usize);
+        Codegen_log.debug("\n input_shape_usize: []usize = {any}", .{input_shape_usize});
+
+        var axes_values_isize: ?[]const isize = null;
+        var axes_buffer: []isize = undefined; // Buffer for conversion
+        defer if (axes_values_isize != null) allocator.free(axes_buffer);
+
+        if (readyNode.inputs.items.len > 2 and readyNode.inputs.items[2] != null and readyNode.inputs.items[2].?.tensorProto != null) {
+            const axes_proto = readyNode.inputs.items[2].?.tensorProto.?;
+            if (axes_proto.int64_data != null) {
+                const axes_i64 = axes_proto.int64_data.?;
+                axes_buffer = try allocator.alloc(isize, axes_i64.len);
+                for (axes_i64, 0..) |val, i| {
+                    axes_buffer[i] = @intCast(val);
+                }
+                axes_values_isize = axes_buffer;
+                Codegen_log.debug("\n axes (from i64): {any}", .{axes_values_isize});
+            } else if (axes_proto.int32_data != null) {
+                const axes_i32 = axes_proto.int32_data.?;
+                axes_buffer = try allocator.alloc(isize, axes_i32.len);
+                for (axes_i32, 0..) |val, i| {
+                    axes_buffer[i] = @intCast(val);
+                }
+                axes_values_isize = axes_buffer;
+                Codegen_log.debug("\n axes (from i32): {any}", .{axes_values_isize});
+            } else {
+                Codegen_log.warn("\nWARNING: Axes input (index 3) provided but is not int64 or int32 data.", .{});
+                // Proceed without axes if the type is wrong
+            }
+        } else {
+            Codegen_log.debug("\n axes: not provided", .{});
+        }
+
+        const output_shape_usize = try tensorMath.get_squeeze_output_shape(input_shape_usize, axes_values_isize);
         Codegen_log.debug("\n output_shape_usize: []usize = {any}", .{output_shape_usize});
 
         shape = try utils.usizeSliceToI64Slice(@constCast(output_shape_usize));

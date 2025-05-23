@@ -193,7 +193,7 @@ pub fn build(b: *std.Build) void {
         .name = "test_generated_lib",
         .root_source_file = b.path(test_model_path),
         .target = target,
-        .optimize = optimize,
+        .optimize = .Debug,
     });
 
     test_generated_lib.root_module.addImport("zant", zant_mod);

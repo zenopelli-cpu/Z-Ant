@@ -13,6 +13,8 @@ const model = @import("model_options.zig");
 const ITERATION_COUNT: u32 = 100;
 
 test "Static Library - Random data Prediction Test" {
+    std.testing.log_level = .info;
+
     tests_log.info("\n     test: Static Library - Model: {s}  - Random data Prediction Test\n", .{model.name});
 
     var input_shape = model.input_shape;
@@ -52,6 +54,8 @@ test "Static Library - Random data Prediction Test" {
 }
 
 test "Static Library - Inputs Prediction Test" {
+    std.testing.log_level = .info;
+
     tests_log.info("\n     test: Codegen one-op model: \"{s}\" compare with Pre-Generated results.\n", .{model.name});
 
     var input_shape = model.input_shape;
