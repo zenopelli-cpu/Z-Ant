@@ -306,3 +306,11 @@ const op_Transpose = @import("lib_shape_math/op_transpose.zig");
 pub const transpose_onnx = op_Transpose.transpose_onnx;
 pub const transpose_onnx_lean = op_Transpose.transpose_onnx_lean;
 pub const get_transpose_output_shape = op_Transpose.get_transpose_output_shape;
+
+pub const lowerAdd = add.lowerAdd;
+pub const lowerSub = sub.lowerSub;
+pub const lowerMul = mult.lowerMul;
+pub const lowerDiv = division.lowerDiv;
+pub const lowerTanh = tanhy.lowerTanh;
+pub const lowerMatMul = op_mat_mul.lowerMatMul;
+pub const lowerConv2d = convolution_math_lib.lowerConv2d;
