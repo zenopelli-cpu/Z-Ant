@@ -12,7 +12,7 @@ const UnaryRender = @import("unary_render.zig");
 const GepRender = @import("gep_render.zig");
 const ControlFlowRender = @import("controlflow_render.zig");
 const ViewManagerModule = @import("view_manager.zig");
-const ReshapeManager = @import("reshape_manager.zig");
+const ReshapeRender = @import("reshape_render.zig");
 const ViewInfo = ViewManagerModule.ViewInfo;
 
 const Uops = zant.uops;
@@ -160,6 +160,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
             for (uops_list) |uop| {
                 const entry = try self.buffer_map.getOrPut(uop.id);
                 if (!entry.found_existing) {
+                    std.debug.print("Found buffer: {any} (id={d})\n", .{ uop.op, uop.id });
                     const is_an_input = for (input_ids) |in_id| {
                         if (uop.id == in_id) break true;
                     } else false;
@@ -184,6 +185,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                         }
 
                         if (!is_an_input) {
+                            std.debug.print("Found output buffer: {s} (id={d})\n", .{ name, uop.id });
                             self.final_output_buffer_id = uop.id;
                         }
                     }
@@ -402,14 +404,14 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                 .GEP => try GepRender.render(self.allocator, self.writer, uop, &self.view_map, &self.buffer_map, ptr_map),
 
                 .RANGE => {
-                    try ControlFlowRender.render(self.allocator, self.writer, uop, ptr_map);
+                    try ControlFlowRender.render(self.allocator, self.writer, uop, ptr_map, &self.view_map);
                     self.indent_level += 1; // <<< Use indent_level
                 },
 
                 .ENDRANGE => {
                     if (self.indent_level > 0) self.indent_level -= 1; // <<< Decrement first
                     try self.apply_indentation(); // <<< Apply indent for closing brace
-                    try ControlFlowRender.render(self.allocator, self.writer, uop, ptr_map);
+                    try ControlFlowRender.render(self.allocator, self.writer, uop, ptr_map, &self.view_map);
                 },
 
                 .ADD, .SUB, .MUL, .FDIV, .MAX, .MIN, .CMPLT => try ArithmeticRender.render(self.allocator, self.writer, uop, ptr_map),
@@ -417,7 +419,7 @@ pub fn ZigRenderer(comptime WriterType: type) type {
                 .EXP2, .NEG, .CAST, .CLIP => try UnaryRender.render(self.allocator, self.writer, uop, ptr_map),
 
                 .VIEW => try self.render_view(uop, ptr_map),
-                .RESHAPE => try ReshapeManager.manage(self.allocator, self.writer, uop, &self.view_map, &self.buffer_map, ptr_map),
+                .RESHAPE => try ReshapeRender.render(self.allocator, self.writer, uop, &self.view_map, &self.buffer_map, ptr_map),
                 .DEFINE_ACC => try self.render_define_acc(uop, ptr_map),
                 .MULACC => try self.render_mulacc(uop, ptr_map),
 
