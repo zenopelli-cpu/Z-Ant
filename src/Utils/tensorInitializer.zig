@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const rand = std.Random;
-const zant = @import("../zant.zig");
+const zant = @import("zant");
 
 const TensorProto = zant.onnx.TensorProto;
 const AnyTensor = zant.core.tensor.AnyTensor;

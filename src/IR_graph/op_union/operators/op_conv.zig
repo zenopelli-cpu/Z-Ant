@@ -1,5 +1,5 @@
 const std = @import("std");
-const zant = @import("../../../zant.zig");
+const zant = @import("zant");
 const tensorMath = zant.core.tensor.math_standard;
 
 const allocator = zant.utils.allocator.allocator;
@@ -16,7 +16,7 @@ const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 const TensorCategory = tensorZant.TensorCategory;
 
-const utils = @import("../../../CodeGen/utils.zig");
+const utils = @import("codegen").utils;
 
 // https://onnx.ai/onnx/operators/onnx__Conv.html
 // INPUTS:

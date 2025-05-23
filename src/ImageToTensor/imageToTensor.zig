@@ -1,5 +1,5 @@
 const std = @import("std");
-const zant = @import("../zant.zig");
+const zant = @import("zant");
 pub const jpeg = @import("jpeg/jpegDecoder.zig");
 pub const utils = @import("utils.zig");
 const formatVerifier = @import("formatVerifier.zig");

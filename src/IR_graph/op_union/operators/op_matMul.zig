@@ -1,8 +1,7 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
-const zant = @import("../../../zant.zig");
+const zant = @import("zant");
 const tensorMath = zant.core.tensor.math_standard;
-const globals = @import("../../../CodeGen/globals.zig");
 const mathHandler_log = std.log.scoped(.mathHandler);
 
 // --- onnx ---
@@ -17,7 +16,7 @@ const tensorZant = @import("../../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 const TensorCategory = tensorZant.TensorCategory;
 
-const utils = @import("../../../CodeGen/utils.zig");
+const utils = @import("codegen").utils;
 
 // https://onnx.ai/onnx/operators/onnx__MatMul.html#l-onnx-doc-matmul
 // INPUTS:

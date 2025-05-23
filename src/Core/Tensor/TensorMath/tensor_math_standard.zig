@@ -23,6 +23,13 @@ pub const flatten = op_flatten.flatten;
 pub const flatten_lean = op_flatten.flatten_lean;
 pub const get_flatten_output_shape = op_flatten.get_flatten_output_shape;
 
+//---squeeze
+const op_squeeze = @import("lib_shape_math/op_squeeze.zig");
+
+pub const squeeze = op_squeeze.squeeze;
+pub const squeeze_lean = op_squeeze.squeeze_lean;
+pub const get_squeeze_output_shape = op_squeeze.get_squeeze_output_shape;
+
 //---gather
 
 const op_gather = @import("lib_shape_math/op_gather.zig");
@@ -108,8 +115,6 @@ pub const mat_mul_lean = op_mat_mul.lean_mat_mul;
 pub const blocked_mat_mul_lean = op_mat_mul.lean_blocked_mat_mul;
 
 pub const get_mat_mul_output_shape = op_mat_mul.get_mat_mul_output_shape;
-
-pub const dot_product_tensor_flat = op_mat_mul.dot_product_tensor_flat;
 
 //----------- importing standard elu method -----------
 const op_elu = @import("op_elu.zig");

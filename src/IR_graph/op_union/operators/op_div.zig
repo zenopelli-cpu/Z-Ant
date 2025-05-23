@@ -1,6 +1,6 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
-const zant = @import("../../../zant.zig");
+const zant = @import("zant");
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -15,7 +15,7 @@ const TensorZant = tensorZant.TensorZant;
 const TensorCategory = tensorZant.TensorCategory;
 
 const IR_utils = @import("../../utils.zig"); //this is IR utils
-const utils = @import("../../../CodeGen/utils.zig");
+const utils = @import("codegen").utils;
 
 // https://onnx.ai/onnx/operators/onnx__Div.html
 // INPUTS:
