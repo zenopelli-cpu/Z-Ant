@@ -11,6 +11,9 @@ const Any = zant.uops.Any;
 
 const pkg_allocator = zant.utils.allocator.allocator;
 
+// Temprorary import for testing
+const lowerNeg = @import("op_neg.zig").lowerNeg;
+
 /// Given and input tensor and the new shape, returns a new tensor with the same data of the input, in the same order, but a different shape.
 /// The lean version of this method follows the onnx standard.
 /// https://onnx.ai/onnx/operators/onnx__Reshape.html
@@ -339,12 +342,62 @@ fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: [
 /// https://onnx.ai/onnx/operators/onnx__Reshape.html
 pub fn lowerReshape(
     b: *UOpBuilder,
-    A_id: usize, // input-tensor SSA ids
+    A_id: usize, // input-tensor SSA id
     out_shape: []const usize,
     out_dtype: DType, // promoted element type
-) usize { // returns id of result buffer
+) !usize { // returns id of result buffer
 
-    const id_outBuf = b.push(.RESHAPE, out_dtype, &.{A_id}, Any{ .shape = out_shape });
+    // ── Set-up phase ────────────────────────────────────────────────────
+    _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
 
-    return id_outBuf; // SSA id of the output tensor
+    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = &.{ 1, 1 } } });
+
+    const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
+
+    // ── Flat element loop ────────────────────────────────────────────────
+
+    // For dim = -1 calculate -1 from number elemets
+    // For dim = 0 get the previous dim value from the previous shape
+
+    var nelem: usize = 1;
+    for (out_shape) |dim| nelem *= dim;
+
+    var id_ranges = std.ArrayList(usize).init(pkg_allocator);
+    defer id_ranges.deinit();
+
+    _ = b.push(.RESHAPE, out_dtype, &.{id_viewA}, Any{ .shape = out_shape });
+
+    for (out_shape) |dim| {
+        const id_range = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = dim } });
+        id_ranges.append(id_range) catch {};
+    }
+
+    var src_A = std.ArrayList(usize).init(pkg_allocator);
+    defer src_A.deinit();
+    try src_A.append(id_viewA);
+    for (id_ranges.items) |range| {
+        try src_A.append(range);
+    }
+
+    const id_gepA = b.push(.GEP, out_dtype, src_A.items, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
+
+    const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
+
+    var src_0 = std.ArrayList(usize).init(pkg_allocator);
+    defer src_0.deinit();
+
+    try src_0.append(id_outBuf);
+    for (id_ranges.items) |range| {
+        try src_0.append(range);
+    }
+
+    const id_gepO = b.push(.GEP, out_dtype, src_0.items, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
+
+    _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_loadA }, null);
+
+    for (id_ranges.items) |i| {
+        _ = b.push(.ENDRANGE, .bool, &.{i}, null);
+    }
+
+    return id_outBuf;
 }

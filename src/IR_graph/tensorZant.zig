@@ -159,10 +159,24 @@ pub const TensorZant = struct {
         }
         self.ty = ty;
     }
+
+    // Returns the id of a tensorZant from the hashMap
+    pub fn get_tensorZantID(self: *TensorZant) usize {
+        var hasher = std.hash.Wyhash.init(0);
+        std.hash.autoHashStrat(&hasher, self.name, .Deep);
+        return @as(usize, @intCast(hasher.final()));
+    }
 };
 
 // ----------------------- HASH MAP -----------------------
 pub var tensorMap: std.StringHashMap(TensorZant) = std.StringHashMap(TensorZant).init(allocator);
+
+// Returns the id of a tensorZant from the hashMap
+pub fn get_tensorZantID(self: TensorZant) u64 {
+    var hasher = std.hash.Wyhash.init(0);
+    std.hash.hash(&hasher, self.name, .Deep);
+    return hasher.final();
+}
 
 // Populates tensorHashMap with the tensors used in the onnx graph, where the key is the name of the tensor
 pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
