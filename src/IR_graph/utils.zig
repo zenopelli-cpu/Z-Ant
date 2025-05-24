@@ -117,23 +117,29 @@ pub fn protoTensor2AnyTensor(proto: *TensorProto) !AnyTensor {
     defer allocator.free(shape);
 
     if (proto.float_data) |float_data| {
-        const tensor = try Tensor(f32).fromArray(&allocator, float_data, shape);
-        return AnyTensor{ .f32 = @constCast(&tensor) };
+        const tensor = try allocator.create(Tensor(f32));
+        tensor.* = try Tensor(f32).fromArray(&allocator, float_data, shape);
+        return AnyTensor{ .f32 = tensor };
     } else if (proto.int32_data) |int32_data| {
-        const tensor = try Tensor(i32).fromArray(&allocator, int32_data, shape);
-        return AnyTensor{ .i32 = @constCast(&tensor) };
+        const tensor = try allocator.create(Tensor(i32));
+        tensor.* = try Tensor(i32).fromArray(&allocator, int32_data, shape);
+        return AnyTensor{ .i32 = tensor };
     } else if (proto.int64_data) |int64_data| {
-        const tensor = try Tensor(i64).fromArray(&allocator, int64_data, shape);
-        return AnyTensor{ .i64 = @constCast(&tensor) };
+        const tensor = try allocator.create(Tensor(i64));
+        tensor.* = try Tensor(i64).fromArray(&allocator, int64_data, shape);
+        return AnyTensor{ .i64 = tensor };
     } else if (proto.double_data) |double_data| {
-        const tensor = try Tensor(f64).fromArray(&allocator, double_data, shape);
-        return AnyTensor{ .f64 = @constCast(&tensor) };
+        const tensor = try allocator.create(Tensor(f64));
+        tensor.* = try Tensor(f64).fromArray(&allocator, double_data, shape);
+        return AnyTensor{ .f64 = tensor };
     } else if (proto.uint64_data) |uint64_data| {
-        const tensor = try Tensor(u64).fromArray(&allocator, uint64_data, shape);
-        return AnyTensor{ .u64 = @constCast(&tensor) };
+        const tensor = try allocator.create(Tensor(u64));
+        tensor.* = try Tensor(u64).fromArray(&allocator, uint64_data, shape);
+        return AnyTensor{ .u64 = tensor };
     } else if (proto.uint16_data) |uint16_data| {
-        const tensor = try Tensor(u16).fromArray(&allocator, uint16_data, shape);
-        return AnyTensor{ .u16 = @constCast(&tensor) };
+        const tensor = try allocator.create(Tensor(u16));
+        tensor.* = try Tensor(u16).fromArray(&allocator, uint16_data, shape);
+        return AnyTensor{ .u16 = tensor };
     } else {
         return error.UnsupportedDataType;
     }
@@ -169,7 +175,7 @@ pub fn broadcastShapes(general_allocator: std.mem.Allocator, shape1: []usize, sh
     return output;
 }
 
-pub fn getInitializers(hashMap: *std.StringHashMap(TensorZant)) []TensorZant {
+pub fn getInitializers(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
     var initializers = std.ArrayList(TensorZant).init(allocator);
     var it = hashMap.iterator();
     while (it.next()) |entry| {

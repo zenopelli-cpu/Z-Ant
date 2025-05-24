@@ -86,12 +86,13 @@ pub const TensorZant = struct {
     pub fn init(name: []const u8, tensorProto: ?*TensorProto, value_info: ?*ValueInfoProto, shape: ?[]usize, tensorCategory: TensorCategory) !TensorZant {
         std.debug.print("\n ----------- init({s}, {s}, {s}, {s}) ", .{ name, if (tensorProto) |_| "tp" else "null", if (value_info) |_| "vi" else "null", tensorCategory.toString() });
 
-        var tensor: ?AnyTensor = null;
+        var tensor: ?*AnyTensor = null;
         var shape_i64: []i64 = undefined;
         var shape_usize: []usize = undefined;
 
         if (tensorProto) |tp| { //if the tensorProto is given it means that the tensor we are initializing is
-            tensor = try utils.protoTensor2AnyTensor(tp); //create the ptr to AnyTensor
+            tensor = try allocator.create(AnyTensor);
+            tensor.?.* = try utils.protoTensor2AnyTensor(tp); //create the ptr to AnyTensor
             shape_usize = tensor.?.get_shape(); //saves the shape
         } else if (value_info) |vi| {
             shape_i64 = if (utils.getTensorShapeFromValueInfo(vi)) |s| s else { //search for the shape
@@ -110,15 +111,20 @@ pub const TensorZant = struct {
 
         return TensorZant{
             .name = name,
-            .ty = if (tensor) |t| utils.getAnyTensorType(t) else TensorType.undefined, //if .ty is set to undefined it means that it is a "link" tensor between 2 nodes, the .ty must be set when the nodes are created
+            .ty = if (tensor) |t| utils.getAnyTensorType(t.*) else TensorType.undefined, //if .ty is set to undefined it means that it is a "link" tensor between 2 nodes, the .ty must be set when the nodes are created
             .tc = tensorCategory,
-            .ptr = if (tensor) |t| @constCast(&t) else null,
+            .ptr = tensor,
             .shape = shape_usize,
             .stride = try TensorZant.computeStride(shape_usize),
         };
     }
 
     pub fn deint(self: *TensorZant) void {
+        if (self.ptr) |at| {
+            at.deint();
+        }
+
+        allocator.free(self.ptr);
         allocator.free(self.name);
         allocator.free(self.shape);
         allocator.free(self.stride);

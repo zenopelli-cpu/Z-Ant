@@ -69,6 +69,22 @@ pub const AnyTensor = union(enum) {
         };
     }
 
+    pub fn get_size(self: *AnyTensor) usize {
+        return switch (self.*) {
+            .i64 => |t| t.size,
+            .f64 => |t| t.size,
+            .u64 => |t| t.size,
+            .f32 => |t| t.size,
+            .i32 => |t| t.size,
+            .u32 => |t| t.size,
+            .f16 => |t| t.size,
+            .i16 => |t| t.size,
+            .u16 => |t| t.size,
+            .i8 => |t| t.size,
+            .u8 => |t| t.size,
+        };
+    }
+
     pub fn set_shape(self: *AnyTensor, new_shape: []usize) []usize {
         return switch (self) {
             .i64 => |t| t.shape = new_shape,
@@ -84,6 +100,46 @@ pub const AnyTensor = union(enum) {
             .u8 => |t| t.shape = new_shape,
         };
     }
+
+    pub fn get_data_as(self: *AnyTensor, comptime T: type) []T {
+        return switch (self.*) {
+            .i64 => |t| if (T == i64) t.data else unreachable,
+            .f64 => |t| if (T == f64) t.data else unreachable,
+            .u64 => |t| if (T == u64) t.data else unreachable,
+            .f32 => |t| if (T == f32) t.data else unreachable,
+            .i32 => |t| if (T == i32) t.data else unreachable,
+            .u32 => |t| if (T == u32) t.data else unreachable,
+            .f16 => |t| if (T == f16) t.data else unreachable,
+            .i16 => |t| if (T == i16) t.data else unreachable,
+            .u16 => |t| if (T == u16) t.data else unreachable,
+            .i8 => |t| if (T == i8) t.data else unreachable,
+            .u8 => |t| if (T == u8) t.data else unreachable,
+        };
+    }
+
+    pub fn get_data_bytes(self: *AnyTensor) []const u8 {
+        return switch (self.*) {
+            .i64 => |t| std.mem.sliceAsBytes(t.data),
+            .f64 => |t| std.mem.sliceAsBytes(t.data),
+            .u64 => |t| std.mem.sliceAsBytes(t.data),
+            .f32 => |t| std.mem.sliceAsBytes(t.data),
+            .i32 => |t| std.mem.sliceAsBytes(t.data),
+            .u32 => |t| std.mem.sliceAsBytes(t.data),
+            .f16 => |t| std.mem.sliceAsBytes(t.data),
+            .i16 => |t| std.mem.sliceAsBytes(t.data),
+            .u16 => |t| std.mem.sliceAsBytes(t.data),
+            .i8 => |t| std.mem.sliceAsBytes(t.data),
+            .u8 => |t| std.mem.sliceAsBytes(t.data),
+        };
+    }
+
+    // OSS!!! just for information, after get_data_as():
+    //
+    // fn bytesToSlice(comptime T: type, bytes: []const u8) []const T {
+    //     const len = bytes.len / @sizeOf(T);
+    //     return @as([*]const T, @ptrCast(bytes.ptr))[0..len];
+    // }
+
 };
 
 ///Class Tensor.

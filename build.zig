@@ -59,7 +59,7 @@ pub fn build(b: *std.Build) void {
 
     unit_tests.root_module.addImport("zant", zant_mod);
     unit_tests.root_module.addImport("codegen", codeGen_mod);
-    unit_tests.root_module.addImport("IR_graph", IR_mod);
+    unit_tests.root_module.addImport("IR_zant", IR_mod);
 
     unit_tests.linkLibC();
 
@@ -265,7 +265,7 @@ pub fn build(b: *std.Build) void {
 
     write_op_test.root_module.addImport("zant", zant_mod);
     write_op_test.root_module.addImport("codegen", codeGen_mod);
-    write_op_test.root_module.addImport("IR_graph", IR_mod);
+    write_op_test.root_module.addImport("IR_zant", IR_mod);
     write_op_test.linkLibC();
 
     const run_write_op_test = b.addRunArtifact(write_op_test);
@@ -326,7 +326,7 @@ pub fn build(b: *std.Build) void {
 
     test_all_write_op.root_module.addImport("zant", zant_mod);
     test_all_write_op.root_module.addImport("codegen", codeGen_mod);
-    test_all_write_op.root_module.addImport("IR_graph", IR_mod);
+    test_all_write_op.root_module.addImport("IR_zant", IR_mod);
     test_all_write_op.linkLibC();
 
     const run_test_all_write_op = b.addRunArtifact(test_all_write_op);
