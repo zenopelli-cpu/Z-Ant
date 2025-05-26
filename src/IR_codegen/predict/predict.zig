@@ -32,13 +32,13 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
     //write input type
     _ = try writer.print(
         \\
-        \\ const T_in : type = f32
+        \\ const T_in : type = f32;
     , .{});
 
     //write output type
     _ = try writer.print(
         \\
-        \\ const T_out : type = f32
+        \\ const T_out : type = f32;
     , .{});
 
     _ = try writer.print(
@@ -353,7 +353,7 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         \\    }}
         \\     
         \\    //allocating space in memory for the data
-        \\    const data = allocator.alloc(T, size) catch return;
+        \\    const data = allocator.alloc(T_in, size) catch return;
         \\    defer allocator.free(data);
         \\    for (0..size) |i| {{
         \\        data[i] = input[i]; // Copying input elements 
@@ -361,7 +361,7 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         \\    
         \\    //converting the shape from [*]u32 to []usize
         \\    const usized_shape: []usize = utils.u32ToUsize(allocator, input_shape, shape_len) catch return;
-        \\    var tensor_{s} = Tensor(T).fromShape(&allocator, @constCast(usized_shape)) catch return;
+        \\    var tensor_{s} = Tensor(T_in).fromShape(&allocator, @constCast(usized_shape)) catch return;
         \\    defer allocator.free(usized_shape);
         \\    defer tensor_{s}.deinit();
         \\    @memcpy(tensor_{s}.data, data);

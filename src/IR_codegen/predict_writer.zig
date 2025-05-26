@@ -16,7 +16,6 @@ const allocator = zant.utils.allocator.allocator;
 
 // --- codegen
 const codeGenPredict = @import("predict/predict.zig");
-// const codegen_options = @import("codegen_options");
 
 pub fn write(generated_path: []const u8, model_name: []const u8, linearizedGraph: std.ArrayList(*NodeZant)) !void {
 

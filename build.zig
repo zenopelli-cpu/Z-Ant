@@ -68,13 +68,16 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run all unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
+    // ****************************************************************************************************************
+    // ************************************************ CODEGEN OPTIONS ***********************************************
+    // ****************************************************************************************************************
+
     // Name and path of the model
     const model_name_option = b.option([]const u8, "model", "Model name") orelse "mnist-8";
     const model_path_option = b.option([]const u8, "model_path", "Model path") orelse std.fmt.allocPrint(b.allocator, "datasets/models/{s}/{s}.onnx", .{ model_name_option, model_name_option }) catch |err| {
         std.log.scoped(.build).warn("Error allocating model path: {}\n", .{err});
         return;
     };
-
     // Generated path
     var generated_path_option = b.option([]const u8, "generated_path", "Generated path") orelse "";
     if (generated_path_option.len == 0) {
@@ -94,18 +97,74 @@ pub fn build(b: *std.Build) void {
             return;
         };
     }
+    const user_tests_option = b.option([]const u8, "user_tests", "User tests path") orelse "";
+    const log_option = b.option(bool, "log", "Run with log") orelse false;
+    const shape_option = b.option([]const u8, "shape", "Input shape") orelse "";
+    const input_type_option = b.option([]const u8, "type", "Input type") orelse "f32";
+    const output_type_option = b.option([]const u8, "output_type", "Output type") orelse "f32";
+    const comm_option = b.option(bool, "comm", "Codegen with comments") orelse false;
+    const dynamic_option = b.option(bool, "dynamic", "Dynamic allocation") orelse false;
 
     // Define codegen options
     const codegen_options = b.addOptions(); // Model name option
     codegen_options.addOption([]const u8, "model", model_name_option);
     codegen_options.addOption([]const u8, "model_path", model_path_option);
     codegen_options.addOption([]const u8, "generated_path", generated_path_option);
-    codegen_options.addOption([]const u8, "user_tests", b.option([]const u8, "user_tests", "User tests path") orelse "");
-    codegen_options.addOption(bool, "log", b.option(bool, "log", "Run with log") orelse false);
-    codegen_options.addOption([]const u8, "shape", b.option([]const u8, "shape", "Input shape") orelse "");
-    codegen_options.addOption([]const u8, "type", b.option([]const u8, "type", "Input type") orelse "f32");
-    codegen_options.addOption(bool, "comm", b.option(bool, "comm", "Codegen with comments") orelse false);
-    codegen_options.addOption(bool, "dynamic", b.option(bool, "dynamic", "Dynamic allocation") orelse false);
+    codegen_options.addOption([]const u8, "user_tests", user_tests_option);
+    codegen_options.addOption(bool, "log", log_option);
+    codegen_options.addOption([]const u8, "shape", shape_option);
+    codegen_options.addOption([]const u8, "type", input_type_option);
+    codegen_options.addOption([]const u8, "output_type", output_type_option);
+    codegen_options.addOption(bool, "comm", comm_option);
+    codegen_options.addOption(bool, "dynamic", dynamic_option);
+
+    //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+
+    // Name and path of the model
+    // const IR_model_name_option = b.option([]const u8, "model", "Model name") orelse "mnist-8";
+    // const IR_model_path_option = b.option([]const u8, "model_path", "Model path") orelse std.fmt.allocPrint(b.allocator, "datasets/models/{s}/{s}.onnx", .{ model_name_option, model_name_option }) catch |err| {
+    //     std.log.scoped(.build).warn("Error allocating model path: {}\n", .{err});
+    //     return;
+    // };
+    // // Generated path
+    // var IR_generated_path_option = b.option([]const u8, "generated_path", "Generated path") orelse "";
+    // if (IR_generated_path_option.len == 0) {
+    //     IR_generated_path_option = std.fmt.allocPrint(b.allocator, "generated/{s}/", .{model_name_option}) catch |err| {
+    //         std.log.scoped(.build).warn("Error allocating generated path: {}\n", .{err});
+    //         return;
+    //     };
+    // } else {
+    //     if (!std.mem.endsWith(u8, IR_generated_path_option, "/")) {
+    //         IR_generated_path_option = std.fmt.allocPrint(b.allocator, "{s}/", .{IR_generated_path_option}) catch |err| {
+    //             std.log.scoped(.build).warn("Error normalizing path: {}\n", .{err});
+    //             return;
+    //         };
+    //     }
+    //     IR_generated_path_option = std.fmt.allocPrint(b.allocator, "{s}{s}/", .{ IR_generated_path_option, IR_model_path_option }) catch |err| {
+    //         std.log.scoped(.build).warn("Error allocating generated path: {}\n", .{err});
+    //         return;
+    //     };
+    // }
+    // const IR_user_tests_option = b.option([]const u8, "user_tests", "User tests path") orelse "";
+    // const IR_log_option = b.option(bool, "log", "Run with log") orelse false;
+    // const IR_shape_option = b.option([]const u8, "shape", "Input shape") orelse "";
+    // const IR_input_type_option = b.option([]const u8, "type", "Input type") orelse "f32";
+    // const IR_output_type_option = b.option([]const u8, "output_type", "Output type") orelse "f32";
+    // const IR_comm_option = b.option(bool, "comm", "Codegen with comments") orelse false;
+    // const IR_dynamic_option = b.option(bool, "dynamic", "Dynamic allocation") orelse false;
+
+    // Define IR codegen options
+    const IRC_options = b.addOptions(); // Model name option
+    IRC_options.addOption([]const u8, "IR_model", model_name_option);
+    IRC_options.addOption([]const u8, "IR_model_path", model_path_option);
+    IRC_options.addOption([]const u8, "IR_generated_path", generated_path_option);
+    IRC_options.addOption([]const u8, "IR_user_tests", user_tests_option);
+    IRC_options.addOption(bool, "IR_log", log_option);
+    IRC_options.addOption([]const u8, "IR_shape", shape_option);
+    IRC_options.addOption([]const u8, "IR_type", input_type_option);
+    IRC_options.addOption([]const u8, "IR_output_type", output_type_option);
+    IRC_options.addOption(bool, "IR_comm", comm_option);
+    IRC_options.addOption(bool, "IR_dynamic", dynamic_option);
 
     // ************************************************ CODEGEN IR ************************************************
 
@@ -122,6 +181,7 @@ pub fn build(b: *std.Build) void {
     // Add necessary imports for the executable.
     IR_codeGen_exe.root_module.addImport("zant", zant_mod);
     IR_codeGen_exe.root_module.addImport("IR_zant", IR_mod);
+    IR_codeGen_exe.root_module.addOptions("codegenOptions", IRC_options);
 
     // Install the executable.
     b.installArtifact(IR_codeGen_exe);

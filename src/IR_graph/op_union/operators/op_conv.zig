@@ -169,7 +169,7 @@ pub const Conv = struct {
             \\    
             \\
             \\    tensMath.conv_lean(
-            \\        T, //type
+            \\        {s}, //type
             \\        {s}, //input
             \\        {s}, //kernel
             \\        &tensor_{s}, //output
@@ -181,6 +181,7 @@ pub const Conv = struct {
             \\        "{s}", //auto_pad
             \\    )
         , .{
+            self.input_X.ty.toString(),
             tensor_X_string, //Input
             tensor_W_string, //Kernel
             try utils.getSanitizedName(self.output_Y.name), //Output
