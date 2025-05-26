@@ -84,24 +84,15 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
 }
 
 fn write_FBA(writer: std.fs.File.Writer) !void {
-    // Select allocator strategy based on flag
-    if (codegen_options.IR_dynamic) {
-        // Use heap-based dynamic allocation
-        try writer.writeAll(
-            \\
-            \\
-            \\ // Dynamic allocation: RawCAllocator
-        );
-    } else {
-        // Use fixed buffer allocator for static allocations
-        try writer.writeAll(
-            \\
-            \\
-            \\ // Static allocation: FixedBufferAllocator
-            \\ var buf: [4096 * 10]u8 = undefined;
-            \\ var fba_state = std.heap.FixedBufferAllocator.init(&buf);
-            \\ const fba = fba_state.allocator();
-            \\
-        );
-    }
+
+    // Use fixed buffer allocator for static allocations
+    try writer.writeAll(
+        \\
+        \\
+        \\ // Static allocation: FixedBufferAllocator
+        \\ var buf: [4096 * 10]u8 = undefined;
+        \\ var fba_state = std.heap.FixedBufferAllocator.init(&buf);
+        \\ const fba = fba_state.allocator();
+        \\
+    );
 }

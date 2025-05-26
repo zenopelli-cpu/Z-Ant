@@ -20,16 +20,15 @@ const codegen_options = @import("codegen_options");
 pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant), do_export: bool) !void {
 
     // Static initialization for output tensors if not using dynamic allocation
-    if (!codegen_options.IR_dynamic) {
-        // declare all the outputs for each node, aka: linkers
-        try write_linkersInitialization(writer);
+    //
+    // declare all the outputs for each node, aka: linkers
+    try write_linkersInitialization(writer);
 
-        // declare all the outputs of  the network
-        try write_outputsInitialization(writer);
+    // declare all the outputs of  the network
+    try write_outputsInitialization(writer);
 
-        // method to reset the tensors values
-        try write_linkersResetMethod(writer);
-    }
+    // method to reset the tensors values
+    try write_linkersResetMethod(writer);
 
     const inputs = try IR_utils.getInputs(tensorZantMap);
     const outputs = try IR_utils.getInputs(tensorZantMap);
@@ -68,13 +67,11 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
         , .{});
     }
 
-    if (!codegen_options.IR_dynamic) {
-        _ = try writer.print(
-            \\
-            \\    // Reset all linker tensors to zero before each prediction
-            \\    resetOutputTensors();
-        , .{});
-    }
+    _ = try writer.print(
+        \\
+        \\    // Reset all linker tensors to zero before each prediction
+        \\    resetOutputTensors();
+    , .{});
 
     try write_checks(writer);
 
@@ -109,7 +106,7 @@ fn write_linkersInitialization(writer: std.fs.File.Writer) !void {
             writer,
             tz,
         );
-        try write_linkerTensor(
+        try write_TensorAllocation(
             writer,
             tz,
             size,
@@ -211,7 +208,7 @@ fn write_linkersInitialization(writer: std.fs.File.Writer) !void {
 //     , .{ sanitized_name, type_str_const, sanitized_name, sanitized_name });
 // }
 
-fn write_linkerTensor(writer: std.fs.File.Writer, tz: *TensorZant, size: i64) !void {
+fn write_TensorAllocation(writer: std.fs.File.Writer, tz: *TensorZant, size: i64) !void {
     const sanitized_name = try tz.getNameSanitized();
 
     // --- ADD CHECK FOR UNDEFINED TYPE ---
@@ -222,22 +219,10 @@ fn write_linkerTensor(writer: std.fs.File.Writer, tz: *TensorZant, size: i64) !v
     // --- END CHECK ---
 
     const type_str = tz.ty.toString();
-    if (codegen_options.IR_dynamic) {
 
-        // Intermediate Tensor: Allocate AND defer free/deinit.
-        const code_str = try std.fmt.allocPrint(allocator,
-            \\    var array_{s} = allocator.alloc({s}, {d}) catch return;
-            \\    defer allocator.free(array_{s}); // Free intermediate array
-            \\    var tensor_{s} = Tensor({s}).fromArray(&allocator, array_{s}, &shape_tensor_{s});
-            \\    defer tensor_{s}.deinit(); // Deinit intermediate tensor struct
-        , .{ sanitized_name, type_str, size, sanitized_name, type_str, sanitized_name });
-        defer allocator.free(code_str);
-        try writer.writeAll(code_str);
-    } else {
-        // Static allocation: Use fromConstBuffer to allow mutation
-        try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};", .{ sanitized_name, size, type_str, type_str, size });
-        try writer.print("    var tensor_{s} = Tensor({s}).fromConstBuffer(&fba, &array_{s}, &shape_tensor_{s});", .{ sanitized_name, type_str, sanitized_name, sanitized_name });
-    }
+    // Static allocation: Use fromConstBuffer to allow mutation
+    try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};", .{ sanitized_name, size, type_str, type_str, size });
+    try writer.print("    var tensor_{s} = Tensor({s}).fromConstBuffer(&fba, &array_{s}, &shape_tensor_{s});", .{ sanitized_name, type_str, sanitized_name, sanitized_name });
 }
 
 fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
@@ -257,9 +242,29 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
         , .{});
     }
 
+    // --------- linkers
     const linkers: []TensorZant = try IR_utils.getLinkers(tensorZantMap);
 
     for (linkers) |*tz| {
+        _ = try writer.print(
+            \\
+            \\    @memset(array_{s}[0..], 0);
+        , .{try tz.getNameSanitized()});
+
+        if (codegen_options.IR_log) {
+            _ = try writer.print(
+                \\
+                \\    if (log_function) |log| {{
+                \\        log(@constCast(@ptrCast("Linker tensor {s} reset.\n")));
+                \\    }}
+            , .{try tz.getNameSanitized()});
+        }
+    }
+
+    // --------- outputs
+    const outputs: []TensorZant = try IR_utils.getOutputs(tensorZantMap);
+
+    for (outputs) |*tz| {
         _ = try writer.print(
             \\
             \\    @memset(array_{s}[0..], 0);
@@ -299,45 +304,12 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
             writer,
             tz,
         );
-        try write_outputTensor(
+        try write_TensorAllocation(
             writer,
             tz,
             size,
         );
     }
-}
-
-fn write_outputTensor(writer: std.fs.File.Writer, tz: *TensorZant, size: i64) !void {
-    const sanitized_name = try tz.getNameSanitized();
-
-    // --- ADD CHECK FOR UNDEFINED TYPE ---
-    if (tz.ty == .undefined) {
-        std.log.warn("\n\nCODEGEN ERROR: Attempted to generate output tensor '{s}' but its data type is UNDEFINED. Check ONNX graph analysis in globals.zig.\n\n", .{sanitized_name});
-        return error.DataTypeNotAvailable; // Or a more specific error like CannotGenerateUndefinedType
-    }
-    // --- END CHECK ---
-
-    const type_str = tz.ty.toString();
-    // Check if this is the final network output tensor
-    // Network Output: Allocate but DO NOT defer free/deinit. Caller takes ownership.
-    _ = try writer.print(
-        \\
-        \\    // Allocate final network output buffer (caller owns this memory)
-        \\    var array_{s} = allocator.alloc({s}, {d});
-        \\    var tensor_{s} = Tensor({s}).fromArray(&allocator, array_{s}, &shape_tensor_{s});
-        \\    // NOTE: No 'defer allocator.free(array_{s})' or 'defer tensor_{s}.deinit()'
-        \\    //       The pointer returned by predict() must be freed by the caller.
-    , .{
-        sanitized_name, //array_{s}
-        type_str, //alloc({s}
-        size, //, {d}) catch return;
-        sanitized_name, //   var tensor_{s}
-        type_str, //Tensor({s})
-        sanitized_name, //array_{s}
-        sanitized_name, //_tensor_{s}
-        sanitized_name, //array_{s}
-        sanitized_name, //array_{s}
-    });
 }
 
 // -------------------------------- WRITE PREDICT() --------------------------------
