@@ -50,6 +50,9 @@ pub const Reshape = struct {
             }
         }
 
+        //set the output type:
+        reshaped.ty = data.ty;
+
         return Reshape{
             .data = data,
             .shape = shape,

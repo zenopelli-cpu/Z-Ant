@@ -75,6 +75,10 @@ pub const MaxPool = struct {
                 if (attr.type == onnx.AttributeType.INTS) strides = attr.ints else return error.MaxPoolStridesNotINTS;
             }
         }
+
+        //set the output type:
+        output_Y.ty = input_X.ty;
+
         return MaxPool{
             .input_X = input_X,
             .output_Y = output_Y,

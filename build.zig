@@ -68,21 +68,6 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run all unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
-    // ************************************************CODEGEN EXECUTABLE************************************************
-
-    // Define the main executable with target architecture and optimization settings.
-    const codeGen_exe = b.addExecutable(.{
-        .name = "Codegen",
-        .root_source_file = b.path("src/CodeGen/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    codeGen_exe.linkLibC();
-
-    // Add necessary imports for the executable.
-    codeGen_exe.root_module.addImport("zant", zant_mod);
-
     // Name and path of the model
     const model_name_option = b.option([]const u8, "model", "Model name") orelse "mnist-8";
     const model_path_option = b.option([]const u8, "model_path", "Model path") orelse std.fmt.allocPrint(b.allocator, "datasets/models/{s}/{s}.onnx", .{ model_name_option, model_name_option }) catch |err| {
@@ -121,6 +106,50 @@ pub fn build(b: *std.Build) void {
     codegen_options.addOption([]const u8, "type", b.option([]const u8, "type", "Input type") orelse "f32");
     codegen_options.addOption(bool, "comm", b.option(bool, "comm", "Codegen with comments") orelse false);
     codegen_options.addOption(bool, "dynamic", b.option(bool, "dynamic", "Dynamic allocation") orelse false);
+
+    // ************************************************ CODEGEN IR ************************************************
+
+    // Define the main executable with target architecture and optimization settings.
+    const IR_codeGen_exe = b.addExecutable(.{
+        .name = "CodegenIR",
+        .root_source_file = b.path("src/IR_codegen/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    IR_codeGen_exe.linkLibC();
+
+    // Add necessary imports for the executable.
+    IR_codeGen_exe.root_module.addImport("zant", zant_mod);
+    IR_codeGen_exe.root_module.addImport("IR_zant", IR_mod);
+
+    // Install the executable.
+    b.installArtifact(IR_codeGen_exe);
+
+    // Define the run command for the main executable.
+    const IR_codegen_cmd = b.addRunArtifact(IR_codeGen_exe);
+    if (b.args) |args| {
+        IR_codegen_cmd.addArgs(args);
+    }
+
+    // Create a build step to run the application.
+    const IR_codegen_step = b.step("IR_codegen", "code generation");
+    IR_codegen_step.dependOn(&IR_codegen_cmd.step);
+
+    // ************************************************CODEGEN EXECUTABLE************************************************
+
+    // Define the main executable with target architecture and optimization settings.
+    const codeGen_exe = b.addExecutable(.{
+        .name = "Codegen",
+        .root_source_file = b.path("src/CodeGen/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    codeGen_exe.linkLibC();
+
+    // Add necessary imports for the executable.
+    codeGen_exe.root_module.addImport("zant", zant_mod);
     codeGen_exe.root_module.addOptions("codegen_options", codegen_options);
 
     // Install the executable.

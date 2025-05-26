@@ -50,6 +50,9 @@ pub const ReduceMean = struct {
             }
         }
 
+        //set the output type:
+        reduced.ty = data.ty;
+
         return ReduceMean{
             .data = data,
             .axes = axes,

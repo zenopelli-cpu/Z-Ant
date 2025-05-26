@@ -89,11 +89,13 @@ pub const TensorZant = struct {
         var tensor: ?*AnyTensor = null;
         var shape_i64: []i64 = undefined;
         var shape_usize: []usize = undefined;
+        var ty: TensorType = undefined;
 
         if (tensorProto) |tp| { //if the tensorProto is given it means that the tensor we are initializing is
             tensor = try allocator.create(AnyTensor);
             tensor.?.* = try utils.protoTensor2AnyTensor(tp); //create the ptr to AnyTensor
             shape_usize = tensor.?.get_shape(); //saves the shape
+            ty = utils.getAnyTensorType(tensor.?.*);
         } else if (value_info) |vi| {
             shape_i64 = if (utils.getTensorShapeFromValueInfo(vi)) |s| s else { //search for the shape
                 std.debug.print("\n ERROR: {s} value_info shape not found ", .{name});
@@ -111,7 +113,7 @@ pub const TensorZant = struct {
 
         return TensorZant{
             .name = name,
-            .ty = if (tensor) |t| utils.getAnyTensorType(t.*) else TensorType.undefined, //if .ty is set to undefined it means that it is a "link" tensor between 2 nodes, the .ty must be set when the nodes are created
+            .ty = ty, //if .ty is set to undefined it means that it is a "link" tensor between 2 nodes, the .ty must be set when the nodes are created
             .tc = tensorCategory,
             .ptr = tensor,
             .shape = shape_usize,
@@ -130,12 +132,33 @@ pub const TensorZant = struct {
         allocator.free(self.stride);
     }
 
+    pub fn getNameSanitized(self: *TensorZant) ![]const u8 {
+        var sanitized = try allocator.alloc(u8, self.name.len);
+
+        for (self.name, 0..) |char, i| {
+            sanitized[i] = if (std.ascii.isAlphanumeric(char) or char == '_')
+                std.ascii.toLower(char)
+            else
+                '_';
+        }
+
+        return sanitized;
+    }
+
     pub fn getShape(self: *TensorZant) []usize {
         return self.shape;
     }
 
     pub fn getStride(self: *TensorZant) []usize {
         return self.stride;
+    }
+
+    pub fn getSize(self: *TensorZant) usize {
+        var size: usize = 1;
+        for (self.shape) |dim| {
+            size *= dim;
+        }
+        return size;
     }
 
     pub fn computeStride(shape: []usize) ![]usize {
@@ -262,7 +285,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
             }
             for (node.output) |output_name| {
 
-                // //WHy RESHAPE nodes need a different initialization?
+                // TODO //WHy RESHAPE nodes need a different initialization?
                 // if (std.mem.eql(u8, node.op_type, "Reshape")) {
                 //     var shape = try allocator.alloc(usize, node.attribute[0].ints.len);
                 //     for (node.attribute[0].ints, 0..) |dim, j| {

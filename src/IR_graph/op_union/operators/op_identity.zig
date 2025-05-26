@@ -31,6 +31,9 @@ pub const Identity = struct {
         const input = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_notFound;
         const output = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_notFound;
 
+        //set the output type:
+        output.ty = input.ty;
+
         return Identity{
             .input = input,
             .output = output,

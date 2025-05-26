@@ -1,0 +1,6 @@
+- for each ZantNode:
+    - getInputs()
+    - getOutputs()
+    - once done above complete write_op_info()
+
+- dynamicAllocation

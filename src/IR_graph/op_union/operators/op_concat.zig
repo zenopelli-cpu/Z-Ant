@@ -49,6 +49,9 @@ pub const Concat = struct {
             }
         }
 
+        //set the output type:
+        concat_result.ty = inputs.items[0].ty;
+
         return Concat{
             .inputs = inputs,
             .concat_result = concat_result,

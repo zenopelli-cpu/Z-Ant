@@ -96,6 +96,9 @@ pub const Resize = struct {
             }
         }
 
+        //set the output type:
+        output_Y.ty = input_X.ty;
+
         return Resize{
             .input_X = input_X,
             .input_roi = input_roi,

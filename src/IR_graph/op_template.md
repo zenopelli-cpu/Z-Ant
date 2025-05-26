@@ -45,7 +45,7 @@ ONNX attributes can be of various types. Here’s how they map to Zig:
 
 Optional input tensors can be checked using:
 
-```zig
+```C++
 if (nodeProto.input.len > 1 and nodeProto.input[1].len > 0) { ... }
 
 ---

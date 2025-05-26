@@ -41,16 +41,16 @@ pub fn getTensorShapeFromValueInfo(vi: *ValueInfoProto) ?[]i64 {
 pub fn getAnyTensorType(anyTensor: AnyTensor) TensorType {
     return switch (anyTensor) {
         .i64 => TensorType.i64,
-        .f64 => TensorType.i64,
-        .u64 => TensorType.i64,
-        .f32 => TensorType.i64,
-        .i32 => TensorType.i64,
-        .u32 => TensorType.i64,
-        .f16 => TensorType.i64,
-        .i16 => TensorType.i64,
-        .u16 => TensorType.i64,
-        .i8 => TensorType.i64,
-        .u8 => TensorType.i64,
+        .f64 => TensorType.f64,
+        .u64 => TensorType.u64,
+        .f32 => TensorType.f32,
+        .i32 => TensorType.i32,
+        .u32 => TensorType.u32,
+        .f16 => TensorType.f16,
+        .i16 => TensorType.i16,
+        .u16 => TensorType.u16,
+        .i8 => TensorType.i8,
+        .u8 => TensorType.u8,
     };
 }
 
@@ -140,9 +140,62 @@ pub fn protoTensor2AnyTensor(proto: *TensorProto) !AnyTensor {
         const tensor = try allocator.create(Tensor(u16));
         tensor.* = try Tensor(u16).fromArray(&allocator, uint16_data, shape);
         return AnyTensor{ .u16 = tensor };
+    } else if (proto.raw_data) |raw| {
+        // Handle raw data based on data_type
+        switch (proto.data_type) {
+            .FLOAT => return try fromRawData(f32, raw, shape),
+            .FLOAT16 => return try fromRawData(f16, raw, shape),
+            .INT32 => return try fromRawData(i32, raw, shape),
+            .INT8 => return try fromRawData(i8, raw, shape),
+            .INT64 => return try fromRawData(i64, raw, shape),
+            .DOUBLE => return try fromRawData(f64, raw, shape),
+            .UINT64 => return try fromRawData(u64, raw, shape),
+            .UINT16 => return try fromRawData(u16, raw, shape),
+            .UINT8 => return try fromRawData(u8, raw, shape),
+            // TODO: Add other types as needed (e.g., FLOAT16, INT8, etc.)
+            else => {
+                std.log.info("\n[writeArray] Error: Unsupported raw data type {any} for tensor {s}", .{ proto.data_type, proto.name.? });
+                std.log.err("Unsupported raw data type: {any}", .{proto.data_type});
+                return error.DataTypeNotAvailable;
+            },
+        }
     } else {
         return error.UnsupportedDataType;
     }
+}
+
+fn fromRawData(T: type, raw_data: []const u8, shape: []usize) !AnyTensor {
+    const elem_size = @sizeOf(T);
+    const num_elements = raw_data.len / elem_size;
+
+    // Ensure raw_data length is a multiple of element size
+    if (raw_data.len % elem_size != 0) {
+        std.log.err("Raw data length {d} is not a multiple of element size {d} for type {any}", .{ raw_data.len, elem_size, T });
+        return error.InvalidRawDataLength;
+    }
+
+    const data = try allocator.alloc(T, num_elements);
+    for (data, 0..) |*dest, i| {
+        const offset = i * elem_size;
+        dest.* = std.mem.bytesToValue(T, raw_data[offset .. offset + elem_size]);
+    }
+
+    const tensor = try allocator.create(Tensor(T));
+    tensor.* = try Tensor(T).fromArray(&allocator, data, shape);
+    return switch (T) {
+        f32 => AnyTensor{ .f32 = tensor },
+        f16 => AnyTensor{ .f16 = tensor },
+        i32 => AnyTensor{ .i32 = tensor },
+        i8 => AnyTensor{ .i8 = tensor },
+        i64 => AnyTensor{ .i64 = tensor },
+        f64 => AnyTensor{ .f64 = tensor },
+        u64 => AnyTensor{ .u64 = tensor },
+        u16 => AnyTensor{ .u16 = tensor },
+        u8 => AnyTensor{ .u8 = tensor },
+        else => {
+            error.TypeNotAvailable;
+        },
+    };
 }
 
 pub fn broadcastShapes(general_allocator: std.mem.Allocator, shape1: []usize, shape2: []usize) ![]usize {
@@ -184,4 +237,48 @@ pub fn getInitializers(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
         }
     }
     return initializers.toOwnedSlice();
+}
+
+pub fn getLinkers(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
+    var linkers = std.ArrayList(TensorZant).init(allocator);
+    var it = hashMap.iterator();
+    while (it.next()) |entry| {
+        if (entry.value_ptr.tc == TensorCategory.LINK) {
+            try linkers.append(entry.value_ptr.*);
+        }
+    }
+    return linkers.toOwnedSlice();
+}
+
+pub fn getOutputs(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
+    var outputs = std.ArrayList(TensorZant).init(allocator);
+    var it = hashMap.iterator();
+    while (it.next()) |entry| {
+        if (entry.value_ptr.tc == TensorCategory.OUTPUT) {
+            try outputs.append(entry.value_ptr.*);
+        }
+    }
+    return outputs.toOwnedSlice();
+}
+
+pub fn getInputs(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
+    var inputs = std.ArrayList(TensorZant).init(allocator);
+    var it = hashMap.iterator();
+    while (it.next()) |entry| {
+        if (entry.value_ptr.tc == TensorCategory.INPUT) {
+            try inputs.append(entry.value_ptr.*);
+        }
+    }
+    return inputs.toOwnedSlice();
+}
+
+pub fn getAllTensors(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
+    var inputs = std.ArrayList(TensorZant).init(allocator);
+    var it = hashMap.iterator();
+    while (it.next()) |entry| {
+        if (entry.value_ptr.tc == TensorCategory.OUTPUT) {
+            try inputs.append(entry.value_ptr.*);
+        }
+    }
+    return inputs.toOwnedSlice();
 }

@@ -43,6 +43,9 @@ pub const Split = struct {
             }
         }
 
+        //set the output type:
+        output_Y.ty = input.ty;
+
         return Split{
             .input = input,
             .split = splitTensor,

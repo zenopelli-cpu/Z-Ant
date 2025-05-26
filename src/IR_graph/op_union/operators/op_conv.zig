@@ -75,6 +75,9 @@ pub const Conv = struct {
             }
         }
 
+        //set the output type:
+        output_Y.ty = input_W.ty;
+
         return Conv{
             .input_X = input_X,
             .input_W = input_W,

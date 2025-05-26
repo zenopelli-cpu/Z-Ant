@@ -65,6 +65,9 @@ pub const BatchNormalization = struct {
             }
         }
 
+        //set the output type:
+        output_Y.ty = input_X.ty;
+
         return BatchNormalization{
             .input_X = input_X,
             .scale = scale,

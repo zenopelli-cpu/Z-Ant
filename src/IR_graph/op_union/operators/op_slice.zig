@@ -41,6 +41,9 @@ pub const Slice = struct {
         const axes: ?*TensorZant = if (nodeProto.input.len >= 4) if (tensorZant.tensorMap.getPtr(nodeProto.input[3])) |ptr| ptr else return error.axes_notFound else null;
         const steps: ?*TensorZant = if (nodeProto.input.len >= 4) if (tensorZant.tensorMap.getPtr(nodeProto.input[3])) |ptr| ptr else return error.steps_notFound else null;
 
+        //set the output type:
+        output.ty = input.ty;
+
         return Slice{
             .input = input,
             .starts = starts,

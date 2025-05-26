@@ -74,6 +74,9 @@ pub const AveragePool = struct {
             }
         }
 
+        //set the output type:
+        output_Y.ty = input_X.ty;
+
         return AveragePool{
             .input_X = input_X,
             .output_Y = output_Y,

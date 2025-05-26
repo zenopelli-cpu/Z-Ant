@@ -45,6 +45,9 @@ pub const Elu = struct {
             }
         }
 
+        //set the output type:
+        output_Y.ty = input_X.ty;
+
         return Elu{
             .input_X = input_X,
             .output_Y = output_Y,

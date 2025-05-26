@@ -33,6 +33,9 @@ pub const Div = struct {
         const input_B = if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_B_notFound;
         const output_C = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_C_notFound;
 
+        //set the output type:
+        output_C.ty = input_B.ty;
+
         return Div{
             .input_A = input_A,
             .input_B = input_B,

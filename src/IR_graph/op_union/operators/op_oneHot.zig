@@ -51,6 +51,9 @@ pub const OneHot = struct {
             }
         }
 
+        //set the output type:
+        output.ty = indices.ty;
+
         return OneHot{
             .indices = indices,
             .depth = depth,

@@ -36,6 +36,10 @@ pub const Gelu = struct {
                 approximate = attr.s;
             }
         }
+
+        //set the output type:
+        output_Y.ty = input_X.ty;
+
         return Gelu{
             .input_X = input_X,
             .output_Y = output_Y,

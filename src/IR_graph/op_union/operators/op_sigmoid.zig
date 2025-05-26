@@ -30,6 +30,9 @@ pub const Sigmoid = struct {
         const input_X = if (tensorZant.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
         const output_Y = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
+        //set the output type:
+        output_Y.ty = input_X.ty;
+
         return Sigmoid{
             .input_X = input_X,
             .output_Y = output_Y,

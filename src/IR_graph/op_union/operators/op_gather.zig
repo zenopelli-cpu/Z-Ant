@@ -44,6 +44,9 @@ pub const Gather = struct {
             }
         }
 
+        //set the output type:
+        output_C.ty = input_A.ty;
+
         return Gather{
             .input_A = input_A,
             .input_B = input_B,

@@ -74,6 +74,8 @@ pub const Constant = struct {
             }
         }
 
+        //TODO: check that the type (ty) of output is the same of value_*
+
         return Constant{
             .output = output,
             .value = value,

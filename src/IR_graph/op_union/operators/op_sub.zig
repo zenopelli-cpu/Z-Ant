@@ -31,6 +31,9 @@ pub const Sub = struct {
         const input_B = if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_B_notFound;
         const output_Y = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
+        //set the output type:
+        output_Y.ty = input_A.ty;
+
         return Sub{
             .input_A = input_A,
             .input_B = input_B,
