@@ -14,11 +14,13 @@ const tensorZantMap: *std.StringHashMap(TensorZant) = &IR.tensorZant_lib.tensorM
 
 const allocator = std.heap.page_allocator;
 
+const codegen_options = @import("codegen_options");
+
 // Writes the computation function for predicting outputs
 pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant), do_export: bool) !void {
 
     // Static initialization for output tensors if not using dynamic allocation
-    if (true) { // !codegen_options.dynamic
+    if (!codegen_options.IR_dynamic) {
         // declare all the outputs for each node, aka: linkers
         try write_linkersInitialization(writer);
 
@@ -53,7 +55,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
         \\) void {{
     , .{if (do_export == true) "export" else ""});
 
-    if (true) { //codegen_options.log
+    if (codegen_options.IR_log) {
         _ = try writer.print(
             \\
             \\
@@ -63,10 +65,10 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
         , .{});
     }
 
-    if (true) { // !codegen_options.dynamic
+    if (!codegen_options.IR_dynamic) {
         _ = try writer.print(
             \\
-            \\    // Reset all output tensors to zero before each prediction
+            \\    // Reset all linker tensors to zero before each prediction
             \\    resetOutputTensors();
         , .{});
     }
@@ -217,7 +219,7 @@ fn write_linkerTensor(writer: std.fs.File.Writer, tz: *TensorZant, size: i64) !v
     // --- END CHECK ---
 
     const type_str = tz.ty.toString();
-    if (false) { //codegen_options.dynamic
+    if (codegen_options.IR_dynamic) {
 
         // Intermediate Tensor: Allocate AND defer free/deinit.
         const code_str = try std.fmt.allocPrint(allocator,
@@ -243,7 +245,7 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
         \\fn resetOutputTensors() void {{
     , .{});
 
-    if (true) { // codegen_options.log
+    if (codegen_options.IR_log) {
         _ = try writer.print(
             \\
             \\    if (log_function) |log| {{
@@ -260,7 +262,7 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
             \\    @memset(array_{s}[0..], 0);
         , .{try tz.getNameSanitized()});
 
-        if (true) { //codegen_options.log
+        if (codegen_options.IR_log) {
             _ = try writer.print(
                 \\
                 \\    if (log_function) |log| {{
@@ -385,7 +387,7 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
         \\
     , .{try outputs[0].getNameSanitized()});
 
-    if (true) { //codegen_options.log
+    if (codegen_options.IR_log) {
         _ = try writer.print(
             \\
             \\    if (log_function) |log| {{
@@ -453,10 +455,10 @@ fn write_checks(writer: std.fs.File.Writer) !void {
 
 fn write_graphSerialization(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
     for (linearizedGraph.items) |node| {
-        if (true) { //codegen_options.comm
+        if (codegen_options.IR_comm) {
             try write_op_info(writer, node);
         }
-        if (true) { //codegen_options.log
+        if (codegen_options.IR_log) {
             try writer.print(
                 \\ 
                 \\

@@ -155,7 +155,7 @@ pub const MaxPool = struct {
             \\
             \\
             \\    tensMath.onnx_maxpool_lean(
-            \\        T,
+            \\        {s},
             \\        {s}, //Input
             \\        &tensor_{s}, //Output
             \\        {s}, //kernel_shape
@@ -165,6 +165,7 @@ pub const MaxPool = struct {
             \\        tensMath.AutoPadType.{s}, //auto_pad
             \\    )
         , .{
+            self.output_Y.ty.toString(),
             tensor_X_string, //Input
             try utils.getSanitizedName(self.output_Y.name), //Output
             kernel_shape_string, //kernel_shape

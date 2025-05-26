@@ -65,8 +65,9 @@ pub const Relu = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.ReLU_lean(T, {s}, &tensor_{s})
+            \\    tensMath.ReLU_lean({s}, {s}, &tensor_{s})
         , .{
+            self.output_Y.ty.toString(),
             tensor_A_string,
             try utils.getSanitizedName(self.output_Y.name),
         });

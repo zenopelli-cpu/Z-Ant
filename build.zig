@@ -181,7 +181,7 @@ pub fn build(b: *std.Build) void {
     // Add necessary imports for the executable.
     IR_codeGen_exe.root_module.addImport("zant", zant_mod);
     IR_codeGen_exe.root_module.addImport("IR_zant", IR_mod);
-    IR_codeGen_exe.root_module.addOptions("codegenOptions", IRC_options);
+    IR_codeGen_exe.root_module.addOptions("codegen_options", IRC_options);
 
     // Install the executable.
     b.installArtifact(IR_codeGen_exe);

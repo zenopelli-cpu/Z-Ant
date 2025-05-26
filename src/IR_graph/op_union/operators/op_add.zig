@@ -81,8 +81,11 @@ pub const Add = struct {
 
         _ = try writer.print(
             \\
-            \\    tensMath.sum_tensors_lean(T, T, {s}, {s}, &tensor_{s})
+            \\
+            \\    tensMath.sum_tensors_lean({s}, {s}, {s}, {s}, &tensor_{s})
         , .{
+            self.input_A.ty.toString(),
+            self.output_C.ty.toString(),
             tensor_A_string, // Input tensor A
             tensor_B_string, // Input tensor B
             try IR_utils.getSanitizedName(self.output_C.name), // Output tensor C

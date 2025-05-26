@@ -16,6 +16,7 @@ const allocator = zant.utils.allocator.allocator;
 
 // --- codegen
 const codeGenPredict = @import("predict/predict.zig");
+const codegen_options = @import("codegen_options");
 
 pub fn write(generated_path: []const u8, model_name: []const u8, linearizedGraph: std.ArrayList(*NodeZant)) !void {
 
@@ -31,7 +32,7 @@ pub fn write(generated_path: []const u8, model_name: []const u8, linearizedGraph
     // Write the necessary library imports to the generated Zig file
     try write_libraries(writer);
 
-    if (true) { //codegen_options.log
+    if (codegen_options.IR_log) {
         //log function setting
         try write_logFunction(writer);
     }
@@ -84,7 +85,7 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
 
 fn write_FBA(writer: std.fs.File.Writer) !void {
     // Select allocator strategy based on flag
-    if (false) { // codegen_options.dynamic
+    if (codegen_options.IR_dynamic) {
         // Use heap-based dynamic allocation
         try writer.writeAll(
             \\

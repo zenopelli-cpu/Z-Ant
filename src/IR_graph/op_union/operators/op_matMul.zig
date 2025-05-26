@@ -117,8 +117,9 @@ pub const MatMul = struct {
         } else { //B is not large enough, so we keep the old but improved mat_mul
             _ = try writer.print(
                 \\
-                \\    tensMath.mat_mul_lean(T, {s}, {s}, &tensor_{s})
+                \\    tensMath.mat_mul_lean({s}, {s}, {s}, &tensor_{s})
             , .{
+                self.output_C.ty.toString(),
                 tensor_A_string, // Input tensor A
                 tensor_B_string, // Input tensor B
                 try utils.getSanitizedName(self.output_C.name), // Output tensor C
