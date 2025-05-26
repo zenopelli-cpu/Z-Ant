@@ -6,7 +6,10 @@ const pkg_allocator = zant.utils.allocator.allocator;
 const error_handler = zant.utils.error_handler;
 const TensorMathError = error_handler.TensorMathError;
 const TensorError = error_handler.TensorError;
-
+const Uops = zant.uops;
+const UOpBuilder = Uops.UOpBuilder;
+const DType = Uops.DType;
+const Any = Uops.Any;
 const ArchitectureError = error_handler.ArchitectureError;
 const Converter = zant.utils.type_converter;
 
@@ -128,11 +131,12 @@ pub fn sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
 
 // --------- lean SUM
 pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *const Tensor(inputType), t2: *const Tensor(inputType), outputTensor: *Tensor(outputType)) !void {
-    // std.log.debug("\nINFO: Summing tensors with sizes: {d}, {d}\n", .{ t1.size, t2.size }); // DEBUG PRINT
-    // std.log.debug("\nINFO: t1 shape: {any}, t2 shape: {any}\n", .{ t1.shape, t2.shape }); // DEBUG PRINT
-    // std.log.debug("\nINFO: outputTensor shape: {any}\n", .{outputTensor.shape}); // DEBUG PRINT
-    // // Simple case: same size tensors
+    std.log.debug("\nINFO: Summing tensors with sizes: {d}, {d}\n", .{ t1.size, t2.size }); // DEBUG PRINT
+    std.log.debug("\nINFO: t1 shape: {any}, t2 shape: {any}\n", .{ t1.shape, t2.shape }); // DEBUG PRINT
+    std.log.debug("\nINFO: outputTensor shape: {any}\n", .{outputTensor.shape}); // DEBUG PRINT
+    // Simple case: same size tensors
     if (t1.size == t2.size) {
+        std.log.debug("Taking simple case: same size tensors\n", .{});
         // Use unrolled loop for small sizes to avoid SIMD overhead
         if (t1.size <= 8) {
             comptime var unroll = 0;
@@ -173,9 +177,11 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
     }
 
     // Broadcasting case - use stack arrays for small ranks to avoid allocations
+    std.log.debug("Taking broadcasting case\n", .{});
     const rank1 = t1.shape.len;
     const rank2 = t2.shape.len;
     const max_rank = @max(rank1, rank2);
+    std.log.debug("rank1: {d}, rank2: {d}, max_rank: {d}\n", .{ rank1, rank2, max_rank });
 
     // Use stack arrays for common tensor ranks (up to 4D)
     var stack_shape1: [4]usize = undefined; // Initialize later
@@ -237,11 +243,28 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
     // Calculate strides from right to left using the reconstructed full shape
     var stride: usize = 1;
     i = max_rank;
+    std.log.debug("Calculating strides for shapes: shape1={any}, shape2={any}\n", .{ shape1, shape2 });
+
+    // Calculate actual strides for each tensor based on their shapes
+    var actual_stride1: usize = 1;
+    var actual_stride2: usize = 1;
+
     while (i > 0) {
         i -= 1;
         out_strides[i] = stride;
-        strides1[i] = if (shape1[i] > 1) stride else 0;
-        strides2[i] = if (shape2[i] > 1) stride else 0;
+
+        // For t1 strides: use actual tensor strides if dimension > 1, else 0 for broadcasting
+        strides1[i] = if (shape1[i] > 1) actual_stride1 else 0;
+
+        // For t2 strides: use actual tensor strides if dimension > 1, else 0 for broadcasting
+        strides2[i] = if (shape2[i] > 1) actual_stride2 else 0;
+
+        std.log.info("dim {d}: shape1[{d}]={d}, shape2[{d}]={d}, strides1[{d}]={d}, strides2[{d}]={d}, out_strides[{d}]={d}\n", .{ i, i, shape1[i], i, shape2[i], i, strides1[i], i, strides2[i], i, out_strides[i] });
+
+        // Update actual strides for next iteration (going left)
+        actual_stride1 *= shape1[i];
+        actual_stride2 *= shape2[i];
+
         // Use the reconstructed shape here
         stride *= full_output_shape_slice[i]; // Use reconstructed shape
     }
@@ -286,6 +309,9 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
         // idx1 = @min(idx1, t1.size - 1); // Optional safety, maybe remove if confident
         // idx2 = @min(idx2, t2.size - 1); // Optional safety, maybe remove if confident
 
+        if (i % 1000 == 0 or idx1 >= t1.size or idx2 >= t2.size) {
+            std.log.debug("i={d}, idx1={d} (max {}), idx2={d} (max {})\n", .{ i, idx1, t1.size - 1, idx2, t2.size - 1 });
+        }
         outputTensor.data[i] = t1.data[idx1] + t2.data[idx2];
     }
 }
@@ -335,4 +361,48 @@ pub inline fn lean_sum_tensor_list(comptime inputType: anytype, comptime outputT
             outputTensor.data[i] += t.data[i];
         }
     }
+}
+/// Lower an ONNX "Add" with NumPy-style broadcasting into UOps,
+/// **without** emitting a final FUSE hint.
+pub fn lowerAdd(
+    b: *UOpBuilder,
+    A_id: usize, // input-tensor SSA ids
+    B_id: usize,
+    out_shape: []const usize, // broadcasted shape
+    strideA: []const isize, // per-dim strides (0 ⇒ broadcast)
+    strideB: []const isize,
+    out_dtype: DType, // promoted element type
+) usize { // returns id of result buffer
+    // ── Set-up phase ────────────────────────────────────────────────────
+    // _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
+    // _ = b.push(.SHAPE, .i32, &.{B_id}, null); // b_shape  (dbg only)
+
+    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideA } });
+
+    const id_viewB = b.push(.VIEW, out_dtype, &.{B_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideB } });
+
+    const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
+
+    // ── Flat element loop ───────────────────────────────────────────────
+    var nelem: usize = 1;
+    for (out_shape) |d| nelem *= d;
+
+    const id_range = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = nelem } });
+
+    const id_gepA = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
+
+    const id_gepB = b.push(.GEP, out_dtype, &.{ id_viewB, id_range }, Any{ .mem_info = .{ .base = id_viewB, .offset = 0, .stride = 1 } });
+
+    const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
+    const id_loadB = b.push(.LOAD, out_dtype, &.{id_gepB}, null);
+
+    const id_add = b.push(.ADD, out_dtype, &.{ id_loadA, id_loadB }, null);
+
+    const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
+
+    _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_add }, null);
+
+    _ = b.push(.ENDRANGE, .bool, &.{id_range}, null);
+
+    return id_outBuf; // SSA id of the output tensor
 }

@@ -42,7 +42,7 @@ pub const Slice = struct {
         const steps: ?*TensorZant = if (nodeProto.input.len >= 4) if (tensorZant.tensorMap.getPtr(nodeProto.input[3])) |ptr| ptr else return error.steps_notFound else null;
 
         //set the output type:
-        output.ty = input.ty;
+        if (output.ty == tensorZant.TensorType.undefined) output.ty = input.ty;
 
         return Slice{
             .input = input,

@@ -31,17 +31,20 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
         try write_linkersResetMethod(writer);
     }
 
+    const inputs = try IR_utils.getInputs(tensorZantMap);
+    const outputs = try IR_utils.getInputs(tensorZantMap);
+
     //write input type
     _ = try writer.print(
         \\
-        \\ const T_in : type = f32;
-    , .{});
+        \\ const T_in : type = {s};
+    , .{inputs[0].ty.toString()});
 
     //write output type
     _ = try writer.print(
         \\
-        \\ const T_out : type = f32;
-    , .{});
+        \\ const T_out : type = {s};
+    , .{outputs[0].ty.toString()});
 
     _ = try writer.print(
         \\

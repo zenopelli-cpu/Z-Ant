@@ -52,7 +52,7 @@ pub const OneHot = struct {
         }
 
         //set the output type:
-        output.ty = indices.ty;
+        if (output.ty == tensorZant.TensorType.undefined) output.ty = indices.ty;
 
         return OneHot{
             .indices = indices,

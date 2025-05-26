@@ -84,7 +84,7 @@ pub const TensorZant = struct {
     stride: []usize,
 
     pub fn init(name: []const u8, tensorProto: ?*TensorProto, value_info: ?*ValueInfoProto, shape: ?[]usize, tensorCategory: TensorCategory) !TensorZant {
-        std.debug.print("\n ----------- init({s}, {s}, {s}, {s}) ", .{ name, if (tensorProto) |_| "tp" else "null", if (value_info) |_| "vi" else "null", tensorCategory.toString() });
+        std.debug.print("\n ----------- init({s}, {s}, {s}, {s}, {s}) ", .{ name, if (tensorProto) |_| "tp" else "null", if (value_info) |_| "vi" else "null", if (shape) |_| "shape" else "null", tensorCategory.toString() });
 
         var tensor: ?*AnyTensor = null;
         var shape_i64: []i64 = undefined;
@@ -102,6 +102,7 @@ pub const TensorZant = struct {
                 return error.shapeNotfound;
             };
             shape_usize = try utils.i64SliceToUsizeSlice(shape_i64); //saves the shape
+            ty = try utils.getTypeFromValueInfo(vi);
         } else if (shape) |s| {
             shape_usize = s;
         } else {
@@ -110,6 +111,7 @@ pub const TensorZant = struct {
         }
 
         std.debug.print("\n                shape:{any} ", .{shape_usize});
+        std.debug.print("\n                type:{s} ", .{ty.toString()});
 
         return TensorZant{
             .name = name,

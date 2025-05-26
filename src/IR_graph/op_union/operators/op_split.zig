@@ -44,7 +44,7 @@ pub const Split = struct {
         }
 
         //set the output type:
-        output_Y.ty = input.ty;
+        if (output_Y.ty == tensorZant.TensorType.undefined) output_Y.ty = input.ty;
 
         return Split{
             .input = input,

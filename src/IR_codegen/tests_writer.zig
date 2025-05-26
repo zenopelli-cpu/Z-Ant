@@ -1,0 +1,128 @@
+const std = @import("std");
+const zant = @import("zant");
+const onnx = zant.onnx;
+const ModelOnnx = onnx.ModelProto;
+const codegen_options = @import("codegen_options");
+const allocator = zant.utils.allocator.allocator;
+
+const IR = @import("IR_zant");
+
+const IR_utils = IR.utils;
+
+// --- zant IR
+const GraphZant = IR.GraphZant;
+const TensorZant = IR.TensorZant;
+
+const tensorZantMap: *std.StringHashMap(TensorZant) = &IR.tensorZant_lib.tensorMap;
+
+pub fn UserTest(comptime T: type) type {
+    return struct {
+        name: []u8,
+        type: []u8,
+        input: []T,
+        output: []T,
+        expected_class: usize,
+    };
+}
+
+fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
+    // Generate model_options.zig
+
+    const model_options_path = try std.fmt.allocPrint(allocator, "{s}model_options.zig", .{model_path});
+    const model_options_file = try std.fs.cwd().createFile(model_options_path, .{});
+    defer model_options_file.close();
+
+    const writer = model_options_file.writer();
+
+    ////////////
+
+    var output_size: i64 = 1;
+
+    const outputs: []TensorZant = try IR_utils.getOutputs(tensorZantMap);
+    const inputs: []TensorZant = try IR_utils.getInputs(tensorZantMap);
+
+    for (outputs[0].getShape()) |dim| {
+        output_size *= @intCast(dim);
+    }
+
+    _ = try writer.print(
+        \\
+        \\pub const lib = @import("lib_{s}.zig");
+        \\pub const name = "{s}";
+        \\pub const input_shape = [{d}]u32{any};
+        \\pub const output_data_len = {d};
+        \\pub const data_type = {s};
+        \\pub const enable_user_tests : bool = {any};
+        \\pub const user_tests_path = "{s}";
+    , .{
+        model_name,
+        model_name,
+        inputs[0].getShape().len,
+        inputs[0].getShape(),
+        output_size,
+        codegen_options.IR_type,
+        codegen_options.IR_user_tests.len > 0,
+        try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path}),
+    });
+
+    ////////////
+}
+
+pub fn writeTestFile(model_name: []const u8, model_path: []const u8) !void {
+
+    // Copy test file template into the generated test file
+    const test_file_path = try std.fmt.allocPrint(allocator, "{s}test_{s}.zig", .{ model_path, model_name });
+
+    try copyFile("tests/CodeGen/test_model.template.zig", test_file_path);
+    std.log.info("\n\nGenerated test file: {s}\n", .{test_file_path});
+
+    // Copy user test file into the generated test file
+    if (codegen_options.IR_user_tests.len > 0) {
+        const provided_user_tests_path = codegen_options.IR_user_tests;
+        const user_tests_path = try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path});
+        try copyFile(provided_user_tests_path, user_tests_path);
+    }
+
+    try writeModelOptionsFile(model_name, model_path);
+}
+
+pub fn writeSlimTestFile(model_name: []const u8, model_path: []const u8) !void {
+    // Copy test file template into the generated test file
+    const test_file_path = try std.fmt.allocPrint(allocator, "{s}test_{s}.zig", .{ model_path, model_name });
+
+    try copyFile("tests/CodeGen/test_model.slim.template.zig", test_file_path);
+    std.log.info("\n\nGenerated test file: {s}\n", .{test_file_path});
+
+    try writeModelOptionsFile(model_name, model_path);
+}
+
+// ----------------- FILE MANAGEMENT -----------------
+// Copy file from src to dst
+fn copyFile(src_path: []const u8, dst_path: []const u8) !void {
+    var src_file = try std.fs.cwd().openFile(src_path, .{});
+    defer src_file.close();
+
+    var dst_file = try std.fs.cwd().createFile(dst_path, .{});
+    defer dst_file.close();
+
+    // Use a buffer to copy in chunks
+    var buf: [4096]u8 = undefined;
+    while (true) {
+        const bytes_read = try src_file.read(&buf);
+        if (bytes_read == 0) break;
+        _ = try dst_file.write(buf[0..bytes_read]);
+    }
+}
+
+// Read the user_tests json file and return a list of test cases
+pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Parsed([]UserTest(T)) {
+    const user_tests_file = try std.fs.cwd().openFile(user_tests_path, .{});
+    defer user_tests_file.close();
+
+    const user_tests_content: []const u8 = try user_tests_file.readToEndAlloc(allocator, 1024 * 1024);
+    defer allocator.free(user_tests_content);
+
+    const parsed_user_tests = try std.json.parseFromSlice([]UserTest(T), allocator, user_tests_content, .{});
+
+    return parsed_user_tests;
+}

@@ -30,6 +30,9 @@ pub const Unsqueeze = struct {
         const input_axes = if (tensorZant.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_axes_notFound;
         const output_Y = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
+        //set the output type:
+        if (output_Y.ty == tensorZant.TensorType.undefined) output_Y.ty = input_X.ty;
+
         return Unsqueeze{
             .input_X = input_X,
             .input_axes = input_axes,

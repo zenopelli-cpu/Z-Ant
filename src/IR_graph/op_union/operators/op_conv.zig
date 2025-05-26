@@ -76,7 +76,7 @@ pub const Conv = struct {
         }
 
         //set the output type:
-        output_Y.ty = input_W.ty;
+        if (output_Y.ty == tensorZant.TensorType.undefined) output_Y.ty = input_W.ty;
 
         return Conv{
             .input_X = input_X,
@@ -181,7 +181,7 @@ pub const Conv = struct {
             \\        "{s}", //auto_pad
             \\    )
         , .{
-            self.input_X.ty.toString(),
+            self.output_Y.ty.toString(),
             tensor_X_string, //Input
             tensor_W_string, //Kernel
             try utils.getSanitizedName(self.output_Y.name), //Output

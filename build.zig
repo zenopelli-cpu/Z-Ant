@@ -316,7 +316,7 @@ pub fn build(b: *std.Build) void {
     const step_test_oneOp_codegen = b.step("test-codegen-gen", "Run generated library tests");
     step_test_oneOp_codegen.dependOn(&run_oneop_codegen_exe.step);
 
-    // ************************************************
+    // ************************************************ test_all_oneOp ************************************************
     // Setup test_all_oneOp
 
     const test_all_oneOp = b.addTest(.{

@@ -50,7 +50,7 @@ pub const Concat = struct {
         }
 
         //set the output type:
-        concat_result.ty = inputs.items[0].ty;
+        if (concat_result.ty == tensorZant.TensorType.undefined) concat_result.ty = inputs.items[0].ty;
 
         return Concat{
             .inputs = inputs,

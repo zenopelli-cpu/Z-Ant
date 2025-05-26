@@ -6,6 +6,7 @@ const codegen = @import("IR_codegen.zig");
 const onnx = zant.onnx;
 
 const codegen_options = @import("codegen_options");
+const codeGen_tests = @import("tests_writer.zig");
 
 pub fn main() !void {
     std.debug.print("\n\ncodegenOptions: ", .{});
@@ -33,5 +34,8 @@ pub fn main() !void {
 
     //model.print();
 
-    try codegen.codegnenerateFromOnnx(model_name, "generated/minst-8/", model);
+    try codegen.codegnenerateFromOnnx(model_name, codegen_options.IR_generated_path, model);
+
+    // Test the generated code
+    try codeGen_tests.writeTestFile(model_name, codegen_options.IR_generated_path);
 }

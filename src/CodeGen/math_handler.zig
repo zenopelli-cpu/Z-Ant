@@ -181,7 +181,7 @@ fn write_op_info(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try writer.print(
             \\
             \\   //      -> {s} 
-        , .{input.name});
+        , .{input.?.name});
     }
     try writer.print(
         \\

@@ -77,7 +77,7 @@ pub const MaxPool = struct {
         }
 
         //set the output type:
-        output_Y.ty = input_X.ty;
+        if (output_Y.ty == tensorZant.TensorType.undefined) output_Y.ty = input_X.ty;
 
         return MaxPool{
             .input_X = input_X,

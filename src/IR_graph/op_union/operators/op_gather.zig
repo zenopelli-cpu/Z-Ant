@@ -45,7 +45,7 @@ pub const Gather = struct {
         }
 
         //set the output type:
-        output_C.ty = input_A.ty;
+        if (output_C.ty == tensorZant.TensorType.undefined) output_C.ty = input_A.ty;
 
         return Gather{
             .input_A = input_A,

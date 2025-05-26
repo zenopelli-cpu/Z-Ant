@@ -10,6 +10,7 @@ const GraphProto = onnx.GraphProto;
 const NodeProto = onnx.NodeProto;
 const TensorProto = onnx.TensorProto;
 const ValueInfoProto = onnx.ValueInfoProto;
+const DataType = onnx.DataType;
 
 const allocator = std.heap.page_allocator;
 
@@ -36,6 +37,29 @@ pub fn getShapeFromModelInfo(model: *ModelProto) ?[]i64 {
 
 pub fn getTensorShapeFromValueInfo(vi: *ValueInfoProto) ?[]i64 {
     return vi.type.?.tensor_type.?.shape.?.shape;
+}
+
+pub fn getTypeFromValueInfo(vi: *ValueInfoProto) !TensorType {
+
+    // Derive and store the input element type string (e.g., "f32", "u8")
+    const raw_et: u32 = vi.type.?.tensor_type.?.elem_type;
+    const int_val = @as(i32, @intCast(raw_et));
+    const input_dt = @as(DataType, @enumFromInt(int_val));
+    // Store the calculated DataType globally
+    return switch (input_dt) {
+        .INT64 => TensorType.i64,
+        .DOUBLE => TensorType.f64,
+        .UINT64 => TensorType.u64,
+        .FLOAT => TensorType.f32,
+        .INT32 => TensorType.i32,
+        .UINT32 => TensorType.u32,
+        .FLOAT16 => TensorType.f16,
+        .INT16 => TensorType.i16,
+        .UINT16 => TensorType.u16,
+        .INT8 => TensorType.i8,
+        .UINT8 => TensorType.u8,
+        else => error.DataTypeNotAvailable,
+    };
 }
 
 pub fn getAnyTensorType(anyTensor: AnyTensor) TensorType {

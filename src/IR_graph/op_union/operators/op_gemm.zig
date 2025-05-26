@@ -65,7 +65,7 @@ pub const Gemm = struct {
         }
 
         //set the output type:
-        output.ty = input_A.ty;
+        if (output.ty == tensorZant.TensorType.undefined) output.ty = input_A.ty;
 
         return Gemm{
             .input_A = input_A,

@@ -51,7 +51,7 @@ pub const Reshape = struct {
         }
 
         //set the output type:
-        reshaped.ty = data.ty;
+        if (reshaped.ty == tensorZant.TensorType.undefined) reshaped.ty = data.ty;
 
         return Reshape{
             .data = data,

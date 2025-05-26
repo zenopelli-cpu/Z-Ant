@@ -32,7 +32,7 @@ pub const Sub = struct {
         const output_Y = if (tensorZant.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
         //set the output type:
-        output_Y.ty = input_A.ty;
+        if (output_Y.ty == tensorZant.TensorType.undefined) output_Y.ty = input_A.ty;
 
         return Sub{
             .input_A = input_A,

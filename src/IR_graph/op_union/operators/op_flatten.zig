@@ -43,7 +43,7 @@ pub const Flatten = struct {
         }
 
         //set the output type:
-        output.ty = data.ty;
+        if (output.ty == tensorZant.TensorType.undefined) output.ty = data.ty;
 
         return Flatten{
             .data = data,

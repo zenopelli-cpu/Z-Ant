@@ -48,7 +48,7 @@ pub const Shape = struct {
         }
 
         //set the output type:
-        shape.ty = data.ty;
+        if (shape.ty == tensorZant.TensorType.undefined) shape.ty = data.ty;
 
         return Shape{
             .data = data,

@@ -9,8 +9,6 @@ const allocator = zant.utils.allocator.allocator;
 const codegen = @import("codegen");
 const globals = codegen.globals;
 const tests = codegen.tests;
-const ReadyNode = globals.ReadyNode;
-const ReadyTensor = globals.ReadyTensor;
 
 // -------------------- GETTERS --------------------
 
@@ -110,33 +108,6 @@ pub inline fn getSanitizedName(name: []const u8) ![]const u8 {
     return sanitized;
 }
 
-/// Returns a List of Ready nodes
-/// A node is considered "computable" if all the node's input Tensors are set as ready
-pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.ArrayList(*ReadyNode) {
-    var set: std.ArrayList(*ReadyNode) = std.ArrayList(*ReadyNode).init(allocator);
-    var ready_input_counter: i8 = 0;
-    var null_input_counter: i8 = 0;
-
-    for (readyGraph.items) |*node| {
-        if (!node.ready) {
-            for (node.inputs.items) |input| {
-                if (input == null) null_input_counter += 1 else if (input.?.ready) ready_input_counter += 1;
-            }
-            for (node.outputs.items) |output| {
-                if (output.ready) return error.OutputReadyTooEarly;
-            }
-            if (ready_input_counter + null_input_counter == node.inputs.items.len) {
-                try set.append(node);
-                //std.log.debug("\n    --- {s} is computable", .{node.nodeProto.name.?});
-            }
-            ready_input_counter = 0;
-            null_input_counter = 0;
-        }
-    }
-
-    return set;
-}
-
 pub inline fn getConstantTensorDims(nodeProto: *NodeProto) ![]const i64 {
     //check the node is a Constant
     if (std.mem.indexOf(u8, try getSanitizedName(nodeProto.op_type), "constant")) |_| {} else return error.NodeNotConstant;
@@ -154,138 +125,6 @@ pub fn getTensorShape(tensorName: []const u8) ?[]i64 {
     }
 
     return null;
-}
-// -------------------- SETTERS --------------------
-
-// Marks output tensors as ready for computation in all the graph
-pub fn setOutputsReady(completedNode: *ReadyNode, tensorHashMap: *std.StringHashMap(ReadyTensor)) !void {
-    std.log.info("\n -----> set {s} outputs to ready", .{completedNode.nodeProto.name orelse "(unnamed)"});
-    completedNode.ready = true;
-    for (completedNode.outputs.items) |ready_output_tensor| { //for each output tensor of the completed node
-        var mutablePtr: *ReadyTensor = if (tensorHashMap.getPtr(ready_output_tensor.name)) |V_ptr| V_ptr else return error.keyNotAvailable;
-        mutablePtr.ready = true;
-        std.log.info("\n    {s} --> ready", .{mutablePtr.name});
-    }
-}
-
-// -------------------- BOOLEANS --------------------
-
-// returns true if all the inputs are ready
-pub inline fn areAllInputsReady(node: *ReadyNode) bool {
-    for (node.inputs.items) |input| {
-        if (!input.ready) return false;
-    }
-    return true;
-}
-
-//returns true if all the inputs and all the outputs of a node are set as ready
-pub inline fn isComputed(readyNode: *ReadyNode) !bool {
-    for (readyNode.inputs.items) |input| {
-        if (!input.ready) return false;
-    }
-    for (readyNode.outputs.items) |output| {
-        if (!output.ready) return false;
-    }
-    return true;
-}
-
-//return true if the first parameter is an initializer
-pub fn isInitializer(name: []const u8, initializers: []*TensorProto) bool {
-    for (initializers) |init| {
-        if (std.mem.eql(u8, init.name.?, name)) return true;
-    }
-    return false;
-}
-
-//return true if the name is an input of the nn
-pub fn isInput(name: []const u8) bool {
-    for (globals.onnxModel.graph.?.inputs) |input| {
-        if (std.mem.eql(u8, input.name.?, name)) return true;
-    }
-    return false;
-}
-
-//return true if the name is an output of the nn
-pub fn isOutput(name: []const u8) bool {
-    for (globals.onnxModel.graph.?.outputs) |output| {
-        if (std.mem.eql(u8, output.name.?, name)) return true;
-    }
-    return false;
-}
-// -------------------- PRINTERS --------------------
-
-// Prints the list of nodes in the given computation graph.
-// Outputs each node's name along with its input and output tensors and their readiness status.
-pub fn printNodeList(graph: std.ArrayList(ReadyNode)) !void {
-    std.debug.print("\n-------------------------------------------------------------", .{});
-    std.debug.print("\n+                        READY GRAPH                        +", .{});
-    std.debug.print("\n-------------------------------------------------------------\n", .{});
-    for (graph.items) |node| {
-        std.log.info("\n ----- node: {s}", .{node.nodeProto.name.?});
-
-        std.log.info("\n          inputs: ", .{});
-        // Write the inputs
-        for (node.inputs.items) |input| {
-            std.log.info("\n              ->{s} {s}", .{ input.name, if (input.ready) "--->ready" else "" });
-        }
-
-        std.log.info("\n          outputs:", .{});
-        // Write the outputs
-        for (node.outputs.items) |output| {
-            std.log.info("\n              -> {s} {s}", .{ output.name, if (output.ready) "--->ready" else "" });
-        }
-    }
-}
-
-// Prints the list of nodes that are ready for computation.
-// Outputs each node's name, operation type, inputs, and outputs along with their readiness status.
-pub fn printComputableNodes(computableNodes: std.ArrayList(*ReadyNode), details: bool) !void {
-    std.debug.print("\n------------------------------------------------------------", .{});
-    std.debug.print("\n+                  COMPUTABLE NODES  n:{}                  +", .{computableNodes.items.len});
-    std.debug.print("\n------------------------------------------------------------\n", .{});
-
-    for (computableNodes.items) |node| {
-        node.print(details);
-    }
-}
-
-// Prints the list of unique ONNX operations present in the given graph.
-// Outputs each operation type only once.
-pub fn printOperations(graph: *GraphProto) !void {
-    std.debug.print("\n", .{});
-    std.debug.print("\n-------------------------------------------------", .{});
-    std.debug.print("\n+                ONNX operations                +", .{});
-    std.debug.print("\n-------------------------------------------------\n", .{});
-
-    var op_set = std.StringHashMap(void).init(std.heap.page_allocator);
-    defer op_set.deinit();
-
-    for (graph.nodes) |node| {
-        try op_set.put(node.op_type, {});
-    }
-
-    var it = op_set.iterator();
-    while (it.next()) |entry| {
-        std.log.debug("\n- {s}", .{entry.key_ptr.*});
-    }
-
-    std.debug.print("\n-------------------------------------------------\n", .{});
-}
-
-// Function to print all entries in the tensorHashMap
-pub fn printTensorHashMap(map: std.StringHashMap(ReadyTensor)) void {
-    std.debug.print("\n-------------------------------------------------------------", .{});
-    std.debug.print("\n+                       READY HASHMAP                       +", .{});
-    std.debug.print("\n-------------------------------------------------------------\n", .{});
-
-    var it = map.iterator();
-    while (it.next()) |entry| {
-        const key = entry.key_ptr.*;
-        const tensor = entry.value_ptr.*;
-        std.log.info("\nTensor Name: {s}", .{key});
-        std.log.info("\n     Ready: {}", .{tensor.ready});
-        std.log.info("\n     Shape: [{any}]", .{tensor.shape});
-    }
 }
 
 // ----------------- DATA TYPE management -------------
@@ -499,37 +338,6 @@ pub fn i64SliceToUsizeArrayString(values: []const i64) ![]const u8 {
     try list.append('}');
 
     return try list.toOwnedSlice(); // Caller must free this!
-}
-
-// ----------------- FILE MANAGEMENT -----------------
-// Copy file from src to dst
-pub fn copyFile(src_path: []const u8, dst_path: []const u8) !void {
-    var src_file = try std.fs.cwd().openFile(src_path, .{});
-    defer src_file.close();
-
-    var dst_file = try std.fs.cwd().createFile(dst_path, .{});
-    defer dst_file.close();
-
-    // Use a buffer to copy in chunks
-    var buf: [4096]u8 = undefined;
-    while (true) {
-        const bytes_read = try src_file.read(&buf);
-        if (bytes_read == 0) break;
-        _ = try dst_file.write(buf[0..bytes_read]);
-    }
-}
-
-// Read the user_tests json file and return a list of test cases
-pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Parsed([]tests.UserTest(T)) {
-    const user_tests_file = try std.fs.cwd().openFile(user_tests_path, .{});
-    defer user_tests_file.close();
-
-    const user_tests_content: []const u8 = try user_tests_file.readToEndAlloc(allocator, 1024 * 1024);
-    defer allocator.free(user_tests_content);
-
-    const parsed_user_tests = try std.json.parseFromSlice([]tests.UserTest(T), allocator, user_tests_content, .{});
-
-    return parsed_user_tests;
 }
 
 /// Parses a raw byte slice (expected to be little-endian) into an allocated slice of i64.
