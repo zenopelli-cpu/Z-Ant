@@ -75,7 +75,6 @@ pub inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor
     // Create output tensor
 
     var Y = try Tensor(T).fromShape(&allocator, out_shape);
-    Y.details = A.details;      // Propagating details
     errdefer Y.deinit();
 
     // std.debug.print("Output tensor shape: ", .{});
@@ -127,177 +126,65 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
         std.debug.print("\n", .{});
     }
 
+    // SIMD vector type
+    const Vec = @Vector(DEFAULT_VECTOR_WIDTH, T);
+    const VecOut = @Vector(DEFAULT_VECTOR_WIDTH, T);
+
     // Get pointers for faster access
     const A_ptr = A.data.ptr;
     const B_ptr = B.data.ptr;
     const Y_ptr = Y.data.ptr;
 
     // Main matrix multiplication loop with SIMD
-    // Switch for tensor type
+    var i: usize = 0;
+    while (i < M) : (i += 1) {
+        // if (i % 100 == 0) std.debug.print("Processing row {}/{}\n", .{ i, M });
+        const row_offset = i * K;
+        const out_offset = i * N;
 
-    switch (Y.details) {
+        var j: usize = 0;
+        while (j + DEFAULT_VECTOR_WIDTH <= N) : (j += DEFAULT_VECTOR_WIDTH) {
+            var sum_vec: VecOut = @splat(0);
+            const out_idx = out_offset + j;
 
-        // Quantized tensor: int8 -> int32 -> int8 pipeline
-        .quant => |*qd| {
-            if(@typeInfo(T) == .int){
+            // Inner product with SIMD
+            var k: usize = 0;
+            while (k < K) : (k += 1) {
+                const a_val = A_ptr[row_offset + k];
+                const b_offset = k * N + j;
 
-                // SIMD vector type
-                // The vector used for the product is of type T
-                const Vec = @Vector(DEFAULT_VECTOR_WIDTH, T);
-                // The vector used for accumulation is of type i32
-                const VecOut = @Vector(DEFAULT_VECTOR_WIDTH, i32);
-
-                // Max and min values for clamping
-                //std.debug.print("\n\n\n{}\n\n{}\n\n\n", .{T, Y.details});
-                const max_value: usize = std.math.maxInt(T);
-                const min_value: usize = std.math.minInt(T);
-
-                // For mat mul the output scale factor is the product of the input tensors scale factors
-                qd.scale_factor = A.details.quant.scale_factor * B.details.quant.scale_factor;
-                // effective_scale
-                var effective_scale: f32 = A.details.quant.scale_factor * B.details.quant.scale_factor / qd.scale_factor;
-                // shift_correction and effective_scale normalization in [1, 0.5] range
-                var shift_correction: usize = 0;
-                while(effective_scale > 1){
-                    effective_scale /= 2;
-                    shift_correction += 1;
+                // Load B values directly into vector
+                var b_vec: Vec = undefined;
+                comptime var v: usize = 0;
+                inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
+                    b_vec[v] = B_ptr[b_offset + v];
                 }
-                while(effective_scale < 0.5){
-                    effective_scale *= 2;
-                    shift_correction -= 1;
-                }
-                // multiplier
-                const shift = 31;
-                const multiplier: i32 = @intFromFloat(@round(effective_scale * @as(f32, 1 << shift)));
-                // zero_point
-                qd.zero_point = 0; // This is a bit brutal but for better values we would need to analyze float execution of the model
 
-                // The actual multiplication with zero point adjustment
-                var i: usize = 0;
-                while (i < M) : (i += 1) {
-                    // if (i % 100 == 0) std.debug.print("Processing row {}/{}\n", .{ i, M });
-                    const row_offset = i * K;
-                    const out_offset = i * N;
-
-                    var j: usize = 0;
-                    while (j + DEFAULT_VECTOR_WIDTH <= N) : (j += DEFAULT_VECTOR_WIDTH) {
-                        var sum_vec: VecOut = @splat(0);
-                        const out_idx = out_offset + j;
-
-                        // Inner product with SIMD
-                        var k: usize = 0;
-                        while (k < K) : (k += 1) {
-                            const a_val = A_ptr[row_offset + k] - A.details.quant.zero_point;
-                            const b_offset = k * N + j;
-
-                            // Load B values directly into vector
-                            var b_vec: Vec = undefined;
-                            comptime var v: usize = 0;
-                            inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
-                                b_vec[v] = B_ptr[b_offset + v] - B.details.quant.zero_point;
-                            }
-
-                            // Convert and multiply
-                            const a_vec: VecOut = @splat(@as(T, a_val));
-                            const b_vec_out: VecOut = @as(VecOut, b_vec);
-                            sum_vec += a_vec * b_vec_out;
-                        }
-
-                        // Store result
-                        comptime var v: usize = 0;
-                        inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
-                            // Apply multiplier and shift, add output_zero_point and then clamp
-                            const result = qd.zero_point + ((sum_vec[v] * multiplier) >> (shift + shift_correction));
-                            Y_ptr[out_idx + v] = if (result > max_value) {
-                                max_value;
-                            } else if (result < min_value) {
-                                min_value;
-                            } else {
-                                result;
-                            };
-                        }
-                    }
-
-                    // Handle remaining columns
-                    while (j < N) : (j += 1) {
-                        var sum: i32 = 0;
-                        const out_idx = out_offset + j;
-
-                        var k: usize = 0;
-                        while (k < K) : (k += 1) {
-                            sum += @as(T, A_ptr[row_offset + k] - A.details.quant.zero_point) *
-                                @as(T, B_ptr[k * N + j] - B.details.quant.zero_point);
-                        }
-                        sum = qd.zero_point + ((sum * multiplier) >> (shift + shift_correction));
-                        Y_ptr[out_idx] = if (sum > max_value) {
-                                max_value;
-                            } else if (sum < min_value) {
-                                min_value;
-                            } else {
-                                sum;
-                            };
-                    }
-                }
+                // Convert and multiply
+                const a_vec: VecOut = @splat(@as(T, a_val));
+                const b_vec_out: VecOut = @as(VecOut, b_vec);
+                sum_vec += a_vec * b_vec_out;
             }
-        },
-        
-        // Classic tensor: classic tensor multiplication
-        else => {
-            // SIMD vector type
-            const Vec = @Vector(DEFAULT_VECTOR_WIDTH, T);
-            const VecOut = @Vector(DEFAULT_VECTOR_WIDTH, T);
 
-            var i: usize = 0;
-            while (i < M) : (i += 1) {
-                // if (i % 100 == 0) std.debug.print("Processing row {}/{}\n", .{ i, M });
-                const row_offset = i * K;
-                const out_offset = i * N;
-
-                var j: usize = 0;
-                while (j + DEFAULT_VECTOR_WIDTH <= N) : (j += DEFAULT_VECTOR_WIDTH) {
-                    var sum_vec: VecOut = @splat(0);
-                    const out_idx = out_offset + j;
-
-                    // Inner product with SIMD
-                    var k: usize = 0;
-                    while (k < K) : (k += 1) {
-                        const a_val = A_ptr[row_offset + k];
-                        const b_offset = k * N + j;
-
-                        // Load B values directly into vector
-                        var b_vec: Vec = undefined;
-                        comptime var v: usize = 0;
-                        inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
-                            b_vec[v] = B_ptr[b_offset + v];
-                        }
-
-                        // Convert and multiply
-                        const a_vec: VecOut = @splat(@as(T, a_val));
-                        const b_vec_out: VecOut = @as(VecOut, b_vec);
-                        sum_vec += a_vec * b_vec_out;
-                    }
-
-                    // Store result
-                    comptime var v: usize = 0;
-                    inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
-                        Y_ptr[out_idx + v] = sum_vec[v];
-                    }
-                }
-
-                // Handle remaining columns
-                while (j < N) : (j += 1) {
-                    var sum: T = 0;
-                    const out_idx = out_offset + j;
-
-                    var k: usize = 0;
-                    while (k < K) : (k += 1) {
-                        sum += @as(T, A_ptr[row_offset + k]) *
-                            @as(T, B_ptr[k * N + j]);
-                    }
-                    Y_ptr[out_idx] = sum;
-                }
+            // Store result
+            comptime var v: usize = 0;
+            inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
+                Y_ptr[out_idx + v] = sum_vec[v];
             }
-        },
+        }
+
+        // Handle remaining columns
+        while (j < N) : (j += 1) {
+            var sum: T = 0;
+            const out_idx = out_offset + j;
+
+            var k: usize = 0;
+            while (k < K) : (k += 1) {
+                sum += @as(T, A_ptr[row_offset + k]) *
+                    @as(T, B_ptr[k * N + j]);
+            }
+            Y_ptr[out_idx] = sum;
+        }
     }
 
     // std.debug.print("Matrix multiplication completed\n", .{});
@@ -361,7 +248,6 @@ pub inline fn blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *cons
     // Create output tensor
 
     var Y = try Tensor(T).fromShape(&allocator, out_shape);
-    Y.details = A.details;      // Propagating details
     errdefer Y.deinit();
 
     // std.debug.print("Output tensor shape: ", .{});
@@ -399,133 +285,41 @@ pub inline fn lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: 
     const remaining_b_rows = b_rows - nearest_b_rows;
 
     const VEC_WIDTH: usize = comptime (std.simd.suggestVectorLength(T) orelse 4);
+    var a_vec: @Vector(VEC_WIDTH, T) = undefined;
+    var b_vec: @Vector(VEC_WIDTH, T) = undefined;
+    var c_vec: @Vector(VEC_WIDTH, T) = undefined;
 
-    switch (C.details) {
+    var c_chunk_column: usize = 0;
 
-        // Quantized tensor: int8 -> int32 -> int8 pipeline
-        .quant => |*qd| {
-            if(@typeInfo(T) == .int){
-                // The vector used for the product is of type T
-                var a_vec: @Vector(VEC_WIDTH, T) = undefined;
-                var b_vec: @Vector(VEC_WIDTH, T) = undefined;
-                // The vector used for accumulation is of type i32
-                var c_vec: @Vector(VEC_WIDTH, i32) = undefined;
-
-                var c_chunk_column: usize = 0;
-
-                // Max and min values for clamping
-                //std.debug.print("\n\n\n{}\n\n{}\n\n\n", .{T, Y.details});
-                const max_value: usize = std.math.maxInt(T);
-                const min_value: usize = std.math.minInt(T);
-
-                // For mat mul the output scale factor is the product of the input tensors scale factors
-                qd.scale_factor = A.details.quant.scale_factor * B.details.quant.scale_factor;
-                // effective_scale
-                var effective_scale: f32 = A.details.quant.scale_factor * B.details.quant.scale_factor / qd.scale_factor;
-                // shift_correction and effective_scale normalization in [1, 0.5] range
-                var shift_correction: usize = 0;
-                while(effective_scale > 1){
-                    effective_scale /= 2;
-                    shift_correction += 1;
-                }
-                while(effective_scale < 0.5){
-                    effective_scale *= 2;
-                    shift_correction -= 1;
-                }
-                // multiplier
-                const shift = 31;
-                const multiplier: i32 = @intFromFloat(@round(effective_scale * @as(f32, 1 << shift)));
-                // zero_point
-                qd.zero_point = 0; // This is a bit brutal but for better values we would need to analyze float execution of the model
-                // accumulator needed because of how blocked_mat_mul works
-                const c_accumulator = try pkg_allocator.alloc(i32, C.size);
-                defer pkg_allocator.free(c_accumulator);
-
-                while (c_chunk_column + cache_block_size <= nearest_c_cols) : (c_chunk_column += cache_block_size) {
-                    for (0..c_rows) |c_chunk_row| {
-                        var tile: usize = 0;
-                        while (tile < nearest_b_rows) : (tile += cache_block_size) {
-                            for (0..cache_block_size) |t_row| {
-                                quant_simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
-                            }
-                        }
-                        //Handle rows that are not a multiple of cache_block_size
-                        var last_tile: usize = 0;
-                        while (last_tile < remaining_b_rows) : (last_tile += 1) {
-                            quant_simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
-                        }
-                    }
-                }
-
-                for (0..c_rows) |c_chunk_row| {
-                    var tile: usize = 0;
-                    while (tile < nearest_b_rows) : (tile += cache_block_size) {
-                        for (0..cache_block_size) |t_row| {
-                            quant_simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
-                        }
-                    }
-
-                    //Handle rows that are not a multiple of cache_block_size
-                    var last_tile: usize = 0;
-                    while (last_tile < remaining_b_rows) : (last_tile += 1) {
-                        quant_simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
-                    }
-                }
-
-                // After accumulating
-                for(0..C.size)|i|{
-                    // Apply multiplier and shift, add output_zero_point and then clamp
-                    const result = qd.zero_point + ((c_accumulator[i] * multiplier) >> (shift + shift_correction));
-                    C_ptr[i] = if (result > max_value) {
-                        max_value;
-                    } else if (result < min_value) {
-                        min_value;
-                    } else {
-                        result;
-                    };
+    while (c_chunk_column + cache_block_size <= nearest_c_cols) : (c_chunk_column += cache_block_size) {
+        for (0..c_rows) |c_chunk_row| {
+            var tile: usize = 0;
+            while (tile < nearest_b_rows) : (tile += cache_block_size) {
+                for (0..cache_block_size) |t_row| {
+                    simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
                 }
             }
-        },
-
-        // Classic tensor: classic tensor multiplication
-        else => {
-            var a_vec: @Vector(VEC_WIDTH, T) = undefined;
-            var b_vec: @Vector(VEC_WIDTH, T) = undefined;
-            var c_vec: @Vector(VEC_WIDTH, T) = undefined;
-
-            var c_chunk_column: usize = 0;
-
-            while (c_chunk_column + cache_block_size <= nearest_c_cols) : (c_chunk_column += cache_block_size) {
-                for (0..c_rows) |c_chunk_row| {
-                    var tile: usize = 0;
-                    while (tile < nearest_b_rows) : (tile += cache_block_size) {
-                        for (0..cache_block_size) |t_row| {
-                            simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
-                        }
-                    }
-                    //Handle rows that are not a multiple of cache_block_size
-                    var last_tile: usize = 0;
-                    while (last_tile < remaining_b_rows) : (last_tile += 1) {
-                        simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
-                    }
-                }
+            //Handle rows that are not a multiple of cache_block_size
+            var last_tile: usize = 0;
+            while (last_tile < remaining_b_rows) : (last_tile += 1) {
+                simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
             }
+        }
+    }
 
-            for (0..c_rows) |c_chunk_row| {
-                var tile: usize = 0;
-                while (tile < nearest_b_rows) : (tile += cache_block_size) {
-                    for (0..cache_block_size) |t_row| {
-                        simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
-                    }
-                }
-
-                //Handle rows that are not a multiple of cache_block_size
-                var last_tile: usize = 0;
-                while (last_tile < remaining_b_rows) : (last_tile += 1) {
-                    simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
-                }
+    for (0..c_rows) |c_chunk_row| {
+        var tile: usize = 0;
+        while (tile < nearest_b_rows) : (tile += cache_block_size) {
+            for (0..cache_block_size) |t_row| {
+                simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
             }
-        },
+        }
+
+        //Handle rows that are not a multiple of cache_block_size
+        var last_tile: usize = 0;
+        while (last_tile < remaining_b_rows) : (last_tile += 1) {
+            simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, C_ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec);
+        }
     }
 }
 
@@ -611,71 +405,6 @@ inline fn simd_tile_mul(
         C_ptr[c_chunk_row * c_cols + c_chunk_column + t_col] +=
             A_ptr[c_chunk_row * a_cols + tile + t_row] *
             B_ptr[tile * b_cols + t_row * b_cols + c_chunk_column + t_col];
-    }
-}
-
-
-inline fn quant_simd_tile_mul(
-    comptime T: anytype,
-    A_ptr: [*]T,
-    a_cols: usize,
-    B_ptr: [*]T,
-    b_cols: usize,
-    C_ptr: [*]T,
-    c_cols: usize,
-    tile: usize,
-    t_row: usize,
-    c_chunk_column: usize,
-    c_chunk_row: usize,
-    a_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, T)),
-    b_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, T)),
-    c_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, T)),
-    a_zero_point: usize,
-    b_zero_point: usize
-) void {
-    const CACHE_BLOCK_SIZE = comptime (CACHE_BLOCK_SIZE_BYTES / @sizeOf(T));
-
-    const VEC_WIDTH: usize = comptime (std.simd.suggestVectorLength(T) orelse 4);
-    //const VEC_WIDTH: usize = comptime (8);
-
-    // Ensure that c_chunk_column + CACHE_BLOCK_SIZE does not exceed c_cols
-    const end_col = @min(CACHE_BLOCK_SIZE, c_cols - c_chunk_column);
-
-    const a_val = A_ptr[c_chunk_row * a_cols + tile + t_row] - a_zero_point;
-
-    // Create a vector filled with the same value of A
-    a_vec.* = @splat(a_val);
-    // var b_vec: @Vector(VEC_WIDTH, T) = undefined;
-    // var c_vec: @Vector(VEC_WIDTH, T) = undefined;
-
-    // Iteration on columns in blocks of simd_lanes
-    var t_col: usize = 0;
-    while (t_col + VEC_WIDTH <= end_col) : (t_col += VEC_WIDTH) {
-
-        // Load elements of B into a vector
-        for (0..VEC_WIDTH) |i| {
-            b_vec[i] = B_ptr[tile * b_cols + t_row * b_cols + c_chunk_column + t_col + i] - b_zero_point;
-        }
-
-        // Load current values of C
-        for (0..VEC_WIDTH) |i| {
-            c_vec[i] = C_ptr[c_chunk_row * c_cols + c_chunk_column + t_col + i];
-        }
-
-        // Multiply and accumulate
-        c_vec.* += a_vec.* * b_vec.*;
-
-        // Write the result in C
-        for (0..VEC_WIDTH) |i| {
-            C_ptr[c_chunk_row * c_cols + c_chunk_column + t_col + i] = c_vec[i];
-        }
-    }
-
-    //Handle remaining columns without SIMD
-    while (t_col < end_col) : (t_col += 1) {
-        C_ptr[c_chunk_row * c_cols + c_chunk_column + t_col] +=
-            (A_ptr[c_chunk_row * a_cols + tile + t_row] - a_zero_point) *
-            (B_ptr[tile * b_cols + t_row * b_cols + c_chunk_column + t_col] - b_zero_point);
     }
 }
 
