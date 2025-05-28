@@ -318,7 +318,7 @@ pub fn Tensor(comptime T: type) type {
         /// Returns the quantization scale factor of the quantized tensor.
         /// Errors:
         ///     - TensorError.NotQuantizedTensor;
-        pub fn get_scale_factor(self: *@This()) !f32 {
+        pub inline fn get_scale_factor(self: *@This()) !f32 {
             switch (self.details) {
                 .quant => |quantDetails| {
                     return quantDetails.scale_factor;
@@ -330,7 +330,7 @@ pub fn Tensor(comptime T: type) type {
         /// Returns the quantization zero point of the quantized tensor.
         /// Errors:
         ///     - TensorError.NotQuantizedTensor;
-        pub fn get_zero_point(self: *@This()) !isize {
+        pub inline fn get_zero_point(self: *@This()) !isize {
             switch (self.details) {
                 .quant => |quantDetails| {
                     return quantDetails.zero_point;

@@ -1,5 +1,4 @@
 pub const tensor = @import("Tensor/tensor.zig");
-pub const tensorWrapper = @import("Tensor/TensorWrapper.zig");
 
 pub const quantization = @import("Quantization/quantization.zig");
 pub const quantization_debug = @import("Quantization/quantization_debug.zig");
