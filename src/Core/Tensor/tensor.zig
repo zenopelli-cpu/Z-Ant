@@ -49,6 +49,8 @@ pub fn Tensor(comptime T: type) type {
 
     const ClusterDetails = struct {
         tensorType: TensorType,
+        lookup_table: []f32,
+        table_size: usize,
     };
 
     const TensorDetails = union(enum) {
@@ -185,10 +187,16 @@ pub fn Tensor(comptime T: type) type {
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------
         ///-----------------------------------------------------------------Quantization and Clustering----------------------------------------------------------------
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------
-
         /// Given a multidimensional array with its shape, the quantized output type, the scale factor and zero point, returns the equivalent quantized Tensor.
         /// Note: the type T (Tensor parameter) should be the quantized output data type.
-        pub fn fromArrayQuantized(allocator: *const std.mem.Allocator, inputArray: anytype, shape: []usize, scale_factor: f32, comptime outputType: type, zero_point: isize,) !Tensor(outputType) {
+        pub fn fromArrayQuantized(
+            allocator: *const std.mem.Allocator,
+            inputArray: anytype,
+            shape: []usize,
+            scale_factor: f32,
+            comptime outputType: type,
+            zero_point: isize,
+        ) !Tensor(outputType) {
 
             // Calculate total size based on shape
             var total_size: usize = 1;
@@ -257,6 +265,11 @@ pub fn Tensor(comptime T: type) type {
             }
         }
 
+        ///------------------------------------------------ Functions that support operating with Quant and Clust Tensors ---------------------------------------------
+        /// zero point correction
+        /// int32 accumulation
+        /// effective scale
+        /// multiplier and shift calculation
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------
         ///--------------------------------------------------------------------------getters and setters---------------------------------------------------------------
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -306,7 +319,7 @@ pub fn Tensor(comptime T: type) type {
         /// Errors:
         ///     - TensorError.NotQuantizedTensor;
         pub fn get_scale_factor(self: *@This()) !f32 {
-            switch(self.details) {
+            switch (self.details) {
                 .quant => |quantDetails| {
                     return quantDetails.scale_factor;
                 },
@@ -318,7 +331,7 @@ pub fn Tensor(comptime T: type) type {
         /// Errors:
         ///     - TensorError.NotQuantizedTensor;
         pub fn get_zero_point(self: *@This()) !isize {
-            switch(self.details) {
+            switch (self.details) {
                 .quant => |quantDetails| {
                     return quantDetails.zero_point;
                 },
