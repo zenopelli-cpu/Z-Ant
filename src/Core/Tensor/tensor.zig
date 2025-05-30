@@ -5,6 +5,7 @@
 //! to even higher dimensions (3D, 4D, etc.).
 pub const math_lean = @import("TensorMath/tensor_math_standard.zig");
 pub const math_standard = @import("TensorMath/tensor_math_standard.zig");
+pub const quantized_math = @import("QuantTensorMath/quant_tensor_math_standard.zig");
 
 const std = @import("std");
 const zant = @import("../../zant.zig");
@@ -211,8 +212,8 @@ pub fn Tensor(comptime T: type) type {
             // Allocate memory for tensor data
             const tensorData = try allocator.alloc(outputType, total_size);
 
-            // Flatten the input array into tensor data
-            _ = flattenArray(T, inputArray, tensorData, 0);
+            // Flatten the input array into output tensor data
+            _ = flattenArray(outputType, inputArray, tensorData, 0);
 
             // Return the new tensor
             return Tensor(outputType){
@@ -250,19 +251,10 @@ pub fn Tensor(comptime T: type) type {
             // dequantization
             const scale = try self.get_scale_factor();
             const zero = try self.get_zero_point();
-            const result = try quant.dequantize_array(outputType, T, self.data, scale, @as(T, @intCast(zero)));
+            const result = try quant.dequantize_array(outputType, T, self.data, scale, @as(isize, @intCast(zero)));
             defer pkgAllocator.allocator.free(result);
 
             return Tensor(outputType).fromArray(allocator, result, self.shape);
-        }
-
-        pub fn isQuantized(self: *@This()) bool {
-            switch (self.details) {
-                .quant => {
-                    return true;
-                },
-                else => return false,
-            }
         }
 
         ///------------------------------------------------ Functions that support operating with Quant and Clust Tensors ---------------------------------------------
