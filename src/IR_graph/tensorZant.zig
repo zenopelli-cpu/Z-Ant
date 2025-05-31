@@ -38,6 +38,24 @@ pub const TensorType = enum {
 
     undefined,
 
+    pub fn fromType(comptime T: type) TensorType {
+        return switch (T) {
+            f16 => TensorType.f16,
+            f32 => TensorType.f32,
+            f64 => TensorType.f64,
+            i8 => TensorType.i8,
+            i16 => TensorType.i16,
+            i32 => TensorType.i32,
+            i64 => TensorType.i64,
+            u8 => TensorType.u8,
+            u16 => TensorType.u16,
+            u32 => TensorType.u32,
+            u64 => TensorType.u64,
+            bool => TensorType.bool,
+            else => TensorType.undefined,
+        };
+    }
+
     pub fn toString(self: TensorType) []const u8 {
         return switch (self) {
             .f16 => "f16",
