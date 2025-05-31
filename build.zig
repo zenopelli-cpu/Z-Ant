@@ -27,13 +27,19 @@ pub fn build(b: *std.Build) void {
 
     const zant_mod = b.createModule(.{ .root_source_file = b.path("src/zant.zig") });
     zant_mod.addOptions("build_options", build_options);
-
-    const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/CodeGen/codegen.zig") });
-    codeGen_mod.addImport("zant", zant_mod);
+    // Please check this part again
+    // At the moment it works, but it looks demonic
+    zant_mod.addImport("zant", zant_mod);
 
     const IR_mod = b.createModule(.{ .root_source_file = b.path("src/IR_graph/IR_graph.zig") });
+    const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/CodeGen/codegen.zig") });
+
     IR_mod.addImport("zant", zant_mod);
     IR_mod.addImport("codegen", codeGen_mod);
+
+    codeGen_mod.addImport("zant", zant_mod);
+    // Add the IR module to the codegen module
+    codeGen_mod.addImport("IR_zant", IR_mod);
 
     const Img2Tens_mod = b.createModule(.{ .root_source_file = b.path("src/ImageToTensor/imageToTensor.zig") });
     Img2Tens_mod.addImport("zant", zant_mod);
@@ -59,7 +65,7 @@ pub fn build(b: *std.Build) void {
 
     unit_tests.root_module.addImport("zant", zant_mod);
     unit_tests.root_module.addImport("codegen", codeGen_mod);
-    unit_tests.root_module.addImport("IR_graph", IR_mod);
+    unit_tests.root_module.addImport("IR_zant", IR_mod);
 
     unit_tests.linkLibC();
 
@@ -265,7 +271,7 @@ pub fn build(b: *std.Build) void {
 
     write_op_test.root_module.addImport("zant", zant_mod);
     write_op_test.root_module.addImport("codegen", codeGen_mod);
-    write_op_test.root_module.addImport("IR_graph", IR_mod);
+    write_op_test.root_module.addImport("IR_zant", IR_mod);
     write_op_test.linkLibC();
 
     const run_write_op_test = b.addRunArtifact(write_op_test);
@@ -326,7 +332,7 @@ pub fn build(b: *std.Build) void {
 
     test_all_write_op.root_module.addImport("zant", zant_mod);
     test_all_write_op.root_module.addImport("codegen", codeGen_mod);
-    test_all_write_op.root_module.addImport("IR_graph", IR_mod);
+    test_all_write_op.root_module.addImport("IR_zant", IR_mod);
     test_all_write_op.linkLibC();
 
     const run_test_all_write_op = b.addRunArtifact(test_all_write_op);

@@ -136,9 +136,9 @@ pub const AveragePool = struct {
         var dilations_string: []const u8 = undefined;
         if (self.dilations != null) {
             dilations_string = try utils.i64SliceToUsizeArrayString(self.dilations.?);
-            // defer allocator.free(dilations_string);
+            defer allocator.free(dilations_string);
         } else {
-            dilations_string = try utils.i64SliceToUsizeArrayString(&[_]i64{ 1, 1, 1, 1 }); // TODO: Hardcoded in 4D, not the most elegant solution
+            dilations_string = try utils.i64SliceToUsizeArrayString(&[_]i64{ 1, 1, 1, 1 }); // TODO: Hardcoded in 4D, not the most elegant solutionk
         }
 
         // Crea stringa per pads

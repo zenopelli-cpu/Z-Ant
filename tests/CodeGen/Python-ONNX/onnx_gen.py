@@ -1088,7 +1088,8 @@ def generate_model(op_name, filename, model_id=0):
         domain='ai.zant.test',
         model_version=model_id,
         doc_string=f"Test model for {op_name} operation. Generated on {datetime.datetime.now().isoformat()}",
-        opset_imports=opset_imports
+        opset_imports=opset_imports,
+        ir_version=6  # Explicitly set IR version 6 which corresponds to opset 10
     )
     model = onnx.shape_inference.infer_shapes(model)
     
@@ -1201,6 +1202,7 @@ def main():
     
     for op in supported_ops:
         for i in range(args.iterations):
+            print("Saving model to " + output_dir) 
             filename = f"{output_dir}{op}_{i}.onnx"
             try: 
                 metadata = generate_model(op, filename, i)
@@ -1219,7 +1221,7 @@ def main():
                 }
                 
                 test_file_name = f"{output_dir}{op}_{i}_user_tests.json"
-
+                print(f"Saving user tests to {test_file_name}")
                 
                 user_tests = []
 

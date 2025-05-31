@@ -5,6 +5,8 @@ const Renderer = codegen.renderer;
 const UOp = zant.uops.UOp;
 const UOpType = zant.uops.UOpType;
 const Tensor = zant.core.tensor.Tensor;
+const onnx = zant.onnx;
+const IR_graph = @import("IR_zant");
 
 const sum_tensors = zant.core.tensor.math_standard.sum_tensors;
 
@@ -1188,4 +1190,21 @@ test "Test Generated LowerReshape Kernel 2" {
     try std.testing.expectEqualSlices(f32, expected_result, result_slice);
 
     std.debug.print("Generated LowerReshape kernel test passed!\n", .{});
+}
+
+test "Parameter Generation Pipeline" {
+    const allocator = std.testing.allocator;
+
+    var model: onnx.ModelProto = try onnx.parseFromFile(allocator, "datasets/models/mnist-8/mnist-8.onnx");
+    defer model.deinit(allocator);
+
+    var graphZant: IR_graph.GraphZant = try IR_graph.init(&model);
+    defer graphZant.deinit();
+
+    const output_filename = "tests/CodeGen/renderer/parameter_output.zig";
+    var file = try std.fs.cwd().createFile(output_filename, .{ .read = true });
+    defer file.close();
+
+    try codegen.parameters.write_parameters(file.writer());
+    std.debug.print("Generated parameters saved to {s}\n", .{output_filename});
 }

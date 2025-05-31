@@ -1,6 +1,7 @@
 const testing = std.testing;
 const std = @import("std");
 const zant = @import("zant");
+const IR_zant = @import("IR_zant");
 const onnx = zant.onnx;
 const allocator = zant.utils.allocator.allocator;
 const fs = std.fs;
@@ -93,7 +94,7 @@ test "Test write_op on all oneOp models" {
         std.debug.print("\n\n - onnx Model: {s} --------------------------------n", .{model.graph.?.name.?});
 
         // Create GraphZant
-        var graphZant = zant.IR_graph.init(&model) catch |err| {
+        var graphZant = IR_zant.init(&model) catch |err| {
             std.debug.print("\nError creating graph for model {s}: {any}\n", .{ model_name, err });
             try failed_parsed_models.append(.{ .modelName = try allocator.dupe(u8, model_name), .errorLoad = err });
             continue;

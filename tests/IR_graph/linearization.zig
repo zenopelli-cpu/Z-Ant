@@ -2,7 +2,9 @@ const testing = std.testing;
 
 const std = @import("std");
 const zant = @import("zant");
-const NodeZant = zant.IR_graph.NodeZant;
+const IR_zant = @import("IR_zant");
+
+const NodeZant = IR_zant.NodeZant;
 const onnx = zant.onnx;
 const allocator = zant.utils.allocator.allocator;
 
@@ -24,17 +26,16 @@ test "linearizing mnist-8 " {
 
     //model.print();
 
-    var graphZant: zant.IR_graph.GraphZant = try zant.IR_graph.init(&model);
+    var graphZant: IR_zant.GraphZant = try IR_zant.init(&model);
     defer graphZant.deinit();
 
     const linearizedGraph = try graphZant.linearize(allocator);
+    defer linearizedGraph.deinit();
 
     std.debug.print("\n\nLinearized Graph Nodes:\n", .{});
     for (linearizedGraph.items) |node| {
         std.debug.print(" - Node: {s}\n", .{node.nodeProto.name orelse "<unnamed>"});
     }
-
-    linearizedGraph.deinit();
 }
 
 // test "linearizing mnist-1 " {
@@ -43,9 +44,9 @@ test "linearizing mnist-8 " {
 //     var model: onnx.ModelProto = try onnx.parseFromFile(allocator, "datasets/models/mnist-1/mnist-1.onnx");
 //     defer model.deinit(allocator);
 
-//     model.print();
+//     // model.print();
 
-//     var graphZant: zant.IR_graph.GraphZant = try zant.IR_graph.init(&model);
+//     var graphZant: IR_zant.GraphZant = try IR_zant.init(&model);
 //     defer graphZant.deinit();
 
 //     const linearizedGraph = try graphZant.linearize(allocator);
@@ -87,7 +88,7 @@ test "linearizing mnist-8 " {
 
 //         model.print();
 
-//         var graphZant: zant.IR_graph.GraphZant = try zant.IR_graph.init(&model);
+//         var graphZant: IR_zant.GraphZant = try IR_zant.init(&model);
 //         defer graphZant.deinit();
 
 //         const linearizedGraph = try graphZant.linearize(allocator);
