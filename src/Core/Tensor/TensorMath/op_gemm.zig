@@ -5,7 +5,6 @@ const TensorError = zant.utils.error_handler.TensorError;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 const pkg_allocator = zant.utils.allocator.allocator;
 const TensMath = @import("tensor_math_standard.zig");
-const op_mat_mul = @import("op_mat_mul.zig");
 
 // Note that this function cuold benefit from SIMD optimizations
 
@@ -69,6 +68,7 @@ pub fn gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(T), a
     res_shape[3] = res_cols;
 
     var result = try Tensor(T).fromShape(&pkg_allocator, res_shape);
+    result.details = A.details; // Propagating details
     errdefer result.deinit();
 
     // debug
@@ -127,15 +127,15 @@ pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(
         if (transB) actual_B.deinit();
     }
 
+    // result = A * B
     const vals_in_cache = std.atomic.cache_line / @sizeOf(T);
-    if(B.shape[B.shape.len-1] > vals_in_cache){
-        try op_mat_mul.lean_blocked_mat_mul(T, actual_A_ptr, actual_B_ptr, result);
+    if (B.shape[B.shape.len - 1] > vals_in_cache) {
+        try TensMath.blocked_mat_mul_lean(T, actual_A_ptr, actual_B_ptr, result);
     } else {
-        try op_mat_mul.lean_mat_mul(T, actual_A_ptr, actual_B_ptr, result);
+        try TensMath.mat_mul_lean(T, actual_A_ptr, actual_B_ptr, result);
     }
-    // result = alpha * A * B
     //std.debug.print("\n  Performing matrix multiplication...", .{});
-    
+
     //std.debug.print("\n  Applying alpha scaling...", .{});
     for (0..result.size) |i| {
         result.data[i] *= alpha;
@@ -192,87 +192,4 @@ pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(
     if (transB) actual_B.deinit();
 
     //std.debug.print("\n[DEBUG] lean_gemm completed\n", .{});
-}
-
-pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T) {
-    std.debug.print("\n[DEBUG] transposeLastTwo:", .{});
-    std.debug.print("\n  Input tensor shape: ", .{});
-    for (tensor.shape) |s| std.debug.print("{d} ", .{s});
-
-    // Verifying correct shape
-    if (tensor.shape.len != 2 and tensor.shape.len != 4) {
-        std.debug.print("\n  Error: Expected 2D or 4D tensor, got {d}D", .{tensor.shape.len});
-        return TensorMathError.InputTensorsWrongShape;
-    }
-
-    var rows: usize = undefined;
-    var cols: usize = undefined;
-    var total: usize = undefined;
-    var newShape: []usize = undefined;
-
-    if (tensor.shape.len == 2) {
-        rows = tensor.shape[0];
-        cols = tensor.shape[1];
-        total = rows * cols;
-        newShape = try pkg_allocator.alloc(usize, 2);
-        errdefer pkg_allocator.free(newShape);
-        newShape[0] = cols;
-        newShape[1] = rows;
-    } else { // 4D case
-        const batch = tensor.shape[0];
-        const channel = tensor.shape[1];
-        rows = tensor.shape[2];
-        cols = tensor.shape[3];
-        total = batch * channel * rows * cols;
-        newShape = try pkg_allocator.alloc(usize, 4);
-        errdefer pkg_allocator.free(newShape);
-        newShape[0] = batch;
-        newShape[1] = channel;
-        newShape[2] = cols;
-        newShape[3] = rows;
-    }
-
-    std.debug.print("\n  Rows: {d}, Cols: {d}, Total: {d}", .{ rows, cols, total });
-    std.debug.print("\n  New shape: ", .{});
-    for (newShape) |s| std.debug.print("{d} ", .{s});
-
-    // Create a non-const copy of the input data using pkg_allocator
-    const outData = try pkg_allocator.alloc(T, total);
-    errdefer pkg_allocator.free(outData);
-
-    std.debug.print("\n  Transposing data...", .{});
-
-    if (tensor.shape.len == 2) {
-        // Simple 2D transpose - Fixed indexing
-        for (0..rows) |i| {
-            for (0..cols) |j| {
-                outData[j * rows + i] = tensor.data[i * cols + j];
-            }
-        }
-    } else {
-        // 4D transpose of last two dimensions
-        const batch = tensor.shape[0];
-        const channel = tensor.shape[1];
-        for (0..batch) |b| {
-            for (0..channel) |c| {
-                for (0..rows) |i| {
-                    for (0..cols) |j| {
-                        const index_in = (((b * channel) + c) * rows + i) * cols + j;
-                        const index_out = (((b * channel) + c) * cols + j) * rows + i;
-                        outData[index_out] = tensor.data[index_in];
-                    }
-                }
-            }
-        }
-    }
-
-    std.debug.print("\n  Transpose complete", .{});
-
-    return Tensor(T){
-        .data = outData,
-        .size = total,
-        .shape = newShape,
-        .allocator = &pkg_allocator,
-        .owns_memory = true,
-    };
 }

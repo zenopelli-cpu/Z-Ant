@@ -40,7 +40,7 @@ pub fn transpose2D(comptime T: type, t: *Tensor(T)) !Tensor(T) {
         .shape = tensorShape,
         .allocator = allocator,
         .owns_memory = true,
-        .details = .none,
+        .details = t.details,
     };
 }
 
