@@ -50,7 +50,7 @@ pub fn quantize_tensor(comptime T: type, comptime U: type, input: *Tensor(T), ou
     }
 }
 
-/// This function quantizes the input tensor, using the given parameters:
+/// This function quantizes the input monodimensional array, using the given parameters:
 /// scale factor, zero point, minInt/maxInt (aka the integer grid limits)
 /// Returns the quantized array.
 /// The caller is responsible for freeing the returned array.
@@ -76,7 +76,7 @@ pub fn dequantize_tensor(comptime T: type, comptime U: type, input: *Tensor(U), 
     }
 }
 
-/// This function dequantizes the input array, using the given parameters: 
+/// This function dequantizes the input array, using the given parameters:
 /// the current unquantized type T, the quantized output type U, the input array, the scale factor, the zero point.
 /// The caller is responsible for freeing the returned array.
 pub fn dequantize_array(comptime T: type, comptime U: type, inputArray: []const U, scale: T, zero: isize) ![]T {

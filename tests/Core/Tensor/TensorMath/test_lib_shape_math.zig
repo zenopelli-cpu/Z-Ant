@@ -1617,6 +1617,42 @@ test "test unsqueeze valid" {
     }
 }
 
+test "test unsqueeze valid Quantized" {
+    std.debug.print("\n     test: unsqueeze valid Quantized\n", .{});
+    const allocator = std.testing.allocator;
+
+    // Input tensor
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var inputShape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(u8).fromArrayQuantized(&allocator, &inputArray, &inputShape, 0.005, u8, 2);
+    defer tensor.deinit();
+
+    // Axes tensor: unsqueeze in position 1
+    var axesArray: [1]i64 = [_]i64{1};
+    var axesShape: [1]usize = [_]usize{1};
+    var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+    defer axesTensor.deinit();
+
+    var result = try TensMath.unsqueeze(u8, &tensor, &axesTensor);
+    defer result.deinit();
+
+    // Verify output shape [2, 1, 3]
+    try std.testing.expect(result.shape.len == 3);
+    try std.testing.expect(result.shape[0] == 2);
+    try std.testing.expect(result.shape[1] == 1);
+    try std.testing.expect(result.shape[2] == 3);
+    try std.testing.expect(try result.get_zero_point() == 2);
+
+    // Verify data
+    for (0..tensor.size) |i| {
+        try std.testing.expect(result.data[i] == tensor.data[i]);
+    }
+}
+
 // -------------------------------------------------------------
 // Test for AxisOutOfBounds error
 test "test unsqueeze axis out of bounds error" {
@@ -1696,6 +1732,40 @@ test "Reshape - Basic" {
     try std.testing.expect(reshaped.data[3] == 4);
     try std.testing.expect(reshaped.data[4] == 5);
     try std.testing.expect(reshaped.data[5] == 6);
+}
+
+test "Reshape - Basic Quantized" {
+    std.debug.print("\n     test: Reshape - Basic Quantized ", .{});
+    const allocator = pkgAllocator.allocator;
+
+    // Create a 2x3 tensor
+    var inputArray: [2][3]u8 = [_][3]u8{
+        [_]u8{ 1, 2, 3 },
+        [_]u8{ 4, 5, 6 },
+    };
+    var shape: [2]usize = [_]usize{ 2, 3 };
+
+    var tensor = try Tensor(u8).fromArrayQuantized(&allocator, &inputArray, &shape, 0.005, u8, 2);
+    defer tensor.deinit();
+
+    // Reshape to 3x2
+    var new_shape: [2]isize = [_]isize{ 3, 2 };
+    var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
+    defer reshaped.deinit();
+
+    // Verify shape
+    try std.testing.expect(reshaped.shape[0] == 3);
+    try std.testing.expect(reshaped.shape[1] == 2);
+    try std.testing.expect(reshaped.size == 6);
+
+    // Verify data is preserved in row-major order
+    try std.testing.expect(reshaped.data[0] == 1);
+    try std.testing.expect(reshaped.data[1] == 2);
+    try std.testing.expect(reshaped.data[2] == 3);
+    try std.testing.expect(reshaped.data[3] == 4);
+    try std.testing.expect(reshaped.data[4] == 5);
+    try std.testing.expect(reshaped.data[5] == 6);
+    try std.testing.expect(try reshaped.get_zero_point() == 2);
 }
 
 test "Reshape - Multi-dimensional" {

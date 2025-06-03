@@ -68,6 +68,8 @@ pub fn gather(comptime T: anytype, data: *Tensor(T), indices: *Tensor(usize), se
     var output = try Tensor(T).fromShape(&pkg_allocator, output_shape);
     errdefer output.deinit();
 
+    output.details = data.details;
+
     try lean_gather(T, data, indices, selected_axis, &output);
 
     return output;

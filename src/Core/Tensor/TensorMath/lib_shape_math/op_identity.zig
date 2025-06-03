@@ -11,6 +11,8 @@ pub fn identity(comptime T: type, input: *const Tensor(T)) !Tensor(T) {
     var output = try Tensor(T).fromShape(&pkg_allocator, input.shape);
     errdefer output.deinit();
 
+    output.details = input.details;
+
     try identity_lean(T, input, &output);
 
     return output;

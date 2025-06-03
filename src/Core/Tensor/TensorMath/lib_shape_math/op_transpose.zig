@@ -87,7 +87,9 @@ fn transpose(comptime T: type, t: *Tensor(T), perms: []usize) !Tensor(T) {
     defer t.allocator.free(new_shape);
 
     // Create the new tensor
-    const new_tensor = try Tensor(T).fromShape(t.allocator, new_shape);
+    var new_tensor = try Tensor(T).fromShape(t.allocator, new_shape);
+
+    new_tensor.details = t.details;
 
     // Copy data to the new tensor
     for (0..t.size) |i| {
@@ -178,7 +180,7 @@ pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T
         .shape = newShape,
         .allocator = &pkg_allocator,
         .owns_memory = true,
-        .details = .none,
+        .details = tensor.details,
     };
 }
 
@@ -189,6 +191,8 @@ pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T
 pub fn transpose_onnx(comptime T: type, input: *Tensor(T), perm: ?[]const usize) !Tensor(T) {
     var output = try Tensor(T).fromShape(&pkg_allocator, input.shape);
     errdefer output.deinit();
+
+    output.details = input.details;
 
     try transpose_onnx_lean(T, input, perm, &output);
 
