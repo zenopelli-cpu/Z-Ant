@@ -1842,8 +1842,8 @@ pub fn lowerConv2d(
     X_id: usize, // SSA id of input  X
     W_id: usize, // SSA id of weights W
     out_shape: []const usize, // [N, M, OH, OW]
-    in_stride: []const isize, // X: stride vec (len 4)
-    w_stride: []const isize, // W: stride vec (len 4)
+    in_stride: []const usize, // X: stride vec (len 4)
+    w_stride: []const usize, // W: stride vec (len 4)
     group: usize, // number of groups G
     pads: [2]usize, // {padT, padL}
     strides_hw: [2]usize, // {strideH, strideW}

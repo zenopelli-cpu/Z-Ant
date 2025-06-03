@@ -77,7 +77,7 @@ pub fn get_neg_output_shape(input_shape: []const usize) ![]usize {
 pub fn lowerNeg(
     b: *UOpBuilder,
     A_id: usize, // input-tensor SSA ids
-    strideA: []const isize, // per-dim strides (0 ⇒ broadcast)
+    strideA: []const usize, // per-dim strides (0 ⇒ broadcast)
     out_shape: []const usize,
     out_dtype: DType, // promoted element type
 ) usize { // returns id of result buffer

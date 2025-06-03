@@ -2,7 +2,7 @@ const testing = std.testing;
 
 const std = @import("std");
 const zant = @import("zant");
-const IR_zant = @import("IR_zant");
+const IR_zant = zant.IR_graph;
 
 const TensorZant = IR_zant.TensorZant;
 const allocator = zant.utils.allocator.allocator;

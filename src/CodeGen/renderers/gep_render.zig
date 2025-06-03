@@ -28,7 +28,7 @@ const IndexHelper = struct {
     }
 
     /// Emit "expr * stride" if stride != 0
-    fn emitTerm(w: anytype, expr: []const u8, stride: isize, first: *bool) !void {
+    fn emitTerm(w: anytype, expr: []const u8, stride: usize, first: *bool) !void {
         if (stride == 0) return;
         if (!first.*) try w.print(" + ", .{});
         try w.print("({s}*{d})", .{ expr, stride });
@@ -41,7 +41,7 @@ const IndexHelper = struct {
         temp_alloc: std.mem.Allocator,
         linear_idx_expr: []const u8,
         shape: []const usize,
-        strides: []const isize,
+        strides: []const usize,
     ) !void {
         if (shape.len == 0) return w.print("0", .{});
         if (shape.len != strides.len) return RendererError.RankMismatch;
@@ -91,7 +91,7 @@ const IndexHelper = struct {
         alloc: std.mem.Allocator,
         ptr_map: *const std.AutoHashMap(usize, []const u8),
         indices: []const usize,
-        strides: []const isize,
+        strides: []const usize,
     ) !void {
         if (indices.len - 1 != strides.len) return w.print("0", .{});
 
@@ -178,12 +178,12 @@ const OffsetBuilder = struct {
             defer temp_alloc.free(idx_expr);
             try writer.print("{s}", .{idx_expr});
         } else if (uop.src.len == buffer_shape.len + 1 and buffer_shape.len > 0) {
-            var strides = try temp_alloc.alloc(isize, buffer_shape.len);
+            var strides = try temp_alloc.alloc(usize, buffer_shape.len);
             strides[buffer_shape.len - 1] = 1;
 
             var i = buffer_shape.len - 1;
             while (i > 0) : (i -= 1) {
-                strides[i - 1] = strides[i] * @as(isize, @intCast(buffer_shape[i]));
+                strides[i - 1] = strides[i] * @as(usize, @intCast(buffer_shape[i]));
             }
 
             try IndexHelper.buildMultiDimOffsetExpr(writer, temp_alloc, ptr_map, uop.src, strides);

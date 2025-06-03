@@ -31,12 +31,12 @@ pub fn render(
 
     // Calculate strides
 
-    var strides = std.ArrayList(isize).init(alloc);
+    var strides = std.ArrayList(usize).init(alloc);
     defer strides.deinit();
 
     try strides.resize(shape.len);
 
-    var stride: isize = 1;
+    var stride: usize = 1;
     var i: usize = shape.len;
     while (i > 0) : (i -= 1) {
         strides.items[i - 1] = stride;
@@ -47,7 +47,7 @@ pub fn render(
 
     if (view_map.get(src_id)) |vinfo| {
         var view_info = vinfo;
-        view_info.arg.view_meta.strides = if (strides.items.len > 0) try alloc.dupe(isize, strides.items) else &.{1};
+        view_info.arg.view_meta.strides = if (strides.items.len > 0) try alloc.dupe(usize, strides.items) else &.{1};
         try view_map.put(src_id, view_info);
         return;
     }
@@ -60,7 +60,7 @@ pub fn render(
         .arg = .{
             .view_meta = .{
                 .shape = shape,
-                .strides = if (strides.items.len > 0) try alloc.dupe(isize, strides.items) else &.{1},
+                .strides = if (strides.items.len > 0) try alloc.dupe(usize, strides.items) else &.{1},
             },
         },
     };

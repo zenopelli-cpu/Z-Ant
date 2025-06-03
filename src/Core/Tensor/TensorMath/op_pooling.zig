@@ -1026,7 +1026,7 @@ pub fn lowerMaxPool2d(
     b: *UOpBuilder,
     X_id: usize, // input tensor X
     out_shape: []const usize, // [N, C, OH, OW]
-    in_stride: []const isize, // X strides (len 4)
+    in_stride: []const usize, // X strides (len 4)
     pads: [2]usize, // {padT, padL}
     strides_hw: [2]usize, // {strideH, strideW}
     dil_hw: [2]usize, // {dilH, dilW}

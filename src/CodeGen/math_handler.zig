@@ -181,7 +181,7 @@ fn write_op_info(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try writer.print(
             \\
             \\   //      -> {s} 
-        , .{input.name});
+        , .{input.?.name});
     }
     try writer.print(
         \\
@@ -233,6 +233,7 @@ inline fn write_add(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     }
 
     _ = try writer.print(
+        \\
         \\
         \\    tensMath.sum_tensors_lean(T, T, {s}, {s}, &tensor_{s})
     , .{

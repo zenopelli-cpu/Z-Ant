@@ -31,15 +31,13 @@ pub fn build(b: *std.Build) void {
     // At the moment it works, but it looks demonic
     zant_mod.addImport("zant", zant_mod);
 
-    const IR_mod = b.createModule(.{ .root_source_file = b.path("src/IR_graph/IR_graph.zig") });
     const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/CodeGen/codegen.zig") });
+    codeGen_mod.addImport("zant", zant_mod);
 
+    const IR_mod = b.createModule(.{ .root_source_file = b.path("src/IR_graph/IR_graph.zig") });
     IR_mod.addImport("zant", zant_mod);
     IR_mod.addImport("codegen", codeGen_mod);
-
-    codeGen_mod.addImport("zant", zant_mod);
-    // Add the IR module to the codegen module
-    codeGen_mod.addImport("IR_zant", IR_mod);
+    //codeGen_mod.addImport("IR_zant", IR_mod);
 
     const Img2Tens_mod = b.createModule(.{ .root_source_file = b.path("src/ImageToTensor/imageToTensor.zig") });
     Img2Tens_mod.addImport("zant", zant_mod);

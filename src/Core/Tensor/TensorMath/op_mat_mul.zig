@@ -699,8 +699,8 @@ pub fn lowerMatMul(
 
     // ── 1. Logical views for A and B (no data copies) -----------------
     // Calculate default row-major strides
-    const a_strides = &[_]isize{ @intCast(a_shape[1]), 1 }; // Strides for [M, K] are [K, 1]
-    const b_strides = &[_]isize{ @intCast(b_shape[1]), 1 }; // Strides for [K, N] are [N, 1]
+    const a_strides = &[_]usize{ @intCast(a_shape[1]), 1 }; // Strides for [M, K] are [K, 1]
+    const b_strides = &[_]usize{ @intCast(b_shape[1]), 1 }; // Strides for [K, N] are [N, 1]
 
     const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = a_shape, .strides = a_strides } });
 

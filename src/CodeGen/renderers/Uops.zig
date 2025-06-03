@@ -127,7 +127,7 @@ pub const Any = union(enum) {
     /// (stride == 0 means "broadcast this dimension").
     view_meta: struct { // • used by VIEW
         shape: []const usize,
-        strides: []const isize,
+        strides: []const usize,
     },
 
     cast_meta: struct {
@@ -147,19 +147,42 @@ pub const Any = union(enum) {
 };
 
 pub const DTypeValue = union(DType) {
+    // Floating point types
+    f16: f16,
     f32: f32,
-    i32: i32,
+    f64: f64,
+
+    // Signed integer types
     i8: i8,
-    bool: bool,
+    i16: i16,
+    i32: i32,
+    i64: i64,
+
+    // Unsigned integer types
+    u8: u8,
     u16: u16,
+    u32: u32,
+    u64: u64,
+    // Boolean type
+    bool: bool,
+
+    undefined: void,
 
     pub fn getDType(self: DTypeValue) DType {
         return switch (self) {
+            DTypeValue.f16 => DType.f16,
             DTypeValue.f32 => DType.f32,
-            DTypeValue.i32 => DType.i32,
+            DTypeValue.f64 => DType.f64,
             DTypeValue.i8 => DType.i8,
-            DTypeValue.bool => DType.bool,
+            DTypeValue.i16 => DType.i16,
+            DTypeValue.i32 => DType.i32,
+            DTypeValue.i64 => DType.i64,
+            DTypeValue.u8 => DType.u8,
             DTypeValue.u16 => DType.u16,
+            DTypeValue.u32 => DType.u32,
+            DTypeValue.u64 => DType.u64,
+            DTypeValue.bool => DType.bool,
+            DTypeValue.undefined => DType.undefined,
         };
     }
 };
@@ -167,16 +190,41 @@ pub const DTypeValue = union(DType) {
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. DType – minimalist scalar element types
 // ─────────────────────────────────────────────────────────────────────────────
-pub const DType = enum { f32, i32, i8, bool, u16 };
+pub const DType = enum {
+    f16,
+    f32,
+    f64,
+    i8,
+    i16,
+    i32,
+    i64,
+    u8,
+    u16,
+    u32,
+    u64,
+    bool,
+    undefined,
+};
 
 pub const DTypeInfo = struct {
     pub fn asString(dtype: DType) []const u8 {
         return switch (dtype) {
+            .f16 => "f16",
             .f32 => "f32",
-            .i32 => "i32",
+            .f64 => "f64",
+
             .i8 => "i8",
-            .bool => "bool",
+            .i16 => "i16",
+            .i32 => "i32",
+            .i64 => "i64",
+
+            .u8 => "u8",
             .u16 => "u16",
+            .u32 => "u32",
+            .u64 => "u64",
+
+            .bool => "bool",
+            .undefined => "undefined",
         };
     }
 };
@@ -228,7 +276,7 @@ pub const UOpBuilder = struct {
                     .view_meta => |vm| {
                         // Duplicate shape and strides for VIEW ops
                         const shape_copy = if (vm.shape.len == 0) &[_]usize{} else self.alloc.dupe(usize, vm.shape) catch unreachable;
-                        const strides_copy = if (vm.strides.len == 0) &[_]isize{} else self.alloc.dupe(isize, vm.strides) catch unreachable;
+                        const strides_copy = if (vm.strides.len == 0) &[_]usize{} else self.alloc.dupe(usize, vm.strides) catch unreachable;
                         // Create a new Any with the copied slices
                         final_arg = Any{ .view_meta = .{ .shape = shape_copy, .strides = strides_copy } };
                     },

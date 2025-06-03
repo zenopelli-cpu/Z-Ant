@@ -214,8 +214,8 @@ pub fn lowerSub(
     A_id: usize, // input-tensor SSA ids
     B_id: usize,
     out_shape: []const usize, // broadcasted shape
-    strideA: []const isize, // per-dim strides (0 ⇒ broadcast)
-    strideB: []const isize,
+    strideA: []const usize, // per-dim strides (0 ⇒ broadcast)
+    strideB: []const usize,
     out_dtype: DType, // promoted element type
 ) usize { // returns id of result buffer
 

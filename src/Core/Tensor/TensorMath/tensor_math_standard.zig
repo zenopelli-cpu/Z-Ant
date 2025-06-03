@@ -259,6 +259,7 @@ const Ceil = @import("lib_elementWise_math/op_ceil.zig");
 pub const ceil = Ceil.ceil;
 pub const ceil_lean = Ceil.ceil_lean;
 pub const get_ceil_output_shape = Ceil.get_ceil_output_shape;
+pub const lowerCeil = Ceil.lowerCeil;
 
 //--sqrt
 const Sqrt = @import("lib_elementWise_math/op_sqrt.zig");
@@ -278,6 +279,7 @@ const op_relu = @import("lib_activation_function_math/op_reLU.zig");
 pub const ReLU = op_relu.ReLU_standard;
 pub const ReLU_lean = op_relu.lean_ReLU;
 pub const ReLU_backward = op_relu.ReLU_backward;
+pub const lowerReLU = op_relu.lowerReLU;
 
 const op_leaky_relu = @import("lib_activation_function_math/op_leaky_reLU.zig");
 //Leaky ReLU
@@ -293,6 +295,7 @@ pub const sigmoid = op_sigmoid.sigmoid;
 pub const sigmoid_lean = op_sigmoid.sigmoid_lean;
 pub const sigmoid_backward = op_sigmoid.sigmoid_backward;
 pub const get_sigmoid_output_shape = op_sigmoid.get_sigmoid_output_shape;
+pub const lowerSigmoid = op_sigmoid.lowerSigmoid;
 //Softmax
 const op_softmax = @import("lib_activation_function_math/op_softmax.zig");
 

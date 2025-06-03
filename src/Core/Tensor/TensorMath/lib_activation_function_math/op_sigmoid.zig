@@ -83,19 +83,19 @@ pub fn lowerSigmoid(
         fn rng(bi: *UOpBuilder, end: usize) usize { // RANGE 0..end-1
             return bi.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = end } });
         }
-        fn kconst(bi: *UOpBuilder, v: f32) usize { // CONST <v> (float)
-            return bi.push(.CONST, out_dtype, &.{}, Any{ .float = v });
+        fn kconst(bi: *UOpBuilder, v: f32, odtype: DType) usize { // CONST <v> (float)
+            return bi.push(.CONST, odtype, &.{}, Any{ .float = v });
         }
     };
 
     // ── 1. Create a logical view for the input tensor ─────────────────
-    const id_viewX = b.push(.VIEW, out_dtype, &.{X_id}, Any{ .view_meta = .{ .shape = x_shape } });
+    const id_viewX = b.push(.VIEW, out_dtype, &.{X_id}, Any{ .view_meta = .{ .shape = x_shape, .strides = &.{1} } });
 
     // ── 2. Create output tensor with the same shape as input ──────────
     const id_Y = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = x_shape });
 
     // ── 3. Create constants for the operation ─────────────────────────
-    const id_one = r.kconst(b, 1.0); // Zero for comparison
+    const id_one = r.kconst(b, 1.0, out_dtype); // Zero for comparison
 
     // ── 4. Create nested loops for each dimension of the tensor ───────
     var nelem: usize = 1;
@@ -112,9 +112,9 @@ pub fn lowerSigmoid(
     // ── 7. Implement Sigmoid: f(x) = 1 / (1 + exp(-x)) ────────
 
     const id_neg_x = b.push(.NEG, out_dtype, &.{id_x}, null);
-    const id_exp_neg_x = b.push(.EXP, out_dtype, &.{id_neg_x}, null);
+    const id_exp_neg_x = b.push(.EXP2, out_dtype, &.{id_neg_x}, null);
     const id_one_plus_exp_neg_x = b.push(.ADD, out_dtype, &.{ id_one, id_exp_neg_x }, null);
-    const id_result = b.push(.DIV, out_dtype, &.{ id_one, id_one_plus_exp_neg_x }, null);
+    const id_result = b.push(.FDIV, out_dtype, &.{ id_one, id_one_plus_exp_neg_x }, null);
 
     // ── 8. Store the result to the output tensor ───────────────────────
     const id_gepY = b.push(.GEP, out_dtype, &.{ id_Y, id_range }, Any{ .mem_info = .{ .base = id_Y, .offset = 0, .stride = 1 } });

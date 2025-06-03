@@ -15,6 +15,7 @@ const utils = codegen.utils;
 const codeGenInitializers = codegen.parameters;
 const coddeGenPredict = codegen.predict;
 const codegen_options = @import("codegen_options");
+const NodeZant = zant.IR_graph.NodeZant;
 
 /// Writes a Zig source file containing the generated code for an ONNX model.
 ///
@@ -27,7 +28,7 @@ const codegen_options = @import("codegen_options");
 ///
 /// # Errors
 /// This function may return an error if writing to the file fails.
-pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: ModelOnnx, do_export: bool) !void {
+pub fn writeZigFile(model_name: []const u8, model_path: []const u8, nodes: std.ArrayList(*NodeZant), do_export: bool) !void {
 
     //initializing writer for lib_operation file
     const lib_file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ model_path, model_name });
@@ -61,10 +62,10 @@ pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: Model
     try write_type_T(lib_writer);
 
     // Generate tensor initialization code in the static_parameters.zig file
-    try codeGenInitializers.write_parameters(param_writer, model);
+    try codeGenInitializers.write_parameters(param_writer);
 
     // Generate prediction function code
-    try coddeGenPredict.writePredict(lib_writer, do_export);
+    try coddeGenPredict.writePredict(lib_writer, nodes, do_export);
 }
 
 /// Writes the required library imports to the generated Zig file for predict function.

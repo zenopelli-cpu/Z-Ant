@@ -1,6 +1,7 @@
 const std = @import("std");
 const zant = @import("zant");
 const onnx = zant.onnx;
+const IR_graph = zant.IR_graph;
 const Tensor = zant.core.tensor.Tensor;
 const tensorMath = zant.core.tensor.math_standard;
 const allocator = zant.utils.allocator.allocator;
@@ -15,15 +16,14 @@ const codegen_options = @import("codegen_options");
 const globals = codeGen.globals;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const gpa_allocator = gpa.allocator();
-
     const model_name = codegen_options.model;
     const model_path = codegen_options.model_path;
 
-    var model = try onnx.parseFromFile(gpa_allocator, model_path);
-    defer model.deinit(gpa_allocator);
+    var model: onnx.ModelProto = try onnx.parseFromFile(allocator, model_path);
+    defer model.deinit(allocator);
+
+    var graphZant: IR_graph.GraphZant = try IR_graph.init(&model);
+    defer graphZant.deinit();
 
     model.print();
 
@@ -47,7 +47,7 @@ pub fn main() !void {
     //////////////////////////////////////////
 
     // Create the code for the model
-    try codeGen.skeleton.writeZigFile(model_name, generated_path, model, true);
+    try codeGen.skeleton.writeZigFile(model_name, generated_path, graphZant.nodes, true);
 
     // Test the generated code
     try codeGen_tests.writeTestFile(model_name, generated_path);

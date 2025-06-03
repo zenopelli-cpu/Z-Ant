@@ -288,6 +288,36 @@ pub fn ZigRenderer(comptime WriterType: type) type {
             try self.writer.print("    return {s};\n}}\n", .{output_info.name});
         }
 
+        pub fn render_body(self: *Self, uops: []const UOp, input_ids: []const usize) !void {
+            // Reset state
+            self.reset();
+
+            // 1. Identify buffers
+            try self.identify_buffers(uops, input_ids);
+
+            // 2. Get output buffer info
+            const output_id = self.final_output_buffer_id orelse return error.OutputBufferNotFound;
+
+            // 4. Generate buffer allocations
+            try self.write_buffer_allocations(output_id);
+
+            // 5. Create ptr_map for kernel rendering
+            var ptr_map = std.AutoHashMap(usize, []const u8).init(self.allocator);
+            defer {
+                self.free_ptr_map_values(&ptr_map);
+                ptr_map.deinit();
+            }
+
+            // Populate ptr_map with buffer names
+            var map_iter = self.buffer_map.iterator();
+            while (map_iter.next()) |entry| {
+                try ptr_map.put(entry.key_ptr.*, entry.value_ptr.name);
+            }
+
+            // 6. Render kernel body
+            try self.render_kernel_body(uops, &ptr_map);
+        }
+
         fn write_function_signature(self: *Self, input_ids: []const usize, output_type: []const u8) !void {
             try self.writer.print("pub fn generated_kernel(allocator: std.mem.Allocator", .{});
 

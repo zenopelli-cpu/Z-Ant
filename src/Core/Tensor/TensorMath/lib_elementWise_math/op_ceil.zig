@@ -57,7 +57,7 @@ pub fn lowerCeil(
     // ── Set-up phase ────────────────────────────────────────────────────
     _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
 
-    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = 1 } });
+    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = &.{1} } });
 
     const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 

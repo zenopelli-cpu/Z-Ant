@@ -6,7 +6,7 @@ const UOp = zant.uops.UOp;
 const UOpType = zant.uops.UOpType;
 const Tensor = zant.core.tensor.Tensor;
 const onnx = zant.onnx;
-const IR_graph = @import("IR_zant");
+const IR_graph = zant.IR_graph;
 
 const sum_tensors = zant.core.tensor.math_standard.sum_tensors;
 
