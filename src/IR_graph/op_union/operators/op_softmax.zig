@@ -69,13 +69,15 @@ pub const Softmax = struct {
         }
 
         _ = try writer.print(
-            \\    tensMath.softmax_tensor_lean(
-            \\        T,
+            \\
+            \\    tensMath.softmax_lean(
+            \\        {s}, //Type
             \\        {s}, // input tensor
             \\        &tensor_{s} // output tensor
-            \\    );
+            \\    )
             \\
         , .{
+            self.output_Y.ty.toString(),
             tensor_input_string,
             try utils.getSanitizedName(self.output_Y.name),
         });

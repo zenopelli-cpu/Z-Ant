@@ -8,6 +8,7 @@ const onnx = zant.onnx;
 const codegen_options = @import("codegen_options");
 const codeGen_tests = @import("tests_writer.zig");
 
+// called by "zig build IR_codegen" optionals:" -Dlog -Dmodel="name" -D ..." see build.zig"
 pub fn main() !void {
     std.debug.print("\n\ncodegenOptions: ", .{});
     std.debug.print("\n     model:{s} ", .{codegen_options.IR_model});

@@ -62,7 +62,10 @@ pub const Slice = struct {
         return self.output;
     }
 
-    pub fn write_op() !void {} //TODO manuel
+    pub fn write_op(self: Slice, writer: std.fs.File.Writer) !void {
+        _ = writer;
+        _ = self;
+    } //TODO manuel
 
     pub fn compute_output_shape(self: Slice) []usize {
         var output_shape: []usize = undefined;

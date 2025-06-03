@@ -35,6 +35,10 @@ pub fn build(b: *std.Build) void {
     IR_mod.addImport("zant", zant_mod);
     IR_mod.addImport("codegen", codeGen_mod);
 
+    const IR_codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/IR_codegen/IR_codegen.zig") });
+    IR_codeGen_mod.addImport("zant", zant_mod);
+    IR_codeGen_mod.addImport("IR_zant", IR_mod);
+
     const Img2Tens_mod = b.createModule(.{ .root_source_file = b.path("src/ImageToTensor/imageToTensor.zig") });
     Img2Tens_mod.addImport("zant", zant_mod);
     Img2Tens_mod.addImport("codegen", codeGen_mod);
@@ -104,19 +108,6 @@ pub fn build(b: *std.Build) void {
     const output_type_option = b.option([]const u8, "output_type", "Output type") orelse "f32";
     const comm_option = b.option(bool, "comm", "Codegen with comments") orelse false;
     const dynamic_option = b.option(bool, "dynamic", "Dynamic allocation") orelse false;
-
-    // Define codegen options
-    const codegen_options = b.addOptions(); // Model name option
-    codegen_options.addOption([]const u8, "model", model_name_option);
-    codegen_options.addOption([]const u8, "model_path", model_path_option);
-    codegen_options.addOption([]const u8, "generated_path", generated_path_option);
-    codegen_options.addOption([]const u8, "user_tests", user_tests_option);
-    codegen_options.addOption(bool, "log", log_option);
-    codegen_options.addOption([]const u8, "shape", shape_option);
-    codegen_options.addOption([]const u8, "type", input_type_option);
-    codegen_options.addOption([]const u8, "output_type", output_type_option);
-    codegen_options.addOption(bool, "comm", comm_option);
-    codegen_options.addOption(bool, "dynamic", dynamic_option);
 
     //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 
@@ -197,6 +188,18 @@ pub fn build(b: *std.Build) void {
     IR_codegen_step.dependOn(&IR_codegen_cmd.step);
 
     // ************************************************CODEGEN EXECUTABLE************************************************
+    // Define codegen options
+    const codegen_options = b.addOptions(); // Model name option
+    codegen_options.addOption([]const u8, "model", model_name_option);
+    codegen_options.addOption([]const u8, "model_path", model_path_option);
+    codegen_options.addOption([]const u8, "generated_path", generated_path_option);
+    codegen_options.addOption([]const u8, "user_tests", user_tests_option);
+    codegen_options.addOption(bool, "log", log_option);
+    codegen_options.addOption([]const u8, "shape", shape_option);
+    codegen_options.addOption([]const u8, "type", input_type_option);
+    codegen_options.addOption([]const u8, "output_type", output_type_option);
+    codegen_options.addOption(bool, "comm", comm_option);
+    codegen_options.addOption(bool, "dynamic", dynamic_option);
 
     // Define the main executable with target architecture and optimization settings.
     const codeGen_exe = b.addExecutable(.{
@@ -308,15 +311,15 @@ pub fn build(b: *std.Build) void {
     });
 
     oneop_codegen_exe.root_module.addImport("zant", zant_mod);
-    codeGen_mod.addOptions("codegen_options", codegen_options);
-    oneop_codegen_exe.root_module.addImport("codegen", codeGen_mod);
+    IR_codeGen_mod.addOptions("codegen_options", IRC_options);
+    oneop_codegen_exe.root_module.addImport("IR_codegen", IR_codeGen_mod);
     oneop_codegen_exe.linkLibC();
 
     const run_oneop_codegen_exe = b.addRunArtifact(oneop_codegen_exe);
     const step_test_oneOp_codegen = b.step("test-codegen-gen", "Run generated library tests");
     step_test_oneOp_codegen.dependOn(&run_oneop_codegen_exe.step);
 
-    // ************************************************ test_all_oneOp ************************************************
+    // ************************************************ ONEOP TESTING ************************************************
     // Setup test_all_oneOp
 
     const test_all_oneOp = b.addTest(.{
@@ -327,8 +330,8 @@ pub fn build(b: *std.Build) void {
     });
 
     test_all_oneOp.root_module.addImport("zant", zant_mod);
-    codeGen_mod.addOptions("codegen_options", codegen_options);
-    test_all_oneOp.root_module.addImport("codegen", codeGen_mod);
+    IR_codeGen_mod.addOptions("codegen_options", IRC_options);
+    test_all_oneOp.root_module.addImport("codegen", IR_codeGen_mod);
     test_all_oneOp.linkLibC();
 
     const run_test_all_oneOp = b.addRunArtifact(test_all_oneOp);
@@ -345,25 +348,25 @@ pub fn build(b: *std.Build) void {
     // ************************************************
     // Write Op Test
 
-    const write_op_test = b.addExecutable(.{
-        .name = "test_write_op",
-        .root_source_file = b.path("tests/IR_graph/test_write_op.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    // const write_op_test = b.addExecutable(.{
+    //     .name = "test_write_op",
+    //     .root_source_file = b.path("tests/IR_graph/test_write_op.zig"),
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
 
-    write_op_test.root_module.addImport("zant", zant_mod);
-    write_op_test.root_module.addImport("codegen", codeGen_mod);
-    write_op_test.root_module.addImport("IR_zant", IR_mod);
-    write_op_test.linkLibC();
+    // write_op_test.root_module.addImport("zant", zant_mod);
+    // write_op_test.root_module.addImport("codegen", codeGen_mod);
+    // write_op_test.root_module.addImport("IR_zant", IR_mod);
+    // write_op_test.linkLibC();
 
-    const run_write_op_test = b.addRunArtifact(write_op_test);
-    if (b.args) |args| {
-        run_write_op_test.addArgs(args);
-    }
+    // const run_write_op_test = b.addRunArtifact(write_op_test);
+    // if (b.args) |args| {
+    //     run_write_op_test.addArgs(args);
+    // }
 
-    const write_op_step = b.step("run-test-write-op", "Run the write_op test on a model");
-    write_op_step.dependOn(&run_write_op_test.step);
+    // const write_op_step = b.step("run-test-write-op", "Run the write_op test on a model");
+    // write_op_step.dependOn(&run_write_op_test.step);
 
     // ************************************************
     // Benchmark

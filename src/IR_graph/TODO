@@ -1,6 +1,31 @@
+IR_zant
 - for each ZantNode:
     - getInputs()
     - getOutputs()
     - once done above complete write_op_info()
+- implement mean node( first check Merge MirkoGraphZant -> GraphZant )
+- implement slice node( first check Merge MirkoGraphZant -> GraphZant )
+- implement squeeze node( first check Merge MirkoGraphZant -> GraphZant )
 
+IR_CODEGEN
 - dynamicAllocation
+- when running :  `zig build IR_codegen -Dlog` and `zig build test-generated-lib` you obtain
+    [test_model] (info):
+    User tests are disabled for this model
+  It is related to the import of "codegen" inside *** GENERATED LIBRARY TESTS *** in build.zig
+
+- check that the passed that the parameters passed to IR_codegen.generate_from_*() are correct, string format, no wite spaces,
+  generated_path ending with "/", ecc...
+- aggregate build steps where possible, too many . Write documentation about it, describin what does each build command
+- error on Split op when launching "zig build test-codegen-gen -Dlog", now Split is excluded from "available_operations"
+  .......... file created, path:generated/oneOpModels/Split/static_parameters.zig
+  info: 
+  .......... file created, path:generated/oneOpModels/Split/lib_Split.zig
+  thread 26012 panic: reached unreachable code
+  /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib/std/posix.zig:1267:23: 0x109187e in write (oneop_codegen)
+              .FAULT => unreachable,
+
+- codegenerating "T" as the input type of the lean math op is not possible anymore
+
+OTHER :
+- check missing op between: python generator, available_operations.txt, IR_graph operators

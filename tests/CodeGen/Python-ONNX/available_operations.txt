@@ -16,15 +16,11 @@ Identity
 LeakyRelu  
 MatMul  
 MaxPool  
-Mean
 Mul  
 Relu  
 Reshape  
 Sigmoid  
-Slice  
-Split 
 Sqrt 
 Sub  
 Tanh
 Transpose
-Squeeze

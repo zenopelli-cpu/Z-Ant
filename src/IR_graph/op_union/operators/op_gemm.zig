@@ -133,8 +133,9 @@ pub const Gemm = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.gemm_lean(T, {s}, {s}, {s}, {}, {}, {s}, {s}, &tensor_{s} )
+            \\    tensMath.gemm_lean({s}, {s}, {s}, {s}, {}, {}, {s}, {s}, &tensor_{s} )
         , .{
+            self.output.ty.toString(), // T
             tensor_A_string, // Input tensor A
             tensor_B_string, // Input tensor B
             tensor_C_string,

@@ -373,3 +373,34 @@ pub fn parseI64RawData(raw_data: []const u8) ![]i64 {
 
     return result;
 }
+
+// ----------------- FILE MANAGEMENT -----------------
+// Copy file from src to dst
+pub fn copyFile(src_path: []const u8, dst_path: []const u8) !void {
+    var src_file = try std.fs.cwd().openFile(src_path, .{});
+    defer src_file.close();
+
+    var dst_file = try std.fs.cwd().createFile(dst_path, .{});
+    defer dst_file.close();
+
+    // Use a buffer to copy in chunks
+    var buf: [4096]u8 = undefined;
+    while (true) {
+        const bytes_read = try src_file.read(&buf);
+        if (bytes_read == 0) break;
+        _ = try dst_file.write(buf[0..bytes_read]);
+    }
+}
+
+// Read the user_tests json file and return a list of test cases
+pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Parsed([]tests.UserTest(T)) {
+    const user_tests_file = try std.fs.cwd().openFile(user_tests_path, .{});
+    defer user_tests_file.close();
+
+    const user_tests_content: []const u8 = try user_tests_file.readToEndAlloc(allocator, 1024 * 1024);
+    defer allocator.free(user_tests_content);
+
+    const parsed_user_tests = try std.json.parseFromSlice([]tests.UserTest(T), allocator, user_tests_content, .{});
+
+    return parsed_user_tests;
+}

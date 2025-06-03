@@ -7,13 +7,15 @@ const pkgAllocator = zant.utils.allocator;
 const allocator = pkgAllocator.allocator;
 
 const onnx = zant.onnx;
-const codeGen = @import("codegen");
+const IR_codeGen = @import("IR_codegen");
 
 const tests_log = std.log.scoped(.test_oneOP);
 
+// called by "zig build test-codegen-gen" optionals:" -Dlog -Dmodel="name" -D ..." see build.zig"
 pub fn main() !void {
     tests_log.info("One ONNX Operator Model Generator", .{});
 
+    //collecting available operations from tests/CodeGen/Python-ONNX/available_operations.txt
     tests_log.info("\n     opening available_operations...", .{});
     const op_file = try std.fs.cwd().openFile("tests/CodeGen/Python-ONNX/available_operations.txt", .{});
     defer op_file.close();
@@ -52,6 +54,7 @@ pub fn main() !void {
     try test_oneop_writer.writeAll("\n");
 
     while (true) {
+
         // Get the next line from the iterator.
         const maybe_line = lines_iter.next();
 
@@ -77,7 +80,7 @@ pub fn main() !void {
 
         //Printing the model:
         //DEBUG
-        model.print();
+        //model.print();
 
         tests_log.info("\n CODEGENERATING {s} ...", .{model_path});
 
@@ -88,22 +91,16 @@ pub fn main() !void {
 
         // CORE PART -------------------------------------------------------
         // ONNX model parsing
-        try codeGen.globals.setGlobalAttributes(model);
+        try IR_codeGen.codegnenerateFromOnnx(trimmed_line, generated_path, model);
 
-        // Create the code for the model
-        try codeGen.skeleton.writeZigFile(trimmed_line, generated_path, model, false);
-
-        // Create relative tests
-        try codeGen.tests.writeSlimTestFile(trimmed_line, generated_path);
-
-        // Copy user test file into the generated test file
+        // Copy user test file into the generated test file, do not touch, this is not related to model codegen !
         const dataset_test_model_path = try std.fmt.allocPrint(allocator, "datasets/oneOpModels/{s}_0_user_tests.json", .{trimmed_line});
         defer allocator.free(dataset_test_model_path);
 
         const generated_test_model_path = try std.fmt.allocPrint(allocator, "generated/oneOpModels/{s}/user_tests.json", .{trimmed_line});
         defer allocator.free(generated_test_model_path);
 
-        try codeGen.utils.copyFile(dataset_test_model_path, generated_test_model_path);
+        try IR_codeGen.utils.copyFile(dataset_test_model_path, generated_test_model_path);
         tests_log.info("Written user test for {s}", .{trimmed_line});
 
         // Add relative one op test to global tests file

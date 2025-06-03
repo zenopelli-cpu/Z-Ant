@@ -16,8 +16,10 @@ pub const Op_union = union(enum) {
     div: operators.Div,
     elu: operators.Elu,
     flatten: operators.Flatten,
+    floor: operators.Floor,
     gather: operators.Gather,
     gemm: operators.Gemm,
+    gelu: operators.Gelu,
     identity: operators.Identity,
     leakyRelu: operators.LeakyRelu,
     matMul: operators.MatMul,
@@ -33,6 +35,7 @@ pub const Op_union = union(enum) {
     slice: operators.Slice,
     softmax: operators.Softmax,
     split: operators.Split,
+    sqrt: operators.Sqrt,
     sub: operators.Sub,
     tanh: operators.Tanh,
     transpose: operators.Transpose,
@@ -60,10 +63,14 @@ pub const Op_union = union(enum) {
             return Op_union{ .elu = try operators.Elu.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Flatten")) {
             return Op_union{ .flatten = try operators.Flatten.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Floor")) {
+            return Op_union{ .floor = try operators.Floor.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Gather")) {
             return Op_union{ .gather = try operators.Gather.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Gemm")) {
             return Op_union{ .gemm = try operators.Gemm.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Gelu")) {
+            return Op_union{ .gelu = try operators.Gelu.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Identity")) {
             return Op_union{ .identity = try operators.Identity.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "LeakyRelu")) {
@@ -94,6 +101,8 @@ pub const Op_union = union(enum) {
             return Op_union{ .softmax = try operators.Softmax.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Split")) {
             return Op_union{ .split = try operators.Split.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Sqrt")) {
+            return Op_union{ .sqrt = try operators.Sqrt.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Sub")) {
             return Op_union{ .sub = try operators.Sub.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Tanh")) {
@@ -119,8 +128,10 @@ pub const Op_union = union(enum) {
             .div => |ptr| return ptr.get_output_shape(),
             .elu => |ptr| return ptr.get_output_shape(),
             .flatten => |ptr| return ptr.get_output_shape(),
+            .floor => |ptr| ptr.get_output_shape(),
             .gather => |ptr| return ptr.get_output_shape(),
             .gemm => |ptr| return ptr.get_output_shape(),
+            .gelu => |ptr| return ptr.get_output_shape(),
             .identity => |ptr| return ptr.get_output_shape(),
             .leakyRelu => |ptr| return ptr.get_output_shape(),
             .matMul => |ptr| return ptr.get_output_shape(),
@@ -136,6 +147,7 @@ pub const Op_union = union(enum) {
             .slice => |ptr| return ptr.get_output_shape(),
             .softmax => |ptr| return ptr.get_output_shape(),
             .split => |ptr| return ptr.get_output_shape(),
+            .sqrt => |ptr| return ptr.get_output_shape(),
             .sub => |ptr| return ptr.get_output_shape(),
             .tanh => |ptr| return ptr.get_output_shape(),
             .transpose => |ptr| return ptr.get_output_shape(),
@@ -158,8 +170,10 @@ pub const Op_union = union(enum) {
             .div => |ptr| ptr.get_output_tensor(),
             .elu => |ptr| ptr.get_output_tensor(),
             .flatten => |ptr| ptr.get_output_tensor(),
+            .floor => |ptr| ptr.get_output_tensor(),
             .gather => |ptr| ptr.get_output_tensor(),
             .gemm => |ptr| ptr.get_output_tensor(),
+            .gelu => |ptr| ptr.get_output_tensor(),
             .identity => |ptr| ptr.get_output_tensor(),
             .leakyRelu => |ptr| ptr.get_output_tensor(),
             .matMul => |ptr| ptr.get_output_tensor(),
@@ -175,6 +189,7 @@ pub const Op_union = union(enum) {
             .slice => |ptr| ptr.get_output_tensor(),
             .softmax => |ptr| ptr.get_output_tensor(),
             .split => |ptr| ptr.get_output_tensor(),
+            .sqrt => |ptr| ptr.get_output_tensor(),
             .sub => |ptr| ptr.get_output_tensor(),
             .tanh => |ptr| ptr.get_output_tensor(),
             .transpose => |ptr| ptr.get_output_tensor(),
@@ -197,8 +212,10 @@ pub const Op_union = union(enum) {
             .div => |ptr| try ptr.write_op(writer),
             .elu => |ptr| try ptr.write_op(writer),
             .flatten => |ptr| try ptr.write_op(writer),
+            .floor => |ptr| try ptr.write_op(writer),
             .gather => |ptr| try ptr.write_op(writer),
             .gemm => |ptr| try ptr.write_op(writer),
+            .gelu => |ptr| try ptr.write_op(writer),
             .identity => |ptr| try ptr.write_op(writer),
             .leakyRelu => |ptr| try ptr.write_op(writer),
             .matMul => |ptr| try ptr.write_op(writer),
@@ -211,9 +228,10 @@ pub const Op_union = union(enum) {
             .resize => |ptr| try ptr.write_op(writer),
             .shape => |ptr| try ptr.write_op(writer),
             .sigmoid => |ptr| try ptr.write_op(writer),
-            // .slice => |ptr| try ptr.write_op(writer), //not present, see Slice node
+            .slice => |ptr| try ptr.write_op(writer),
             .softmax => |ptr| try ptr.write_op(writer),
-            // .split => |ptr| try ptr.write_op(writer), //not working! error: .FAULT => unreachable,
+            .split => |ptr| try ptr.write_op(writer), //not working! error: .FAULT => unreachable,
+            .sqrt => |ptr| try ptr.write_op(writer),
             .sub => |ptr| try ptr.write_op(writer),
             .tanh => |ptr| try ptr.write_op(writer),
             .transpose => |ptr| try ptr.write_op(writer),
@@ -236,8 +254,10 @@ pub const Op_union = union(enum) {
             .div => |ptr| ptr.print(),
             .elu => |ptr| ptr.print(),
             .flatten => |ptr| ptr.print(),
+            .floor => |ptr| ptr.print(),
             .gather => |ptr| ptr.print(),
             .gemm => |ptr| ptr.print(),
+            .gelu => |ptr| ptr.print(),
             .identity => |ptr| ptr.print(),
             .leakyRelu => |ptr| ptr.print(),
             .matMul => |ptr| ptr.print(),
@@ -253,6 +273,7 @@ pub const Op_union = union(enum) {
             .slice => |ptr| ptr.print(),
             .softmax => |ptr| ptr.print(),
             .split => |ptr| ptr.print(),
+            .sqrt => |ptr| ptr.print(),
             .sub => |ptr| ptr.print(),
             .tanh => |ptr| ptr.print(),
             .transpose => |ptr| ptr.print(),
