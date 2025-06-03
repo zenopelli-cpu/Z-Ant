@@ -50,16 +50,15 @@ pub fn get_ceil_output_shape(input_shape: []const usize) ![]usize {
 pub fn lowerCeil(
     b: *UOpBuilder,
     A_id: usize, // input-tensor SSA ids
+    out_id: usize,
     out_shape: []const usize,
     out_dtype: DType, // promoted element type
-) usize { // returns id of result buffer
+) void { // returns id of result buffer
 
     // ── Set-up phase ────────────────────────────────────────────────────
     _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
 
     const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = &.{1} } });
-
-    const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 
     // ── Flat element loop ───────────────────────────────────────────────
     var nelem: usize = 1;
@@ -73,11 +72,9 @@ pub fn lowerCeil(
 
     const id_ceil = b.push(.CLIP, out_dtype, &.{id_loadA}, null);
 
-    const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
+    const id_gepO = b.push(.GEP, out_dtype, &.{ out_id, id_range }, Any{ .mem_info = .{ .base = out_id, .offset = 0, .stride = 1 } });
 
     _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_ceil }, null);
 
     _ = b.push(.ENDRANGE, .bool, &.{id_range}, null);
-
-    return id_outBuf; // SSA id of the output tensor
 }

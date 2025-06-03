@@ -681,11 +681,12 @@ pub fn lowerMatMul(
     b: *UOpBuilder,
     A_id: usize, // SSA id of input matrix A
     B_id: usize, // SSA id of input matrix B
+    out_id: usize,
     a_shape: []const usize, // A: shape vec (len 2)
     b_shape: []const usize, // B: shape vec (len 2)
     out_shape: []const usize, // [M, N] output shape
     out_dtype: DType,
-) usize {
+) void {
 
     // ── Tiny helpers to reduce boilerplate ────────────────────────────
     const r = struct {
@@ -707,7 +708,6 @@ pub fn lowerMatMul(
     const id_viewB = b.push(.VIEW, out_dtype, &.{B_id}, Any{ .view_meta = .{ .shape = b_shape, .strides = b_strides } });
 
     // Output buffer
-    const id_C = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 
     // ── 2. Outer loops for output dimensions M x N ------------------
     const c_rows = r.rng(b, out_shape[0]); // rows of output // M
@@ -733,13 +733,11 @@ pub fn lowerMatMul(
     _ = b.push(.ENDRANGE, .bool, &.{a_cols}, null);
 
     // ── 7. Write output element ------------------------------------------
-    const id_gepC = b.push(.GEP, out_dtype, &.{ id_C, c_rows, c_cols }, Any{ .mem_info = .{ .base = id_C, .offset = 0, .stride = 1 } });
+    const id_gepC = b.push(.GEP, out_dtype, &.{ out_id, c_rows, c_cols }, Any{ .mem_info = .{ .base = out_id, .offset = 0, .stride = 1 } });
 
     _ = b.push(.STORE, out_dtype, &.{ id_gepC, id_acc }, null);
 
     // close outer loops (reverse order)
     _ = b.push(.ENDRANGE, .bool, &.{c_cols}, null);
     _ = b.push(.ENDRANGE, .bool, &.{c_rows}, null);
-
-    return id_C; // SSA id of the produced output matrix C
 }

@@ -1841,6 +1841,7 @@ pub fn lowerConv2d(
     b: *UOpBuilder,
     X_id: usize, // SSA id of input  X
     W_id: usize, // SSA id of weights W
+    out_id: usize,
     out_shape: []const usize, // [N, M, OH, OW]
     in_stride: []const usize, // X: stride vec (len 4)
     w_stride: []const usize, // W: stride vec (len 4)
@@ -1852,7 +1853,7 @@ pub fn lowerConv2d(
     C_per_grp: usize, // C′  in-channels per group
     M_per_grp: usize, // M′  out-channels per group
     out_dtype: DType,
-) usize {
+) void {
 
     // ── Tiny helpers to reduce boilerplate ────────────────────────────
     const r = struct {
@@ -1878,9 +1879,6 @@ pub fn lowerConv2d(
     const id_viewX = b.push(.VIEW, out_dtype, &.{X_id}, Any{ .view_meta = .{ .shape = &.{ out_shape[0], C_per_grp * group, out_shape[2], out_shape[3] }, .strides = in_stride } });
 
     const id_viewW = b.push(.VIEW, out_dtype, &.{W_id}, Any{ .view_meta = .{ .shape = &.{ M_per_grp * group, C_per_grp, kHW[0], kHW[1] }, .strides = w_stride } });
-
-    // Output buffer
-    const id_Y = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 
     // ── 3. Outer loops  n · g · m′ · oh · ow  --------------------------
     const n = r.rng(b, out_shape[0]); // batch
@@ -1932,7 +1930,7 @@ pub fn lowerConv2d(
     _ = b.push(.ENDRANGE, .bool, &.{ic}, null);
 
     // ── 6. Write output pixel ------------------------------------------
-    const id_gepY = b.push(.GEP, out_dtype, &.{ id_Y, n, oc_idx, oh, ow }, Any{ .mem_info = .{ .base = id_Y, .offset = 0, .stride = 1 } });
+    const id_gepY = b.push(.GEP, out_dtype, &.{ out_id, n, oc_idx, oh, ow }, Any{ .mem_info = .{ .base = out_id, .offset = 0, .stride = 1 } });
 
     _ = b.push(.STORE, out_dtype, &.{ id_gepY, id_acc }, null);
 
@@ -1942,6 +1940,4 @@ pub fn lowerConv2d(
     _ = b.push(.ENDRANGE, .bool, &.{mop}, null);
     _ = b.push(.ENDRANGE, .bool, &.{g}, null);
     _ = b.push(.ENDRANGE, .bool, &.{n}, null);
-
-    return id_Y; // SSA id of the produced output tensor Y
 }

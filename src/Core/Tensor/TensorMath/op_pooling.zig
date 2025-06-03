@@ -1025,6 +1025,7 @@ pub fn get_onnx_averagepool_output_shape(
 pub fn lowerMaxPool2d(
     b: *UOpBuilder,
     X_id: usize, // input tensor X
+    out_id: usize,
     out_shape: []const usize, // [N, C, OH, OW]
     in_stride: []const usize, // X strides (len 4)
     pads: [2]usize, // {padT, padL}
@@ -1033,7 +1034,7 @@ pub fn lowerMaxPool2d(
     kHW: [2]usize, // {kH, kW}
     out_dtype: DType,
     ceil_mode: bool,
-) usize {
+) void {
     // ── helpers --------------------------------------------------------
     const H = struct {
         fn rng(bi: *UOpBuilder, end: usize) usize {
@@ -1092,7 +1093,6 @@ pub fn lowerMaxPool2d(
     // REMOVED: const id_viewX = b.push(.VIEW, out_dtype, &.{X_id}, Any{ .view_meta = .{ .shape = &.{ out_shape[0], out_shape[1], out_shape[2], out_shape[3] }, .strides = in_stride } }); -- Already done above
 
     // output buffer Y
-    const id_Y = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 
     // ── outer loops n · c · oh · ow ------------------------------------
     const n = H.rng(b, out_shape[0]);
@@ -1146,7 +1146,7 @@ pub fn lowerMaxPool2d(
     _ = b.push(.ENDRANGE, .bool, &.{kh}, null);
 
     // ── write result ----------------------------------------------------
-    const pY = b.push(.GEP, out_dtype, &.{ id_Y, n, c, oh, ow }, Any{ .mem_info = .{ .base = id_Y, .offset = 0, .stride = 1 } });
+    const pY = b.push(.GEP, out_dtype, &.{ out_id, n, c, oh, ow }, Any{ .mem_info = .{ .base = out_id, .offset = 0, .stride = 1 } });
 
     _ = b.push(.STORE, out_dtype, &.{ pY, acc }, null);
 
@@ -1155,6 +1155,4 @@ pub fn lowerMaxPool2d(
     _ = b.push(.ENDRANGE, .bool, &.{oh}, null);
     _ = b.push(.ENDRANGE, .bool, &.{c}, null);
     _ = b.push(.ENDRANGE, .bool, &.{n}, null);
-
-    return id_Y;
 }

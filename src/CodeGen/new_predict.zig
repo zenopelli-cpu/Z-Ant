@@ -79,8 +79,8 @@ pub inline fn writePredict(writer: std.fs.File.Writer, nodes: std.ArrayList(*Nod
 // Processes and writes the computation graph
 inline fn write_graphSerialization(writer: std.fs.File.Writer, nodes: std.ArrayList(*NodeZant)) !void {
     const Writer = @TypeOf(writer);
+
     var renderer = ZigRenderer(Writer).init(zant.utils.allocator.allocator, writer);
-    defer renderer.deinit();
 
     var builder = Builder.init(zant.utils.allocator.allocator);
     defer builder.deinit();

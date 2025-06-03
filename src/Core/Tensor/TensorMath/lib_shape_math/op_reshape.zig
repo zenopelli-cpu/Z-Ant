@@ -343,16 +343,15 @@ fn reshape_lean_common(comptime T: anytype, input: *Tensor(T), modified_shape: [
 pub fn lowerReshape(
     b: *UOpBuilder,
     A_id: usize, // input-tensor SSA id
+    out_id: usize,
     out_shape: []const usize,
     out_dtype: DType, // promoted element type
-) !usize { // returns id of result buffer
+) !void { // returns id of result buffer
 
     // ── Set-up phase ────────────────────────────────────────────────────
     _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
 
     const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = &.{ 1, 1 } } });
-
-    const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
 
     // ── Flat element loop ────────────────────────────────────────────────
 
@@ -386,18 +385,16 @@ pub fn lowerReshape(
     var src_0 = std.ArrayList(usize).init(pkg_allocator);
     defer src_0.deinit();
 
-    try src_0.append(id_outBuf);
+    try src_0.append(out_id);
     for (id_ranges.items) |range| {
         try src_0.append(range);
     }
 
-    const id_gepO = b.push(.GEP, out_dtype, src_0.items, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
+    const id_gepO = b.push(.GEP, out_dtype, src_0.items, Any{ .mem_info = .{ .base = out_id, .offset = 0, .stride = 1 } });
 
     _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_loadA }, null);
 
     for (id_ranges.items) |i| {
         _ = b.push(.ENDRANGE, .bool, &.{i}, null);
     }
-
-    return id_outBuf;
 }

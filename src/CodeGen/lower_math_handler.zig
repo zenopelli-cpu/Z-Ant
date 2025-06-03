@@ -53,7 +53,7 @@ pub fn render_lower_math_op(builder: *UOpBuilder, nodeZant: *NodeZant) !void {
         //try renders.render_lower_cast(writer, nodeZant);
     } else if (std.mem.eql(u8, nodeZant.op_type, "Ceil")) {
         //https://onnx.ai/onnx/operators/onnx__Ceil.html
-        try render_lower_ceil(builder, nodeZant.op.ceil);
+        //try render_lower_ceil(builder, nodeZant.op.ceil);
     } else if (std.mem.eql(u8, nodeZant.op_type, "Clip")) {
         //https://onnx.ai/onnx/operators/onnx__Clip.html
         //try renders.render_lower_clip(writer, nodeZant);
@@ -93,10 +93,10 @@ pub fn render_lower_math_op(builder: *UOpBuilder, nodeZant: *NodeZant) !void {
         try render_lower_maxpool2d(builder, nodeZant.op.maxPool);
     } else if (std.mem.eql(u8, nodeZant.op_type, "Mul")) {
         //https://onnx.ai/onnx/operators/onnx__Mul.html
-        try render_lower_mul(builder, nodeZant.op.mul);
+        //try render_lower_mul(builder, nodeZant.op.mul);
     } else if (std.mem.eql(u8, nodeZant.op_type, "Neg")) {
         //https://onnx.ai/onnx/operators/onnx__Neg.html
-        try render_lower_neg(builder, nodeZant.op.neg);
+        //try render_lower_neg(builder, nodeZant.op.neg);
     } else if (std.mem.eql(u8, nodeZant.op_type, "OneHot")) {
         // TODO
         return error.OperationWIP;
@@ -116,7 +116,7 @@ pub fn render_lower_math_op(builder: *UOpBuilder, nodeZant: *NodeZant) !void {
     } else if (std.mem.eql(u8, nodeZant.op_type, "Shape")) {
         //try renders.render_lower_shape(writer, nodeZant);
     } else if (std.mem.eql(u8, nodeZant.op_type, "Sigmoid")) {
-        try render_lower_sigmoid(builder, nodeZant.op.sigmoid);
+        //try render_lower_sigmoid(builder, nodeZant.op.sigmoid);
     } else if (std.mem.eql(u8, nodeZant.op_type, "Softmax")) {
         //https://onnx.ai/onnx/operators/onnx__Softmax.html
         //try renders.render_lower_softmax(writer, nodeZant);
@@ -127,7 +127,7 @@ pub fn render_lower_math_op(builder: *UOpBuilder, nodeZant: *NodeZant) !void {
         //try renders.render_lower_split(writer, nodeZant);
     } else if (std.mem.eql(u8, nodeZant.op_type, "Sub")) {
         //https://onnx.ai/onnx/operators/onnx__Sub.html
-        try render_lower_sub(builder, nodeZant.op.sub);
+        //try render_lower_sub(builder, nodeZant.op.sub);
     } else if (std.mem.eql(u8, nodeZant.op_type, "Tanh")) {
         //try render_lower_tanh(builder, nodeZant.op.tanh);
     } else if (std.mem.eql(u8, nodeZant.op_type, "Transpose")) {
@@ -148,61 +148,64 @@ pub fn render_lower_math_op(builder: *UOpBuilder, nodeZant: *NodeZant) !void {
 pub fn render_lower_add(builder: *UOpBuilder, add: operators.Add) !void {
     const A_id = add.input_A.get_tensorZantID();
     const B_id = add.input_B.get_tensorZantID();
+    const out_id = add.output_C.get_tensorZantID();
     const out_shape = add.get_output_shape();
     const strideA = add.input_A.stride;
     const strideB = add.input_B.stride;
     const out_dtype = tensorTypeToDtype(add.output_C.ty);
 
-    const out_buf_id = math.lowerAdd(
+    math.lowerAdd(
         builder,
         A_id,
         B_id,
+        out_id,
         out_shape,
         strideA,
         strideB,
         out_dtype,
     );
-    _ = out_buf_id;
 }
 
 pub fn render_lower_sub(builder: *UOpBuilder, sub: operators.Sub) !void {
     const A_id = sub.input_A.get_tensorZantID();
     const B_id = sub.input_B.get_tensorZantID();
+    const out_id = sub.output_Y.get_tensorZantID();
     const out_shape = sub.get_output_shape();
     const strideA = sub.input_A.stride;
     const strideB = sub.input_B.stride;
     const out_dtype = tensorTypeToDtype(sub.output_Y.ty);
 
-    const out_buf_id = math.lowerSub(
+    math.lowerSub(
         builder,
         A_id,
         B_id,
+        out_id,
         out_shape,
         strideA,
         strideB,
         out_dtype,
     );
-    _ = out_buf_id;
 }
 
 pub fn render_lower_mul(builder: *UOpBuilder, mul: operators.Mul) !void {
     const A_id = mul.input_A.get_tensorZantID();
     const B_id = mul.input_B.get_tensorZantID();
+    const out_id = mul.output_C.get_tensorZantID();
     const out_shape = mul.get_output_shape();
     const strideA = mul.input_A.stride;
     const strideB = mul.input_B.stride;
     const out_dtype = tensorTypeToDtype(mul.output_C.ty);
 
-    const out_buf_id = math.lowerMul(
+    math.lowerMul(
         builder,
         A_id,
         B_id,
+        out_id,
         out_shape,
         strideA,
         strideB,
         out_dtype,
     );
-    _ = out_buf_id;
 }
 
 pub fn lower_div(builder: *UOpBuilder, div: operators.Div) !void {
@@ -242,27 +245,29 @@ pub fn render_lower_tanh(builder: *UOpBuilder, tanh: operators.Tanh) !void {
 pub fn render_lower_matMul(builder: *UOpBuilder, matmul: operators.MatMul) !void {
     const A_id = matmul.input_A.get_tensorZantID();
     const B_id = matmul.input_B.get_tensorZantID();
+    const out_id = matmul.output_C.get_tensorZantID();
     const out_shape = matmul.get_output_shape();
     const strideA = matmul.input_A.stride;
     const strideB = matmul.input_B.stride;
     const out_dtype = tensorTypeToDtype(matmul.output_C.ty);
 
-    const out_buf_id = math.lowerMatMul(
+    math.lowerMatMul(
         builder,
         A_id,
         B_id,
+        out_id,
         out_shape,
         strideA,
         strideB,
         out_dtype,
     );
-    _ = out_buf_id;
 }
 
 pub fn render_lower_conv2d(builder: *UOpBuilder, conv: operators.Conv) !void {
     const X_id = conv.input_X.get_tensorZantID();
     const W_id = conv.input_W.get_tensorZantID();
     const out_shape = conv.get_output_shape();
+    const out_id = conv.output_Y.get_tensorZantID();
     const in_stride = [2]usize{ @as(usize, @intCast(conv.strides.?[0])), @as(usize, @intCast(conv.strides.?[1])) };
     const w_stride = [2]usize{ conv.input_W.stride[0], conv.input_W.stride[1] };
     const group = @as(usize, @intCast(conv.group));
@@ -279,10 +284,11 @@ pub fn render_lower_conv2d(builder: *UOpBuilder, conv: operators.Conv) !void {
     const M_per_grp = @as(usize, @intCast(conv.kernel_shape.?[0])) / @as(usize, @intCast(conv.group));
     const out_dtype = tensorTypeToDtype(conv.output_Y.ty);
 
-    const out_buf_id = math.lowerConv2d(
+    math.lowerConv2d(
         builder,
         X_id,
         W_id,
+        out_id,
         out_shape,
         &in_stride,
         &w_stride,
@@ -295,8 +301,6 @@ pub fn render_lower_conv2d(builder: *UOpBuilder, conv: operators.Conv) !void {
         M_per_grp,
         out_dtype,
     );
-
-    _ = out_buf_id;
 }
 
 pub fn render_lower_relu(builder: *UOpBuilder, relu: operators.Relu) !void {
@@ -331,20 +335,22 @@ pub fn render_lower_neg(builder: *UOpBuilder, neg: operators.Neg) !void {
 
 pub fn render_lower_ceil(builder: *UOpBuilder, ceil: operators.Ceil) !void {
     const X_id = ceil.input_X.get_tensorZantID();
+    const out_id = ceil.output_Y.get_tensorZantID();
     const out_shape = ceil.get_output_shape();
     const out_dtype = tensorTypeToDtype(ceil.output_Y.ty);
 
-    const out_buf_id = math.lowerCeil(
+    math.lowerCeil(
         builder,
         X_id,
+        out_id,
         out_shape,
         out_dtype,
     );
-    _ = out_buf_id;
 }
 
 pub fn render_lower_maxpool2d(builder: *UOpBuilder, maxpool: operators.MaxPool) !void {
     const X_id = maxpool.input_X.get_tensorZantID();
+    const out_id = maxpool.output_Y.get_tensorZantID();
     const out_shape = maxpool.get_output_shape();
     const in_stride = maxpool.input_X.stride;
     const pads = [2]usize{ @as(usize, @intCast(maxpool.pads.?[0])), @as(usize, @intCast(maxpool.pads.?[1])) };
@@ -362,9 +368,10 @@ pub fn render_lower_maxpool2d(builder: *UOpBuilder, maxpool: operators.MaxPool) 
     else
         false;
 
-    const out_buf_id = math.lowerMaxPool2d(
+    math.lowerMaxPool2d(
         builder,
         X_id,
+        out_id,
         out_shape,
         in_stride,
         pads,
@@ -374,7 +381,6 @@ pub fn render_lower_maxpool2d(builder: *UOpBuilder, maxpool: operators.MaxPool) 
         out_dtype,
         ceil_mode,
     );
-    _ = out_buf_id;
 }
 
 pub fn render_lower_sigmoid(builder: *UOpBuilder, sigmoid: operators.Sigmoid) !void {
@@ -393,16 +399,17 @@ pub fn render_lower_sigmoid(builder: *UOpBuilder, sigmoid: operators.Sigmoid) !v
 
 pub fn render_lower_reshape(builder: *UOpBuilder, reshape: operators.Reshape) !void {
     const X_id = reshape.data.get_tensorZantID();
+    const out_id = reshape.get_output_tensor().get_tensorZantID();
     const out_shape = reshape.get_output_shape();
     const out_dtype = tensorTypeToDtype(reshape.reshaped.ty);
 
-    const out_buf_id = try math.lowerReshape(
+    try math.lowerReshape(
         builder,
         X_id,
+        out_id,
         out_shape,
         out_dtype,
     );
-    _ = out_buf_id;
 }
 
 pub fn render_lower_identity(builder: *UOpBuilder, identity: operators.Identity) !void {
