@@ -112,6 +112,21 @@ pub const split = op_split.split;
 pub const get_split_output_shapes = op_split.get_split_output_shapes;
 pub const split_lean = op_split.split_lean;
 
+// ---------- importing standard Pooling methods ----------
+const pooling_math_lib = @import("quant_op_pooling.zig");
+pub const pool_tensor = pooling_math_lib.pool_tensor;
+pub const multidim_pooling = pooling_math_lib.multidim_pooling;
+pub const pool_forward = pooling_math_lib.pool_forward;
+pub const pool_backward = pooling_math_lib.pool_backward;
+pub const onnx_maxpool = pooling_math_lib.onnx_maxpool;
+pub const onnx_maxpool_lean = pooling_math_lib.lean_onnx_maxpool;
+pub const AutoPadType = pooling_math_lib.AutoPadType;
+pub const get_onnx_maxpool_output_shape = pooling_math_lib.get_onnx_maxpool_output_shape;
+pub const get_pooling_output_shape = pooling_math_lib.get_pooling_output_shape;
+pub const PoolingType = pooling_math_lib.PoolingType;
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 // ---------- importing matrix algebra methods ----------
 
 // ---------------------------- DENSE OPERATIONS -----------------------------
