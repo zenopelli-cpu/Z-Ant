@@ -363,4 +363,27 @@ pub fn build(b: *std.Build) void {
 
     const build_main_step = b.step("build-main", "Build the main executable for profiling");
     build_main_step.dependOn(&install_main_exe_step.step);
+
+    // ************************************************ MNIST DIGIT 2 TEST ************************************************
+
+    const test_mnist_digit2 = b.addExecutable(.{
+        .name = "test_mnist_digit2",
+        .root_source_file = b.path("test_mnist_digit2.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    test_mnist_digit2.root_module.addImport("zant", zant_mod);
+    test_mnist_digit2.root_module.addImport("codegen", codeGen_mod);
+    test_mnist_digit2.linkLibC();
+
+    // Build and install executable (for profiling)
+    const install_test_mnist_digit2 = b.addInstallArtifact(test_mnist_digit2, .{});
+    const build_test_mnist_digit2_step = b.step("build-mnist-digit2", "Build MNIST digit 2 test executable");
+    build_test_mnist_digit2_step.dependOn(&install_test_mnist_digit2.step);
+
+    // Run executable
+    const run_test_mnist_digit2 = b.addRunArtifact(test_mnist_digit2);
+    const test_mnist_digit2_step = b.step("test-mnist-digit2", "Run MNIST digit 2 test");
+    test_mnist_digit2_step.dependOn(&run_test_mnist_digit2.step);
 }

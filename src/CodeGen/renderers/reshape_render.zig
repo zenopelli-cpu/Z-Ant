@@ -20,7 +20,7 @@ pub fn render(
     uop: UOp,
     view_map: *std.AutoHashMap(usize, ViewInfo),
     _: *const std.AutoHashMap(usize, BufferInfo),
-    _: *const std.AutoHashMap(usize, []const u8),
+    ptr_map: *const std.AutoHashMap(usize, []const u8),
 ) !void {
     if (uop.op != .RESHAPE) return RendererError.InvalidOp;
     if (uop.src.len != 1) return RendererError.InvalidOp;
@@ -67,8 +67,13 @@ pub fn render(
 
     // Store the new view in the view map - the strides ownership is now transferred
     try view_map.put(uop.id, out_view);
-    // // Render new strides
-    // try writer.print("    const stride_{d}: []const isize = &.{{", .{src_id});
-    // for (strides) |stride_num| try writer.print("{d},", .{stride_num});
-    // try writer.print("}};", .{});
+
+    // Add the reshape result to ptr_map so it can be referenced by other operations
+    // Use the source buffer name since reshape just changes the view
+    if (ptr_map.get(src_id)) |src_name| {
+        // Get mutable access to ptr_map
+        var mutable_ptr_map = @constCast(ptr_map);
+        const reshape_name = try std.fmt.allocPrint(alloc, "{s}", .{src_name});
+        try mutable_ptr_map.put(uop.id, reshape_name);
+    }
 }

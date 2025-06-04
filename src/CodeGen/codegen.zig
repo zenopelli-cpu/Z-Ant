@@ -9,4 +9,6 @@ pub const tests = @import("tests.zig");
 pub const zant_codegen = @import("main.zig").zant_codegen;
 pub const renderer = @import("renderers/zig_renderer.zig");
 pub const lower_math_handler = @import("lower_math_handler.zig");
-pub const builder = @import("renderers/UOps.zig").UOpBuilder;
+
+const zant = @import("zant");
+pub const builder = zant.uops.UOpBuilder;

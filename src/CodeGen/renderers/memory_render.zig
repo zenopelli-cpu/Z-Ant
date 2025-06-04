@@ -60,7 +60,9 @@ pub fn render(
 
     try validateOp(uop);
 
-    const type_str = DTypeInfo.asString(uop.dtype);
+    // Fix undefined dtypes to f32 (our corrected parameter type)
+    const actual_dtype = if (uop.dtype == .undefined) DType.f32 else uop.dtype;
+    const type_str = DTypeInfo.asString(actual_dtype);
 
     switch (uop.op) {
         .DEFINE_GLOBAL => return RenderError.InvalidOperation,
@@ -87,7 +89,7 @@ pub fn render(
             var val_str_buf: [128]u8 = undefined;
             var final_val_str: []const u8 = undefined;
 
-            switch (uop.dtype) {
+            switch (actual_dtype) {
                 .f32 => {
                     const f_val = arg.float;
                     if (f_val == std.math.inf(f32)) {
@@ -99,14 +101,57 @@ pub fn render(
                         final_val_str = try std.fmt.bufPrint(&val_str_buf, "{e}", .{f_val});
                     }
                 },
+                .f16 => {
+                    const f_val = arg.float;
+                    if (f_val == std.math.inf(f32)) {
+                        final_val_str = "std.math.inf(f16)";
+                    } else if (f_val == -std.math.inf(f32)) {
+                        final_val_str = "-std.math.inf(f16)";
+                    } else {
+                        final_val_str = try std.fmt.bufPrint(&val_str_buf, "@as(f16, {e})", .{f_val});
+                    }
+                },
+                .f64 => {
+                    const f_val = arg.float;
+                    if (f_val == std.math.inf(f32)) {
+                        final_val_str = "std.math.inf(f64)";
+                    } else if (f_val == -std.math.inf(f32)) {
+                        final_val_str = "-std.math.inf(f64)";
+                    } else {
+                        final_val_str = try std.fmt.bufPrint(&val_str_buf, "@as(f64, {e})", .{f_val});
+                    }
+                },
                 .i32 => {
                     final_val_str = try std.fmt.bufPrint(&val_str_buf, "{d}", .{arg.int});
+                },
+                .i8 => {
+                    final_val_str = try std.fmt.bufPrint(&val_str_buf, "@as(i8, {d})", .{arg.int});
+                },
+                .i16 => {
+                    final_val_str = try std.fmt.bufPrint(&val_str_buf, "@as(i16, {d})", .{arg.int});
+                },
+                .i64 => {
+                    final_val_str = try std.fmt.bufPrint(&val_str_buf, "@as(i64, {d})", .{arg.int});
+                },
+                .u8 => {
+                    final_val_str = try std.fmt.bufPrint(&val_str_buf, "@as(u8, {d})", .{arg.int});
+                },
+                .u16 => {
+                    final_val_str = try std.fmt.bufPrint(&val_str_buf, "@as(u16, {d})", .{arg.int});
+                },
+                .u32 => {
+                    final_val_str = try std.fmt.bufPrint(&val_str_buf, "@as(u32, {d})", .{arg.int});
+                },
+                .u64 => {
+                    final_val_str = try std.fmt.bufPrint(&val_str_buf, "@as(u64, {d})", .{arg.int});
                 },
                 .bool => {
                     // Use Zig's native true/false literals
                     final_val_str = if (arg.bool) "true" else "false";
                 },
-                else => return RenderError.UnsupportedDType,
+                .undefined => {
+                    final_val_str = "undefined";
+                },
             }
 
             try writer.print("    var {s}: {s} = {s}; // CONST (uop {d})\n" ++
