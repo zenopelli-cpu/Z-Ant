@@ -107,16 +107,26 @@ pub const Gather = struct {
         }
 
         _ = try writer.print(
+            \\    
+            \\
             \\    const array_usize_{s}= utils.sliceToUsizeSlice(allocator, {s}.data);
-            \\    defer allocator.free(array_usize_{s);
+            \\    defer allocator.free(array_usize_{s});
+        , .{
+            try self.input_B.getNameSanitized(), //array_usize_{s}
+            tensor_B_string, //{s}.data
+            try self.input_B.getNameSanitized(), //defer allocator.free(array_usize_{s);
+        });
+
+        _ = try writer.print(
+            \\    
+            \\
             \\    var tensor_usize_{s} = Tensor(usize).fromArray(&allocator, array_usize_{s}, {s}.shape) catch return;
             \\    defer tensor_usize_{s}.deinit();
         , .{
-            try utils.getSanitizedName(self.input_B.name), //array_usize_{s}
-            tensor_B_string, //{s}.data
-            try utils.getSanitizedName(self.input_B.name), //tensor_usize_{s}
-            try utils.getSanitizedName(self.input_B.name), //array_usize_{s}
-            try utils.getSanitizedName(self.input_B.name), //tensor_usize_{s}
+            try self.input_B.getNameSanitized(), //tensor_usize_{s}
+            try self.input_B.getNameSanitized(), //array_usize_{s}
+            tensor_B_string, //{s}.shape
+            try self.input_B.getNameSanitized(), //defer tensor_usize_{s}.deinit();
         });
 
         // Output C
