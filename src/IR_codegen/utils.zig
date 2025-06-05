@@ -171,7 +171,7 @@ pub inline fn toUsize(comptime T: type, value: T) !usize {
     return @intCast(value);
 }
 
-pub inline fn sliceToUsizeSlice(slice: anytype) []usize {
+pub inline fn sliceToUsizeSlice(this_allocator: std.mem.Allocator, slice: anytype) []usize {
     const T = @TypeOf(slice);
     const info = @typeInfo(T);
 
@@ -180,7 +180,7 @@ pub inline fn sliceToUsizeSlice(slice: anytype) []usize {
             const child = info.pointer.child;
             const child_info = @typeInfo(child);
 
-            var output = allocator.alloc(usize, slice.len) catch @panic("Out of memory in sliceToUsizeSlice");
+            var output = this_allocator.alloc(usize, slice.len) catch @panic("Out of memory in sliceToUsizeSlice");
             const maxUsize = std.math.maxInt(usize);
 
             for (slice, 0..) |value, index| {

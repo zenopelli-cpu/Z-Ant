@@ -107,13 +107,15 @@ pub const Gather = struct {
         }
 
         _ = try writer.print(
-            \\
-            \\    var tensor_usize_{s} = Tensor(usize).fromArray(&allocator, utils.sliceToUsizeSlice({s}.data), {s}.shape) catch return;
+            \\    const array_usize_{s}= utils.sliceToUsizeSlice(allocator, {s}.data);
+            \\    defer allocator.free(array_usize_{s);
+            \\    var tensor_usize_{s} = Tensor(usize).fromArray(&allocator, array_usize_{s}, {s}.shape) catch return;
             \\    defer tensor_usize_{s}.deinit();
         , .{
+            try utils.getSanitizedName(self.input_B.name), //array_usize_{s}
+            tensor_B_string, //{s}.data
             try utils.getSanitizedName(self.input_B.name), //tensor_usize_{s}
-            tensor_B_string,
-            tensor_B_string,
+            try utils.getSanitizedName(self.input_B.name), //array_usize_{s}
             try utils.getSanitizedName(self.input_B.name), //tensor_usize_{s}
         });
 
@@ -123,7 +125,13 @@ pub const Gather = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.gather_lean({s}, {s}, &tensor_usize_{s}, {}, &tensor_{s},)
+            \\    tensMath.gather_lean(
+            \\        {s}, // input type
+            \\        {s}, // input tensor
+            \\        &tensor_usize_{s}, 
+            \\        {},
+            \\        &tensor_{s},
+            \\    )
         , .{
             self.input_A.ty.toString(),
             tensor_A_string,
