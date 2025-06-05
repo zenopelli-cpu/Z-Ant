@@ -35,3 +35,4 @@ OTHER :
 - implement dynamic free in predict()
 - Gathers leaks
 - Gelu loops when called "zig build test-codegen"
+- add comments on available_operation.txt, something like ?op_name is ignored
