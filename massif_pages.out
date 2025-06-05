@@ -1,0 +1,396 @@
+desc: --pages-as-heap=yes --massif-out-file=massif_pages.out
+cmd: ./simple_memory_analyzer
+time_unit: i
+#-----------
+snapshot=0
+#-----------
+time=0
+mem_heap_B=286720
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=1
+#-----------
+time=0
+mem_heap_B=1175552
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=2
+#-----------
+time=0
+mem_heap_B=1179648
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=3
+#-----------
+time=0
+mem_heap_B=1187840
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=4
+#-----------
+time=0
+mem_heap_B=1212416
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=5
+#-----------
+time=0
+mem_heap_B=1216512
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=6
+#-----------
+time=0
+mem_heap_B=1224704
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=7
+#-----------
+time=0
+mem_heap_B=1236992
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=8
+#-----------
+time=0
+mem_heap_B=1241088
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=9
+#-----------
+time=0
+mem_heap_B=1245184
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n2: 1245184 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n0: 1241088 0x0: ???
+ n0: 4096 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=10
+#-----------
+time=0
+mem_heap_B=1245184
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n2: 1245184 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n0: 1241088 0x0: ???
+ n0: 4096 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=11
+#-----------
+time=0
+mem_heap_B=1241088
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=12
+#-----------
+time=0
+mem_heap_B=1241088
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=13
+#-----------
+time=8436
+mem_heap_B=1499136
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=14
+#-----------
+time=8832
+mem_heap_B=1499136
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n3: 1499136 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n0: 1241088 0x0: ???
+ n1: 258048 0x10883AF: os.linux.x86_64.syscall6 (x86_64.zig:91)
+  n1: 258048 0x10734AA: os.linux.mmap (linux.zig:924)
+   n1: 258048 0x10575B7: posix.mmap (posix.zig:4776)
+    n1: 258048 0x10FD0E2: heap.PageAllocator.map (PageAllocator.zig:79)
+     n1: 258048 0x10FCF47: heap.PageAllocator.alloc (PageAllocator.zig:104)
+      n1: 258048 0x10E8413: rawAlloc (Allocator.zig:129)
+       n1: 258048 0x10E8413: heap.debug_allocator.DebugAllocator(.{ .stack_trace_frames = 6, .enable_memory_limit = false, .safety = true, .thread_safe = true, .MutexType = null, .never_unmap = false, .retain_metadata = false, .verbose_log = false, .backing_allocator_zeroes = true, .resize_stack_traces = false, .canary = 10534666094765928719, .page_size = 131072 }).alloc (debug_allocator.zig:778)
+        n1: 258048 0x10E39C9: rawAlloc (Allocator.zig:129)
+         n1: 258048 0x10E39C9: mem.Allocator.allocBytesWithAlignment__anon_23764 (Allocator.zig:269)
+          n1: 258048 0x10E9B12: mem.Allocator.allocWithSizeAndAlignment__anon_24331 (Allocator.zig:260)
+           n1: 258048 0x10E4B81: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 258048 0x10E4B81: mem.Allocator.alloc__anon_24048 (Allocator.zig:178)
+             n1: 258048 0x10E429A: simple_memory_analyzer.analyzeMnistMemoryDetailed (simple_memory_analyzer.zig:33)
+              n1: 258048 0x10E666F: simple_memory_analyzer.main (simple_memory_analyzer.zig:166)
+               n1: 258048 0x10E415A: callMain (start.zig:656)
+                n1: 258048 0x10E415A: callMainWithArgs (start.zig:616)
+                 n1: 258048 0x10E415A: start.posixCallMainAndExit (start.zig:571)
+                  n0: 258048 0x10E3D0D: (below main) (start.zig:271)
+ n0: 0 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=15
+#-----------
+time=8832
+mem_heap_B=1495040
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=16
+#-----------
+time=26711
+mem_heap_B=1630208
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=17
+#-----------
+time=27107
+mem_heap_B=1630208
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n3: 1630208 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n0: 1241088 0x0: ???
+ n1: 389120 0x10883AF: os.linux.x86_64.syscall6 (x86_64.zig:91)
+  n1: 389120 0x10734AA: os.linux.mmap (linux.zig:924)
+   n1: 389120 0x10575B7: posix.mmap (posix.zig:4776)
+    n1: 389120 0x10FD0E2: heap.PageAllocator.map (PageAllocator.zig:79)
+     n1: 389120 0x10FCF47: heap.PageAllocator.alloc (PageAllocator.zig:104)
+      n1: 389120 0x10E8413: rawAlloc (Allocator.zig:129)
+       n1: 389120 0x10E8413: heap.debug_allocator.DebugAllocator(.{ .stack_trace_frames = 6, .enable_memory_limit = false, .safety = true, .thread_safe = true, .MutexType = null, .never_unmap = false, .retain_metadata = false, .verbose_log = false, .backing_allocator_zeroes = true, .resize_stack_traces = false, .canary = 10534666094765928719, .page_size = 131072 }).alloc (debug_allocator.zig:778)
+        n1: 389120 0x10E39C9: rawAlloc (Allocator.zig:129)
+         n1: 389120 0x10E39C9: mem.Allocator.allocBytesWithAlignment__anon_23764 (Allocator.zig:269)
+          n1: 389120 0x10E9B12: mem.Allocator.allocWithSizeAndAlignment__anon_24331 (Allocator.zig:260)
+           n1: 389120 0x10E4B81: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n2: 389120 0x10E4B81: mem.Allocator.alloc__anon_24048 (Allocator.zig:178)
+             n1: 258048 0x10E4334: simple_memory_analyzer.analyzeMnistMemoryDetailed (simple_memory_analyzer.zig:39)
+              n1: 258048 0x10E666F: simple_memory_analyzer.main (simple_memory_analyzer.zig:166)
+               n1: 258048 0x10E415A: callMain (start.zig:656)
+                n1: 258048 0x10E415A: callMainWithArgs (start.zig:616)
+                 n1: 258048 0x10E415A: start.posixCallMainAndExit (start.zig:571)
+                  n0: 258048 0x10E3D0D: (below main) (start.zig:271)
+             n1: 131072 0x10E429A: simple_memory_analyzer.analyzeMnistMemoryDetailed (simple_memory_analyzer.zig:33)
+              n1: 131072 0x10E666F: simple_memory_analyzer.main (simple_memory_analyzer.zig:166)
+               n1: 131072 0x10E415A: callMain (start.zig:656)
+                n1: 131072 0x10E415A: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x10E415A: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x10E3D0D: (below main) (start.zig:271)
+ n0: 0 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=18
+#-----------
+time=27107
+mem_heap_B=1626112
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=19
+#-----------
+time=46267
+mem_heap_B=1761280
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=20
+#-----------
+time=46663
+mem_heap_B=1761280
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=peak
+n3: 1761280 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n0: 1241088 0x0: ???
+ n1: 520192 0x10883AF: os.linux.x86_64.syscall6 (x86_64.zig:91)
+  n1: 520192 0x10734AA: os.linux.mmap (linux.zig:924)
+   n1: 520192 0x10575B7: posix.mmap (posix.zig:4776)
+    n1: 520192 0x10FD0E2: heap.PageAllocator.map (PageAllocator.zig:79)
+     n1: 520192 0x10FCF47: heap.PageAllocator.alloc (PageAllocator.zig:104)
+      n1: 520192 0x10E8413: rawAlloc (Allocator.zig:129)
+       n1: 520192 0x10E8413: heap.debug_allocator.DebugAllocator(.{ .stack_trace_frames = 6, .enable_memory_limit = false, .safety = true, .thread_safe = true, .MutexType = null, .never_unmap = false, .retain_metadata = false, .verbose_log = false, .backing_allocator_zeroes = true, .resize_stack_traces = false, .canary = 10534666094765928719, .page_size = 131072 }).alloc (debug_allocator.zig:778)
+        n1: 520192 0x10E39C9: rawAlloc (Allocator.zig:129)
+         n1: 520192 0x10E39C9: mem.Allocator.allocBytesWithAlignment__anon_23764 (Allocator.zig:269)
+          n1: 520192 0x10E9B12: mem.Allocator.allocWithSizeAndAlignment__anon_24331 (Allocator.zig:260)
+           n1: 520192 0x10E4B81: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n3: 520192 0x10E4B81: mem.Allocator.alloc__anon_24048 (Allocator.zig:178)
+             n1: 258048 0x10E43CE: simple_memory_analyzer.analyzeMnistMemoryDetailed (simple_memory_analyzer.zig:45)
+              n1: 258048 0x10E666F: simple_memory_analyzer.main (simple_memory_analyzer.zig:166)
+               n1: 258048 0x10E415A: callMain (start.zig:656)
+                n1: 258048 0x10E415A: callMainWithArgs (start.zig:616)
+                 n1: 258048 0x10E415A: start.posixCallMainAndExit (start.zig:571)
+                  n0: 258048 0x10E3D0D: (below main) (start.zig:271)
+             n1: 131072 0x10E429A: simple_memory_analyzer.analyzeMnistMemoryDetailed (simple_memory_analyzer.zig:33)
+              n1: 131072 0x10E666F: simple_memory_analyzer.main (simple_memory_analyzer.zig:166)
+               n1: 131072 0x10E415A: callMain (start.zig:656)
+                n1: 131072 0x10E415A: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x10E415A: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x10E3D0D: (below main) (start.zig:271)
+             n1: 131072 0x10E4334: simple_memory_analyzer.analyzeMnistMemoryDetailed (simple_memory_analyzer.zig:39)
+              n1: 131072 0x10E666F: simple_memory_analyzer.main (simple_memory_analyzer.zig:166)
+               n1: 131072 0x10E415A: callMain (start.zig:656)
+                n1: 131072 0x10E415A: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x10E415A: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x10E3D0D: (below main) (start.zig:271)
+ n0: 0 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=21
+#-----------
+time=46663
+mem_heap_B=1757184
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=22
+#-----------
+time=79031
+mem_heap_B=1630208
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=23
+#-----------
+time=85047
+mem_heap_B=1761280
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=24
+#-----------
+time=85443
+mem_heap_B=1757184
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=25
+#-----------
+time=114371
+mem_heap_B=1630208
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=26
+#-----------
+time=120387
+mem_heap_B=1761280
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=27
+#-----------
+time=120783
+mem_heap_B=1757184
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=28
+#-----------
+time=149382
+mem_heap_B=1630208
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=29
+#-----------
+time=155398
+mem_heap_B=1761280
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=30
+#-----------
+time=155794
+mem_heap_B=1757184
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n3: 1757184 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n0: 1241088 0x0: ???
+ n1: 516096 0x10883AF: os.linux.x86_64.syscall6 (x86_64.zig:91)
+  n1: 516096 0x10734AA: os.linux.mmap (linux.zig:924)
+   n1: 516096 0x10575B7: posix.mmap (posix.zig:4776)
+    n1: 516096 0x10FD0E2: heap.PageAllocator.map (PageAllocator.zig:79)
+     n1: 516096 0x10FCF47: heap.PageAllocator.alloc (PageAllocator.zig:104)
+      n1: 516096 0x10E8413: rawAlloc (Allocator.zig:129)
+       n1: 516096 0x10E8413: heap.debug_allocator.DebugAllocator(.{ .stack_trace_frames = 6, .enable_memory_limit = false, .safety = true, .thread_safe = true, .MutexType = null, .never_unmap = false, .retain_metadata = false, .verbose_log = false, .backing_allocator_zeroes = true, .resize_stack_traces = false, .canary = 10534666094765928719, .page_size = 131072 }).alloc (debug_allocator.zig:778)
+        n1: 516096 0x10E39C9: rawAlloc (Allocator.zig:129)
+         n1: 516096 0x10E39C9: mem.Allocator.allocBytesWithAlignment__anon_23764 (Allocator.zig:269)
+          n1: 516096 0x10E9B12: mem.Allocator.allocWithSizeAndAlignment__anon_24331 (Allocator.zig:260)
+           n1: 516096 0x10E4B81: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n4: 516096 0x10E4B81: mem.Allocator.alloc__anon_24048 (Allocator.zig:178)
+             n1: 253952 0x10E4670: simple_memory_analyzer.analyzeMnistMemoryDetailed (simple_memory_analyzer.zig:80)
+              n1: 253952 0x10E666F: simple_memory_analyzer.main (simple_memory_analyzer.zig:166)
+               n1: 253952 0x10E415A: callMain (start.zig:656)
+                n1: 253952 0x10E415A: callMainWithArgs (start.zig:616)
+                 n1: 253952 0x10E415A: start.posixCallMainAndExit (start.zig:571)
+                  n0: 253952 0x10E3D0D: (below main) (start.zig:271)
+             n1: 131072 0x10E429A: simple_memory_analyzer.analyzeMnistMemoryDetailed (simple_memory_analyzer.zig:33)
+              n1: 131072 0x10E666F: simple_memory_analyzer.main (simple_memory_analyzer.zig:166)
+               n1: 131072 0x10E415A: callMain (start.zig:656)
+                n1: 131072 0x10E415A: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x10E415A: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x10E3D0D: (below main) (start.zig:271)
+             n1: 131072 0x10E45AD: simple_memory_analyzer.analyzeMnistMemoryDetailed (simple_memory_analyzer.zig:69)
+              n1: 131072 0x10E666F: simple_memory_analyzer.main (simple_memory_analyzer.zig:166)
+               n1: 131072 0x10E415A: callMain (start.zig:656)
+                n1: 131072 0x10E415A: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x10E415A: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x10E3D0D: (below main) (start.zig:271)
+             n0: 0 in 3 places, all below massif's threshold (1.00%)
+ n0: 0 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=31
+#-----------
+time=183640
+mem_heap_B=1630208
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=32
+#-----------
+time=198933
+mem_heap_B=1499136
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=33
+#-----------
+time=214299
+mem_heap_B=1368064
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty

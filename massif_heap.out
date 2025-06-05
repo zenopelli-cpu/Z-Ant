@@ -1,0 +1,11 @@
+desc: --pages-as-heap=no --heap=yes --stacks=no --massif-out-file=massif_heap.out
+cmd: ./test_mnist_digit2_profile
+time_unit: i
+#-----------
+snapshot=0
+#-----------
+time=0
+mem_heap_B=0
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty

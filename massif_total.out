@@ -1,0 +1,596 @@
+desc: --pages-as-heap=yes --massif-out-file=massif_total.out
+cmd: ./test_mnist_digit2_profile
+time_unit: i
+#-----------
+snapshot=0
+#-----------
+time=0
+mem_heap_B=53248
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=1
+#-----------
+time=0
+mem_heap_B=258048
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=2
+#-----------
+time=0
+mem_heap_B=262144
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=3
+#-----------
+time=0
+mem_heap_B=266240
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=4
+#-----------
+time=0
+mem_heap_B=282624
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=5
+#-----------
+time=0
+mem_heap_B=286720
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=6
+#-----------
+time=0
+mem_heap_B=294912
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=7
+#-----------
+time=0
+mem_heap_B=307200
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=8
+#-----------
+time=0
+mem_heap_B=311296
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=9
+#-----------
+time=0
+mem_heap_B=315392
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n2: 315392 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n0: 311296 0x0: ???
+ n0: 4096 0x100D400: (below main) (start.zig:271)
+#-----------
+snapshot=10
+#-----------
+time=0
+mem_heap_B=315392
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n2: 315392 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n0: 311296 0x0: ???
+ n0: 4096 0x100D400: (below main) (start.zig:271)
+#-----------
+snapshot=11
+#-----------
+time=0
+mem_heap_B=311296
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=12
+#-----------
+time=0
+mem_heap_B=311296
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=13
+#-----------
+time=63360
+mem_heap_B=569344
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=14
+#-----------
+time=63390
+mem_heap_B=569344
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n3: 569344 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n0: 311296 0x0: ???
+ n1: 258048 0x103BC9A: syscall6 (x86_64.zig:91)
+  n1: 258048 0x103BC9A: mmap (linux.zig:924)
+   n1: 258048 0x103BC9A: mmap (posix.zig:4776)
+    n1: 258048 0x103BC9A: map (PageAllocator.zig:79)
+     n1: 258048 0x103BC9A: heap.PageAllocator.alloc (PageAllocator.zig:104)
+      n1: 258048 0x10124C5: rawAlloc (Allocator.zig:129)
+       n1: 258048 0x10124C5: heap.debug_allocator.DebugAllocator(.{ .stack_trace_frames = 0, .enable_memory_limit = false, .safety = false, .thread_safe = true, .MutexType = null, .never_unmap = false, .retain_metadata = false, .verbose_log = false, .backing_allocator_zeroes = true, .resize_stack_traces = false, .canary = 10534666094765928719, .page_size = 131072 }).alloc (debug_allocator.zig:778)
+        n1: 258048 0x100E160: rawAlloc (Allocator.zig:129)
+         n1: 258048 0x100E160: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 258048 0x100E160: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 258048 0x100E160: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 258048 0x100E160: alloc__anon_3172 (Allocator.zig:178)
+             n1: 258048 0x100E160: predict_standalone (test_mnist_digit2_profile.zig:31)
+              n1: 258048 0x100E160: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 258048 0x100D8FA: callMain (start.zig:656)
+                n1: 258048 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 258048 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 258048 0x100D40D: (below main) (start.zig:271)
+ n0: 0 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=15
+#-----------
+time=63390
+mem_heap_B=565248
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=16
+#-----------
+time=64059
+mem_heap_B=700416
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=17
+#-----------
+time=64089
+mem_heap_B=700416
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n3: 700416 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n1: 389120 0x103BC9A: syscall6 (x86_64.zig:91)
+  n1: 389120 0x103BC9A: mmap (linux.zig:924)
+   n1: 389120 0x103BC9A: mmap (posix.zig:4776)
+    n1: 389120 0x103BC9A: map (PageAllocator.zig:79)
+     n1: 389120 0x103BC9A: heap.PageAllocator.alloc (PageAllocator.zig:104)
+      n1: 389120 0x10124C5: rawAlloc (Allocator.zig:129)
+       n2: 389120 0x10124C5: heap.debug_allocator.DebugAllocator(.{ .stack_trace_frames = 0, .enable_memory_limit = false, .safety = false, .thread_safe = true, .MutexType = null, .never_unmap = false, .retain_metadata = false, .verbose_log = false, .backing_allocator_zeroes = true, .resize_stack_traces = false, .canary = 10534666094765928719, .page_size = 131072 }).alloc (debug_allocator.zig:778)
+        n1: 258048 0x100E3C8: rawAlloc (Allocator.zig:129)
+         n1: 258048 0x100E3C8: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 258048 0x100E3C8: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 258048 0x100E3C8: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 258048 0x100E3C8: alloc__anon_3172 (Allocator.zig:178)
+             n1: 258048 0x100E3C8: predict_standalone (test_mnist_digit2_profile.zig:39)
+              n1: 258048 0x100E3C8: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 258048 0x100D8FA: callMain (start.zig:656)
+                n1: 258048 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 258048 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 258048 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E160: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E160: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E160: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E160: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E160: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E160: predict_standalone (test_mnist_digit2_profile.zig:31)
+              n1: 131072 0x100E160: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+ n0: 311296 0x0: ???
+ n0: 0 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=18
+#-----------
+time=64089
+mem_heap_B=696320
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=19
+#-----------
+time=64454
+mem_heap_B=831488
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=20
+#-----------
+time=64484
+mem_heap_B=831488
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n3: 831488 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n1: 520192 0x103BC9A: syscall6 (x86_64.zig:91)
+  n1: 520192 0x103BC9A: mmap (linux.zig:924)
+   n1: 520192 0x103BC9A: mmap (posix.zig:4776)
+    n1: 520192 0x103BC9A: map (PageAllocator.zig:79)
+     n1: 520192 0x103BC9A: heap.PageAllocator.alloc (PageAllocator.zig:104)
+      n1: 520192 0x10124C5: rawAlloc (Allocator.zig:129)
+       n3: 520192 0x10124C5: heap.debug_allocator.DebugAllocator(.{ .stack_trace_frames = 0, .enable_memory_limit = false, .safety = false, .thread_safe = true, .MutexType = null, .never_unmap = false, .retain_metadata = false, .verbose_log = false, .backing_allocator_zeroes = true, .resize_stack_traces = false, .canary = 10534666094765928719, .page_size = 131072 }).alloc (debug_allocator.zig:778)
+        n1: 258048 0x100E5C8: rawAlloc (Allocator.zig:129)
+         n1: 258048 0x100E5C8: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 258048 0x100E5C8: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 258048 0x100E5C8: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 258048 0x100E5C8: alloc__anon_3172 (Allocator.zig:178)
+             n1: 258048 0x100E5C8: predict_standalone (test_mnist_digit2_profile.zig:42)
+              n1: 258048 0x100E5C8: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 258048 0x100D8FA: callMain (start.zig:656)
+                n1: 258048 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 258048 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 258048 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E160: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E160: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E160: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E160: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E160: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E160: predict_standalone (test_mnist_digit2_profile.zig:31)
+              n1: 131072 0x100E160: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E3C8: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E3C8: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E3C8: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E3C8: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E3C8: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E3C8: predict_standalone (test_mnist_digit2_profile.zig:39)
+              n1: 131072 0x100E3C8: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+ n0: 311296 0x0: ???
+ n0: 0 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=21
+#-----------
+time=64484
+mem_heap_B=827392
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=22
+#-----------
+time=64866
+mem_heap_B=962560
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=23
+#-----------
+time=64896
+mem_heap_B=962560
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n3: 962560 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n1: 651264 0x103BC9A: syscall6 (x86_64.zig:91)
+  n1: 651264 0x103BC9A: mmap (linux.zig:924)
+   n1: 651264 0x103BC9A: mmap (posix.zig:4776)
+    n1: 651264 0x103BC9A: map (PageAllocator.zig:79)
+     n1: 651264 0x103BC9A: heap.PageAllocator.alloc (PageAllocator.zig:104)
+      n1: 651264 0x10124C5: rawAlloc (Allocator.zig:129)
+       n4: 651264 0x10124C5: heap.debug_allocator.DebugAllocator(.{ .stack_trace_frames = 0, .enable_memory_limit = false, .safety = false, .thread_safe = true, .MutexType = null, .never_unmap = false, .retain_metadata = false, .verbose_log = false, .backing_allocator_zeroes = true, .resize_stack_traces = false, .canary = 10534666094765928719, .page_size = 131072 }).alloc (debug_allocator.zig:778)
+        n1: 258048 0x100E7F0: rawAlloc (Allocator.zig:129)
+         n1: 258048 0x100E7F0: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 258048 0x100E7F0: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 258048 0x100E7F0: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 258048 0x100E7F0: alloc__anon_3172 (Allocator.zig:178)
+             n1: 258048 0x100E7F0: predict_standalone (test_mnist_digit2_profile.zig:45)
+              n1: 258048 0x100E7F0: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 258048 0x100D8FA: callMain (start.zig:656)
+                n1: 258048 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 258048 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 258048 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E160: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E160: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E160: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E160: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E160: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E160: predict_standalone (test_mnist_digit2_profile.zig:31)
+              n1: 131072 0x100E160: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E3C8: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E3C8: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E3C8: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E3C8: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E3C8: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E3C8: predict_standalone (test_mnist_digit2_profile.zig:39)
+              n1: 131072 0x100E3C8: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E5C8: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E5C8: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E5C8: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E5C8: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E5C8: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E5C8: predict_standalone (test_mnist_digit2_profile.zig:42)
+              n1: 131072 0x100E5C8: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+ n0: 311296 0x0: ???
+ n0: 0 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=24
+#-----------
+time=64896
+mem_heap_B=958464
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=25
+#-----------
+time=65263
+mem_heap_B=1093632
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=26
+#-----------
+time=65293
+mem_heap_B=1093632
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=detailed
+n3: 1093632 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n1: 782336 0x103BC9A: syscall6 (x86_64.zig:91)
+  n1: 782336 0x103BC9A: mmap (linux.zig:924)
+   n1: 782336 0x103BC9A: mmap (posix.zig:4776)
+    n1: 782336 0x103BC9A: map (PageAllocator.zig:79)
+     n1: 782336 0x103BC9A: heap.PageAllocator.alloc (PageAllocator.zig:104)
+      n1: 782336 0x10124C5: rawAlloc (Allocator.zig:129)
+       n5: 782336 0x10124C5: heap.debug_allocator.DebugAllocator(.{ .stack_trace_frames = 0, .enable_memory_limit = false, .safety = false, .thread_safe = true, .MutexType = null, .never_unmap = false, .retain_metadata = false, .verbose_log = false, .backing_allocator_zeroes = true, .resize_stack_traces = false, .canary = 10534666094765928719, .page_size = 131072 }).alloc (debug_allocator.zig:778)
+        n1: 258048 0x100EA09: rawAlloc (Allocator.zig:129)
+         n1: 258048 0x100EA09: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 258048 0x100EA09: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 258048 0x100EA09: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 258048 0x100EA09: alloc__anon_3172 (Allocator.zig:178)
+             n1: 258048 0x100EA09: predict_standalone (test_mnist_digit2_profile.zig:48)
+              n1: 258048 0x100EA09: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 258048 0x100D8FA: callMain (start.zig:656)
+                n1: 258048 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 258048 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 258048 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E160: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E160: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E160: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E160: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E160: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E160: predict_standalone (test_mnist_digit2_profile.zig:31)
+              n1: 131072 0x100E160: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E3C8: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E3C8: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E3C8: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E3C8: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E3C8: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E3C8: predict_standalone (test_mnist_digit2_profile.zig:39)
+              n1: 131072 0x100E3C8: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E5C8: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E5C8: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E5C8: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E5C8: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E5C8: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E5C8: predict_standalone (test_mnist_digit2_profile.zig:42)
+              n1: 131072 0x100E5C8: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E7F0: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E7F0: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E7F0: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E7F0: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E7F0: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E7F0: predict_standalone (test_mnist_digit2_profile.zig:45)
+              n1: 131072 0x100E7F0: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+ n0: 311296 0x0: ???
+ n0: 0 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=27
+#-----------
+time=65293
+mem_heap_B=1089536
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=28
+#-----------
+time=65633
+mem_heap_B=1224704
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=29
+#-----------
+time=65663
+mem_heap_B=1224704
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=peak
+n3: 1224704 (page allocation syscalls) mmap/mremap/brk, --alloc-fns, etc.
+ n1: 913408 0x103BC9A: syscall6 (x86_64.zig:91)
+  n1: 913408 0x103BC9A: mmap (linux.zig:924)
+   n1: 913408 0x103BC9A: mmap (posix.zig:4776)
+    n1: 913408 0x103BC9A: map (PageAllocator.zig:79)
+     n1: 913408 0x103BC9A: heap.PageAllocator.alloc (PageAllocator.zig:104)
+      n1: 913408 0x10124C5: rawAlloc (Allocator.zig:129)
+       n6: 913408 0x10124C5: heap.debug_allocator.DebugAllocator(.{ .stack_trace_frames = 0, .enable_memory_limit = false, .safety = false, .thread_safe = true, .MutexType = null, .never_unmap = false, .retain_metadata = false, .verbose_log = false, .backing_allocator_zeroes = true, .resize_stack_traces = false, .canary = 10534666094765928719, .page_size = 131072 }).alloc (debug_allocator.zig:778)
+        n1: 258048 0x100EBB0: rawAlloc (Allocator.zig:129)
+         n1: 258048 0x100EBB0: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 258048 0x100EBB0: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 258048 0x100EBB0: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 258048 0x100EBB0: alloc__anon_3172 (Allocator.zig:178)
+             n1: 258048 0x100EBB0: predict_standalone (test_mnist_digit2_profile.zig:51)
+              n1: 258048 0x100EBB0: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 258048 0x100D8FA: callMain (start.zig:656)
+                n1: 258048 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 258048 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 258048 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E160: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E160: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E160: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E160: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E160: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E160: predict_standalone (test_mnist_digit2_profile.zig:31)
+              n1: 131072 0x100E160: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E3C8: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E3C8: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E3C8: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E3C8: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E3C8: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E3C8: predict_standalone (test_mnist_digit2_profile.zig:39)
+              n1: 131072 0x100E3C8: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E5C8: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E5C8: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E5C8: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E5C8: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E5C8: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E5C8: predict_standalone (test_mnist_digit2_profile.zig:42)
+              n1: 131072 0x100E5C8: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100E7F0: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100E7F0: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100E7F0: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100E7F0: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100E7F0: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100E7F0: predict_standalone (test_mnist_digit2_profile.zig:45)
+              n1: 131072 0x100E7F0: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+        n1: 131072 0x100EA09: rawAlloc (Allocator.zig:129)
+         n1: 131072 0x100EA09: allocBytesWithAlignment__anon_6181 (Allocator.zig:269)
+          n1: 131072 0x100EA09: allocWithSizeAndAlignment__anon_3811 (Allocator.zig:260)
+           n1: 131072 0x100EA09: allocAdvancedWithRetAddr (Allocator.zig:254)
+            n1: 131072 0x100EA09: alloc__anon_3172 (Allocator.zig:178)
+             n1: 131072 0x100EA09: predict_standalone (test_mnist_digit2_profile.zig:48)
+              n1: 131072 0x100EA09: test_mnist_digit2_profile.main (test_mnist_digit2_profile.zig:241)
+               n1: 131072 0x100D8FA: callMain (start.zig:656)
+                n1: 131072 0x100D8FA: callMainWithArgs (start.zig:616)
+                 n1: 131072 0x100D8FA: start.posixCallMainAndExit (start.zig:571)
+                  n0: 131072 0x100D40D: (below main) (start.zig:271)
+ n0: 311296 0x0: ???
+ n0: 0 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=30
+#-----------
+time=65663
+mem_heap_B=1220608
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=31
+#-----------
+time=106165
+mem_heap_B=1093632
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=32
+#-----------
+time=118057
+mem_heap_B=962560
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=33
+#-----------
+time=118773
+mem_heap_B=831488
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=34
+#-----------
+time=124660
+mem_heap_B=700416
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=35
+#-----------
+time=124831
+mem_heap_B=569344
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=36
+#-----------
+time=124997
+mem_heap_B=438272
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
