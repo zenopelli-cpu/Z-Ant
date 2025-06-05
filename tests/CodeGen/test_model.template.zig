@@ -6,13 +6,11 @@ const Tensor = zant.core.tensor.Tensor;
 const pkgAllocator = zant.utils.allocator;
 const allocator = pkgAllocator.allocator;
 
-const tests_log = std.log.scoped(.test_model);
-
 const model = @import("model_options.zig");
 
 test "Static Library - Random data Prediction Test" {
     std.testing.log_level = .info;
-    tests_log.info("\n     test: Static Library - {s} Random data Prediction Test\n", .{model.name});
+    std.debug.print("\ntest: Static Library - {s} Random data Prediction Test -------------------\n", .{model.name});
 
     var input_shape = model.input_shape;
 
@@ -42,7 +40,7 @@ test "Static Library - Random data Prediction Test" {
     const LogFn = fn ([*c]u8) callconv(.C) void;
     const logFn: LogFn = struct {
         fn log(msg: [*c]u8) callconv(.C) void {
-            tests_log.debug("{s}", .{msg});
+            std.debug.print("{s}", .{msg});
         }
     }.log;
 
@@ -57,13 +55,13 @@ test "Static Library - Random data Prediction Test" {
         &result,
     );
 
-    tests_log.info("\nPrediction done without errors:\n", .{});
+    std.debug.print("\nPrediction done without errors:\n", .{});
 }
 
 test "Static Library - Wrong Input Shape" {
     std.testing.log_level = .info;
 
-    tests_log.info("\n     test: Static Library - {s} Wrong Input Shape\n", .{model.name});
+    std.debug.print("\ntest: Static Library - {s} Wrong Input Shape -------------------\n", .{model.name});
 
     // Test with wrong input shape
 
@@ -113,7 +111,7 @@ test "Static Library - Wrong Input Shape" {
 test "Static Library - Empty Input" {
     std.testing.log_level = .info;
 
-    tests_log.info("\n     test: Static Library - {s} Empty Input\n", .{model.name});
+    std.debug.print("\ntest: Static Library - {s} Empty Input -------------------\n", .{model.name});
 
     // Test with empty input
     var input_data = [_]model.data_type{};
@@ -131,7 +129,7 @@ test "Static Library - Empty Input" {
 test "Static Library - Wrong Number of Dimensions" {
     std.testing.log_level = .info;
 
-    tests_log.info("\n     test: Static Library - {s} Wrong Number of Dimensions\n", .{model.name});
+    std.debug.print("\ntest: Static Library - {s} Wrong Number of Dimensions -------------------\n", .{model.name});
 
     const model_input_shape = model.input_shape;
 
@@ -165,10 +163,10 @@ test "Static Library - Wrong Number of Dimensions" {
 test "Static Library - User data Prediction Test" {
     std.testing.log_level = .info;
 
-    tests_log.info("\n     test: Static Library - {s} User data Prediction Test\n", .{model.name});
+    std.debug.print("\ntest: Static Library - {s} User data Prediction Test -------------------\n", .{model.name});
 
     if (!model.enable_user_tests) {
-        tests_log.info("\nUser tests are disabled for this model\n", .{});
+        std.debug.print("\nUser tests are disabled for this model\n", .{});
         return;
     }
 
@@ -176,7 +174,7 @@ test "Static Library - User data Prediction Test" {
     const LogFn = fn ([*c]u8) callconv(.C) void;
     const logFn: LogFn = struct {
         fn log(msg: [*c]u8) callconv(.C) void {
-            tests_log.debug("{s}", .{msg});
+            std.debug.print("{s}", .{msg});
         }
     }.log;
 
@@ -195,10 +193,10 @@ test "Static Library - User data Prediction Test" {
 
     const user_tests = parsed_user_tests.value;
 
-    tests_log.debug("\nUser tests loaded.\n", .{});
+    std.debug.print("\nUser tests loaded.\n", .{});
 
     for (user_tests) |user_test| {
-        tests_log.debug("\n\tRunning user test: {s}\n\n", .{user_test.name});
+        std.debug.print("\n\tRunning user test: {s}\n\n", .{user_test.name});
 
         try std.testing.expectEqual(user_test.input.len, input_data_len);
 
@@ -245,7 +243,7 @@ test "Static Library - User data Prediction Test" {
                 try std.testing.expectEqual(expected_output_value, result_value);
             }
         } else {
-            tests_log.debug("Unsupported test type: {s}\n", .{user_test.type});
+            std.debug.print("Unsupported test type: {s}\n", .{user_test.type});
             try std.testing.expect(false);
         }
     }
