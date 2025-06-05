@@ -90,8 +90,13 @@ pub const Concat = struct {
                     \\    mathHandler_log.warn("\\nWarning: Concatenating tensors with different ranks along axis 0\\n", .{{}});
                     \\
                     \\    // Create a list of tensors to concatenate
-                    \\    var concat_tensor_list_{s} = [_]Tensor(T){{
-                , .{try utils.getSanitizedName(self.concat_result.name)});
+                    \\    var concat_tensor_list_{s} = [_]Tensor({s}){{
+                ,
+                    .{
+                        try utils.getSanitizedName(self.concat_result.name), //r_list_{s}
+                        self.inputs.items[0].ty.toString(), //[_]Tensor({s})
+                    },
+                );
 
                 for (self.inputs.items, 0..) |input, idx| {
                     if (idx > 0) {
@@ -132,8 +137,13 @@ pub const Concat = struct {
         _ = try writer.print(
             \\
             \\    // Create a list of tensors to concatenate
-            \\    var concat_tensor_list_{s} = [_]Tensor(T){{
-        , .{try utils.getSanitizedName(self.concat_result.name)});
+            \\    var concat_tensor_list_{s} = [_]Tensor({s}){{
+        ,
+            .{
+                try utils.getSanitizedName(self.concat_result.name),
+                self.inputs.items[0].ty.toString(),
+            },
+        );
 
         for (self.inputs.items, 0..) |input, idx| {
             if (idx > 0) {
@@ -151,8 +161,9 @@ pub const Concat = struct {
             \\}};
             \\
             \\    // Perform concatenation
-            \\    tensMath.concatenate_lean(T, &allocator, &concat_tensor_list_{s}, {}, &tensor_{s} )
+            \\    tensMath.concatenate_lean({s}, &allocator, &concat_tensor_list_{s}, {}, &tensor_{s} )
         , .{
+            self.inputs.items[0].ty.toString(),
             try utils.getSanitizedName(self.concat_result.name),
             self.axis,
             try utils.getSanitizedName(self.concat_result.name),

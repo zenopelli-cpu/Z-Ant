@@ -158,7 +158,7 @@ pub const AveragePool = struct {
             \\
             \\
             \\    tensMath.onnx_averagepool_lean(
-            \\        T,
+            \\        {s},
             \\        {s}, // Input
             \\        &tensor_{s}, // Output
             \\        {s}, // kernel_shape
@@ -169,6 +169,7 @@ pub const AveragePool = struct {
             \\        {s}, // count_include_pad
             \\    )
         , .{
+            self.input_X.ty.toString(),
             tensor_X_string, // Input
             try utils.getSanitizedName(self.output_Y.name), // Output
             kernel_shape_string, // kernel_shape

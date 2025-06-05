@@ -92,8 +92,9 @@ pub const Flatten = struct {
         _ = try writer.print(
             \\
             \\
-            \\    try tensMath.flatten(T, {s}, &tensor_{s});
+            \\    tensMath.flatten_lean({s}, {s}, &tensor_{s})
         , .{
+            self.data.ty.toString(),
             input_string,
             output_name,
         });

@@ -73,8 +73,9 @@ pub const Sqrt = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.sqrt_lean(T, {s}, &tensor_{s})
+            \\    tensMath.sqrt_lean({s}, {s}, &tensor_{s})
         , .{
+            self.input_X.ty.toString(),
             input_tensor_string,
             try utils.getSanitizedName(self.output_Y.name),
         });

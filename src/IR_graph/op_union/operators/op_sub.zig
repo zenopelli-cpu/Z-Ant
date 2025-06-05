@@ -95,12 +95,15 @@ pub const Sub = struct {
 
         _ = try writer.print(
             \\    tensMath.sub_tensors_lean(
-            \\        T,
+            \\        {s}, // input type
+            \\        {s}, // output type
             \\        {s}, // input A
             \\        {s}, // input B
             \\        &tensor_{s} // output Y
-            \\    );
+            \\    )
         , .{
+            self.input_A.ty.toString(),
+            self.output_Y.ty.toString(),
             tensor_A_string,
             tensor_B_string,
             try utils.getSanitizedName(self.output_Y.name),

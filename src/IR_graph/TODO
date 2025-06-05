@@ -26,6 +26,12 @@ IR_CODEGEN
               .FAULT => unreachable,
 
 - codegenerating "T" as the input type of the lean math op is not possible anymore
+- use TensorZant.getNameSanitized() and not utils.getSanitizedName()
+- remove "const utils = @import("codegen").utils;" from all op_*.zig and fix, 
+- do not codegenerate "const codegen = @import("codegen");" and use instead "const codegen = @import("codegen");" and fix by conseguence
 
 OTHER :
 - check missing op between: python generator, available_operations.txt, IR_graph operators
+- implement dynamic free in predict()
+- Gathers leaks
+- Gelu loops when called "zig build test-codegen"

@@ -64,12 +64,13 @@ pub const Sigmoid = struct {
         _ = try writer.print(
             \\
             \\    tensMath.sigmoid_lean(
-            \\      T,
+            \\      {s},
             \\      {s},
             \\      &tensor_{s},
             \\    )
         ,
             .{
+                self.input_X.ty.toString(),
                 tensor_X_string,
                 try utils.getSanitizedName(self.output_Y.name),
             },

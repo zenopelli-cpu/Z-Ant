@@ -108,6 +108,7 @@ pub fn build(b: *std.Build) void {
     const output_type_option = b.option([]const u8, "output_type", "Output type") orelse "f32";
     const comm_option = b.option(bool, "comm", "Codegen with comments") orelse false;
     const dynamic_option = b.option(bool, "dynamic", "Dynamic allocation") orelse false;
+    const export_option = b.option(bool, "do_export", "codegen Exportable ") orelse false;
 
     //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 
@@ -151,6 +152,7 @@ pub fn build(b: *std.Build) void {
     IRC_options.addOption([]const u8, "IR_generated_path", generated_path_option);
     IRC_options.addOption([]const u8, "IR_user_tests", user_tests_option);
     IRC_options.addOption(bool, "IR_log", log_option);
+    IRC_options.addOption(bool, "IR_do_export", export_option);
     IRC_options.addOption([]const u8, "IR_shape", shape_option);
     IRC_options.addOption([]const u8, "IR_type", input_type_option);
     IRC_options.addOption([]const u8, "IR_output_type", output_type_option);

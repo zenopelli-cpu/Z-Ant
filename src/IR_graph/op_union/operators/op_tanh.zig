@@ -76,11 +76,12 @@ pub const Tanh = struct {
         // --- Write the Tanh op
         _ = try writer.print(
             \\    tensMath.tanh_lean(
-            \\        T,
+            \\        {s},
             \\        {s}, // input tensor
             \\        &tensor_{s} // output tensor
-            \\    );
+            \\    )
         , .{
+            self.input_X.ty.toString(),
             tensor_X_string,
             try utils.getSanitizedName(self.output_Y.name),
         });

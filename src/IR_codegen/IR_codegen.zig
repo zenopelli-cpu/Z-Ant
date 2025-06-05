@@ -17,6 +17,9 @@ const allocator = zant.utils.allocator.allocator;
 const ParametersWriter = @import("parameter_writer.zig");
 const PredictWriter = @import("predict_writer.zig");
 
+// -- testing
+pub const testWriter = @import("tests_writer.zig");
+
 // -- GLOBAL VARIABLES
 pub var tensorZantMap: *std.StringHashMap(TensorZant) = undefined;
 

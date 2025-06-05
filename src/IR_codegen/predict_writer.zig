@@ -42,7 +42,7 @@ pub fn write(generated_path: []const u8, model_name: []const u8, linearizedGraph
 
     // _ = linearizedGraph;
     // Generate prediction function code
-    try codeGenPredict.writePredict(writer, linearizedGraph, true); //do_export;
+    try codeGenPredict.writePredict(writer, linearizedGraph, codegen_options.IR_do_export);
 }
 
 /// Writes the required library imports to the generated Zig file for predict function.
@@ -76,11 +76,11 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
         \\
         \\var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
         \\
-        \\pub export fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {{
+        \\pub {s} fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {{
         \\    log_function = func;
         \\}}
         \\
-    , .{});
+    , .{if (codegen_options.IR_do_export == true) "export" else ""});
 }
 
 fn write_FBA(writer: std.fs.File.Writer) !void {

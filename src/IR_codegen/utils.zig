@@ -6,9 +6,7 @@ const GraphProto = onnx.GraphProto;
 const NodeProto = onnx.NodeProto;
 const TensorProto = onnx.TensorProto;
 const allocator = zant.utils.allocator.allocator;
-const codegen = @import("codegen");
-const globals = codegen.globals;
-const tests = codegen.tests;
+const testWriter = @import("tests_writer.zig");
 
 // -------------------- GETTERS --------------------
 
@@ -113,18 +111,6 @@ pub inline fn getConstantTensorDims(nodeProto: *NodeProto) ![]const i64 {
     if (std.mem.indexOf(u8, try getSanitizedName(nodeProto.op_type), "constant")) |_| {} else return error.NodeNotConstant;
 
     return if (nodeProto.attribute[0].t) |tensorProto| tensorProto.dims else error.ConstantTensorAttributeNotAvailable;
-}
-
-/// This method search for the existance of a Tensor named "tensorName" inside the onnx model.graph.value_info array.
-/// If founded return its shape, else returns null.
-pub fn getTensorShape(tensorName: []const u8) ?[]i64 {
-    for (globals.onnxModel.graph.?.value_info) |vi| {
-        if (std.mem.eql(u8, vi.name.?, tensorName)) {
-            return vi.type.?.tensor_type.?.shape.?.shape;
-        }
-    }
-
-    return null;
 }
 
 // ----------------- DATA TYPE management -------------
@@ -393,14 +379,14 @@ pub fn copyFile(src_path: []const u8, dst_path: []const u8) !void {
 }
 
 // Read the user_tests json file and return a list of test cases
-pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Parsed([]tests.UserTest(T)) {
+pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Parsed([]testWriter.UserTest(T)) {
     const user_tests_file = try std.fs.cwd().openFile(user_tests_path, .{});
     defer user_tests_file.close();
 
     const user_tests_content: []const u8 = try user_tests_file.readToEndAlloc(allocator, 1024 * 1024);
     defer allocator.free(user_tests_content);
 
-    const parsed_user_tests = try std.json.parseFromSlice([]tests.UserTest(T), allocator, user_tests_content, .{});
+    const parsed_user_tests = try std.json.parseFromSlice([]testWriter.UserTest(T), allocator, user_tests_content, .{});
 
     return parsed_user_tests;
 }

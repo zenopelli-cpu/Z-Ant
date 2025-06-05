@@ -19,9 +19,9 @@ const utils = @import("codegen").utils;
 
 // https://onnx.ai/onnx/operators/onnx__LeakyRelu.html#l-onnx-doc-leakyrelu
 // INPUTS:
-//      - A (heterogeneous) - T:  input tensor.
+//      - X (heterogeneous) - T:  input tensor.
 // OUTPUTS:
-//      - C (heterogeneous) - T:  output tensor.
+//      - Y (heterogeneous) - T:  output tensor.
 // ATTRIBUTES:
 //      - alpha (float) - coefficent of leakage. Default is 0.01.
 
@@ -75,8 +75,9 @@ pub const LeakyRelu = struct {
 
         _ = try writer.print(
             \\
-            \\    tensMath.leakyReLU_lean(T, {s}, {d}, &tensor_{s})
+            \\    tensMath.leakyReLU_lean({s}, {s}, {d}, &tensor_{s})
         , .{
+            self.input_X.ty.toString(),
             input_tensor_string,
             self.alpha,
             try utils.getSanitizedName(self.output_Y.name),

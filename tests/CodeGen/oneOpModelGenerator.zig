@@ -93,6 +93,9 @@ pub fn main() !void {
         // ONNX model parsing
         try IR_codeGen.codegnenerateFromOnnx(trimmed_line, generated_path, model);
 
+        // Create relative tests
+        try IR_codeGen.testWriter.writeSlimTestFile(trimmed_line, generated_path);
+
         // Copy user test file into the generated test file, do not touch, this is not related to model codegen !
         const dataset_test_model_path = try std.fmt.allocPrint(allocator, "datasets/oneOpModels/{s}_0_user_tests.json", .{trimmed_line});
         defer allocator.free(dataset_test_model_path);

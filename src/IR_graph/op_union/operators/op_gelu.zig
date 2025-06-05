@@ -77,8 +77,9 @@ pub const Gelu = struct {
 
         _ = try writer.print(
             \\
-            \\    tensMath.gelu_lean(T, {s}, "{s}", &tensor_{s})
+            \\    tensMath.gelu_lean({s}, {s}, "{s}", &tensor_{s})
         , .{
+            self.input_X.ty.toString(),
             input_tensor_string,
             self.approximate,
             try utils.getSanitizedName(self.output_Y.name),

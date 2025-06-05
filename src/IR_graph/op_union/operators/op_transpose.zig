@@ -99,13 +99,15 @@ pub const Transpose = struct {
 
         // --- Write transpose op
         _ = try writer.print(
-            \\    tensMath.transpose_lean(
-            \\        T,
+            \\    tensMath.transpose_onnx_lean(
+            \\        {s}, //input type 
             \\        {s}, // input tensor
             \\        {s}, // perm array
-            \\        &tensor_{s} // output tensor
-            \\    );
+            \\        &tensor_{s}, // output 
+            \\        allocator,
+            \\    )
         , .{
+            self.input_X.ty.toString(),
             tensor_X_string,
             perm_string,
             try utils.getSanitizedName(self.output_Y.name),

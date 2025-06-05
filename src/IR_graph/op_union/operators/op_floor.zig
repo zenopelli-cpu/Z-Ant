@@ -73,8 +73,9 @@ pub const Floor = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.floor_lean(T, {s}, &tensor_{s})
+            \\    tensMath.floor_lean({s}, {s}, &tensor_{s})
         , .{
+            self.input_X.ty.toString(),
             input_tensor_string,
             try utils.getSanitizedName(self.output_Y.name),
         });

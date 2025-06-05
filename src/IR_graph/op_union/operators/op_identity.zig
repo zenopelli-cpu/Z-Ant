@@ -66,8 +66,9 @@ pub const Identity = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.identity_lean(T, {s}, &tensor_{s})
+            \\    tensMath.identity_lean({s}, {s}, &tensor_{s})
         , .{
+            self.input.ty.toString(),
             input_tensor_string,
             try utils.getSanitizedName(self.output.name),
         });

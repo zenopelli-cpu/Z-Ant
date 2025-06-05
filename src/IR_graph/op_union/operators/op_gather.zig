@@ -106,16 +106,28 @@ pub const Gather = struct {
             });
         }
 
+        _ = try writer.print(
+            \\
+            \\    var tensor_usize_{s} = Tensor(usize).fromArray(&allocator, utils.sliceToUsizeSlice({s}.data), {s}.shape) catch return;
+            \\    defer tensor_usize_{s}.deinit();
+        , .{
+            try utils.getSanitizedName(self.input_B.name), //tensor_usize_{s}
+            tensor_B_string,
+            tensor_B_string,
+            try utils.getSanitizedName(self.input_B.name), //tensor_usize_{s}
+        });
+
         // Output C
         const output_name = try utils.getSanitizedName(self.output_C.name);
 
         _ = try writer.print(
             \\
             \\
-            \\    try tensMath.lean_gather(T, {s}, {s}, {}, &tensor_{s});
+            \\    tensMath.gather_lean({s}, {s}, &tensor_usize_{s}, {}, &tensor_{s},)
         , .{
+            self.input_A.ty.toString(),
             tensor_A_string,
-            tensor_B_string,
+            try utils.getSanitizedName(self.input_B.name),
             self.axis,
             output_name,
         });
