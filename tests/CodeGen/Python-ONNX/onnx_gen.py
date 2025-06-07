@@ -1155,10 +1155,7 @@ def load_supported_ops(filename="tests/CodeGen/Python-ONNX/available_operations.
     """Carica le operazioni supportate da un file oppure restituisce una lista di default."""
     try:
         with open(filename, "r") as file:
-            ops = [line.strip() for line in file if line.strip()]
-            # Remove the problematic Shape operator for now
-            if "Shape" in ops:
-                ops.remove("Shape")
+            ops = [line.strip() for line in file if line.strip() and not line.strip().startswith("#")]
             return ops
     except FileNotFoundError:
         print(f"Warning: {filename} not found. Using default operations.")
