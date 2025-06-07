@@ -1,6 +1,6 @@
 const std = @import("std");
 const zant = @import("zant");
-const codegen = @import("codegen");
+const codegen = @import("IR_zant").IR_codegen;
 const utils = codegen.utils;
 const Tensor = zant.core.tensor.Tensor;
 const pkgAllocator = zant.utils.allocator;
