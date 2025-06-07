@@ -1,0 +1,34 @@
+IR_zant
+- for each ZantNode:
+    - getInputs()
+    - getOutputs()
+    - once done above complete write_op_info()
+- implement mean node( first check Merge MirkoGraphZant -> GraphZant )
+- implement slice node( first check Merge MirkoGraphZant -> GraphZant )
+- implement squeeze node( first check Merge MirkoGraphZant -> GraphZant )
+
+IR_CODEGEN
+- dynamicAllocation
+- It is related to the import of "codegen" inside *** GENERATED LIBRARY TESTS *** in build.zig
+
+- EASY: check that the passed that the parameters passed to IR_codegen.generate_from_*() are correct, string format, no wite spaces,
+  generated_path ending with "/", ecc...
+- aggregate build steps where possible, too many . Write documentation about it, describin what does each build command
+- error on Split op when launching "zig build test-codegen-gen -Dlog", now Split is excluded from "available_operations"
+  .......... file created, path:generated/oneOpModels/Split/static_parameters.zig
+  info: 
+  .......... file created, path:generated/oneOpModels/Split/lib_Split.zig
+  thread 26012 panic: reached unreachable code
+  /home/mirko/Documents/zig/zig-linux-x86_64-0.14.0/lib/std/posix.zig:1267:23: 0x109187e in write (oneop_codegen)
+              .FAULT => unreachable,
+              
+- use TensorZant.getNameSanitized() and not utils.getSanitizedName()
+- remove "const utils = @import("codegen").utils;" from all op_*.zig and fix, 
+- do not codegenerate "const codegen = @import("codegen");" and use instead "const IR_codegen = @import("IR_codegen");" and fix by conseguence
+
+OTHER :
+- check missing op between: python generator, available_operations.txt, IR_graph operators
+- implement dynamic free in predict()
+- Gathers leaks
+- Gelu loops when called "zig build test-codegen"
+- add comments on available_operation.txt, something like ?op_name is ignored

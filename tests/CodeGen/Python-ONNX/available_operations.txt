@@ -22,4 +22,4 @@ Sigmoid
 Sqrt 
 Sub  
 Tanh
-Transpose
+Transpose  

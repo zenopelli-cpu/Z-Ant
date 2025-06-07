@@ -28,20 +28,11 @@ pub fn build(b: *std.Build) void {
     const zant_mod = b.createModule(.{ .root_source_file = b.path("src/zant.zig") });
     zant_mod.addOptions("build_options", build_options);
 
-    const codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/CodeGen/codegen.zig") });
-    codeGen_mod.addImport("zant", zant_mod);
-
-    const IR_mod = b.createModule(.{ .root_source_file = b.path("src/IR_graph/IR_graph.zig") });
-    IR_mod.addImport("zant", zant_mod);
-    IR_mod.addImport("codegen", codeGen_mod);
-
-    const IR_codeGen_mod = b.createModule(.{ .root_source_file = b.path("src/IR_codegen/IR_codegen.zig") });
-    IR_codeGen_mod.addImport("zant", zant_mod);
-    IR_codeGen_mod.addImport("IR_zant", IR_mod);
+    const IR_zant_mod = b.createModule(.{ .root_source_file = b.path("src/IR_zant/IR_zant.zig") });
+    IR_zant_mod.addImport("zant", zant_mod);
 
     const Img2Tens_mod = b.createModule(.{ .root_source_file = b.path("src/ImageToTensor/imageToTensor.zig") });
     Img2Tens_mod.addImport("zant", zant_mod);
-    Img2Tens_mod.addImport("codegen", codeGen_mod);
 
     //************************************************UNIT TESTS************************************************
 
@@ -62,8 +53,7 @@ pub fn build(b: *std.Build) void {
     test_options.addOption([]const u8, "test_name", test_name);
 
     unit_tests.root_module.addImport("zant", zant_mod);
-    unit_tests.root_module.addImport("codegen", codeGen_mod);
-    unit_tests.root_module.addImport("IR_zant", IR_mod);
+    unit_tests.root_module.addImport("IR_zant", IR_zant_mod);
 
     unit_tests.linkLibC();
 
@@ -101,7 +91,7 @@ pub fn build(b: *std.Build) void {
             return;
         };
     }
-    const user_tests_option = b.option([]const u8, "user_tests", "User tests path") orelse "";
+    const user_tests_option = b.option([]const u8, "enable_user_tests", "User tests path") orelse "";
     const log_option = b.option(bool, "log", "Run with log") orelse false;
     const shape_option = b.option([]const u8, "shape", "Input shape") orelse "";
     const input_type_option = b.option([]const u8, "type", "Input type") orelse "f32";
@@ -111,39 +101,6 @@ pub fn build(b: *std.Build) void {
     const export_option = b.option(bool, "do_export", "codegen Exportable ") orelse false;
 
     //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
-
-    // Name and path of the model
-    // const IR_model_name_option = b.option([]const u8, "model", "Model name") orelse "mnist-8";
-    // const IR_model_path_option = b.option([]const u8, "model_path", "Model path") orelse std.fmt.allocPrint(b.allocator, "datasets/models/{s}/{s}.onnx", .{ model_name_option, model_name_option }) catch |err| {
-    //     std.log.scoped(.build).warn("Error allocating model path: {}\n", .{err});
-    //     return;
-    // };
-    // // Generated path
-    // var IR_generated_path_option = b.option([]const u8, "generated_path", "Generated path") orelse "";
-    // if (IR_generated_path_option.len == 0) {
-    //     IR_generated_path_option = std.fmt.allocPrint(b.allocator, "generated/{s}/", .{model_name_option}) catch |err| {
-    //         std.log.scoped(.build).warn("Error allocating generated path: {}\n", .{err});
-    //         return;
-    //     };
-    // } else {
-    //     if (!std.mem.endsWith(u8, IR_generated_path_option, "/")) {
-    //         IR_generated_path_option = std.fmt.allocPrint(b.allocator, "{s}/", .{IR_generated_path_option}) catch |err| {
-    //             std.log.scoped(.build).warn("Error normalizing path: {}\n", .{err});
-    //             return;
-    //         };
-    //     }
-    //     IR_generated_path_option = std.fmt.allocPrint(b.allocator, "{s}{s}/", .{ IR_generated_path_option, IR_model_path_option }) catch |err| {
-    //         std.log.scoped(.build).warn("Error allocating generated path: {}\n", .{err});
-    //         return;
-    //     };
-    // }
-    // const IR_user_tests_option = b.option([]const u8, "user_tests", "User tests path") orelse "";
-    // const IR_log_option = b.option(bool, "log", "Run with log") orelse false;
-    // const IR_shape_option = b.option([]const u8, "shape", "Input shape") orelse "";
-    // const IR_input_type_option = b.option([]const u8, "type", "Input type") orelse "f32";
-    // const IR_output_type_option = b.option([]const u8, "output_type", "Output type") orelse "f32";
-    // const IR_comm_option = b.option(bool, "comm", "Codegen with comments") orelse false;
-    // const IR_dynamic_option = b.option(bool, "dynamic", "Dynamic allocation") orelse false;
 
     // Define IR codegen options
     const IRC_options = b.addOptions(); // Model name option
@@ -159,12 +116,12 @@ pub fn build(b: *std.Build) void {
     IRC_options.addOption(bool, "IR_comm", comm_option);
     IRC_options.addOption(bool, "IR_dynamic", dynamic_option);
 
-    // ************************************************ CODEGEN IR ************************************************
-
+    // ************************************************ CODEGEN IR EXECUTABLE ************************************************
+    //
     // Define the main executable with target architecture and optimization settings.
     const IR_codeGen_exe = b.addExecutable(.{
         .name = "CodegenIR",
-        .root_source_file = b.path("src/IR_codegen/main.zig"),
+        .root_source_file = b.path("src/IR_zant/IR_codegen/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -173,7 +130,7 @@ pub fn build(b: *std.Build) void {
 
     // Add necessary imports for the executable.
     IR_codeGen_exe.root_module.addImport("zant", zant_mod);
-    IR_codeGen_exe.root_module.addImport("IR_zant", IR_mod);
+    IR_codeGen_exe.root_module.addImport("IR_zant", IR_zant_mod); //IR
     IR_codeGen_exe.root_module.addOptions("codegen_options", IRC_options);
 
     // Install the executable.
@@ -189,46 +146,48 @@ pub fn build(b: *std.Build) void {
     const IR_codegen_step = b.step("IR_codegen", "code generation");
     IR_codegen_step.dependOn(&IR_codegen_cmd.step);
 
-    // ************************************************CODEGEN EXECUTABLE************************************************
-    // Define codegen options
-    const codegen_options = b.addOptions(); // Model name option
-    codegen_options.addOption([]const u8, "model", model_name_option);
-    codegen_options.addOption([]const u8, "model_path", model_path_option);
-    codegen_options.addOption([]const u8, "generated_path", generated_path_option);
-    codegen_options.addOption([]const u8, "user_tests", user_tests_option);
-    codegen_options.addOption(bool, "log", log_option);
-    codegen_options.addOption([]const u8, "shape", shape_option);
-    codegen_options.addOption([]const u8, "type", input_type_option);
-    codegen_options.addOption([]const u8, "output_type", output_type_option);
-    codegen_options.addOption(bool, "comm", comm_option);
-    codegen_options.addOption(bool, "dynamic", dynamic_option);
+    //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 
-    // Define the main executable with target architecture and optimization settings.
-    const codeGen_exe = b.addExecutable(.{
-        .name = "Codegen",
-        .root_source_file = b.path("src/CodeGen/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    // // Define codegen options
+    // const codegen_options = b.addOptions(); // Model name option
+    // codegen_options.addOption([]const u8, "model", model_name_option);
+    // codegen_options.addOption([]const u8, "model_path", model_path_option);
+    // codegen_options.addOption([]const u8, "generated_path", generated_path_option);
+    // codegen_options.addOption([]const u8, "user_tests", user_tests_option);
+    // codegen_options.addOption(bool, "log", log_option);
+    // codegen_options.addOption([]const u8, "shape", shape_option);
+    // codegen_options.addOption([]const u8, "type", input_type_option);
+    // codegen_options.addOption([]const u8, "output_type", output_type_option);
+    // codegen_options.addOption(bool, "comm", comm_option);
+    // codegen_options.addOption(bool, "dynamic", dynamic_option);
 
-    codeGen_exe.linkLibC();
+    // // ************************************************CODEGEN EXECUTABLE************************************************
+    // // Define the main executable with target architecture and optimization settings.
+    // const codeGen_exe = b.addExecutable(.{
+    //     .name = "Codegen",
+    //     .root_source_file = b.path("src/CodeGen/main.zig"),
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
 
-    // Add necessary imports for the executable.
-    codeGen_exe.root_module.addImport("zant", zant_mod);
-    codeGen_exe.root_module.addOptions("codegen_options", codegen_options);
+    // codeGen_exe.linkLibC();
 
-    // Install the executable.
-    b.installArtifact(codeGen_exe);
+    // // Add necessary imports for the executable.
+    // codeGen_exe.root_module.addImport("zant", zant_mod);
+    // codeGen_exe.root_module.addOptions("codegen_options", codegen_options);
 
-    // Define the run command for the main executable.
-    const codegen_cmd = b.addRunArtifact(codeGen_exe);
-    if (b.args) |args| {
-        codegen_cmd.addArgs(args);
-    }
+    // // Install the executable.
+    // b.installArtifact(codeGen_exe);
 
-    // Create a build step to run the application.
-    const codegen_step = b.step("codegen", "code generation");
-    codegen_step.dependOn(&codegen_cmd.step);
+    // // Define the run command for the main executable.
+    // const codegen_cmd = b.addRunArtifact(codeGen_exe);
+    // if (b.args) |args| {
+    //     codegen_cmd.addArgs(args);
+    // }
+
+    // // Create a build step to run the application.
+    // const codegen_step = b.step("codegen", "code generation");
+    // codegen_step.dependOn(&codegen_cmd.step);
 
     // ************************************************ STATIC LIBRARY CREATION ************************************************
 
@@ -245,7 +204,7 @@ pub fn build(b: *std.Build) void {
     });
     static_lib.linkLibC();
     static_lib.root_module.addImport("zant", zant_mod);
-    static_lib.root_module.addImport("codegen", codeGen_mod);
+    static_lib.root_module.addImport("IR_zant", IR_zant_mod); //IR_codegen
 
     const install_lib_step = b.addInstallArtifact(static_lib, .{ .dest_dir = .{ .override = .{ .custom = model_name_option } } });
     const lib_step = b.step("lib", "Compile tensor_math static library");
@@ -295,7 +254,7 @@ pub fn build(b: *std.Build) void {
     });
 
     test_generated_lib.root_module.addImport("zant", zant_mod);
-    test_generated_lib.root_module.addImport("codegen", codeGen_mod);
+    test_generated_lib.root_module.addImport("IR_zant", IR_zant_mod); //codegen
     test_generated_lib.linkLibC();
 
     const run_test_generated_lib = b.addRunArtifact(test_generated_lib);
@@ -313,8 +272,8 @@ pub fn build(b: *std.Build) void {
     });
 
     oneop_codegen_exe.root_module.addImport("zant", zant_mod);
-    IR_codeGen_mod.addOptions("codegen_options", IRC_options);
-    oneop_codegen_exe.root_module.addImport("IR_codegen", IR_codeGen_mod);
+    IR_zant_mod.addOptions("codegen_options", IRC_options);
+    oneop_codegen_exe.root_module.addImport("IR_zant", IR_zant_mod); //codegen
     oneop_codegen_exe.linkLibC();
 
     const run_oneop_codegen_exe = b.addRunArtifact(oneop_codegen_exe);
@@ -332,8 +291,8 @@ pub fn build(b: *std.Build) void {
     });
 
     test_all_oneOp.root_module.addImport("zant", zant_mod);
-    IR_codeGen_mod.addOptions("codegen_options", IRC_options);
-    test_all_oneOp.root_module.addImport("codegen", IR_codeGen_mod);
+    IR_zant_mod.addOptions("codegen_options", IRC_options);
+    test_all_oneOp.root_module.addImport("IR_zant", IR_zant_mod); //codegen
     test_all_oneOp.linkLibC();
 
     const run_test_all_oneOp = b.addRunArtifact(test_all_oneOp);
@@ -346,29 +305,6 @@ pub fn build(b: *std.Build) void {
 
     const step_test_oneOp = b.step("test-codegen", "Run generated library tests");
     step_test_oneOp.dependOn(&run_test_all_oneOp.step);
-
-    // ************************************************
-    // Write Op Test
-
-    // const write_op_test = b.addExecutable(.{
-    //     .name = "test_write_op",
-    //     .root_source_file = b.path("tests/IR_graph/test_write_op.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-
-    // write_op_test.root_module.addImport("zant", zant_mod);
-    // write_op_test.root_module.addImport("codegen", codeGen_mod);
-    // write_op_test.root_module.addImport("IR_zant", IR_mod);
-    // write_op_test.linkLibC();
-
-    // const run_write_op_test = b.addRunArtifact(write_op_test);
-    // if (b.args) |args| {
-    //     run_write_op_test.addArgs(args);
-    // }
-
-    // const write_op_step = b.step("run-test-write-op", "Run the write_op test on a model");
-    // write_op_step.dependOn(&run_write_op_test.step);
 
     // ************************************************
     // Benchmark
@@ -408,32 +344,13 @@ pub fn build(b: *std.Build) void {
     const step_test_onnx_parser = b.step("onnx-parser", "Run generated library tests");
     step_test_onnx_parser.dependOn(&run_test_onnx_parser.step);
 
-    // ************************************************ WRITE OP TESTS ************************************************
-
-    // Test write_op on all oneOp models
-    const test_all_write_op = b.addTest(.{
-        .name = "test_all_write_op",
-        .root_source_file = b.path("tests/IR_graph/test_all_write_op.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    test_all_write_op.root_module.addImport("zant", zant_mod);
-    test_all_write_op.root_module.addImport("codegen", codeGen_mod);
-    test_all_write_op.root_module.addImport("IR_zant", IR_mod);
-    test_all_write_op.linkLibC();
-
-    const run_test_all_write_op = b.addRunArtifact(test_all_write_op);
-    const test_all_write_op_step = b.step("test-all-write-op", "Run write_op test on all oneOp models");
-    test_all_write_op_step.dependOn(&run_test_all_write_op.step);
+    // ************************************************ MAIN EXECUTABLE (for profiling) ************************************************
 
     // Path to the generated model options file (moved here)
     const model_options_path = std.fmt.allocPrint(b.allocator, "{s}model_options.zig", .{generated_path_option}) catch |err| {
         std.log.scoped(.build).warn("Error allocating model options path: {}\n", .{err});
         return;
     };
-
-    // ************************************************ MAIN EXECUTABLE (for profiling) ************************************************
 
     const main_executable = b.addExecutable(.{
         .name = "main_profiling_target",
@@ -447,7 +364,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path(model_options_path),
     });
     model_opts_mod.addImport("zant", zant_mod);
-    model_opts_mod.addImport("codegen", codeGen_mod);
+    model_opts_mod.addImport("IR_zant", IR_zant_mod);
     main_executable.root_module.addImport("model_opts", model_opts_mod);
     const install_main_exe_step = b.addInstallArtifact(main_executable, .{}); // Installa l'eseguibile
 
