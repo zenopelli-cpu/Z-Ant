@@ -56,12 +56,16 @@ pub fn main() !void {
         // Get the next line from the iterator.
         const maybe_line = lines_iter.next();
 
-        if (maybe_line) |ml| std.debug.print("maybe_line: {any}\n", .{ml}) else {
-            std.debug.print("maybe_line: null -----> break\n", .{});
+        if (maybe_line) |_| std.debug.print("\n", .{}) else {
+            std.debug.print("NO MORE OPERATIONS -----> break\n", .{});
             break;
         }
 
         const raw_line = maybe_line.?;
+
+        // if it is a comment or an empty line ignore it
+        if (raw_line[0] == '#' or raw_line[0] == '\n') continue;
+
         // Trim whitespace from the line.
         const trimmed_line = std.mem.trim(u8, raw_line, " \t\r\n");
         if (trimmed_line.len > 0) {
