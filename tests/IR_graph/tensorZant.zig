@@ -4,7 +4,7 @@ const std = @import("std");
 const zant = @import("zant");
 const IR_zant = @import("IR_zant");
 
-const TensorZant = IR_zant.TensorZant;
+const TensorZant = IR_zant.IR_graph.TensorZant;
 const allocator = zant.utils.allocator.allocator;
 
 const onnx = zant.onnx;
@@ -12,7 +12,7 @@ const TensorProto = onnx.TensorProto;
 
 const Tensor = zant.core.tensor.Tensor;
 
-const protoTensor2AnyTensor = IR_zant.utils.protoTensor2AnyTensor;
+const protoTensor2AnyTensor = IR_zant.IR_graph.utils.protoTensor2AnyTensor;
 
 // Test for raw data not available
 test "protoTensor2AnyTensor: float32 parsing" {

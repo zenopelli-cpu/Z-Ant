@@ -26,7 +26,7 @@ test "linearizing mnist-8 " {
 
     //model.print();
 
-    var graphZant: IR_zant.GraphZant = try IR_zant.init(&model);
+    var graphZant: IR_zant.IR_graph.GraphZant = try IR_zant.IR_graph.init(&model);
     defer graphZant.deinit();
 
     const linearizedGraph = try graphZant.linearize(allocator);

@@ -146,48 +146,8 @@ pub fn build(b: *std.Build) void {
     const IR_codegen_step = b.step("IR_codegen", "code generation");
     IR_codegen_step.dependOn(&IR_codegen_cmd.step);
 
-    //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
-
-    // // Define codegen options
-    // const codegen_options = b.addOptions(); // Model name option
-    // codegen_options.addOption([]const u8, "model", model_name_option);
-    // codegen_options.addOption([]const u8, "model_path", model_path_option);
-    // codegen_options.addOption([]const u8, "generated_path", generated_path_option);
-    // codegen_options.addOption([]const u8, "user_tests", user_tests_option);
-    // codegen_options.addOption(bool, "log", log_option);
-    // codegen_options.addOption([]const u8, "shape", shape_option);
-    // codegen_options.addOption([]const u8, "type", input_type_option);
-    // codegen_options.addOption([]const u8, "output_type", output_type_option);
-    // codegen_options.addOption(bool, "comm", comm_option);
-    // codegen_options.addOption(bool, "dynamic", dynamic_option);
-
-    // // ************************************************CODEGEN EXECUTABLE************************************************
-    // // Define the main executable with target architecture and optimization settings.
-    // const codeGen_exe = b.addExecutable(.{
-    //     .name = "Codegen",
-    //     .root_source_file = b.path("src/CodeGen/main.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-
-    // codeGen_exe.linkLibC();
-
-    // // Add necessary imports for the executable.
-    // codeGen_exe.root_module.addImport("zant", zant_mod);
-    // codeGen_exe.root_module.addOptions("codegen_options", codegen_options);
-
-    // // Install the executable.
-    // b.installArtifact(codeGen_exe);
-
-    // // Define the run command for the main executable.
-    // const codegen_cmd = b.addRunArtifact(codeGen_exe);
-    // if (b.args) |args| {
-    //     codegen_cmd.addArgs(args);
-    // }
-
-    // // Create a build step to run the application.
-    // const codegen_step = b.step("codegen", "code generation");
-    // codegen_step.dependOn(&codegen_cmd.step);
+    //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//
+    ////\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 
     // ************************************************ STATIC LIBRARY CREATION ************************************************
 
