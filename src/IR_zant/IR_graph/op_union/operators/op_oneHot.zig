@@ -143,7 +143,7 @@ pub const OneHot = struct {
             \\        {s}, // indices
             \\        {s}.data[0], // depth (scalare)
             \\        {s}, // values
-            \\        {}, // axis
+            \\        {?}, // axis
             \\        &tensor_{s}, // output
             \\    )
         , .{
@@ -156,7 +156,7 @@ pub const OneHot = struct {
         });
     }
 
-    pub fn print(self: OneHot) void { // TODO
+    pub fn print(self: OneHot) void {
         std.debug.print("\n OneHot:\n {any}", .{self});
     }
 };

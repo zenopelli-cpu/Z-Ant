@@ -26,6 +26,7 @@ pub const Op_union = union(enum) {
     maxPool: operators.MaxPool,
     mul: operators.Mul,
     neg: operators.Neg,
+    oneHot: operators.OneHot,
     reduceMean: operators.ReduceMean,
     relu: operators.Relu,
     reshape: operators.Reshape,
@@ -83,6 +84,8 @@ pub const Op_union = union(enum) {
             return Op_union{ .mul = try operators.Mul.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Neg")) {
             return Op_union{ .neg = try operators.Neg.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "OneHot")) {
+            return Op_union{ .oneHot = try operators.OneHot.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "ReduceMean")) {
             return Op_union{ .reduceMean = try operators.ReduceMean.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Relu")) {
@@ -138,6 +141,7 @@ pub const Op_union = union(enum) {
             .maxPool => |ptr| return ptr.get_output_shape(),
             .mul => |ptr| return ptr.get_output_shape(),
             .neg => |ptr| return ptr.get_output_shape(),
+            .oneHot => |ptr| return ptr.get_output_shape(),
             .reduceMean => |ptr| return ptr.get_output_shape(),
             .relu => |ptr| return ptr.get_output_shape(),
             .reshape => |ptr| return ptr.get_output_shape(),
@@ -180,6 +184,7 @@ pub const Op_union = union(enum) {
             .maxPool => |ptr| ptr.get_output_tensor(),
             .mul => |ptr| ptr.get_output_tensor(),
             .neg => |ptr| ptr.get_output_tensor(),
+            .oneHot => |ptr| ptr.get_output_tensor(),
             .reduceMean => |ptr| ptr.get_output_tensor(),
             .relu => |ptr| ptr.get_output_tensor(),
             .reshape => |ptr| ptr.get_output_tensor(),
@@ -222,6 +227,7 @@ pub const Op_union = union(enum) {
             .maxPool => |ptr| try ptr.write_op(writer),
             .mul => |ptr| try ptr.write_op(writer),
             .neg => |ptr| try ptr.write_op(writer),
+            .oneHot => |ptr| try ptr.write_op(writer),
             .reduceMean => |ptr| try ptr.write_op(writer),
             .relu => |ptr| try ptr.write_op(writer),
             .reshape => |ptr| try ptr.write_op(writer),
@@ -264,6 +270,7 @@ pub const Op_union = union(enum) {
             .maxPool => |ptr| ptr.print(),
             .mul => |ptr| ptr.print(),
             .neg => |ptr| ptr.print(),
+            .oneHot => |ptr| ptr.print(),
             .reduceMean => |ptr| ptr.print(),
             .relu => |ptr| ptr.print(),
             .reshape => |ptr| ptr.print(),

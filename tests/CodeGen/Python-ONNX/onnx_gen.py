@@ -238,7 +238,7 @@ def generate_fuzz_model(op_name):
         )
 
         # Input info fittizio
-        input_info = helper.make_tensor_value_info("useless_input", TensorProto.INT64, indices_shape)
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, indices_shape)
 
         # Metadati
         metadata = {
