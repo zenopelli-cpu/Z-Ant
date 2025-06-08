@@ -184,6 +184,9 @@ pub fn protoTensor2AnyTensor(proto: *TensorProto) !AnyTensor {
             },
         }
     } else {
+        std.debug.print("\n\nERROR: Unsupported data type for tensor {s}", .{proto.name.?});
+        std.debug.print("\nTensorProto.print():", .{});
+        proto.print(null);
         return error.UnsupportedDataType;
     }
 }

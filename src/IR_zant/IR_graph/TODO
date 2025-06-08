@@ -6,6 +6,7 @@ IR_zant
 - implement mean node( first check Merge GraphZantTransition -> GraphZant )
 - implement slice node( first check Merge GraphZantTransition -> GraphZant )
 - implement squeeze node( first check Merge GraphZantTransition -> GraphZant )
+- complete protoTensor2AnyTensor() method
 
 IR_CODEGEN
 - dynamicAllocation
@@ -29,4 +30,4 @@ OTHER :
 - Gelu loops when called "zig build test-codegen"
 - add comments on available_operation.txt, something like ?op_name is ignored
 - softmax is bugged and shape dependend, fix it. To see the bug lunch `zig build IR_codegen -Dlog -Dmodel="debug_model" ` than ` zig build test-generated-lib -Dlog -Dmodel="debug_model"`
-- 
+

@@ -34,6 +34,7 @@ pub const Split = struct {
     output_Y: *TensorZant,
     //attributes:
     axis: i64 = 0, // default = 0,
+    num_outputs: i64 = undefined,
 
     pub fn init(nodeProto: *NodeProto) !Split {
         const input = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
@@ -41,10 +42,14 @@ pub const Split = struct {
         const output_Y = if (tensorZant_lib.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
         var axis: i64 = 0;
+        var num_outputs: i64 = undefined;
 
         for (nodeProto.attribute) |attr| {
             if (std.mem.eql(u8, attr.name, "axis")) {
                 if (attr.type == onnx.AttributeType.INT) axis = attr.i;
+            }
+            if (std.mem.eql(u8, attr.name, "num_outputs")) {
+                if (attr.type == onnx.AttributeType.INT) num_outputs = attr.i;
             }
         }
 
@@ -56,6 +61,7 @@ pub const Split = struct {
             .split = splitTensor,
             .output_Y = output_Y,
             .axis = axis,
+            .num_outputs = num_outputs,
         };
     }
 
@@ -110,25 +116,22 @@ pub const Split = struct {
             }
         }
 
-        // --- Scrivi chiamata a tensMath.split_tensors_lean
         _ = try writer.print(
-            \\    tensMath.split_tensors_lean(
-            \\        T,
+            \\    tensMath.split_lean(
+            \\        {s},
             \\        {s}, // input tensor
             \\        {s}, // split tensor
             \\        &tensor_{s}, // output Y
             \\        {d}, // axis
-            \\        {d}, // num_outputs (da determinare se presente in modo dinamico)
+            \\        {d}, // num_outputs
             \\    );
         , .{
+            self.input.ty.toString(),
             tensor_input_string,
             tensor_split_string,
             try utils.getSanitizedName(self.output_Y.name),
             self.axis,
-                // Se num_outputs è determinabile, passalo, altrimenti utilizza un valore di default
-                // Per ora supponiamo che self.output_Y abbia più tensori di output
-                // Aggiungere logica per num_outputs se applicabile
-            "num_outputs_value_here", // Placeholder, puoi modificare secondo la logica interna
+            self.num_outputs,
         });
     }
 };
