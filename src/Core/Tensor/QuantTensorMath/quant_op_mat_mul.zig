@@ -2,6 +2,9 @@ const std = @import("std");
 const zant = @import("../../../zant.zig");
 
 const Tensor = zant.core.tensor.Tensor;
+const tensorType = zant.core.tensor.TensorType;
+const tensorDetails = zant.core.tensor.TensorDetails;
+const quantDetails = zant.core.tensor.QuantDetails;
 const pkg_allocator = zant.utils.allocator.allocator;
 const assert = std.debug.assert;
 
@@ -10,8 +13,6 @@ const TensorMathError = zant.utils.error_handler.TensorMathError;
 
 const error_handler = zant.utils.error_handler;
 const TensorError = error_handler.TensorError;
-
-
 
 // Optimize for L1 cache size (typically 32KB)
 const BLOCK_SIZE_M: usize = 32;
@@ -80,7 +81,7 @@ pub inline fn quant_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const 
     // Create output tensor
 
     var Y = try Tensor(T).fromShape(&allocator, out_shape);
-    Y.details = A.details;      // Propagating details
+    Y.details = A.details; // Propagating details
     errdefer Y.deinit();
 
     // std.debug.print("Output tensor shape: ", .{});
@@ -143,7 +144,7 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
     switch (Y.details) {
         // Quantized tensor: int8 -> int32 -> int8 pipeline
         .quant => |*qd| {
-            if(@typeInfo(T) == .int){
+            if (@typeInfo(T) == .int) {
 
                 // SIMD vector type
                 // The vector used for the product is of type T
@@ -153,25 +154,25 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
 
                 // Max and min values for clamping
                 //std.debug.print("\n\n\n{}\n\n{}\n\n\n", .{T, Y.details});
-                const max_value: usize = std.math.maxInt(T);
-                const min_value: usize = std.math.minInt(T);
+                const max_value = std.math.maxInt(T);
+                const min_value = std.math.minInt(T);
 
                 // For mat mul the output scale factor is the product of the input tensors scale factors
                 qd.scale_factor = A.details.quant.scale_factor * B.details.quant.scale_factor;
                 // effective_scale
                 var effective_scale: f32 = A.details.quant.scale_factor * B.details.quant.scale_factor / qd.scale_factor;
                 // shift_correction and effective_scale normalization in [1, 0.5] range
-                var shift_correction: usize = 0;
-                while(effective_scale > 1){
+                var shift_correction: u5 = 0;
+                while (effective_scale > 1) {
                     effective_scale /= 2;
                     shift_correction += 1;
                 }
-                while(effective_scale < 0.5){
+                while (effective_scale < 0.5) {
                     effective_scale *= 2;
                     shift_correction -= 1;
                 }
                 // multiplier
-                const shift = 31;
+                const shift: u5 = 31;
                 const multiplier: i32 = @intFromFloat(@round(effective_scale * @as(f32, 1 << shift)));
                 // zero_point
                 qd.zero_point = 0; // This is a bit brutal but for better values we would need to analyze float execution of the model
@@ -212,13 +213,13 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
                         inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
                             // Apply multiplier and shift, add output_zero_point and then clamp
                             const result = qd.zero_point + ((sum_vec[v] * multiplier) >> (shift + shift_correction));
-                            Y_ptr[out_idx + v] = if (result > max_value) {
-                                max_value;
+                            if (result > max_value) {
+                                Y_ptr[out_idx + v] = max_value;
                             } else if (result < min_value) {
-                                min_value;
+                                Y_ptr[out_idx + v] = min_value;
                             } else {
-                                result;
-                            };
+                                Y_ptr[out_idx + v] = result;
+                            }
                         }
                     }
 
@@ -233,20 +234,20 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
                                 @as(T, B_ptr[k * N + j] - B.details.quant.zero_point);
                         }
                         sum = qd.zero_point + ((sum * multiplier) >> (shift + shift_correction));
-                        Y_ptr[out_idx] = if (sum > max_value) {
-                                max_value;
-                            } else if (sum < min_value) {
-                                min_value;
-                            } else {
-                                sum;
-                            };
+                        if (sum > max_value) {
+                            Y_ptr[out_idx] = max_value;
+                        } else if (sum < min_value) {
+                            Y_ptr[out_idx] = min_value;
+                        } else {
+                            Y_ptr[out_idx] = sum;
+                        }
                     }
                 }
-            }
-            else
-                return TensorError.NotQuantizedTensor;
+            } else return TensorError.NotQuantizedTensor;
         },
-        else => { return TensorError.NotQuantizedTensor; }
+        else => {
+            return TensorError.NotQuantizedTensor;
+        },
     }
 
     // std.debug.print("Matrix multiplication completed\n", .{});
@@ -310,7 +311,7 @@ pub inline fn quant_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B:
     // Create output tensor
 
     var Y = try Tensor(T).fromShape(&allocator, out_shape);
-    Y.details = A.details;      // Propagating details
+    Y.details = A.details; // Propagating details
     errdefer Y.deinit();
 
     // std.debug.print("Output tensor shape: ", .{});
@@ -326,7 +327,7 @@ pub inline fn quant_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B:
 
 //Loosely inspired from https://coffeebeforearch.github.io/2020/06/23/mmul.html
 //Easy to implement, works, loses some efficiency on non-square matrices or really large B matrices
-pub inline fn quant_lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T), C: *const Tensor(T)) !void {
+pub inline fn quant_lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T), C: *Tensor(T)) !void {
     const cache_block_size = comptime (CACHE_BLOCK_SIZE_BYTES / @sizeOf(T));
 
     const a_rows = A.shape[A.shape.len - 2];
@@ -349,11 +350,14 @@ pub inline fn quant_lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T
 
     const VEC_WIDTH: usize = comptime (std.simd.suggestVectorLength(T) orelse 4);
 
+    var zero: isize = undefined;
+    var scale: f32 = undefined;
+
     switch (C.details) {
 
         // Quantized tensor: int8 -> int32 -> int8 pipeline
-        .quant => |*qd| {
-            if(@typeInfo(T) == .int){
+        .quant => {
+            if (@typeInfo(T) == .int) {
 
                 // The vector used for the product is of type T
                 var a_vec: @Vector(VEC_WIDTH, T) = undefined;
@@ -364,28 +368,28 @@ pub inline fn quant_lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T
                 var c_chunk_column: usize = 0;
 
                 // Max and min values for clamping
-                const max_value: usize = std.math.maxInt(T);
-                const min_value: usize = std.math.minInt(T);
+                const max_value = std.math.maxInt(T);
+                const min_value = std.math.minInt(T);
 
                 // For mat mul the output scale factor is the product of the input tensors scale factors
-                qd.scale_factor = A.details.quant.scale_factor * B.details.quant.scale_factor;
+                scale = A.details.quant.scale_factor * B.details.quant.scale_factor;
                 // effective_scale
-                var effective_scale: f32 = A.details.quant.scale_factor * B.details.quant.scale_factor / qd.scale_factor;
+                var effective_scale: f32 = A.details.quant.scale_factor * B.details.quant.scale_factor / scale;
                 // shift_correction and effective_scale normalization in [1, 0.5] range
-                var shift_correction: usize = 0;
-                while(effective_scale > 1){
+                var shift_correction: u5 = 0;
+                while (effective_scale > 1) {
                     effective_scale /= 2;
                     shift_correction += 1;
                 }
-                while(effective_scale < 0.5){
+                while (effective_scale < 0.5) {
                     effective_scale *= 2;
                     shift_correction -= 1;
                 }
                 // multiplier
-                const shift = 31;
+                const shift: u5 = 31;
                 const multiplier: i32 = @intFromFloat(@round(effective_scale * @as(f32, 1 << shift)));
                 // zero_point
-                qd.zero_point = 0; // This is a bit brutal but for better values we would need to analyze float execution of the model
+                zero = 0; // This is a bit brutal but for better values we would need to analyze float execution of the model
                 // accumulator needed because of how blocked_mat_mul works
                 const c_accumulator = try pkg_allocator.alloc(i32, C.size);
                 defer pkg_allocator.free(c_accumulator);
@@ -395,13 +399,13 @@ pub inline fn quant_lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T
                         var tile: usize = 0;
                         while (tile < nearest_b_rows) : (tile += cache_block_size) {
                             for (0..cache_block_size) |t_row| {
-                                quant_simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
+                                quant_simd_tile_mul(T, i32, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
                             }
                         }
                         //Handle rows that are not a multiple of cache_block_size
                         var last_tile: usize = 0;
                         while (last_tile < remaining_b_rows) : (last_tile += 1) {
-                            quant_simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
+                            quant_simd_tile_mul(T, i32, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
                         }
                     }
                 }
@@ -410,55 +414,43 @@ pub inline fn quant_lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T
                     var tile: usize = 0;
                     while (tile < nearest_b_rows) : (tile += cache_block_size) {
                         for (0..cache_block_size) |t_row| {
-                            quant_simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
+                            quant_simd_tile_mul(T, i32, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, tile, t_row, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
                         }
                     }
 
                     //Handle rows that are not a multiple of cache_block_size
                     var last_tile: usize = 0;
                     while (last_tile < remaining_b_rows) : (last_tile += 1) {
-                        quant_simd_tile_mul(T, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
+                        quant_simd_tile_mul(T, i32, A_ptr, a_cols, B_ptr, b_cols, c_accumulator.ptr, c_cols, nearest_b_rows, last_tile, c_chunk_column, c_chunk_row, &a_vec, &b_vec, &c_vec, A.details.quant.zero_point, B.details.quant.zero_point);
                     }
                 }
 
                 // After accumulating
-                for(0..C.size)|i|{
+                for (0..C.size) |i| {
                     // Apply multiplier and shift, add output_zero_point and then clamp
-                    const result = qd.zero_point + ((c_accumulator[i] * multiplier) >> (shift + shift_correction));
-                    C_ptr[i] = if (result > max_value) {
-                        max_value;
+                    const result = zero + ((c_accumulator[i] * multiplier) >> (shift + shift_correction));
+                    if (result > max_value) {
+                        C_ptr[i] = max_value;
                     } else if (result < min_value) {
-                        min_value;
+                        C_ptr[i] = min_value;
                     } else {
-                        result;
-                    };
+                        C_ptr[i] = @as(T, @intCast(result));
+                    }
                 }
             }
-            else
-                return TensorError.NotQuantizedTensor;
         },
-        else => { return TensorError.NotQuantizedTensor; }
+        else => return TensorError.NotQuantizedTensor,
     }
+    C.details = tensorDetails{
+        .quant = quantDetails{
+            .tensorType = tensorType.QuantTensor,
+            .scale_factor = scale,
+            .zero_point = zero,
+        },
+    };
 }
 
-inline fn quant_simd_tile_mul(
-    comptime T: anytype,
-    A_ptr: [*]T,
-    a_cols: usize,
-    B_ptr: [*]T,
-    b_cols: usize,
-    C_ptr: [*]T,
-    c_cols: usize,
-    tile: usize,
-    t_row: usize,
-    c_chunk_column: usize,
-    c_chunk_row: usize,
-    a_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, T)),
-    b_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, T)),
-    c_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, i32)),
-    a_zero_point: usize,
-    b_zero_point: usize
-) void {
+inline fn quant_simd_tile_mul(comptime T: anytype, comptime T1: type, A_ptr: [*]T, a_cols: usize, B_ptr: [*]T, b_cols: usize, C_ptr: [*]T1, c_cols: usize, tile: usize, t_row: usize, c_chunk_column: usize, c_chunk_row: usize, a_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, T)), b_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, T)), c_vec: *(@Vector(std.simd.suggestVectorLength(T) orelse 4, i32)), a_zero_point: isize, b_zero_point: isize) void {
     const CACHE_BLOCK_SIZE = comptime (CACHE_BLOCK_SIZE_BYTES / @sizeOf(T));
 
     const VEC_WIDTH: usize = comptime (std.simd.suggestVectorLength(T) orelse 4);
@@ -467,10 +459,19 @@ inline fn quant_simd_tile_mul(
     // Ensure that c_chunk_column + CACHE_BLOCK_SIZE does not exceed c_cols
     const end_col = @min(CACHE_BLOCK_SIZE, c_cols - c_chunk_column);
 
-    const a_val = A_ptr[c_chunk_row * a_cols + tile + t_row] - a_zero_point;
+    // temporary clamping
+    const max_value = if (@typeInfo(T) == .int) std.math.maxInt(T) else 0;
+    const min_value = if (@typeInfo(T) == .int) std.math.minInt(T) else 0;
+
+    var a_val = A_ptr[c_chunk_row * a_cols + tile + t_row] - a_zero_point;
+    if (a_val > max_value) {
+        a_val = max_value;
+    } else if (a_val < min_value) {
+        a_val = min_value;
+    }
 
     // Create a vector filled with the same value of A
-    a_vec.* = @splat(a_val);
+    a_vec.* = @splat(@as(T, @intCast(a_val)));
     // var b_vec: @Vector(VEC_WIDTH, T) = undefined;
     // var c_vec: @Vector(VEC_WIDTH, T) = undefined;
 
@@ -480,7 +481,14 @@ inline fn quant_simd_tile_mul(
 
         // Load elements of B into a vector
         for (0..VEC_WIDTH) |i| {
-            b_vec[i] = B_ptr[tile * b_cols + t_row * b_cols + c_chunk_column + t_col + i] - b_zero_point;
+            const b_val = B_ptr[tile * b_cols + t_row * b_cols + c_chunk_column + t_col + i] - b_zero_point;
+            if (a_val > max_value) {
+                b_vec[i] = max_value;
+            } else if (a_val < min_value) {
+                b_vec[i] = min_value;
+            } else {
+                b_vec[i] = @as(T, @intCast(b_val));
+            }
         }
 
         // Load current values of C
@@ -499,9 +507,16 @@ inline fn quant_simd_tile_mul(
 
     //Handle remaining columns without SIMD
     while (t_col < end_col) : (t_col += 1) {
-        C_ptr[c_chunk_row * c_cols + c_chunk_column + t_col] +=
+        const c_val =
             (A_ptr[c_chunk_row * a_cols + tile + t_row] - a_zero_point) *
             (B_ptr[tile * b_cols + t_row * b_cols + c_chunk_column + t_col] - b_zero_point);
+        if (c_val > max_value) {
+            C_ptr[c_chunk_row * c_cols + c_chunk_column + t_col] += max_value;
+        } else if (c_val < min_value) {
+            C_ptr[c_chunk_row * c_cols + c_chunk_column + t_col] += min_value;
+        } else {
+            C_ptr[c_chunk_row * c_cols + c_chunk_column + t_col] += @as(i32, @intCast(c_val));
+        }
     }
 }
 
@@ -533,4 +548,3 @@ pub fn get_quant_mat_mul_output_shape(shape_a: []const usize, shape_b: []const u
 
     return output_shape;
 }
-
