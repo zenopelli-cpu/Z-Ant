@@ -144,6 +144,17 @@ const quant_op_gemm = @import("quant_op_gemm.zig");
 pub const quant_gemm = quant_op_gemm.quant_gemm;
 pub const quant_gemm_lean = quant_op_gemm.quant_lean_gemm;
 
+// --- Convolution
+const quant_convolution_math_lib = @import("quant_op_convolution.zig");
+pub const convolve_tensor_with_bias = quant_convolution_math_lib.convolve_tensor_with_bias;
+pub const convolution_backward_biases = quant_convolution_math_lib.convolution_backward_biases;
+pub const get_convolution_output_shape = quant_convolution_math_lib.get_convolution_output_shape;
+pub const Conv = quant_convolution_math_lib.OnnxConv;
+pub const conv_lean = quant_convolution_math_lib.OnnxConvLean;
+pub const setLogFunctionC = quant_convolution_math_lib.setLogFunctionC;
+//CONV INTEGER
+pub const convInteger_lean = quant_convolution_math_lib.convInteger_lean;
+
 // --------------------------- ELEMENT WISE MATH -----------------------------
 
 // --- addition
