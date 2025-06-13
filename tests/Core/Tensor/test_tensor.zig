@@ -12,6 +12,10 @@ test {
     _ = @import("TensorMath/test_tensor_math.zig");
 }
 
+test {
+    _ = @import("QuantizedTensorMath/test_quant_tensor_math.zig");
+}
+
 test "Tensor test description" {
     std.debug.print("\n--- Running tensor tests\n", .{});
 }

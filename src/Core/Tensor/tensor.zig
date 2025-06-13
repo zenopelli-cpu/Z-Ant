@@ -30,6 +30,24 @@ pub const TensorType = enum {
     null,
 };
 
+pub const QuantDetails = struct {
+    tensorType: TensorType,
+    scale_factor: f32, // hardcoded data type
+    zero_point: isize,
+};
+
+pub const ClusterDetails = struct {
+    tensorType: TensorType,
+    lookup_table: []f32,
+    table_size: usize,
+};
+
+pub const TensorDetails = union(enum) {
+    none,
+    quant: QuantDetails,
+    cluster: ClusterDetails,
+};
+
 // Funzione per QuantDetails struct con tipi corretti
 // pub fn QuantDetails(comptime unquantizedType: type, comptime quantizedType: type) type {
 //     return struct {
@@ -42,23 +60,6 @@ pub const TensorType = enum {
 ///Class Tensor.
 ///Return a generic type structure
 pub fn Tensor(comptime T: type) type {
-    const QuantDetails = struct {
-        tensorType: TensorType,
-        scale_factor: f32, // hardcoded data type
-        zero_point: isize,
-    };
-
-    const ClusterDetails = struct {
-        tensorType: TensorType,
-        lookup_table: []f32,
-        table_size: usize,
-    };
-
-    const TensorDetails = union(enum) {
-        none,
-        quant: QuantDetails,
-        cluster: ClusterDetails,
-    };
 
     return struct {
         data: []T, //contains all the data of the tensor in a monodimensional array

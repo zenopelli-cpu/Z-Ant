@@ -159,23 +159,29 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
 
                 // For mat mul the output scale factor is the product of the input tensors scale factors
                 qd.scale_factor = A.details.quant.scale_factor * B.details.quant.scale_factor;
+                // zero_point
+                qd.zero_point = 0; // This is a bit brutal but for better values we would need to analyze float execution of the model
                 // effective_scale
                 var effective_scale: f32 = A.details.quant.scale_factor * B.details.quant.scale_factor / qd.scale_factor;
                 // shift_correction and effective_scale normalization in [1, 0.5] range
-                var shift_correction: u5 = 0;
-                while (effective_scale > 1) {
+                var shift_correction: i6 = 0;
+                while (effective_scale >= 1) {
                     effective_scale /= 2;
-                    shift_correction += 1;
+                    shift_correction -= 1;
                 }
                 while (effective_scale < 0.5) {
                     effective_scale *= 2;
-                    shift_correction -= 1;
+                    shift_correction += 1;
                 }
                 // multiplier
-                const shift: u5 = 31;
+                const shift: u6 = 31;
+
+                std.debug.print("\neffective_scale = {}\n", .{effective_scale});
+                std.debug.print("shift = {}\n", .{shift});
+                std.debug.print("shift = {}\n", .{shift_correction});
+                std.debug.print("multiplier = {}\n", .{effective_scale * @as(f32, 1 << shift)});
+
                 const multiplier: i32 = @intFromFloat(@round(effective_scale * @as(f32, 1 << shift)));
-                // zero_point
-                qd.zero_point = 0; // This is a bit brutal but for better values we would need to analyze float execution of the model
 
                 // The actual multiplication with zero point adjustment
                 var i: usize = 0;
@@ -199,11 +205,11 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
                             var b_vec: Vec = undefined;
                             comptime var v: usize = 0;
                             inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
-                                b_vec[v] = B_ptr[b_offset + v] - B.details.quant.zero_point;
+                                b_vec[v] = B_ptr[b_offset + v] - @as(T, @intCast(B.details.quant.zero_point));
                             }
 
                             // Convert and multiply
-                            const a_vec: VecOut = @splat(@as(T, a_val));
+                            const a_vec: VecOut = @splat(@as(T, @intCast(a_val)));
                             const b_vec_out: VecOut = @as(VecOut, b_vec);
                             sum_vec += a_vec * b_vec_out;
                         }
@@ -212,13 +218,14 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
                         comptime var v: usize = 0;
                         inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
                             // Apply multiplier and shift, add output_zero_point and then clamp
-                            const result = qd.zero_point + ((sum_vec[v] * multiplier) >> (shift + shift_correction));
+                            // const result = qd.zero_point + ((sum_vec[v] * multiplier) >> (shift + shift_correction));
+                            const result = @as(i32, @intCast(qd.zero_point)) + @as(i32, @intCast((@as(i64, sum_vec[v]) * @as(i64, multiplier)) >> (@as(u6, @intCast(@as(i8, shift) + @as(i8, shift_correction))))));
                             if (result > max_value) {
                                 Y_ptr[out_idx + v] = max_value;
                             } else if (result < min_value) {
                                 Y_ptr[out_idx + v] = min_value;
                             } else {
-                                Y_ptr[out_idx + v] = result;
+                                Y_ptr[out_idx + v] = @as(T, @intCast(result));
                             }
                         }
                     }
@@ -230,16 +237,28 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
 
                         var k: usize = 0;
                         while (k < K) : (k += 1) {
-                            sum += @as(T, A_ptr[row_offset + k] - A.details.quant.zero_point) *
-                                @as(T, B_ptr[k * N + j] - B.details.quant.zero_point);
+                            sum += @as(i32, @intCast(A_ptr[row_offset + k] - A.details.quant.zero_point)) *
+                                @as(i32, @intCast(B_ptr[k * N + j] - B.details.quant.zero_point));
                         }
-                        sum = qd.zero_point + ((sum * multiplier) >> (shift + shift_correction));
+
+                        std.debug.print("\nsum = {}\n", .{sum});
+                        std.debug.print("multiplier = {}\n", .{multiplier});
+                        std.debug.print("shift = {}\n", .{shift});
+                        std.debug.print("shift_correction = {}\n", .{shift_correction});
+                        std.debug.print("qd.zero_point = {}\n", .{qd.zero_point});
+                        std.debug.print("max_value = {}\n", .{max_value});
+                        std.debug.print("min_value = {}\n", .{min_value});
+                        std.debug.print("type = {}\n", .{T});
+
+                        sum = @as(i32, @intCast(qd.zero_point)) + @as(i32, @intCast((@as(i64, sum) * @as(i64, multiplier)) >> (@as(u6, @intCast(@as(i8, shift) + @as(i8, shift_correction))))));
+                        std.debug.print("\nsum = {}\n", .{sum});
+
                         if (sum > max_value) {
                             Y_ptr[out_idx] = max_value;
                         } else if (sum < min_value) {
                             Y_ptr[out_idx] = min_value;
                         } else {
-                            Y_ptr[out_idx] = sum;
+                            Y_ptr[out_idx] = @as(T, @intCast(sum));
                         }
                     }
                 }
@@ -376,7 +395,7 @@ pub inline fn quant_lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T
                 // effective_scale
                 var effective_scale: f32 = A.details.quant.scale_factor * B.details.quant.scale_factor / scale;
                 // shift_correction and effective_scale normalization in [1, 0.5] range
-                var shift_correction: u5 = 0;
+                var shift_correction: u6 = 0;
                 while (effective_scale > 1) {
                     effective_scale /= 2;
                     shift_correction += 1;
@@ -386,7 +405,7 @@ pub inline fn quant_lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T
                     shift_correction -= 1;
                 }
                 // multiplier
-                const shift: u5 = 31;
+                const shift: u6 = 31;
                 const multiplier: i32 = @intFromFloat(@round(effective_scale * @as(f32, 1 << shift)));
                 // zero_point
                 zero = 0; // This is a bit brutal but for better values we would need to analyze float execution of the model
