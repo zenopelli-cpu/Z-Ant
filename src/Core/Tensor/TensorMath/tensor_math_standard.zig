@@ -85,6 +85,7 @@ pub const split_lean = op_split.split_lean;
 const op_mat_mul = @import("op_mat_mul.zig");
 pub const mat_mul = op_mat_mul.mat_mul;
 pub const mat_mul_lean = op_mat_mul.lean_mat_mul;
+pub const blocked_mat_mul = op_mat_mul.blocked_mat_mul;
 pub const blocked_mat_mul_lean = op_mat_mul.lean_blocked_mat_mul;
 pub const get_mat_mul_output_shape = op_mat_mul.get_mat_mul_output_shape;
 pub const dot_product_tensor_flat = op_mat_mul.dot_product_tensor_flat;

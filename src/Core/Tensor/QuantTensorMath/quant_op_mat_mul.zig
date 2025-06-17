@@ -121,17 +121,16 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
         return TensorMathError.OutputTensorWrongShape;
     }
 
-    // Debug prints only when needed
-    if (false) {
-        std.debug.print("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
-        std.debug.print("Input tensor A shape: ", .{});
-        for (A.shape) |dim| std.debug.print("{} ", .{dim});
-        std.debug.print("\nInput tensor B shape: ", .{});
-        for (B.shape) |dim| std.debug.print("{} ", .{dim});
-        std.debug.print("\nOutput tensor Y shape: ", .{});
-        for (Y.shape) |dim| std.debug.print("{} ", .{dim});
-        std.debug.print("\n", .{});
-    }
+    // Debug prints
+    // std.debug.print("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
+    // std.debug.print("Input tensor A shape: ", .{});
+    // for (A.shape) |dim| std.debug.print("{} ", .{dim});
+    // std.debug.print("\nInput tensor B shape: ", .{});
+    // for (B.shape) |dim| std.debug.print("{} ", .{dim});
+    // std.debug.print("\nOutput tensor Y shape: ", .{});
+    // for (Y.shape) |dim| std.debug.print("{} ", .{dim});
+    // std.debug.print("\n", .{});
+    
 
     // Get pointers for faster access
     const A_ptr = A.data.ptr;
@@ -176,10 +175,12 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
                 // multiplier
                 const shift: u6 = 31;
 
-                std.debug.print("\neffective_scale = {}\n", .{effective_scale});
-                std.debug.print("shift = {}\n", .{shift});
-                std.debug.print("shift = {}\n", .{shift_correction});
-                std.debug.print("multiplier = {}\n", .{effective_scale * @as(f32, 1 << shift)});
+                // debug prints
+                // std.debug.print("\neffective_scale = {}\n", .{effective_scale});
+                // std.debug.print("shift = {}\n", .{shift});
+                // std.debug.print("shift = {}\n", .{shift_correction});
+                // std.debug.print("multiplier = {}\n", .{effective_scale * @as(f32, 1 << shift)});
+                
 
                 const multiplier: i32 = @intFromFloat(@round(effective_scale * @as(f32, 1 << shift)));
 
@@ -220,13 +221,10 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
                             // Apply multiplier and shift, add output_zero_point and then clamp
                             // const result = qd.zero_point + ((sum_vec[v] * multiplier) >> (shift + shift_correction));
                             const result = @as(i32, @intCast(qd.zero_point)) + @as(i32, @intCast((@as(i64, sum_vec[v]) * @as(i64, multiplier)) >> (@as(u6, @intCast(@as(i8, shift) + @as(i8, shift_correction))))));
-                            if (result > max_value) {
-                                Y_ptr[out_idx + v] = max_value;
-                            } else if (result < min_value) {
-                                Y_ptr[out_idx + v] = min_value;
-                            } else {
-                                Y_ptr[out_idx + v] = @as(T, @intCast(result));
-                            }
+                            Y_ptr[out_idx + v] = @as(T, @intCast(std.math.clamp(
+                                result, 
+                                min_value, 
+                                max_value)));
                         }
                     }
 
@@ -241,25 +239,22 @@ pub inline fn quant_lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *c
                                 @as(i32, @intCast(B_ptr[k * N + j] - B.details.quant.zero_point));
                         }
 
-                        std.debug.print("\nsum = {}\n", .{sum});
-                        std.debug.print("multiplier = {}\n", .{multiplier});
-                        std.debug.print("shift = {}\n", .{shift});
-                        std.debug.print("shift_correction = {}\n", .{shift_correction});
-                        std.debug.print("qd.zero_point = {}\n", .{qd.zero_point});
-                        std.debug.print("max_value = {}\n", .{max_value});
-                        std.debug.print("min_value = {}\n", .{min_value});
-                        std.debug.print("type = {}\n", .{T});
+                        // std.debug.print("\nsum = {}\n", .{sum});
+                        // std.debug.print("multiplier = {}\n", .{multiplier});
+                        // std.debug.print("shift = {}\n", .{shift});
+                        // std.debug.print("shift_correction = {}\n", .{shift_correction});
+                        // std.debug.print("qd.zero_point = {}\n", .{qd.zero_point});
+                        // std.debug.print("max_value = {}\n", .{max_value});
+                        // std.debug.print("min_value = {}\n", .{min_value});
+                        // std.debug.print("type = {}\n", .{T});
 
                         sum = @as(i32, @intCast(qd.zero_point)) + @as(i32, @intCast((@as(i64, sum) * @as(i64, multiplier)) >> (@as(u6, @intCast(@as(i8, shift) + @as(i8, shift_correction))))));
-                        std.debug.print("\nsum = {}\n", .{sum});
+                        //std.debug.print("\nsum = {}\n", .{sum});
 
-                        if (sum > max_value) {
-                            Y_ptr[out_idx] = max_value;
-                        } else if (sum < min_value) {
-                            Y_ptr[out_idx] = min_value;
-                        } else {
-                            Y_ptr[out_idx] = @as(T, @intCast(sum));
-                        }
+                        Y_ptr[out_idx] = @as(T, @intCast(std.math.clamp(
+                                sum, 
+                                min_value, 
+                                max_value)));
                     }
                 }
             } else return TensorError.NotQuantizedTensor;
@@ -395,22 +390,25 @@ pub inline fn quant_lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T
                 // effective_scale
                 var effective_scale: f32 = A.details.quant.scale_factor * B.details.quant.scale_factor / scale;
                 // shift_correction and effective_scale normalization in [1, 0.5] range
-                var shift_correction: u6 = 0;
-                while (effective_scale > 1) {
+                var shift_correction: i6 = 0;
+                while (effective_scale >= 1) {
                     effective_scale /= 2;
-                    shift_correction += 1;
+                    shift_correction -= 1;
                 }
                 while (effective_scale < 0.5) {
                     effective_scale *= 2;
-                    shift_correction -= 1;
+                    shift_correction += 1;
                 }
                 // multiplier
                 const shift: u6 = 31;
                 const multiplier: i32 = @intFromFloat(@round(effective_scale * @as(f32, 1 << shift)));
+
                 // zero_point
                 zero = 0; // This is a bit brutal but for better values we would need to analyze float execution of the model
                 // accumulator needed because of how blocked_mat_mul works
                 const c_accumulator = try pkg_allocator.alloc(i32, C.size);
+                @memset(c_accumulator, 0);
+
                 defer pkg_allocator.free(c_accumulator);
 
                 while (c_chunk_column + cache_block_size <= nearest_c_cols) : (c_chunk_column += cache_block_size) {
@@ -447,14 +445,11 @@ pub inline fn quant_lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T
                 // After accumulating
                 for (0..C.size) |i| {
                     // Apply multiplier and shift, add output_zero_point and then clamp
-                    const result = zero + ((c_accumulator[i] * multiplier) >> (shift + shift_correction));
-                    if (result > max_value) {
-                        C_ptr[i] = max_value;
-                    } else if (result < min_value) {
-                        C_ptr[i] = min_value;
-                    } else {
-                        C_ptr[i] = @as(T, @intCast(result));
-                    }
+                    const result = @as(i32, @intCast(zero)) + @as(i32, @intCast((@as(i64, c_accumulator[i]) * @as(i64, multiplier)) >> (@as(u6, @intCast(@as(i8, shift) + @as(i8, shift_correction))))));
+                    C_ptr[i] = @as(T, @intCast(std.math.clamp(
+                                result, 
+                                min_value, 
+                                max_value)));
                 }
             }
         },
