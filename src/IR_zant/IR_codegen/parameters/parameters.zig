@@ -29,6 +29,20 @@ pub inline fn write_parameters(writer: std.fs.File.Writer) !void {
         \\ // ---------------------------------------------------
     , .{});
 
+    try write_initilizers(writer);
+
+    try writer.print(
+        \\
+        \\
+        \\ // -----------------------------------------
+        \\ // +         Initializing constants        +
+        \\ // -----------------------------------------
+    , .{});
+
+    try write_constantTensors(writer);
+}
+
+fn write_initilizers(writer: std.fs.File.Writer) !void {
     const initializers: []TensorZant = try IR_utils.getInitializers(tensorZantMap);
 
     // Iterate over all initializers in the ONNX model and generate code
@@ -52,6 +66,42 @@ pub inline fn write_parameters(writer: std.fs.File.Writer) !void {
             \\
             \\pub const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
         , .{ name, initializer.ty.toString(), name, name });
+    }
+}
+
+fn write_constantTensors(writer: std.fs.File.Writer) !void {
+    const constants: []TensorZant = try IR_utils.getConstants(tensorZantMap);
+
+    if (constants.len == 0) {
+        try writer.print(
+            \\
+            \\
+            \\ // no Constant Tensors are present;
+        , .{});
+
+        return;
+    }
+    // Iterate over all initializers in the ONNX model and generate code
+    for (constants) |*constant_tensors| {
+        const name: []const u8 = try constant_tensors.getNameSanitized();
+
+        try writer.print(
+            \\
+            \\
+            \\ // ----------- Initializing Constant tensor_{s};
+        , .{name});
+
+        // Generate the shape array for the tensor
+        try wrtiteTensorShape(writer, constant_tensors);
+
+        // Generate the data array for the tensor
+        try writeArray(writer, constant_tensors);
+
+        // Create the tensor instance
+        try writer.print(
+            \\
+            \\pub const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
+        , .{ name, constant_tensors.ty.toString(), name, name });
     }
 }
 

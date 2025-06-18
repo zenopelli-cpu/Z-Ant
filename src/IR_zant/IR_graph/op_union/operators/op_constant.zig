@@ -47,7 +47,7 @@ pub const Constant = struct {
     pub fn init(nodeProto: *NodeProto) !Constant {
         const output = if (tensorZant_lib.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_notFound;
         var value: ?*TensorZant = null;
-        var sparse_value: ?*TensorZant = null;
+        const sparse_value: ?*TensorZant = null;
         var value_float: ?f32 = null;
         var value_floats: ?[]f32 = null;
         var value_int: ?i64 = null;
@@ -57,9 +57,9 @@ pub const Constant = struct {
 
         for (nodeProto.attribute) |attr| {
             if (std.mem.indexOf(u8, attr.name, "value")) |_| {
-                if (attr.type == onnx.AttributeType.TENSOR) value = attr.t;
+                if (attr.type == onnx.AttributeType.TENSOR) value = if (tensorZant_lib.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.value_notFound;
             } else if (std.mem.indexOf(u8, attr.name, "sparse_value")) |_| {
-                if (attr.type == onnx.AttributeType.SPARSE_TENSOR) sparse_value = attr.sparse_tensor;
+                if (attr.type == onnx.AttributeType.SPARSE_TENSOR) return error.SPARSE_TENSOR_notSuported_ToBeImplemented; // sparse_value = if (tensorZant_lib.tensorMap.getPtr(attr.sparse_tensor.?.name.?)) |ptr| ptr else return error.value_notFound;
             } else if (std.mem.indexOf(u8, attr.name, "value_float")) |_| {
                 if (attr.type == onnx.AttributeType.FLOAT) value_float = attr.f;
             } else if (std.mem.indexOf(u8, attr.name, "value_floats")) |_| {
@@ -105,21 +105,29 @@ pub const Constant = struct {
             try writer.print(
                 \\
                 \\    // Constant tensor_{s} already declared and initialized in predict.zig
-            , .{output_name});
+                \\    const tensor_{s} = param_lib.tensor_{s};
+            , .{ output_name, output_name, output_name });
             return;
         } else if (self.value_float != null) {
             try writer.print(
                 \\
                 \\    // Initialize scalar float constant
-                \\    tensor_{s} = Tensor(T).initScalar(&allocator, {d}) catch return;
-            , .{ output_name, self.value_float.? });
+                \\    tensor_{s} = Tensor({s}).initScalar(&allocator, {d}) catch return;
+            , .{
+                output_name,
+                self.output.ty.toString(),
+                self.value_float.?,
+            });
             return;
         } else if (self.value_floats != null) {
             try writer.print(
                 \\
                 \\    // Initialize 1D float array constant
-                \\    const data_{s} = [_]T{{
-            , .{output_name});
+                \\    const data_{s} = [_]{s}{{
+            , .{
+                output_name,
+                self.output.ty.toString(),
+            });
 
             for (self.value_floats.?, 0..) |val, i| {
                 if (i > 0) try writer.writeAll(", ");
@@ -129,50 +137,74 @@ pub const Constant = struct {
             try writer.print(
                 \\
                 \\    }};
-                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
-            , .{ output_name, output_name, self.value_floats.?.len });
+                \\    tensor_{s} = Tensor({s}).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
+            , .{
+                output_name,
+                self.output.ty.toString(),
+                output_name,
+                self.value_floats.?.len,
+            });
             return;
         } else if (self.value_int != null) {
             try writer.print(
                 \\
                 \\    // Initialize scalar int constant
-                \\    tensor_{s} = Tensor(T).initScalar(&allocator, @as(T, @floatFromInt({d}))) catch return;
-            , .{ output_name, self.value_int.? });
+                \\    tensor_{s} = Tensor({s}).initScalar(&allocator, @as(T, @floatFromInt({d}))) catch return;
+            , .{
+                output_name,
+                self.output.ty.toString(),
+                self.value_int.?,
+            });
             return;
         } else if (self.value_ints != null) {
             try writer.print(
                 \\
                 \\    // Initialize 1D int array constant
-                \\    const data_{s} = [_]T{{
-            , .{output_name});
+                \\    const data_{s} = [_]{s}{{
+            , .{
+                output_name,
+                self.output.ty.toString(),
+            });
 
             for (self.value_ints.?, 0..) |val, i| {
                 if (i > 0) try writer.writeAll(", ");
-                try writer.print("@as(T, @floatFromInt({d}))", .{val});
+                try writer.print("@as({s}, @floatFromInt({d}))", .{ self.output.ty.toString(), val });
             }
 
             try writer.print(
                 \\
                 \\    }};
-                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
-            , .{ output_name, output_name, self.value_ints.?.len });
+                \\    tensor_{s} = Tensor({s}).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
+            , .{
+                output_name,
+                self.output.ty.toString(),
+                output_name,
+                self.value_ints.?.len,
+            });
             return;
         } else if (self.value_string != null) {
             try writer.print(
                 \\
                 \\    // String constants are not directly supported in this numeric tensor library
                 \\    // For now, we'll create a placeholder tensor with a single value
-                \\    tensor_{s} = Tensor(T).initScalar(&allocator, 0) catch return;
+                \\    tensor_{s} = Tensor({s}).initScalar(&allocator, 0) catch return;
                 \\    // The actual string value was: "{s}"
-            , .{ output_name, self.value_string.? });
+            , .{
+                output_name,
+                self.output.ty.toString(),
+                self.value_string.?,
+            });
             return;
         } else if (self.value_strings != null) {
             try writer.print(
                 \\
                 \\    // String array constants are not directly supported in this numeric tensor library
                 \\    // For now, we'll create a placeholder tensor with zeros
-                \\    const data_{s} = [_]T{{
-            , .{output_name});
+                \\    const data_{s} = [_]{s}{{
+            , .{
+                output_name,
+                self.output.ty.toString(),
+            });
 
             for (self.value_strings.?, 0..) |_, i| {
                 if (i > 0) try writer.writeAll(", ");
@@ -182,18 +214,26 @@ pub const Constant = struct {
             try writer.print(
                 \\
                 \\    }};
-                \\    tensor_{s} = Tensor(T).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
+                \\    tensor_{s} = Tensor({s}).fromSlice(&allocator, &data_{s}, &[_]usize{{{d}}}) catch return;
                 \\    // Note: This is a placeholder for string values that cannot be directly represented
-            , .{ output_name, output_name, self.value_strings.?.len });
+            , .{
+                output_name,
+                self.output.ty.toString(),
+                output_name,
+                self.value_strings.?.len,
+            });
             return;
         } else if (self.sparse_value != null) {
             try writer.print(
                 \\
                 \\    // Sparse tensor constants are not yet fully supported
                 \\    // Creating a placeholder tensor for sparse_value
-                \\    tensor_{s} = Tensor(T).initScalar(&allocator, 0) catch return;
+                \\    tensor_{s} = Tensor({s}).initScalar(&allocator, 0) catch return;
                 \\    mathHandler_log.warn("Warning: sparse_value attribute used but not fully supported\\n", .{{}});
-            , .{output_name});
+            , .{
+                output_name,
+                self.output.ty.toString(),
+            });
             return;
         }
 

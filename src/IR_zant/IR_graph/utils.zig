@@ -266,6 +266,17 @@ pub fn getInitializers(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
     return initializers.toOwnedSlice();
 }
 
+pub fn getConstants(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
+    var constants = std.ArrayList(TensorZant).init(allocator);
+    var it = hashMap.iterator();
+    while (it.next()) |entry| {
+        if (entry.value_ptr.tc == TensorCategory.CONSTANT) {
+            try constants.append(entry.value_ptr.*);
+        }
+    }
+    return constants.toOwnedSlice();
+}
+
 pub fn getLinkers(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
     var linkers = std.ArrayList(TensorZant).init(allocator);
     var it = hashMap.iterator();

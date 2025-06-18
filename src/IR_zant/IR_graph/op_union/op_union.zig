@@ -12,6 +12,7 @@ pub const Op_union = union(enum) {
     batchNormalization: operators.BatchNormalization,
     ceil: operators.Ceil,
     concat: operators.Concat,
+    constant: operators.Constant,
     conv: operators.Conv,
     div: operators.Div,
     elu: operators.Elu,
@@ -56,6 +57,8 @@ pub const Op_union = union(enum) {
             return Op_union{ .ceil = try operators.Ceil.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Concat")) {
             return Op_union{ .concat = try operators.Concat.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Constant")) {
+            return Op_union{ .constant = try operators.Constant.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Conv")) {
             return Op_union{ .conv = try operators.Conv.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Div")) {
@@ -127,6 +130,7 @@ pub const Op_union = union(enum) {
             .batchNormalization => |ptr| return ptr.get_output_shape(),
             .ceil => |ptr| return ptr.get_output_shape(),
             .concat => |ptr| return ptr.get_output_shape(),
+            .constant => |ptr| return ptr.get_output_shape(),
             .conv => |ptr| return ptr.get_output_shape(),
             .div => |ptr| return ptr.get_output_shape(),
             .elu => |ptr| return ptr.get_output_shape(),
@@ -170,6 +174,7 @@ pub const Op_union = union(enum) {
             .batchNormalization => |ptr| ptr.get_output_tensor(),
             .ceil => |ptr| ptr.get_output_tensor(),
             .concat => |ptr| ptr.get_output_tensor(),
+            .constant => |ptr| ptr.get_output_tensor(),
             .conv => |ptr| ptr.get_output_tensor(),
             .div => |ptr| ptr.get_output_tensor(),
             .elu => |ptr| ptr.get_output_tensor(),
@@ -213,6 +218,7 @@ pub const Op_union = union(enum) {
             .batchNormalization => |ptr| try ptr.write_op(writer),
             .ceil => |ptr| try ptr.write_op(writer),
             .concat => |ptr| try ptr.write_op(writer),
+            .constant => |ptr| try ptr.write_op(writer),
             .conv => |ptr| try ptr.write_op(writer),
             .div => |ptr| try ptr.write_op(writer),
             .elu => |ptr| try ptr.write_op(writer),
@@ -256,6 +262,7 @@ pub const Op_union = union(enum) {
             .batchNormalization => |ptr| ptr.print(),
             .ceil => |ptr| ptr.print(),
             .concat => |ptr| ptr.print(),
+            .constant => |ptr| ptr.print(),
             .conv => |ptr| ptr.print(),
             .div => |ptr| ptr.print(),
             .elu => |ptr| ptr.print(),

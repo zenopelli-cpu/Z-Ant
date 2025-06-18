@@ -1,0 +1,1195 @@
+
+
+codegenOptions: 
+     model:mnist-1 
+     model_path:datasets/models/mnist-1/mnist-1.onnx 
+     generated_path:generated/mnist-1/ 
+     user_tests: 
+     log:true 
+     shape: 
+     type:f32 
+     output_type:f32 
+     comm:false 
+     dynamic:false 
+
+------------------------- MODEL -------------------------------
+ModelProto:
+  IR Version: onnx.onnx.Version.IR_VERSION_2017_11_3
+  Producer Name: CNTK
+  Producer Version: 2.4
+  Domain: (none)
+  Model Version: 1
+  Doc String: (none)
+  Graph:
+info(graphProto):    ------------- GRAPH
+
+info(graphProto):    Graph Name: CNTKGraph
+
+   Nodes:
+      ------------- NODE
+      Name: Constant377
+      Op Type: Constant
+      Domain: 
+      Inputs: 
+      Outputs:       Constant377 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: value
+         Type: onnx.onnx.AttributeType.TENSOR
+         Tensor:
+            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [1]
+            Float Data: [2.55e2]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Block386
+      Op Type: Div
+      Domain: 
+      Inputs: Input73  -  Constant377  -  
+      Outputs:       Block386_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: axis
+         Type: onnx.onnx.AttributeType.INT
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: broadcast
+         Type: onnx.onnx.AttributeType.INT
+         Int: 1
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Constant321
+      Op Type: Constant
+      Domain: 
+      Inputs: 
+      Outputs:       Constant321 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: value
+         Type: onnx.onnx.AttributeType.TENSOR
+         Tensor:
+            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [8155]
+            Float Data: [-8.90567e-3-2.3690744e-1-5.0882167e-1-6.456178e-21.4181185e-1-5.9197617e-1-4.7528538e-1-4.9348146e-27.682156e-12.634652e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Convolution28
+      Op Type: Conv
+      Domain: 
+      Inputs: Block386_Output_0  -  Constant321  -  
+      Outputs:       Convolution396_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: kernel_shape
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [55]
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: strides
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [11]
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: auto_pad
+         Type: onnx.onnx.AttributeType.STRING
+         String: "SAME_UPPER"
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: group
+         Type: onnx.onnx.AttributeType.INT
+         Int: 1
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: dilations
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [11]
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Constant318
+      Op Type: Constant
+      Domain: 
+      Inputs: 
+      Outputs:       Constant318 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: value
+         Type: onnx.onnx.AttributeType.TENSOR
+         Tensor:
+            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [8]
+            Float Data: [-1.6153972e-1-4.3383566e-19.164136e-2-1.6852217e-2-6.502644e-2-1.3173787e-12.041755e-2-1.2111023e-1]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Reshape398
+      Op Type: Reshape
+      Domain: 
+      Inputs: Constant318  -  
+      Outputs:       Reshape398_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: shape
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [811]
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Plus30_reshape1
+      Op Type: Reshape
+      Domain: 
+      Inputs: Reshape398_Output_0  -  
+      Outputs:       Reshape398_Output_0_reshape1 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: shape
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [8]
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Plus30
+      Op Type: Add
+      Domain: 
+      Inputs: Convolution396_Output_0  -  Reshape398_Output_0_reshape1  -  
+      Outputs:       Plus400_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: axis
+         Type: onnx.onnx.AttributeType.INT
+         Int: 1
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: broadcast
+         Type: onnx.onnx.AttributeType.INT
+         Int: 1
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: ReLU32
+      Op Type: Relu
+      Domain: 
+      Inputs: Plus400_Output_0  -  
+      Outputs:       ReLU402_Output_0 
+      Attributes:
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Pooling66
+      Op Type: MaxPool
+      Domain: 
+      Inputs: ReLU402_Output_0  -  
+      Outputs:       Pooling404_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: kernel_shape
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [22]
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: strides
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [22]
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: pads
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [0000]
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Constant340
+      Op Type: Constant
+      Domain: 
+      Inputs: 
+      Outputs:       Constant340 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: value
+         Type: onnx.onnx.AttributeType.TENSOR
+         Tensor:
+            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [16855]
+            Float Data: [-4.8556365e-2-9.101364e-2-6.5679173e-3-1.2840344e-11.0890023e-18.42415e-2-1.6838944e-1-2.7132806e-1-1.902547e-26.9262564e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Convolution110
+      Op Type: Conv
+      Domain: 
+      Inputs: Pooling404_Output_0  -  Constant340  -  
+      Outputs:       Convolution406_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: kernel_shape
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [55]
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: strides
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [11]
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: auto_pad
+         Type: onnx.onnx.AttributeType.STRING
+         String: "SAME_UPPER"
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: group
+         Type: onnx.onnx.AttributeType.INT
+         Int: 1
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: dilations
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [11]
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Constant346
+      Op Type: Constant
+      Domain: 
+      Inputs: 
+      Outputs:       Constant346 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: value
+         Type: onnx.onnx.AttributeType.TENSOR
+         Tensor:
+            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [16]
+            Float Data: [-8.224882e-2-1.0886878e-1-1.410396e-1-2.0486917e-1-1.7913565e-1-2.1543838e-1-1.3380507e-1-1.9572456e-1-2.6825064e-1-2.582122e-1, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Reshape408
+      Op Type: Reshape
+      Domain: 
+      Inputs: Constant346  -  
+      Outputs:       Reshape408_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: shape
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [1611]
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Plus112_reshape1
+      Op Type: Reshape
+      Domain: 
+      Inputs: Reshape408_Output_0  -  
+      Outputs:       Reshape408_Output_0_reshape1 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: shape
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [16]
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Plus112
+      Op Type: Add
+      Domain: 
+      Inputs: Convolution406_Output_0  -  Reshape408_Output_0_reshape1  -  
+      Outputs:       Plus410_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: axis
+         Type: onnx.onnx.AttributeType.INT
+         Int: 1
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: broadcast
+         Type: onnx.onnx.AttributeType.INT
+         Int: 1
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: ReLU114
+      Op Type: Relu
+      Domain: 
+      Inputs: Plus410_Output_0  -  
+      Outputs:       ReLU412_Output_0 
+      Attributes:
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Pooling160
+      Op Type: MaxPool
+      Domain: 
+      Inputs: ReLU412_Output_0  -  
+      Outputs:       Pooling414_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: kernel_shape
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [33]
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: strides
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [33]
+         Doc String: ""
+         ------------- ATTRIBUTE 
+         Name: pads
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [0000]
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Times212_reshape0
+      Op Type: Reshape
+      Domain: 
+      Inputs: Pooling414_Output_0  -  
+      Outputs:       Reshape416_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: shape
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [1256]
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Constant312
+      Op Type: Constant
+      Domain: 
+      Inputs: 
+      Outputs:       Constant312 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: value
+         Type: onnx.onnx.AttributeType.TENSOR
+         Tensor:
+            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [164410]
+            Float Data: [9.163288e-21.214359e-18.535065e-21.2260686e-1-9.8753974e-2-1.1212449e-1-3.5732843e-2-9.626211e-2-1.4788732e-13.485894e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Times212_reshape1
+      Op Type: Reshape
+      Domain: 
+      Inputs: Constant312  -  
+      Outputs:       Reshape393_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: shape
+         Type: onnx.onnx.AttributeType.INTS
+         Ints: [25610]
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Times212
+      Op Type: MatMul
+      Domain: 
+      Inputs: Reshape416_Output_0  -  Reshape393_Output_0  -  
+      Outputs:       Times418_Output_0 
+      Attributes:
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Constant367
+      Op Type: Constant
+      Domain: 
+      Inputs: 
+      Outputs:       Constant367 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: value
+         Type: onnx.onnx.AttributeType.TENSOR
+         Tensor:
+            ------------- TENSOR
+            Name: (none)
+            Data Type: onnx.onnx.DataType.FLOAT
+            Dims: [110]
+            Float Data: [-4.4856027e-27.791661e-36.810082e-22.999374e-2-1.2640963e-11.4021875e-1-5.5284902e-2-4.9383815e-28.432205e-2-5.4540414e-2, ... ]
+            External Data (key, value) [0]: 
+            Data Location: null
+            metadata_props (key, value) [0]: 
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+      ------------- NODE
+      Name: Plus214
+      Op Type: Add
+      Domain: 
+      Inputs: Times418_Output_0  -  Constant367  -  
+      Outputs:       Plus422_Output_0 
+      Attributes:
+         ------------- ATTRIBUTE 
+         Name: broadcast
+         Type: onnx.onnx.AttributeType.INT
+         Doc String: ""
+      metadata_props (key, value) [0]: 
+   Initializers  [0]:
+   Inputs [1]:
+      ------------- VALUEINFO 
+      Name: Input73
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [112828]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 28
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 28
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+   Outputs  [1]: 
+      ------------- VALUEINFO 
+      Name: Plus422_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [110]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 10
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+   Value_info [24]:
+      ------------- VALUEINFO 
+      Name: Constant312
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [164410]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 16
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 4
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 4
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 10
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Constant377
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: []
+               Dimensions: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Block386_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [112828]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 28
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 28
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Constant321
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [8155]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 8
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 5
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 5
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Constant318
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [8]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 8
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Reshape398_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [8]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 8
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Convolution396_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [182828]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 8
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 28
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 28
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Reshape398_Output_0_reshape1
+      Type:
+         ------------- TYPE
+         Tensor Type: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Plus400_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [182828]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 8
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 28
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 28
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: ReLU402_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [182828]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 8
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 28
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 28
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Pooling404_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [181414]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 8
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 14
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 14
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Constant340
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [16855]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 16
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 8
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 5
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 5
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Constant346
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [16]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 16
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Reshape408_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [16]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 16
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Convolution406_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [1161414]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 16
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 14
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 14
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Reshape408_Output_0_reshape1
+      Type:
+         ------------- TYPE
+         Tensor Type: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Plus410_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [1161414]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 16
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 14
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 14
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: ReLU412_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [1161414]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 16
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 14
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 14
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Pooling414_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [11644]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 16
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 4
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 4
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Reshape416_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [1256]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 256
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Reshape393_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [25610]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 256
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 10
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Constant367
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [110]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 10
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Times418_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [110]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 10
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+      ------------- VALUEINFO 
+      Name: Reshape420_Output_0
+      Type:
+         ------------- TYPE
+         Tensor Type:
+            ------------- TENSOR_TYPE
+            Element Type: 1
+            Shape:
+               ------------- SHAPE
+               Shape: [110]
+               Dimensions:
+                  ------------- DIMENSION
+                  Dim Value: 1
+                  Dim Param: (none)
+                  Denotation: (none)
+                  ------------- DIMENSION
+                  Dim Value: 10
+                  Dim Param: (none)
+                  Denotation: (none)
+         Sequence Type: (none)
+         Map Type: (none)
+         Sparse Tensor Type: (none)
+         Optional Type: (none)
+         Denotation: (none)
+      Doc: (none)
+      metadata_props (key, value) [0]: 
+   Quantization Annotations:
+   Sparse Initializers:
+   metadata_props (key, value) [0]: 
+ Operator set id:
+   ------------- OPERATOR SET ID PROTO
+   OperatorSetID domain: 
+   OperatorSetID version: 1
+Metadata count: 0
+Functions count: 0

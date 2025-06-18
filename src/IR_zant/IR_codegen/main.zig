@@ -34,7 +34,7 @@ pub fn main() !void {
     var model = try onnx.parseFromFile(gpa_allocator, model_path);
     defer model.deinit(gpa_allocator);
 
-    //model.print();
+    model.print();
 
     try IR_codegen.codegnenerateFromOnnx(model_name, codegen_options.IR_generated_path, model);
 

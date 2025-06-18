@@ -22,7 +22,8 @@ const utils = IR_zant.IR_codegen.utils;
 // https://onnx.ai/onnx/operators/onnx__Reshape.html#l-onnx-doc-reshape
 // INPUTS:
 //      - data (heterogeneous) - T: An input tensor.
-//      - shape (heterogeneous) - tensor(int64): Specified shape for output
+//      - shape (optional, heterogeneous) - tensor(int64): Specified shape for output.
+//                                                         OSS!!! It is not always present! There may be an error in the ONNX docs, so we set it to optional. Usually the output shape is present as AttributeProto of a NodeProto for Reshape op.
 // OUTPUTS:
 //      - reshaped (heterogeneous) - T: Reshaped data.
 // ATTRIBUTES:
@@ -31,14 +32,14 @@ const utils = IR_zant.IR_codegen.utils;
 
 pub const Reshape = struct {
     data: *TensorZant,
-    shape: *TensorZant,
+    shape: ?*TensorZant,
     reshaped: *TensorZant,
     allowzer0: bool,
     shape_attribute: ?[]const i64,
 
     pub fn init(nodeProto: *NodeProto) !Reshape {
         const data = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
-        const shape = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.shape_notFound;
+        const shape = if (nodeProto.input.len < 2) null else if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.TensorShape_notFound;
         const reshaped = if (tensorZant_lib.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
         var allowzer0: bool = false;
@@ -52,8 +53,11 @@ pub const Reshape = struct {
             }
         }
 
+        //check on the existance of the shape
+        if (shape == null and shape_attribute == null) return error.shape_notFound;
+
         //set the output type:
-        if (reshaped.ty == tensorZant_lib.TensorType.undefined) reshaped.ty = data.ty;
+        reshaped.ty = data.ty;
 
         return Reshape{
             .data = data,
@@ -100,10 +104,10 @@ pub const Reshape = struct {
         } else {
             // Shape from input tensor
 
-            const shape_input_tensor = self.shape;
+            const shape_input_tensor = self.shape.?;
             const sanitized_shape_name = try utils.getSanitizedName(shape_input_tensor.name);
             const shape_tensor_name = try std.mem.concat(allocator, u8, &[_][]const u8{
-                if (self.shape.tc == TensorCategory.INITIALIZER) "param_lib." else "",
+                if (shape_input_tensor.tc == TensorCategory.INITIALIZER) "param_lib." else "",
                 "tensor_",
                 sanitized_shape_name,
             });
@@ -121,8 +125,6 @@ pub const Reshape = struct {
                 output_sanitized_name,
             });
         }
-
-        const input_type_string = self.data.ty.toString();
 
         // Pre-build complex arguments for the format string
         const shape_slice_var_name = try std.fmt.allocPrint(allocator, "shape_slice_{s}", .{output_sanitized_name});
@@ -145,11 +147,11 @@ pub const Reshape = struct {
             \\        @constCast(&{s}),
             \\        {s}, // Pre-built shape slice argument
             \\        {s}, // Format boolean correctly
-            \\        {s}  // Pre-built output tensor argument
+            \\        {s}, // Pre-built output tensor argument
             \\    )
         , .{
             shape_slice_code.items, // Arg 1 for shape code
-            input_type_string, // Arg 2 for input type
+            self.data.ty.toString(), // Arg 2 for input type
             input_string, // Arg 3 for input tensor
             shape_slice_arg, // Arg 4 for shape slice
             if (self.allowzer0) "true" else "false", // Arg 5 for allowzero
