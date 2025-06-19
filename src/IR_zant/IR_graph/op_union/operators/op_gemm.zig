@@ -85,8 +85,26 @@ pub const Gemm = struct {
         return self.output.getShape();
     }
 
-    pub fn get_output_tensor(self: Gemm) *TensorZant {
-        return self.output;
+    pub fn get_input_tensors(self: Gemm) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+
+        try inputs.append(self.input_A);
+        try inputs.append(self.input_B);
+        if (self.input_C) |bias| {
+            try inputs.append(bias);
+        }
+
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Gemm) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+
+        try outputs.append(self.output);
+
+        return outputs.toOwnedSlice();
     }
 
     pub fn write_op(self: Gemm, writer: std.fs.File.Writer) !void {

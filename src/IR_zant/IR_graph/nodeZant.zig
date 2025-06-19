@@ -12,6 +12,10 @@ const TensorProto = zant.onnx.TensorProto;
 const DataType = zant.onnx.DataType;
 
 const utils = zant.utils;
+
+//--- zant structures
+const TensorZant = @import("tensorZant.zig").TensorZant;
+
 pub const NodeZant = struct {
     name: ?[]const u8, //name of the node
     op_type: []const u8, //onnx name of the operation, see here: https://onnx.ai/onnx/operators/
@@ -45,5 +49,13 @@ pub const NodeZant = struct {
 
     pub fn write_op(self: *NodeZant, writer: std.fs.File.Writer) !void {
         try self.op.write_op(writer);
+    }
+
+    pub fn get_output_tensors(self: *NodeZant) ![]*TensorZant {
+        return try self.op.get_output_tensors();
+    }
+
+    pub fn get_input_tensors(self: *NodeZant) ![]*TensorZant {
+        return try self.op.get_input_tensors();
     }
 };

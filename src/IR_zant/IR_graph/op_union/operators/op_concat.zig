@@ -64,8 +64,17 @@ pub const Concat = struct {
         return self.concat_result.getShape();
     }
 
-    pub fn get_output_tensor(self: Concat) *TensorZant {
-        return self.concat_result;
+    pub fn get_input_tensors(self: Concat) ![]*TensorZant {
+        // Simply return an owned slice of the existing inputs list
+        return self.inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Concat) ![]*TensorZant {
+        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
+        defer output_tensors.deinit();
+
+        try output_tensors.append(self.concat_result);
+        return output_tensors.toOwnedSlice();
     }
 
     pub fn write_op(self: Concat, writer: std.fs.File.Writer) !void {

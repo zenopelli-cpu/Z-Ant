@@ -48,8 +48,22 @@ pub const Div = struct {
         return self.output_C.getShape();
     }
 
-    pub fn get_output_tensor(self: Div) *TensorZant {
-        return self.output_C;
+    pub fn get_input_tensors(self: Div) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+
+        try inputs.append(self.input_A);
+        try inputs.append(self.input_B);
+
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Div) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+
+        try outputs.append(self.output_C);
+        return outputs.toOwnedSlice();
     }
 
     pub fn write_op(self: Div, writer: std.fs.File.Writer) !void {

@@ -176,7 +176,6 @@ pub fn protoTensor2AnyTensor(proto: *TensorProto) !AnyTensor {
             .UINT64 => return try fromRawData(u64, raw, shape),
             .UINT16 => return try fromRawData(u16, raw, shape),
             .UINT8 => return try fromRawData(u8, raw, shape),
-            // TODO: Add other types as needed (e.g., FLOAT16, INT8, etc.)
             else => {
                 std.log.info("\n[writeArray] Error: Unsupported raw data type {any} for tensor {s}", .{ proto.data_type, proto.name.? });
                 std.log.err("Unsupported raw data type: {any}", .{proto.data_type});

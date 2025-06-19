@@ -68,8 +68,25 @@ pub const ReduceMean = struct {
         return self.output_Y.getShape();
     }
 
-    pub fn get_output_tensor(self: ReduceMean) *TensorZant {
-        return self.output_Y;
+    pub fn get_input_tensors(self: ReduceMean) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+
+        try inputs.append(self.data);
+        if (self.axes) |axes| {
+            try inputs.append(axes);
+        }
+
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: ReduceMean) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+
+        try outputs.append(self.reduced);
+
+        return outputs.toOwnedSlice();
     }
 
     pub fn write_op(self: ReduceMean, writer: std.fs.File.Writer) !void {

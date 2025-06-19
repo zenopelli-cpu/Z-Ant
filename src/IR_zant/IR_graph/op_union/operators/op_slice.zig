@@ -63,8 +63,22 @@ pub const Slice = struct {
         return self.output.getShape();
     }
 
-    pub fn get_output_tensor(self: Slice) *TensorZant {
-        return self.output;
+    pub fn get_input_tensors(self: Slice) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+        try inputs.append(self.input);
+        try inputs.append(self.starts);
+        try inputs.append(self.ends);
+        if (self.axes) |a| try inputs.append(a);
+        if (self.steps) |s| try inputs.append(s);
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Slice) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+        try outputs.append(self.output);
+        return outputs.toOwnedSlice();
     }
 
     pub fn write_op(self: Slice, writer: std.fs.File.Writer) !void {

@@ -49,8 +49,19 @@ pub const Sub = struct {
         return self.output_Y.getShape();
     }
 
-    pub fn get_output_tensor(self: Sub) *TensorZant {
-        return self.output_Y;
+    pub fn get_input_tensors(self: Sub) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+        try inputs.append(self.input_A);
+        try inputs.append(self.input_B);
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Sub) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+        try outputs.append(self.output_Y);
+        return outputs.toOwnedSlice();
     }
 
     pub fn compute_output_shape(self: Sub) []usize {

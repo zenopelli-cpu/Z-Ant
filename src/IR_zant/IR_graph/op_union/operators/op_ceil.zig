@@ -45,8 +45,24 @@ pub const Ceil = struct {
         return self.output_Y.getShape();
     }
 
-    pub fn get_output_tensor(self: Ceil) *TensorZant {
-        return self.output_Y;
+    pub fn get_input_tensors(self: Ceil) ![]*TensorZant {
+        var input_tensors = std.ArrayList(*TensorZant).init(allocator);
+        defer input_tensors.deinit();
+
+        // Append the single input tensor X
+        try input_tensors.append(self.input_X);
+
+        return input_tensors.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Ceil) ![]*TensorZant {
+        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
+        defer output_tensors.deinit();
+
+        // Append the single output tensor Y
+        try output_tensors.append(self.output_Y);
+
+        return output_tensors.toOwnedSlice();
     }
 
     pub fn write_op(self: Ceil, writer: std.fs.File.Writer) !void {

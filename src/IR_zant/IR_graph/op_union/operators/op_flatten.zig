@@ -68,8 +68,22 @@ pub const Flatten = struct {
         return output_shape;
     }
 
-    pub fn get_output_tensor(self: Flatten) *TensorZant {
-        return self.output;
+    pub fn get_input_tensors(self: Flatten) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+
+        try inputs.append(self.data);
+
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Flatten) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+
+        try outputs.append(self.output);
+
+        return outputs.toOwnedSlice();
     }
 
     pub fn write_op(self: Flatten, writer: std.fs.File.Writer) !void {

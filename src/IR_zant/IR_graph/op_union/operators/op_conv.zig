@@ -97,8 +97,25 @@ pub const Conv = struct {
         return self.output_Y.getShape();
     }
 
-    pub fn get_output_tensor(self: Conv) *TensorZant {
-        return self.output_Y;
+    pub fn get_input_tensors(self: Conv) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+
+        try inputs.append(self.input_X);
+        try inputs.append(self.input_W);
+        if (self.input_B) |bias| {
+            try inputs.append(bias);
+        }
+
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Conv) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+
+        try outputs.append(self.output_Y);
+        return outputs.toOwnedSlice();
     }
 
     pub fn write_op(self: Conv, writer: std.fs.File.Writer) !void {

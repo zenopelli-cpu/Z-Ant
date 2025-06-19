@@ -45,8 +45,18 @@ pub const Tanh = struct {
         return self.output_Y.shape;
     }
 
-    pub fn get_output_tensor(self: Tanh) *TensorZant {
-        return self.output_Y;
+    pub fn get_input_tensors(self: Tanh) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+        try inputs.append(self.input_X);
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Tanh) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+        try outputs.append(self.output_Y);
+        return outputs.toOwnedSlice();
     }
 
     pub fn print(self: Tanh) void {

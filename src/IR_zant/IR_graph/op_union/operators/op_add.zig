@@ -45,8 +45,23 @@ pub const Add = struct {
         return self.output_C.getShape();
     }
 
-    pub fn get_output_tensor(self: Add) *TensorZant {
-        return self.output_C;
+    pub fn get_input_tensors(self: Add) ![]*TensorZant {
+        var input_tensors = std.ArrayList(*TensorZant).init(allocator);
+        defer input_tensors.deinit();
+
+        try input_tensors.append(self.input_A);
+        try input_tensors.append(self.input_B);
+
+        return input_tensors.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Add) ![]*TensorZant {
+        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
+        defer output_tensors.deinit();
+
+        try output_tensors.append(self.output_C);
+
+        return output_tensors.toOwnedSlice();
     }
 
     pub fn write_op(self: Add, writer: std.fs.File.Writer) !void {

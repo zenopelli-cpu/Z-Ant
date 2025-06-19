@@ -64,8 +64,18 @@ pub const Shape = struct {
         return self.shape.getShape();
     }
 
-    pub fn get_output_tensor(self: Shape) *TensorZant {
-        return self.shape;
+    pub fn get_input_tensors(self: Shape) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+        try inputs.append(self.data);
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Shape) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+        try outputs.append(self.shape);
+        return outputs.toOwnedSlice();
     }
 
     pub fn write_op(self: Shape, writer: std.fs.File.Writer) !void {

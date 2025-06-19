@@ -66,8 +66,21 @@ pub const Dequantize = struct {
         return self.output.getShape();
     }
 
-    pub fn get_output_tensor(self: Dequantize) *TensorZant {
-        return self.output;
+    pub fn get_input_tensors(self: Dequantize) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+
+        try inputs.append(self.input);
+
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Dequantize) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+
+        try outputs.append(self.output);
+        return outputs.toOwnedSlice();
     }
 
     pub fn compute_output_shape(self: Dequantize) []usize {

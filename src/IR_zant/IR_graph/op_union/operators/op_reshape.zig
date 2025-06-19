@@ -72,8 +72,22 @@ pub const Reshape = struct {
         return self.reshaped.getShape();
     }
 
-    pub fn get_output_tensor(self: Reshape) *TensorZant {
-        return self.reshaped;
+    pub fn get_input_tensors(self: Reshape) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+
+        try inputs.append(self.data);
+        if (self.shape) |s| try inputs.append(s);
+
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Reshape) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+
+        try outputs.append(self.reshaped);
+        return outputs.toOwnedSlice();
     }
 
     pub fn write_op(self: Reshape, writer: std.fs.File.Writer) !void {

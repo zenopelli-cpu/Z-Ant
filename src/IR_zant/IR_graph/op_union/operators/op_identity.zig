@@ -45,8 +45,22 @@ pub const Identity = struct {
         return self.output.getShape();
     }
 
-    pub fn get_output_tensor(self: Identity) *TensorZant {
-        return self.output;
+    pub fn get_input_tensors(self: Identity) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+
+        try inputs.append(self.input);
+
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Identity) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+
+        try outputs.append(self.output);
+
+        return outputs.toOwnedSlice();
     }
 
     pub fn write_op(self: Identity, writer: std.fs.File.Writer) !void {

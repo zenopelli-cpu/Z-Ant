@@ -95,8 +95,22 @@ pub const AveragePool = struct {
         return self.output_Y.get_shape();
     }
 
-    pub fn get_output_tensor(self: AveragePool) *TensorZant {
-        return self.output_Y;
+    pub fn get_input_tensors(self: AveragePool) ![]*TensorZant {
+        var input_tensors = std.ArrayList(*TensorZant).init(allocator);
+        defer input_tensors.deinit();
+
+        try input_tensors.append(self.input_X);
+
+        return input_tensors.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: AveragePool) ![]*TensorZant {
+        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
+        defer output_tensors.deinit();
+
+        try output_tensors.append(self.output_Y);
+
+        return output_tensors.toOwnedSlice();
     }
 
     pub fn write_op(self: AveragePool, writer: std.fs.File.Writer) !void {

@@ -69,8 +69,24 @@ pub const OneHot = struct {
         return self.output.getShape();
     }
 
-    pub fn get_output_tensor(self: OneHot) *TensorZant {
-        return self.output;
+    pub fn get_input_tensors(self: OneHot) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+
+        try inputs.append(self.indices);
+        try inputs.append(self.depth);
+        try inputs.append(self.values);
+
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: OneHot) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+
+        try outputs.append(self.output);
+
+        return outputs.toOwnedSlice();
     }
 
     pub fn compute_output_shape(self: OneHot) []usize {

@@ -45,6 +45,20 @@ pub const Softmax = struct {
         return self.output_Y.shape;
     }
 
+    pub fn get_input_tensors(self: Softmax) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+        try inputs.append(self.input_X);
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Softmax) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+        try outputs.append(self.output_Y);
+        return outputs.toOwnedSlice();
+    }
+
     pub fn compute_output_shape(self: Softmax) []usize {
         var output_shape: []usize = undefined;
         output_shape = self.input_X.shape;

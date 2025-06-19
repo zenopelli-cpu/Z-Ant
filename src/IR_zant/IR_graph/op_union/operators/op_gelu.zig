@@ -54,8 +54,22 @@ pub const Gelu = struct {
         return self.output_Y.getShape();
     }
 
-    pub fn get_output_tensor(self: Gelu) *TensorZant {
-        return self.output_Y;
+    pub fn get_input_tensors(self: Gelu) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+
+        try inputs.append(self.input_X);
+
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Gelu) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+
+        try outputs.append(self.output_Y);
+
+        return outputs.toOwnedSlice();
     }
 
     pub fn compute_output_shape(self: Gelu) []usize {

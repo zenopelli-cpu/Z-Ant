@@ -116,8 +116,21 @@ pub const Resize = struct {
         return self.output_Y.getShape();
     }
 
-    pub fn get_output_tensor(self: Resize) *TensorZant {
-        return self.output_Y;
+    pub fn get_input_tensors(self: Resize) ![]*TensorZant {
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+        try inputs.append(self.input_X);
+        if (self.input_roi) |x| try inputs.append(x);
+        if (self.input_scales) |x| try inputs.append(x);
+        if (self.input_sizes) |x| try inputs.append(x);
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Resize) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+        try outputs.append(self.output_Y);
+        return outputs.toOwnedSlice();
     }
 
     pub fn write_op(self: Resize, writer: std.fs.File.Writer) !void {

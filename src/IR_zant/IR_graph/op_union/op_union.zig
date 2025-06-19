@@ -6,6 +6,9 @@ const NodeProto = onnx.NodeProto;
 const allocator = std.heap.page_allocator;
 pub const operators = @import("operators/operators.zig");
 
+const tensorZant = @import("../tensorZant.zig");
+const TensorZant = tensorZant.TensorZant;
+
 pub const Op_union = union(enum) {
     add: operators.Add,
     averagePool: operators.AveragePool,
@@ -167,48 +170,24 @@ pub const Op_union = union(enum) {
         }
     }
 
-    pub fn get_output_tensor(self: Op_union) void {
-        switch (self) {
-            .add => |ptr| ptr.get_output_tensor(),
-            .averagePool => |ptr| ptr.get_output_tensor(),
-            .batchNormalization => |ptr| ptr.get_output_tensor(),
-            .ceil => |ptr| ptr.get_output_tensor(),
-            .concat => |ptr| ptr.get_output_tensor(),
-            .constant => |ptr| ptr.get_output_tensor(),
-            .conv => |ptr| ptr.get_output_tensor(),
-            .div => |ptr| ptr.get_output_tensor(),
-            .elu => |ptr| ptr.get_output_tensor(),
-            .flatten => |ptr| ptr.get_output_tensor(),
-            .floor => |ptr| ptr.get_output_tensor(),
-            .gather => |ptr| ptr.get_output_tensor(),
-            .gemm => |ptr| ptr.get_output_tensor(),
-            .gelu => |ptr| ptr.get_output_tensor(),
-            .identity => |ptr| ptr.get_output_tensor(),
-            .leakyRelu => |ptr| ptr.get_output_tensor(),
-            .matMul => |ptr| ptr.get_output_tensor(),
-            .maxPool => |ptr| ptr.get_output_tensor(),
-            .mul => |ptr| ptr.get_output_tensor(),
-            .neg => |ptr| ptr.get_output_tensor(),
-            .oneHot => |ptr| ptr.get_output_tensor(),
-            .reduceMean => |ptr| ptr.get_output_tensor(),
-            .relu => |ptr| ptr.get_output_tensor(),
-            .reshape => |ptr| ptr.get_output_tensor(),
-            .resize => |ptr| ptr.get_output_tensor(),
-            .shape => |ptr| ptr.get_output_tensor(),
-            .sigmoid => |ptr| ptr.get_output_tensor(),
-            .slice => |ptr| ptr.get_output_tensor(),
-            .softmax => |ptr| ptr.get_output_tensor(),
-            .split => |ptr| ptr.get_output_tensor(),
-            .sqrt => |ptr| ptr.get_output_tensor(),
-            .sub => |ptr| ptr.get_output_tensor(),
-            .tanh => |ptr| ptr.get_output_tensor(),
-            .transpose => |ptr| ptr.get_output_tensor(),
-            .unsqueeze => |ptr| ptr.get_output_tensor(),
+    pub fn get_output_tensors(self: Op_union) ![]*TensorZant {
+        return switch (self) {
+            .add => |ptr| try ptr.get_output_tensors(),
             else => {
-                std.debug.print("\n\nERROR: get_output_tensor() is not available!! \n\n", .{});
-                return error.get_output_tensor_op_notAvailable;
+                std.debug.print("\n\nERROR: get_output_tensors() is not available!! \n\n", .{});
+                return error.get_output_tensors_op_notAvailable;
             },
-        }
+        };
+    }
+
+    pub fn get_input_tensors(self: Op_union) ![]*TensorZant {
+        return switch (self) {
+            .add => |ptr| try ptr.get_input_tensors(),
+            else => {
+                std.debug.print("\n\nERROR: get_input_tensors() is not available!! \n\n", .{});
+                return error.get_input_tensors_op_notAvailable;
+            },
+        };
     }
 
     pub fn write_op(self: Op_union, writer: std.fs.File.Writer) !void {

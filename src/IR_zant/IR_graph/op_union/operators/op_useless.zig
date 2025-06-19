@@ -32,4 +32,17 @@ pub const Useless = struct {
     pub fn print(self: Useless) void {
         std.debug.print("\n Useless:\n {any}", .{self});
     }
+
+    pub fn get_input_tensors(self: Useless) ![]*TensorZant {
+        _ = self;
+        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        defer inputs.deinit();
+        return inputs.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Useless) ![]*TensorZant {
+        _ = self;
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        return outputs.toOwnedSlice();
+    }
 };

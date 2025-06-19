@@ -94,8 +94,20 @@ pub const Constant = struct {
         return self.output.getShape();
     }
 
-    pub fn get_output_tensor(self: Constant) *TensorZant {
-        return self.output;
+    pub fn get_input_tensors(self: Constant) ![]*TensorZant {
+        _ = self;
+        // `Constant` has no runtime inputs: it produces values from attributes only.
+        var empty = std.ArrayList(*TensorZant).init(allocator);
+        defer empty.deinit();
+        return empty.toOwnedSlice();
+    }
+
+    pub fn get_output_tensors(self: Constant) ![]*TensorZant {
+        var outputs = std.ArrayList(*TensorZant).init(allocator);
+        defer outputs.deinit();
+
+        try outputs.append(self.output);
+        return outputs.toOwnedSlice();
     }
 
     pub fn write_op(self: Constant, writer: std.fs.File.Writer) !void {
