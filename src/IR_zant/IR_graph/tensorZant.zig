@@ -305,12 +305,27 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
             }
             for (node.output) |output_name| {
 
-                //WHy RESHAPE nodes need a different output initialization? Because the output shape is specified
+                //WHy RESHAPE nodes need a different output initialization? Because the output shape is sometime specified in the attributes and sometime in the input tensor
                 if (std.mem.eql(u8, node.op_type, "Reshape")) {
-                    var shape = try allocator.alloc(usize, node.attribute[0].ints.len);
-                    for (node.attribute[0].ints, 0..) |dim, j| {
-                        shape[j] = @as(usize, @intCast(dim));
+                    var shape: []usize = undefined;
+                    var shape_is_attribute = false;
+
+                    //get the shape from the attributes
+                    if (node.attribute.len != 0) {
+                        for (node.attribute) |attr| {
+                            if (std.mem.eql(u8, attr.name, "shape")) {
+                                shape_is_attribute = true;
+                                shape = try allocator.alloc(usize, node.attribute[0].ints.len);
+                                for (node.attribute[0].ints, 0..) |dim, j| {
+                                    shape[j] = @as(usize, @intCast(dim));
+                                }
+                            }
+                        }
                     }
+
+                    //if the shape is not an attribute it MUST be passed as imput
+                    if (!shape_is_attribute and node.input.len < 2) return error.shape_notFound;
+
                     const tensorZant: TensorZant = try TensorZant.init(
                         node.output[0],
                         null,
