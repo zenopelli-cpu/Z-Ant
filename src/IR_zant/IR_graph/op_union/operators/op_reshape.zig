@@ -162,7 +162,7 @@ pub const Reshape = struct {
             \\        {s}, // Pre-built shape slice argument
             \\        {s}, // Format boolean correctly
             \\        {s}, // Pre-built output tensor argument
-            \\    )
+            \\    ) catch return;
         , .{
             shape_slice_code.items, // Arg 1 for shape code
             self.data.ty.toString(), // Arg 2 for input type

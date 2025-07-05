@@ -110,7 +110,7 @@ pub const Dequantize = struct {
             \\        {s}, //outputType 
             \\        {s}, //input 
             \\        {s}, //output
-            \\    )
+            \\    ) catch return;
         , .{
             self.input.ty.toString(),
             self.output.ty.toString(),

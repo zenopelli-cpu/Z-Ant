@@ -445,8 +445,6 @@ fn write_graphSerialization(writer: std.fs.File.Writer, linearizedGraph: std.Arr
         }
 
         try node.write_op(writer);
-
-        try writer.writeAll(" catch return;");
     }
 }
 

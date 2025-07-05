@@ -103,7 +103,7 @@ pub const Mul = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.mul_lean({s}, {s}, ({s}), &tensor_{s})
+            \\    tensMath.mul_lean({s}, {s}, ({s}), &tensor_{s}) catch return;
         , .{
             self.input_A.ty.toString(),
             tensor_A_string, // Input tensor A

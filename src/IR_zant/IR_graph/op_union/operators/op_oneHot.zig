@@ -161,7 +161,7 @@ pub const OneHot = struct {
             \\        {s}, // values
             \\        {?}, // axis
             \\        &tensor_{s}, // output
-            \\    )
+            \\    ) catch return;
         , .{
             self.values.ty.toString(), // T
             indices_string, // indices

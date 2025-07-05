@@ -159,7 +159,7 @@ pub const Gather = struct {
             \\        &tensor_usize_{s}, 
             \\        {},
             \\        &tensor_{s},
-            \\    )
+            \\    ) catch return;
         , .{
             self.input_A.ty.toString(),
             tensor_A_string,

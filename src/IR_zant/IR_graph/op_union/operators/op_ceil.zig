@@ -82,7 +82,7 @@ pub const Ceil = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.ceil_lean({s}, {s}, &tensor_{s})
+            \\    tensMath.ceil_lean({s}, {s}, &tensor_{s}) catch return;
         , .{
             self.input_X.ty.toString(),
             input_tensor_string,

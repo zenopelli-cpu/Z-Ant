@@ -110,7 +110,7 @@ pub const Flatten = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.flatten_lean({s}, {s}, &tensor_{s})
+            \\    tensMath.flatten_lean({s}, {s}, &tensor_{s}) catch return;
         , .{
             self.data.ty.toString(),
             input_string,

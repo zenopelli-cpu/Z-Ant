@@ -178,7 +178,7 @@ pub const MaxPool = struct {
             \\        {s}, //dilations
             \\        {s}, //pads
             \\        tensMath.AutoPadType.{s}, //auto_pad
-            \\    )
+            \\    ) catch return;
         , .{
             self.output_Y.ty.toString(),
             tensor_X_string, //Input

@@ -119,7 +119,7 @@ pub const Unsqueeze = struct {
             \\        {s}, // Input tensor
             \\        {s}, // Axes tensor
             \\        &tensor_{s} // Output tensor
-            \\    );
+            \\    ) catch return; catch return;;
         , .{
             tensor_X_string,
             axes_string,
