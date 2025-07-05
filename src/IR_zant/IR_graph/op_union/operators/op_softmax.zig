@@ -93,7 +93,7 @@ pub const Softmax = struct {
             \\        {s}, //Type
             \\        {s}, // input tensor
             \\        &tensor_{s} // output tensor
-            \\    ) catch return; catch return;
+            \\    ) catch return;
             \\
         , .{
             self.output_Y.ty.toString(),

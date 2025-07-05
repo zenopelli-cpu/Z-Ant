@@ -9,6 +9,7 @@ const IR_codegen = IR_zant.IR_codegen;
 const IR_utils = IR_graph.utils;
 const GraphZant = IR_graph.GraphZant;
 const TensorZant = IR_graph.TensorZant;
+const tensorZant_lib = IR_graph.tensorZant_lib;
 const NodeZant = IR_graph.NodeZant;
 
 const tensorZantMap: *std.StringHashMap(TensorZant) = &IR_graph.tensorZant_lib.tensorMap;
@@ -23,13 +24,13 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
     // Static initialization for output tensors if not using dynamic allocation
     //
     // declare all the outputs for each node, aka: linkers
-    try write_linkersInitialization(writer);
+    if (!codegen_options.IR_dynamic) try write_linkersInitialization(writer);
 
     // declare all the outputs of  the network
     try write_outputsInitialization(writer);
 
     // method to reset the tensors values
-    try write_linkersResetMethod(writer);
+    if (!codegen_options.IR_dynamic) try write_linkersResetMethod(writer);
 
     const inputs = try IR_utils.getInputs(tensorZantMap);
     const outputs = try IR_utils.getInputs(tensorZantMap);
@@ -68,11 +69,14 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
         , .{});
     }
 
-    _ = try writer.print(
-        \\
-        \\    // Reset all linker tensors to zero before each prediction
-        \\    resetOutputTensors();
-    , .{});
+    //if I'm using statical allocation I'll reset all the Link tensors to zero
+    if (!codegen_options.IR_dynamic) {
+        _ = try writer.print(
+            \\
+            \\    // Reset all linker tensors to zero before each prediction
+            \\    resetOutputTensors();
+        , .{});
+    }
 
     try write_checks(writer);
 
@@ -114,100 +118,6 @@ fn write_linkersInitialization(writer: std.fs.File.Writer) !void {
         );
     }
 }
-
-// fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void {
-//     try writer.print(
-//         \\
-//         \\ // ---- CONSTANT TENSOR ----
-//     , .{});
-
-//     // Get the output tensor (constant nodes have exactly one output)
-//     const output = readyNode.outputs.items[0];
-//     const sanitized_name = try utils.getSanitizedName(output.name);
-
-//     // Find the value attribute which contains the constant tensor
-//     var value_attr: ?*AttributeProto = null;
-//     for (readyNode.nodeProto.attribute) |attr| {
-//         if (std.mem.eql(u8, attr.name, "value")) {
-//             value_attr = attr;
-//             break;
-//         }
-//     }
-
-//     if (value_attr == null or value_attr.?.t == null) return error.MissingConstantValue;
-//     const tensor = value_attr.?.t.?;
-
-//     // Write shape array
-//     try writer.print(
-//         \\
-//         \\const shape_tensor_{s} : [{}]usize = [_]usize{{
-//     , .{ sanitized_name, output.shape.len });
-
-//     for (0..output.shape.len) |i| {
-//         if (i > 0) try writer.print(",", .{});
-//         try writer.print(
-//             \\ {}
-//         , .{output.shape[i]});
-//     }
-
-//     try writer.print(
-//         \\}} ;
-//     , .{});
-
-//     // Write data array
-//     var total_size: i64 = 1;
-//     for (tensor.dims) |dim| {
-//         total_size *= dim;
-//     }
-
-//     //const dataTypeString = try utils.getTypeString(tensor.data_type);
-//     const type_str_const = try utils.getTypeString(tensor.data_type);
-//     try writer.print(
-//         \\
-//         \\const array_{s} : [{d}]{s} = [_]{s}{{
-//     , .{ sanitized_name, total_size, type_str_const, type_str_const });
-
-//     // Write the actual data values
-//     if (tensor.float_data) |data| {
-//         for (0..data.len) |i| {
-//             if (i > 0) try writer.print(",", .{});
-//             try writer.print(" {d}", .{data[i]});
-//         }
-//     } else if (tensor.int64_data) |data| {
-//         for (0..data.len) |i| {
-//             if (i > 0) try writer.print(",", .{});
-//             try writer.print(" {d}", .{data[i]});
-//         }
-//     } else if (tensor.raw_data) |data| {
-//         switch (tensor.data_type) {
-//             .FLOAT => {
-//                 const float_data = @as([*]const f32, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 4)];
-//                 for (0..float_data.len) |i| {
-//                     if (i > 0) try writer.print(",", .{});
-//                     try writer.print(" {d}", .{float_data[i]});
-//                 }
-//             },
-//             .INT64 => {
-//                 const int_data = @as([*]const i64, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 8)];
-//                 for (0..int_data.len) |i| {
-//                     if (i > 0) try writer.print(",", .{});
-//                     try writer.print(" {d}", .{int_data[i]});
-//                 }
-//             },
-//             else => return error.UnsupportedDataType,
-//         }
-//     } else return error.NoDataAvailable;
-
-//     try writer.print(
-//         \\ }};
-//     , .{});
-
-//     // Write tensor initialization using fromArray
-//     try writer.print(
-//         \\
-//         \\const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
-//     , .{ sanitized_name, type_str_const, sanitized_name, sanitized_name });
-// }
 
 fn write_TensorAllocation(writer: std.fs.File.Writer, tz: *TensorZant, size: i64) !void {
     const sanitized_name = try tz.getNameSanitized();
@@ -430,7 +340,7 @@ fn write_checks(writer: std.fs.File.Writer) !void {
 }
 
 fn write_graphSerialization(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
-    for (linearizedGraph.items) |node| {
+    for (linearizedGraph.items, 0..) |node, i| {
         if (codegen_options.IR_comm) {
             try write_op_info(writer, node);
         }
@@ -444,7 +354,60 @@ fn write_graphSerialization(writer: std.fs.File.Writer, linearizedGraph: std.Arr
             , .{node.*.nodeProto.*.op_type});
         }
 
+        //Before computing the OP, init link tensors when we are in dynamic allocation
+        if (codegen_options.IR_dynamic) try allocate_output_link_tensors(writer, node);
+
         try node.write_op(writer);
+
+        //After computing the OP, delete link tensors that are not useful anymore when we are in dynamic allocation
+        if (codegen_options.IR_dynamic) try deallocate_useless_link_tensors(writer, i, linearizedGraph);
+    }
+}
+
+//dynamically allocate a linker tensor
+fn allocate_output_link_tensors(writer: std.fs.File.Writer, node: *NodeZant) !void {
+
+    //if not used anymore in the rest of the graph
+    for (try node.get_output_tensors()) |output_tensor| {
+        if (output_tensor.tc == tensorZant_lib.TensorCategory.LINK) {
+            const size = try write_TensorShape(
+                writer,
+                output_tensor,
+            );
+            try write_TensorAllocation(
+                writer,
+                output_tensor,
+                size,
+            );
+        }
+    }
+}
+
+//free a linker tensor after dynamical allocation
+fn deallocate_useless_link_tensors(writer: std.fs.File.Writer, starting_node: usize, linearizedGraph: std.ArrayList(*NodeZant)) !void {
+    const node = linearizedGraph.items[starting_node];
+
+    //After computing the OP, delete link tensors that are not useful anymore when we are in dynamic allocation
+    if (starting_node != linearizedGraph.items.len - 1) {
+        var used: bool = false;
+        for (try node.get_input_tensors()) |my_input_tensor| { //for each input tensor of my node
+            used = false;
+            //if not used anymore in the rest of the graph
+            for (starting_node..linearizedGraph.items.len - 1) |j| {
+                for (try linearizedGraph.items[j].get_input_tensors()) |other_input_tens| {
+                    if (std.mem.eql(u8, my_input_tensor.name, other_input_tens.name)) {
+                        used = true;
+                        break;
+                    }
+                }
+                if (used) break;
+            }
+
+            //if it is not used anymore in the graph and it is an initializer I can deinit it
+            if (!used and my_input_tensor.tc == tensorZant_lib.TensorCategory.LINK) {
+                _ = try writer.print("    tensor_{s}.deinit();\n", .{my_input_tensor.name});
+            }
+        }
     }
 }
 
@@ -461,23 +424,23 @@ fn write_op_info(writer: std.fs.File.Writer, node: *NodeZant) !void {
         \\   //   inputs: 
     , .{});
 
-    // //write the inputs
-    // for (node.inputs.items) |input| {
-    //     try writer.print(
-    //         \\
-    //         \\   //      -> {s}
-    //     , .{input.name});
-    // }
-    // try writer.print(
-    //     \\
-    //     \\   //    outputs:
-    // , .{});
+    //write the inputs
+    for (try node.get_input_tensors()) |input| {
+        try writer.print(
+            \\
+            \\   //      -> {s}
+        , .{input.name});
+    }
+    try writer.print(
+        \\
+        \\   //    outputs:
+    , .{});
 
-    // //write the outputs
-    // for (node.outputs.items) |output| {
-    //     try writer.print(
-    //         \\
-    //         \\   //      <- {s}
-    //     , .{output.name});
-    // }
+    //write the outputs
+    for (try node.get_output_tensors()) |output| {
+        try writer.print(
+            \\
+            \\   //      <- {s}
+        , .{output.name});
+    }
 }

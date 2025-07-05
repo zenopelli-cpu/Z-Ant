@@ -66,7 +66,9 @@ pub const Concat = struct {
 
     pub fn get_input_tensors(self: Concat) ![]*TensorZant {
         // Simply return an owned slice of the existing inputs list
-        return self.inputs.toOwnedSlice();
+
+        var mutable_inputs = self.inputs;
+        return mutable_inputs.toOwnedSlice();
     }
 
     pub fn get_output_tensors(self: Concat) ![]*TensorZant {
