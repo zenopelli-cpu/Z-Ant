@@ -370,15 +370,24 @@ fn allocate_output_link_tensors(writer: std.fs.File.Writer, node: *NodeZant) !vo
     //if not used anymore in the rest of the graph
     for (try node.get_output_tensors()) |output_tensor| {
         if (output_tensor.tc == tensorZant_lib.TensorCategory.LINK) {
-            const size = try write_TensorShape(
+            _ = try write_TensorShape(
                 writer,
                 output_tensor,
             );
-            try write_TensorAllocation(
-                writer,
-                output_tensor,
-                size,
-            );
+
+            const sanitized_name = try output_tensor.getNameSanitized();
+
+            // --- ADD CHECK FOR UNDEFINED TYPE ---
+            if (output_tensor.ty == .undefined) {
+                std.log.warn("\n\nCODEGEN ERROR: Attempted to generate output tensor '{s}' but its data type is UNDEFINED. Check ONNX graph.\n\n", .{sanitized_name});
+                return error.DataTypeNotAvailable; // Or a more specific error like CannotGenerateUndefinedType
+            }
+            // --- END CHECK ---
+
+            const type_str = output_tensor.ty.toString();
+
+            // Dynamic allocation: Use fromShape to allow mutation
+            try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return;", .{ sanitized_name, type_str, sanitized_name });
         }
     }
 }
@@ -388,27 +397,28 @@ fn deallocate_useless_link_tensors(writer: std.fs.File.Writer, starting_node: us
     const node = linearizedGraph.items[starting_node];
 
     //After computing the OP, delete link tensors that are not useful anymore when we are in dynamic allocation
-    if (starting_node != linearizedGraph.items.len - 1) {
-        var used: bool = false;
-        for (try node.get_input_tensors()) |my_input_tensor| { //for each input tensor of my node
-            used = false;
-            //if not used anymore in the rest of the graph
-            for (starting_node..linearizedGraph.items.len - 1) |j| {
-                for (try linearizedGraph.items[j].get_input_tensors()) |other_input_tens| {
-                    if (std.mem.eql(u8, my_input_tensor.name, other_input_tens.name)) {
-                        used = true;
-                        break;
-                    }
-                }
-                if (used) break;
-            }
 
-            //if it is not used anymore in the graph and it is an initializer I can deinit it
-            if (!used and my_input_tensor.tc == tensorZant_lib.TensorCategory.LINK) {
-                _ = try writer.print("    tensor_{s}.deinit();\n", .{my_input_tensor.name});
+    var used: bool = false;
+    for (try node.get_input_tensors()) |my_input_tensor| { //for each input tensor of my node
+        used = false;
+        //if not used anymore in the rest of the graph
+        for (starting_node + 1..linearizedGraph.items.len) |j| {
+            for (try linearizedGraph.items[j].get_input_tensors()) |other_input_tens| {
+                if (std.mem.eql(u8, my_input_tensor.name, other_input_tens.name)) {
+                    used = true;
+                    break;
+                }
             }
+            if (used) break;
+        }
+
+        //if it is not used anymore in the graph and it is an initializer I can deinit it
+        if (!used and my_input_tensor.tc == tensorZant_lib.TensorCategory.LINK) {
+            _ = try writer.print("    tensor_{s}.deinit();\n", .{try my_input_tensor.getNameSanitized()});
         }
     }
+
+    //
 }
 
 fn write_op_info(writer: std.fs.File.Writer, node: *NodeZant) !void {

@@ -177,11 +177,11 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
     }
 
     // Broadcasting case - use stack arrays for small ranks to avoid allocations
-    std.log.debug("Taking broadcasting case\n", .{});
+    std.log.info("Taking broadcasting case\n", .{});
     const rank1 = t1.shape.len;
     const rank2 = t2.shape.len;
     const max_rank = @max(rank1, rank2);
-    std.log.debug("rank1: {d}, rank2: {d}, max_rank: {d}\n", .{ rank1, rank2, max_rank });
+    std.log.info("rank1: {d}, rank2: {d}, max_rank: {d}\n", .{ rank1, rank2, max_rank });
 
     // Use stack arrays for common tensor ranks (up to 4D)
     var stack_shape1: [4]usize = undefined; // Initialize later
@@ -243,7 +243,7 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
     // Calculate strides from right to left using the reconstructed full shape
     var stride: usize = 1;
     i = max_rank;
-    std.log.debug("Calculating strides for shapes: shape1={any}, shape2={any}\n", .{ shape1, shape2 });
+    std.log.info("Calculating strides for shapes: shape1={any}, shape2={any}\n", .{ shape1, shape2 });
 
     // Calculate actual strides for each tensor based on their shapes
     var actual_stride1: usize = 1;
@@ -259,7 +259,7 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
         // For t2 strides: use actual tensor strides if dimension > 1, else 0 for broadcasting
         strides2[i] = if (shape2[i] > 1) actual_stride2 else 0;
 
-        std.log.info("dim {d}: shape1[{d}]={d}, shape2[{d}]={d}, strides1[{d}]={d}, strides2[{d}]={d}, out_strides[{d}]={d}\n", .{ i, i, shape1[i], i, shape2[i], i, strides1[i], i, strides2[i], i, out_strides[i] });
+        std.log.debug(" dim {d}: shape1[{d}]={d}, shape2[{d}]={d}, strides1[{d}]={d}, strides2[{d}]={d}, out_strides[{d}]={d}\n", .{ i, i, shape1[i], i, shape2[i], i, strides1[i], i, strides2[i], i, out_strides[i] });
 
         // Update actual strides for next iteration (going left)
         actual_stride1 *= shape1[i];
@@ -268,6 +268,8 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
         // Use the reconstructed shape here
         stride *= full_output_shape_slice[i]; // Use reconstructed shape
     }
+
+    std.log.info(" stride1={any}, stride2={any}, out_strides={any}\n", .{ strides1, strides2, out_strides });
 
     // Perform addition with broadcasting
     // Use stack arrays for common tensor ranks (up to 4D) - indices were already allocated above

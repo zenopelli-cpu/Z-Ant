@@ -271,6 +271,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
     std.debug.print("\n -------- nodes: {d}", .{protoGraph.nodes.len});
     //adding all the nodes inputs and outputs
     for (protoGraph.nodes, 1..) |node, i| { //for each NodeProto in the GraphProto
+
         std.debug.print("\n --- {} :  {s} - {s} ", .{ i, node.op_type, node.name.? });
         // node.print(null); //DEBUG
 
@@ -287,6 +288,9 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
             try tensorMap.put(tensorZant.name, tensorZant);
         } else {
             for (node.input) |input_name| {
+                std.debug.print("\n    inputs >>>", .{});
+                if (tensorMap.getPtr(input_name) != null) continue;
+
                 //if the tensor is null is represented by an empty string in the onnx, so It must not be initialized in the hashMap
                 if (std.mem.eql(u8, input_name, "")) continue;
                 //if the tensor already exists is means it is an onnx_initializer and it don't need to be initialized again
@@ -304,39 +308,33 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                 try tensorMap.put(tensorZant.name, tensorZant);
             }
             for (node.output) |output_name| {
+                std.debug.print("\n    >>> outputs", .{});
+                if (tensorMap.getPtr(output_name) != null) continue;
 
-                //WHy RESHAPE nodes need a different output initialization? Because the output shape is sometime specified in the attributes and sometime in the input tensor
+                //WHy RESHAPE nodes need a different output initialization? Because the output shape is sometime specified in the attributes, sometime is passed as an initializer and sometimes is a ValueInfoProto
                 if (std.mem.eql(u8, node.op_type, "Reshape")) {
-                    var shape: []usize = undefined;
-                    var shape_is_attribute = false;
 
-                    //get the shape from the attributes
-                    if (node.attribute.len != 0) {
-                        for (node.attribute) |attr| {
-                            if (std.mem.eql(u8, attr.name, "shape")) {
-                                shape_is_attribute = true;
-                                shape = try allocator.alloc(usize, node.attribute[0].ints.len);
-                                for (node.attribute[0].ints, 0..) |dim, j| {
-                                    shape[j] = @as(usize, @intCast(dim));
-                                }
-                            }
-                        }
+                    // ------------------ is it a ValueInfoProto? most probable option
+                    if (utils.getValueInfoTensorFromGraphInfo(output_name, protoGraph)) |vip_tensor| {
+                        const tensorZant: TensorZant = try TensorZant.init(
+                            output_name,
+                            null,
+                            vip_tensor,
+                            null,
+                            TensorCategory.LINK,
+                        );
+                        //add the readyTensor to the HashMap
+                        try tensorMap.put(tensorZant.name, tensorZant);
+
+                        continue;
                     }
 
-                    //if the shape is not an attribute it MUST be passed as imput
-                    if (!shape_is_attribute and node.input.len < 2) return error.shape_notFound;
+                    // ------------------ is it passed as an input to the node? most probable option
+                    //TODO
+                    // ------------------ is it an initializer? it shoul be already initialized
+                    //TODO
 
-                    const tensorZant: TensorZant = try TensorZant.init(
-                        node.output[0],
-                        null,
-                        null,
-                        shape,
-                        TensorCategory.LINK,
-                    );
-                    std.debug.print("\n           reshape output initialization: shape{any}", .{shape});
-
-                    //add the readyTensor to the HashMap
-                    try tensorMap.put(tensorZant.name, tensorZant);
+                    return error.Reshape_outputShape_NotFound;
                 } else {
                     std.debug.print("\n  +++", .{});
 
