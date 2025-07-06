@@ -314,6 +314,7 @@ pub fn build(b: *std.Build) void {
 
     const main_executable = b.addExecutable(.{
         .name = "main_profiling_target",
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
