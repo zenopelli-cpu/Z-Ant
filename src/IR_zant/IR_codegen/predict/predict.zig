@@ -82,6 +82,17 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
 
     try write_predictInitialization(writer);
 
+    // Allocate output tensors for dynamic mode
+    if (codegen_options.IR_dynamic) {
+        const output_tensors: []TensorZant = try IR_utils.getOutputs(tensorZantMap);
+        for (output_tensors) |*tz| {
+            _ = try write_TensorShape(writer, tz);
+            const sanitized_name = try tz.getNameSanitized();
+            const type_str = tz.ty.toString();
+            try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return;\n", .{ sanitized_name, type_str, sanitized_name });
+        }
+    }
+
     try write_graphSerialization(writer, linearizedGraph);
 
     try writeReturn(writer);
@@ -131,9 +142,14 @@ fn write_TensorAllocation(writer: std.fs.File.Writer, tz: *TensorZant, size: i64
 
     const type_str = tz.ty.toString();
 
-    // Static allocation: Use fromConstBuffer to allow mutation
-    try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};", .{ sanitized_name, size, type_str, type_str, size });
-    try writer.print("    var tensor_{s} = Tensor({s}).fromConstBuffer(&fba, &array_{s}, &shape_tensor_{s});", .{ sanitized_name, type_str, sanitized_name, sanitized_name });
+    if (codegen_options.IR_dynamic) {
+        // Dynamic allocation: Use fromShape
+        try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return;", .{ sanitized_name, type_str, sanitized_name });
+    } else {
+        // Static allocation: Use fromConstBuffer to allow mutation
+        try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};", .{ sanitized_name, size, type_str, type_str, size });
+        try writer.print("    var tensor_{s} = Tensor({s}).fromConstBuffer(&fba, &array_{s}, &shape_tensor_{s});", .{ sanitized_name, type_str, sanitized_name, sanitized_name });
+    }
 }
 
 fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
@@ -157,10 +173,12 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
     const linkers: []TensorZant = try IR_utils.getLinkers(tensorZantMap);
 
     for (linkers) |*tz| {
-        _ = try writer.print(
-            \\
-            \\    @memset(array_{s}[0..], 0);
-        , .{try tz.getNameSanitized()});
+        if (!codegen_options.IR_dynamic) {
+            _ = try writer.print(
+                \\
+                \\    @memset(array_{s}[0..], 0);
+            , .{try tz.getNameSanitized()});
+        }
 
         if (codegen_options.IR_log) {
             _ = try writer.print(
@@ -176,10 +194,12 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
     const outputs: []TensorZant = try IR_utils.getOutputs(tensorZantMap);
 
     for (outputs) |*tz| {
-        _ = try writer.print(
-            \\
-            \\    @memset(array_{s}[0..], 0);
-        , .{try tz.getNameSanitized()});
+        if (!codegen_options.IR_dynamic) {
+            _ = try writer.print(
+                \\
+                \\    @memset(array_{s}[0..], 0);
+            , .{try tz.getNameSanitized()});
+        }
 
         if (codegen_options.IR_log) {
             _ = try writer.print(
@@ -200,26 +220,28 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
 // -------------------------------- WRITE OUTPUT --------------------------------
 // Initializes output tensor of each node in the computation graph
 fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
-    try writer.print(
-        \\
-        \\
-        \\ // ---------------------------------------------------
-        \\ // +         Initializing Output Tensors             +
-        \\ // ---------------------------------------------------
-    , .{});
+    if (!codegen_options.IR_dynamic) {
+        try writer.print(
+            \\
+            \\
+            \\ // ---------------------------------------------------
+            \\ // +         Initializing Output Tensors             +
+            \\ // ---------------------------------------------------
+        , .{});
 
-    const outputs: []TensorZant = try IR_utils.getOutputs(tensorZantMap);
+        const outputs: []TensorZant = try IR_utils.getOutputs(tensorZantMap);
 
-    for (outputs) |*tz| {
-        const size = try write_TensorShape(
-            writer,
-            tz,
-        );
-        try write_TensorAllocation(
-            writer,
-            tz,
-            size,
-        );
+        for (outputs) |*tz| {
+            const size = try write_TensorShape(
+                writer,
+                tz,
+            );
+            try write_TensorAllocation(
+                writer,
+                tz,
+                size,
+            );
+        }
     }
 }
 
@@ -272,6 +294,24 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
         \\    result.* = tensor_{s}.data.ptr;
         \\
     , .{try outputs[0].getNameSanitized()});
+
+    // Add deallocation for dynamic tensors
+    if (codegen_options.IR_dynamic) {
+        const linkers: []TensorZant = try IR_utils.getLinkers(tensorZantMap);
+        for (linkers) |*tz| {
+            _ = try writer.print(
+                \\    tensor_{s}.deinit();
+                \\
+            , .{try tz.getNameSanitized()});
+        }
+
+        for (outputs) |*tz| {
+            _ = try writer.print(
+                \\    // Note: tensor_{s} memory ownership transferred to caller
+                \\
+            , .{try tz.getNameSanitized()});
+        }
+    }
 
     if (codegen_options.IR_log) {
         _ = try writer.print(

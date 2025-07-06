@@ -41,8 +41,10 @@ pub fn write(generated_path: []const u8, model_name: []const u8, linearizedGraph
         try write_logFunction(writer);
     }
 
-    //Fixed Buffer Allocator
-    try write_FBA(writer);
+    //Fixed Buffer Allocator (only for static allocation)
+    if (!codegen_options.IR_dynamic) {
+        try write_FBA(writer);
+    }
 
     // _ = linearizedGraph;
     // Generate prediction function code
