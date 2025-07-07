@@ -33,7 +33,7 @@ pub const TensorType = enum {
 pub const QuantDetails = struct {
     tensorType: TensorType,
     scale_factor: f32, // hardcoded data type
-    zero_point: isize,
+    zero_point: i32,
 };
 
 pub const ClusterDetails = struct {
@@ -48,19 +48,9 @@ pub const TensorDetails = union(enum) {
     cluster: ClusterDetails,
 };
 
-// Funzione per QuantDetails struct con tipi corretti
-// pub fn QuantDetails(comptime unquantizedType: type, comptime quantizedType: type) type {
-//     return struct {
-//         tensorType: TensorType,
-//         scale_factor: unquantizedType,
-//         zero_point: quantizedType, // or usize
-//     };
-// }
-
 ///Class Tensor.
 ///Return a generic type structure
 pub fn Tensor(comptime T: type) type {
-
     return struct {
         data: []T, //contains all the data of the tensor in a monodimensional array
         size: usize, //dimension of the tensor, equal to data.len
@@ -197,7 +187,7 @@ pub fn Tensor(comptime T: type) type {
             shape: []usize,
             scale_factor: f32,
             comptime outputType: type,
-            zero_point: isize,
+            zero_point: i32,
         ) !Tensor(outputType) {
 
             // Calculate total size based on shape
@@ -252,7 +242,7 @@ pub fn Tensor(comptime T: type) type {
             // dequantization
             const scale = try self.get_scale_factor();
             const zero = try self.get_zero_point();
-            const result = try quant.dequantize_array(outputType, T, self.data, scale, @as(isize, @intCast(zero)));
+            const result = try quant.dequantize_array(outputType, T, self.data, scale, @as(i32, @intCast(zero)));
             defer pkgAllocator.allocator.free(result);
 
             return Tensor(outputType).fromArray(allocator, result, self.shape);
@@ -323,7 +313,7 @@ pub fn Tensor(comptime T: type) type {
         /// Returns the quantization zero point of the quantized tensor.
         /// Errors:
         ///     - TensorError.NotQuantizedTensor;
-        pub inline fn get_zero_point(self: *@This()) !isize {
+        pub inline fn get_zero_point(self: *@This()) !i32 {
             switch (self.details) {
                 .quant => |quantDetails| {
                     return quantDetails.zero_point;

@@ -364,7 +364,7 @@ pub inline fn quant_lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T
 
     const VEC_WIDTH: usize = comptime (std.simd.suggestVectorLength(T) orelse 4);
 
-    var zero: isize = undefined;
+    var zero: i32 = undefined;
     var scale: f32 = undefined;
 
     switch (C.details) {

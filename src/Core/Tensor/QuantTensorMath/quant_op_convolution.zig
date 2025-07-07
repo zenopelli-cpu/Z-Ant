@@ -41,7 +41,7 @@ const op_transpose = @import("../TensorMath/lib_shape_math/op_transpose.zig");
 ///
 pub var log_functionC: ?*const fn ([*c]u8) callconv(.C) void = null;
 
-pub export fn setLogFunctionC(func: ?*const fn ([*c]u8) callconv(.C) void) void {
+pub export fn setQuantLogFunctionC(func: ?*const fn ([*c]u8) callconv(.C) void) void {
     log_functionC = func;
 }
 
@@ -501,7 +501,7 @@ pub fn convolve_tensor_with_bias(
         (stride.len > 1 and stride[1] > 1 and in_width == dilated_kernel_w) or
         (in_height == 1 and in_width == 1))
     {
-        var zero: isize = undefined;
+        var zero: i32 = undefined;
         var scale: f32 = undefined;
         // For a small input with a larger kernel or equal kernel with stride>1,
         // we'll return a tensor with shape [batch_size, num_filters, 1, 1]
@@ -724,7 +724,7 @@ pub fn convolve_tensor_with_bias(
         // Initialize result tensor
         try result.?.set(0, 0); // Use .? to unwrap the optional
 
-        var zero: isize = undefined;
+        var zero: i32 = undefined;
         var scale: f32 = undefined;
         // Optimized loops for group-wise dot product calculation
         var n: usize = 0;
@@ -736,17 +736,17 @@ pub fn convolve_tensor_with_bias(
                 scale = try input.get_scale_factor() * try kernel.get_scale_factor();
                 var effective_scale: f32 = try input.get_scale_factor() * try kernel.get_scale_factor() / scale;
                 // shift_correction and effective_scale normalization in [1, 0.5] range
-                var shift_correction: usize = 0;
-                while (effective_scale > 1) {
+                var shift_correction: u5 = 0;
+                while (effective_scale >= 1) {
                     effective_scale /= 2;
-                    shift_correction += 1;
+                    shift_correction -= 1;
                 }
                 while (effective_scale < 0.5) {
                     effective_scale *= 2;
-                    shift_correction -= 1;
+                    shift_correction += 1;
                 }
                 // multiplier
-                const shift = 31;
+                const shift: u5 = 31;
                 const multiplier: i32 = @intFromFloat(@round(effective_scale * @as(f32, 1 << shift)));
                 // zero_point
                 zero = 0; // Output zero point set at zero by default

@@ -12,6 +12,12 @@ pub const quantScheme = enum {
 };
 
 /// Quantizes the input Tensor to the outputType.
+/// Parameters:
+/// - inputType: data type of the tensor to be quantized.
+/// - outputType: data type to be quantized to.
+/// - input: pointer to the input tensor to be quantized
+/// - scheme: quantization scheme (symmetric or asymmetric)
+/// note: as of now the quantization scheme is ignored and hardcoded to asymmetric
 /// Returns the quantized Tensor.
 pub fn quantize(comptime inputType: type, comptime outputType: type, input: *Tensor(inputType), scheme: quantScheme) !Tensor(outputType) {
     const hardcodedScheme = quantScheme.ASYM; // asymm hardcoded
@@ -55,8 +61,14 @@ pub fn get_quantize_output_shape(input_shape: []const usize) ![]usize {
 // ------------------------- Quantization methods and helper functions -------------------------
 
 // ========== helper functions
-pub fn clamp(comptime T: type, comptime U: type, value: T, scale: T, zero: isize, minInt: U, maxInt: U) U {
-    const roundedVal: T = @round(value / scale + @as(T, @floatFromInt(zero)));
+pub fn clamp(comptime T: type, comptime U: type, value: T, scale: T, zero: i32, minInt: U, maxInt: U) U {
+    var roundedVal: T = undefined;
+
+    if(scale == 0) {
+        roundedVal = value;
+    } else {
+        roundedVal = @round(value / scale + @as(T, @floatFromInt(zero)));
+    }
 
     if (roundedVal <= @as(T, @floatFromInt(minInt)))
         return minInt;
@@ -77,19 +89,38 @@ pub inline fn get_scale_factor(comptime T: type, comptime U: type, minFloat: T, 
     return num / denom;
 }
 
-pub inline fn get_zero_point(comptime T: type, scale: T, minFloat: T) isize {
-    const zeroPointFloat: T = -minFloat / scale;
+/// Computes and returns the zero point.
+/// Params:
+/// - T: input type
+/// - U: outputtype
+/// - scale: scale factor
+/// - minFloat: minimum value in the floating point range
+/// - minInt: minimum value of the quantized data type range
+/// Returns: the zero point as a i32
+pub inline fn get_zero_point(comptime T: type, comptime U: type, scale: T, minFloat: T, minInt: U) i32 {
+    if(scale == 0)
+        return @as(i32, @intCast(minInt)) - @as(i32, @intFromFloat(minFloat));
 
-    return @as(isize, @intFromFloat(zeroPointFloat));
+    const zeroPointFloat: T = minFloat / scale;
+
+    return @as(i32, @intCast(minInt)) - @as(i32, @intFromFloat(zeroPointFloat));
 }
 
 // ========== quantization
 
 /// This function quantizes the input monodimensional array, using the given parameters:
-/// scale factor, zero point, minInt/maxInt (aka the integer grid limits)
+/// scale factor, zero point, minInt/maxInt (aka the integer grid limits).
+/// Parameters:
+/// - T: input data type
+/// - U: output data type, to be quantized to
+/// - inputArray: array to be quantized
+/// - scale: the scale factor
+/// - zero: the zero point
+/// - minInt: chosen min value of the quantized range
+/// - maxInt: chosen max value of the quantized range
 /// Returns the quantized array.
 /// The caller is responsible for freeing the returned array.
-pub fn quantize_array(comptime T: type, comptime U: type, inputArray: anytype, scale: T, zero: isize, minInt: U, maxInt: U) ![]U {
+pub fn quantize_array(comptime T: type, comptime U: type, inputArray: anytype, scale: T, zero: i32, minInt: U, maxInt: U) ![]U {
     var output = try pkgAllocator.alloc(U, inputArray.len);
 
     for (inputArray, 0..) |val, i| {
@@ -101,9 +132,15 @@ pub fn quantize_array(comptime T: type, comptime U: type, inputArray: anytype, s
 }
 
 /// This function quantizes the input monodimensional array using min/max method.
+/// Parameters:
+/// - T: input data type
+/// - U: output data type, to be quantized to
+/// - input: array to be quantized
+/// - scheme: quantization scheme (symmetric or asymmetric)
 /// Returns a tuple with the result quantized array, scale factor, zero point.
+/// note: as of now the quantization scheme is ignored and hardcoded to asymmetric
 /// The caller is responsible for freeing the returned quantized array.
-pub fn minmax_array_quant(comptime T: type, comptime U: type, scheme: quantScheme, input: anytype) !struct { quantizedArray: []U, scale: T, zero: isize } {
+pub fn minmax_array_quant(comptime T: type, comptime U: type, scheme: quantScheme, input: anytype) !struct { quantizedArray: []U, scale: T, zero: i32 } {
     var minFloat: T = input[0];
     var maxFloat: T = input[0];
 
@@ -116,27 +153,19 @@ pub fn minmax_array_quant(comptime T: type, comptime U: type, scheme: quantSchem
     }
 
     // compute minInt and maxInt
-    var minInt: U = undefined;
-    var maxInt: U = undefined;
-
-    if (@typeInfo(U).int.signedness == .signed) {
-        minInt = @as(U, -(1 << (@bitSizeOf(U) - 1))); // minInt = - 2^(b-1)
-        maxInt = @as(U, (1 << (@bitSizeOf(U) - 1)) - 1); // maxInt = 2^(b-1) - 1
-    } else {
-        minInt = 0; // minInt = 0
-        maxInt = @as(U, (1 << @bitSizeOf(U)) - 1); // maxInt = 2^b - 1
-    }
+    const minInt = if (@typeInfo(U) == .int) std.math.minInt(U) else std.math.floatMin(U);
+    const maxInt = if (@typeInfo(U) == .int) std.math.maxInt(U) else std.math.floatMax(U);
 
     const scale: T = get_scale_factor(T, U, minFloat, maxFloat);
 
-    var zero: isize = undefined;
+    var zero: i32 = undefined;
     switch (scheme) {
         quantScheme.SYMM => zero = 0,
-        quantScheme.ASYM => zero = get_zero_point(T, scale, minFloat),
+        quantScheme.ASYM => zero = get_zero_point(T, U, scale, minFloat, minInt),
     }
 
     const quantizedArray: []U = try quantize_array(T, U, input, scale, zero, minInt, maxInt);
-    const immutableZero: isize = zero;
+    const immutableZero: i32 = zero;
     return .{
         .quantizedArray = quantizedArray,
         .scale = scale,

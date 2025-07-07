@@ -176,7 +176,7 @@ test "array dequantization test" {
     var outputTensor = try Tensor(f32).fromShape(&pkgAllocator.allocator, &shape);
     defer outputTensor.deinit();
 
-    quant.dequantize_tensor(f32, u8, &inputTensor, &outputTensor, 0.005, 98);
+    quant.dequantize_tensor(u8, f32, &inputTensor, &outputTensor, 0.005, 98);
     std.debug.print("\n --> dequantized tensor: \n", .{});
     outputTensor.printMultidim();
 
