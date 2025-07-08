@@ -35,8 +35,6 @@ pub fn unsqueeze(comptime T: type, data: *Tensor(T), axes: *Tensor(i64)) !Tensor
 
     var output = try Tensor(T).fromShape(data.allocator, output_shape);
 
-    output.details = data.details;
-
     try unsqueeze_lean(T, data, axes, &output);
 
     return output;

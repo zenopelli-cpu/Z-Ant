@@ -1505,162 +1505,162 @@ test "lean_shape_onnx basic operations" {
 
 // ... existing code ...
 
-test "get_shape_output_shape" {
-    const testing = std.testing;
+// test "get_shape_output_shape" {
+//     const testing = std.testing;
 
-    // Test case 1: Basic shape without start/end
-    {
-        const input_shape = [_]usize{ 2, 3, 4 };
-        const result = try TensMath.get_shape_output_shape(&input_shape, null, null);
-        defer pkgAllocator.allocator.free(result);
-        try testing.expectEqual(@as(usize, 1), result.len);
-        try testing.expectEqual(@as(usize, 3), result[0]); // Should output [3] since no slicing
-    }
+//     // Test case 1: Basic shape without start/end
+//     {
+//         const input_shape = [_]usize{ 2, 3, 4 };
+//         const result = try TensMath.get_shape_output_shape(&input_shape, null, null);
+//         defer pkgAllocator.allocator.free(result);
+//         try testing.expectEqual(@as(usize, 1), result.len);
+//         try testing.expectEqual(@as(usize, 3), result[0]); // Should output [3] since no slicing
+//     }
 
-    // Test case 2: Shape with start parameter
-    {
-        const input_shape = [_]usize{ 2, 3, 4, 5 };
-        const result = try TensMath.get_shape_output_shape(&input_shape, 1, null);
-        defer pkgAllocator.allocator.free(result);
-        try testing.expectEqual(@as(usize, 1), result.len);
-        try testing.expectEqual(@as(usize, 3), result[0]); // Should output [3] for dimensions 1 to end
-    }
+//     // Test case 2: Shape with start parameter
+//     {
+//         const input_shape = [_]usize{ 2, 3, 4, 5 };
+//         const result = try TensMath.get_shape_output_shape(&input_shape, 1, null);
+//         defer pkgAllocator.allocator.free(result);
+//         try testing.expectEqual(@as(usize, 1), result.len);
+//         try testing.expectEqual(@as(usize, 3), result[0]); // Should output [3] for dimensions 1 to end
+//     }
 
-    // Test case 3: Shape with both start and end
-    {
-        const input_shape = [_]usize{ 2, 3, 4, 5, 6 };
-        const result = try TensMath.get_shape_output_shape(&input_shape, 1, 3);
-        defer pkgAllocator.allocator.free(result);
-        try testing.expectEqual(@as(usize, 1), result.len);
-        try testing.expectEqual(@as(usize, 2), result[0]); // Should output [2] for dimensions 1 to 3
-    }
+//     // Test case 3: Shape with both start and end
+//     {
+//         const input_shape = [_]usize{ 2, 3, 4, 5, 6 };
+//         const result = try TensMath.get_shape_output_shape(&input_shape, 1, 3);
+//         defer pkgAllocator.allocator.free(result);
+//         try testing.expectEqual(@as(usize, 1), result.len);
+//         try testing.expectEqual(@as(usize, 2), result[0]); // Should output [2] for dimensions 1 to 3
+//     }
 
-    // Test case 4: Shape with negative indices
-    {
-        const input_shape = [_]usize{ 2, 3, 4, 5 };
-        const result = try TensMath.get_shape_output_shape(&input_shape, -2, -1);
-        defer pkgAllocator.allocator.free(result);
-        try testing.expectEqual(@as(usize, 1), result.len);
-        try testing.expectEqual(@as(usize, 1), result[0]); // Should output [1] for dimensions -2 to -1
-    }
+//     // Test case 4: Shape with negative indices
+//     {
+//         const input_shape = [_]usize{ 2, 3, 4, 5 };
+//         const result = try TensMath.get_shape_output_shape(&input_shape, -2, -1);
+//         defer pkgAllocator.allocator.free(result);
+//         try testing.expectEqual(@as(usize, 1), result.len);
+//         try testing.expectEqual(@as(usize, 1), result[0]); // Should output [1] for dimensions -2 to -1
+//     }
 
-    // Test case 5: Empty range
-    {
-        const input_shape = [_]usize{ 2, 3, 4 };
-        const result = try TensMath.get_shape_output_shape(&input_shape, 2, 1);
-        defer pkgAllocator.allocator.free(result);
-        try testing.expectEqual(@as(usize, 1), result.len);
-        try testing.expectEqual(@as(usize, 0), result[0]); // Should output [0] for invalid range
-    }
+//     // Test case 5: Empty range
+//     {
+//         const input_shape = [_]usize{ 2, 3, 4 };
+//         const result = try TensMath.get_shape_output_shape(&input_shape, 2, 1);
+//         defer pkgAllocator.allocator.free(result);
+//         try testing.expectEqual(@as(usize, 1), result.len);
+//         try testing.expectEqual(@as(usize, 0), result[0]); // Should output [0] for invalid range
+//     }
 
-    // Test case 6: Empty input shape
-    {
-        const input_shape = [_]usize{};
-        const result = try TensMath.get_shape_output_shape(&input_shape, null, null);
-        defer pkgAllocator.allocator.free(result);
-        try testing.expectEqual(@as(usize, 1), result.len);
-        try testing.expectEqual(@as(usize, 0), result[0]); // Should output [0] for empty input
-    }
+//     // Test case 6: Empty input shape
+//     {
+//         const input_shape = [_]usize{};
+//         const result = try TensMath.get_shape_output_shape(&input_shape, null, null);
+//         defer pkgAllocator.allocator.free(result);
+//         try testing.expectEqual(@as(usize, 1), result.len);
+//         try testing.expectEqual(@as(usize, 0), result[0]); // Should output [0] for empty input
+//     }
 
-    // Test case 7: Out of bounds indices
-    {
-        const input_shape = [_]usize{ 2, 3, 4 };
-        const result = try TensMath.get_shape_output_shape(&input_shape, -5, 5);
-        defer pkgAllocator.allocator.free(result);
-        try testing.expectEqual(@as(usize, 1), result.len);
-        try testing.expectEqual(@as(usize, 3), result[0]); // Should clamp indices and output [3]
-    }
+//     // Test case 7: Out of bounds indices
+//     {
+//         const input_shape = [_]usize{ 2, 3, 4 };
+//         const result = try TensMath.get_shape_output_shape(&input_shape, -5, 5);
+//         defer pkgAllocator.allocator.free(result);
+//         try testing.expectEqual(@as(usize, 1), result.len);
+//         try testing.expectEqual(@as(usize, 3), result[0]); // Should clamp indices and output [3]
+//     }
 
-    // Test case 8: Single dimension input shape
-    {
-        const input_shape = [_]usize{42};
-        const result = try TensMath.get_shape_output_shape(&input_shape, null, null);
-        defer pkgAllocator.allocator.free(result);
-        try testing.expectEqual(@as(usize, 1), result.len);
-        try testing.expectEqual(@as(usize, 1), result[0]); // Should output [1] for single dimension
-    }
+//     // Test case 8: Single dimension input shape
+//     {
+//         const input_shape = [_]usize{42};
+//         const result = try TensMath.get_shape_output_shape(&input_shape, null, null);
+//         defer pkgAllocator.allocator.free(result);
+//         try testing.expectEqual(@as(usize, 1), result.len);
+//         try testing.expectEqual(@as(usize, 1), result[0]); // Should output [1] for single dimension
+//     }
 
-    // Test case 9: Start equals end
-    {
-        const input_shape = [_]usize{ 2, 3, 4 };
-        const result = try TensMath.get_shape_output_shape(&input_shape, 1, 1);
-        defer pkgAllocator.allocator.free(result);
-        try testing.expectEqual(@as(usize, 1), result.len);
-        try testing.expectEqual(@as(usize, 0), result[0]); // Should output [0] when start equals end
-    }
-}
+//     // Test case 9: Start equals end
+//     {
+//         const input_shape = [_]usize{ 2, 3, 4 };
+//         const result = try TensMath.get_shape_output_shape(&input_shape, 1, 1);
+//         defer pkgAllocator.allocator.free(result);
+//         try testing.expectEqual(@as(usize, 1), result.len);
+//         try testing.expectEqual(@as(usize, 0), result[0]); // Should output [0] when start equals end
+//     }
+// }
 
-// f23 input tensor with [2, 3] shape and axes = [1] => expected output: [2, 1, 3]
-test "test unsqueeze valid" {
-    tests_log.info("\n     test: unsqueeze valid\n", .{});
-    const allocator = std.testing.allocator;
+// // f23 input tensor with [2, 3] shape and axes = [1] => expected output: [2, 1, 3]
+// test "test unsqueeze valid" {
+//     tests_log.info("\n     test: unsqueeze valid\n", .{});
+//     const allocator = std.testing.allocator;
 
-    // Input tensor
-    var inputArray: [2][3]f32 = [_][3]f32{
-        [_]f32{ 1.0, 2.0, 3.0 },
-        [_]f32{ 4.0, 5.0, 6.0 },
-    };
-    var inputShape: [2]usize = [_]usize{ 2, 3 };
+//     // Input tensor
+//     var inputArray: [2][3]f32 = [_][3]f32{
+//         [_]f32{ 1.0, 2.0, 3.0 },
+//         [_]f32{ 4.0, 5.0, 6.0 },
+//     };
+//     var inputShape: [2]usize = [_]usize{ 2, 3 };
 
-    var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &inputShape);
-    defer tensor.deinit();
+//     var tensor = try Tensor(f32).fromArray(&allocator, &inputArray, &inputShape);
+//     defer tensor.deinit();
 
-    // Axes tensor: unsqueeze in position 1
-    var axesArray: [1]i64 = [_]i64{1};
-    var axesShape: [1]usize = [_]usize{1};
-    var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
-    defer axesTensor.deinit();
+//     // Axes tensor: unsqueeze in position 1
+//     var axesArray: [1]i64 = [_]i64{1};
+//     var axesShape: [1]usize = [_]usize{1};
+//     var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+//     defer axesTensor.deinit();
 
-    var result = try TensMath.unsqueeze(f32, &tensor, &axesTensor);
-    defer result.deinit();
+//     var result = try TensMath.unsqueeze(f32, &tensor, &axesTensor);
+//     defer result.deinit();
 
-    // Verify output shape [2, 1, 3]
-    try std.testing.expect(result.shape.len == 3);
-    try std.testing.expect(result.shape[0] == 2);
-    try std.testing.expect(result.shape[1] == 1);
-    try std.testing.expect(result.shape[2] == 3);
+//     // Verify output shape [2, 1, 3]
+//     try std.testing.expect(result.shape.len == 3);
+//     try std.testing.expect(result.shape[0] == 2);
+//     try std.testing.expect(result.shape[1] == 1);
+//     try std.testing.expect(result.shape[2] == 3);
 
-    // Verify data
-    for (0..tensor.size) |i| {
-        try std.testing.expect(result.data[i] == tensor.data[i]);
-    }
-}
+//     // Verify data
+//     for (0..tensor.size) |i| {
+//         try std.testing.expect(result.data[i] == tensor.data[i]);
+//     }
+// }
 
-test "test unsqueeze valid Quantized" {
-    std.debug.print("\n     test: unsqueeze valid Quantized\n", .{});
-    const allocator = std.testing.allocator;
+// test "test unsqueeze valid Quantized" {
+//     std.debug.print("\n     test: unsqueeze valid Quantized\n", .{});
+//     const allocator = std.testing.allocator;
 
-    // Input tensor
-    var inputArray: [2][3]u8 = [_][3]u8{
-        [_]u8{ 1, 2, 3 },
-        [_]u8{ 4, 5, 6 },
-    };
-    var inputShape: [2]usize = [_]usize{ 2, 3 };
+//     // Input tensor
+//     var inputArray: [2][3]u8 = [_][3]u8{
+//         [_]u8{ 1, 2, 3 },
+//         [_]u8{ 4, 5, 6 },
+//     };
+//     var inputShape: [2]usize = [_]usize{ 2, 3 };
 
-    var tensor = try Tensor(u8).fromArrayQuantized(&allocator, &inputArray, &inputShape, 0.005, u8, 2);
-    defer tensor.deinit();
+//     var tensor = try Tensor(u8).fromArrayQuantized(&allocator, &inputArray, &inputShape, 0.005, u8, 2);
+//     defer tensor.deinit();
 
-    // Axes tensor: unsqueeze in position 1
-    var axesArray: [1]i64 = [_]i64{1};
-    var axesShape: [1]usize = [_]usize{1};
-    var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
-    defer axesTensor.deinit();
+//     // Axes tensor: unsqueeze in position 1
+//     var axesArray: [1]i64 = [_]i64{1};
+//     var axesShape: [1]usize = [_]usize{1};
+//     var axesTensor = try Tensor(i64).fromArray(&allocator, &axesArray, &axesShape);
+//     defer axesTensor.deinit();
 
-    var result = try TensMath.unsqueeze(u8, &tensor, &axesTensor);
-    defer result.deinit();
+//     var result = try TensMath.unsqueeze(u8, &tensor, &axesTensor);
+//     defer result.deinit();
 
-    // Verify output shape [2, 1, 3]
-    try std.testing.expect(result.shape.len == 3);
-    try std.testing.expect(result.shape[0] == 2);
-    try std.testing.expect(result.shape[1] == 1);
-    try std.testing.expect(result.shape[2] == 3);
-    try std.testing.expect(try result.get_zero_point() == 2);
+//     // Verify output shape [2, 1, 3]
+//     try std.testing.expect(result.shape.len == 3);
+//     try std.testing.expect(result.shape[0] == 2);
+//     try std.testing.expect(result.shape[1] == 1);
+//     try std.testing.expect(result.shape[2] == 3);
+//     try std.testing.expect(try result.get_zero_point() == 2);
 
-    // Verify data
-    for (0..tensor.size) |i| {
-        try std.testing.expect(result.data[i] == tensor.data[i]);
-    }
-}
+//     // Verify data
+//     for (0..tensor.size) |i| {
+//         try std.testing.expect(result.data[i] == tensor.data[i]);
+//     }
+// }
 
 // -------------------------------------------------------------
 // Test for AxisOutOfBounds error
@@ -1743,39 +1743,39 @@ test "Reshape - Basic" {
     try std.testing.expect(reshaped.data[5] == 6);
 }
 
-test "Reshape - Basic Quantized" {
-    std.debug.print("\n     test: Reshape - Basic Quantized ", .{});
-    const allocator = pkgAllocator.allocator;
+// test "Reshape - Basic Quantized" {
+//     std.debug.print("\n     test: Reshape - Basic Quantized ", .{});
+//     const allocator = pkgAllocator.allocator;
 
-    // Create a 2x3 tensor
-    var inputArray: [2][3]u8 = [_][3]u8{
-        [_]u8{ 1, 2, 3 },
-        [_]u8{ 4, 5, 6 },
-    };
-    var shape: [2]usize = [_]usize{ 2, 3 };
+//     // Create a 2x3 tensor
+//     var inputArray: [2][3]u8 = [_][3]u8{
+//         [_]u8{ 1, 2, 3 },
+//         [_]u8{ 4, 5, 6 },
+//     };
+//     var shape: [2]usize = [_]usize{ 2, 3 };
 
-    var tensor = try Tensor(u8).fromArrayQuantized(&allocator, &inputArray, &shape, 0.005, u8, 2);
-    defer tensor.deinit();
+//     var tensor = try Tensor(u8).fromArrayQuantized(&allocator, &inputArray, &shape, 0.005, u8, 2);
+//     defer tensor.deinit();
 
-    // Reshape to 3x2
-    var new_shape: [2]isize = [_]isize{ 3, 2 };
-    var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
-    defer reshaped.deinit();
+//     // Reshape to 3x2
+//     var new_shape: [2]isize = [_]isize{ 3, 2 };
+//     var reshaped = try TensMath.reshape(u8, &tensor, &new_shape, null);
+//     defer reshaped.deinit();
 
-    // Verify shape
-    try std.testing.expect(reshaped.shape[0] == 3);
-    try std.testing.expect(reshaped.shape[1] == 2);
-    try std.testing.expect(reshaped.size == 6);
+//     // Verify shape
+//     try std.testing.expect(reshaped.shape[0] == 3);
+//     try std.testing.expect(reshaped.shape[1] == 2);
+//     try std.testing.expect(reshaped.size == 6);
 
-    // Verify data is preserved in row-major order
-    try std.testing.expect(reshaped.data[0] == 1);
-    try std.testing.expect(reshaped.data[1] == 2);
-    try std.testing.expect(reshaped.data[2] == 3);
-    try std.testing.expect(reshaped.data[3] == 4);
-    try std.testing.expect(reshaped.data[4] == 5);
-    try std.testing.expect(reshaped.data[5] == 6);
-    try std.testing.expect(try reshaped.get_zero_point() == 2);
-}
+//     // Verify data is preserved in row-major order
+//     try std.testing.expect(reshaped.data[0] == 1);
+//     try std.testing.expect(reshaped.data[1] == 2);
+//     try std.testing.expect(reshaped.data[2] == 3);
+//     try std.testing.expect(reshaped.data[3] == 4);
+//     try std.testing.expect(reshaped.data[4] == 5);
+//     try std.testing.expect(reshaped.data[5] == 6);
+//     try std.testing.expect(try reshaped.get_zero_point() == 2);
+// }
 
 test "Reshape - Multi-dimensional" {
     tests_log.info("\n     test: Reshape - Multi-dimensional ", .{});

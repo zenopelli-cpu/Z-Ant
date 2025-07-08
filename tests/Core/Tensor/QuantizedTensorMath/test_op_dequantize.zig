@@ -27,11 +27,7 @@ test "dequantization" {
     // input quantized tensor
     var inputTensor = try Tensor(u8).fromArray(&pkgAllocator, &inputArray, &shape);
     defer inputTensor.deinit();
-    inputTensor.details = .{ .quant = .{
-        .tensorType = TensorType.QuantTensor,
-        .scale_factor = 0.005,
-        .zero_point = 98,
-    } };
+
     std.debug.print("\n --> input tensor (quantized tensor): \n", .{});
     inputTensor.printMultidim();
 

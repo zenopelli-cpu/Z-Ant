@@ -46,15 +46,6 @@ pub fn split(comptime T: anytype, t: *Tensor(T), axis: i64, split_sizes: ?[]cons
         t.allocator.free(output_tensors);
     }
 
-    switch (t.details) {
-        .quant => {
-            for (output_tensors) |*tensor| {
-                tensor.details = t.details;
-            }
-        },
-        else => {},
-    }
-
     // Create a durable copy of the split sizes
     const durable_split_sizes = try t.allocator.dupe(usize, sizes.items);
     defer t.allocator.free(durable_split_sizes);

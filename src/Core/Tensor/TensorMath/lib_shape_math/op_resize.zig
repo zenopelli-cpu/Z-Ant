@@ -26,7 +26,6 @@ pub fn resize(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales
     defer t.allocator.free(output_shape);
 
     var output = try Tensor(T).fromShape(t.allocator, output_shape);
-    output.details = t.details;
 
     //call rezise_lean
     if (scales) |s| {

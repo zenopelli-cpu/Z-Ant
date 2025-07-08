@@ -87,8 +87,6 @@ fn transpose(comptime T: type, t: *Tensor(T), perms: []usize) !Tensor(T) {
     // Create the new tensor
     var new_tensor = try Tensor(T).fromShape(t.allocator, new_shape);
 
-    new_tensor.details = t.details;
-
     // Copy data to the new tensor
     for (0..t.size) |i| {
         new_tensor.data[i] = t.data[i];

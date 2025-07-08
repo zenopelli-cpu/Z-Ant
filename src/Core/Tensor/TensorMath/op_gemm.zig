@@ -167,7 +167,6 @@ pub fn gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(T), a
     res_shape[3] = res_cols;
 
     var result = try Tensor(T).fromShape(&pkg_allocator, res_shape);
-    result.details = A.details; // Propagating details
     errdefer result.deinit();
 
     // debug
@@ -252,7 +251,7 @@ pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(
             result.data[j] = sum;
         }
     } else if (actual_B_ptr.shape.len >= 2 and actual_B_ptr.shape[actual_B_ptr.shape.len - 1] > vals_in_cache) {
-        try TensMath.lean_blocked_mat_mul(T, actual_A_ptr, actual_B_ptr, result);
+        try TensMath.blocked_mat_mul_lean(T, actual_A_ptr, actual_B_ptr, result);
     } else {
         try TensMath.mat_mul_lean(T, actual_A_ptr, actual_B_ptr, result);
     }

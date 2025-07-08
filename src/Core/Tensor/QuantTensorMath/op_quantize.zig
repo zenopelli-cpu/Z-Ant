@@ -40,12 +40,6 @@ pub fn lean_quantize_minmax(comptime inputType: type, comptime outputType: type,
     defer pkgAllocator.free(result.quantizedArray);
 
     @memcpy(output.data, result.quantizedArray);
-
-    output.details = .{ .quant = .{
-        .tensorType = TensorType.QuantTensor,
-        .scale_factor = result.scale,
-        .zero_point = result.zero,
-    } };
 }
 
 pub fn get_quantize_output_shape(input_shape: []const usize) ![]usize {
@@ -64,7 +58,7 @@ pub fn get_quantize_output_shape(input_shape: []const usize) ![]usize {
 pub fn clamp(comptime T: type, comptime U: type, value: T, scale: T, zero: i32, minInt: U, maxInt: U) U {
     var roundedVal: T = undefined;
 
-    if(scale == 0) {
+    if (scale == 0) {
         roundedVal = value;
     } else {
         roundedVal = @round(value / scale + @as(T, @floatFromInt(zero)));
@@ -98,7 +92,7 @@ pub inline fn get_scale_factor(comptime T: type, comptime U: type, minFloat: T, 
 /// - minInt: minimum value of the quantized data type range
 /// Returns: the zero point as a i32
 pub inline fn get_zero_point(comptime T: type, comptime U: type, scale: T, minFloat: T, minInt: U) i32 {
-    if(scale == 0)
+    if (scale == 0)
         return @as(i32, @intCast(minInt)) - @as(i32, @intFromFloat(minFloat));
 
     const zeroPointFloat: T = minFloat / scale;

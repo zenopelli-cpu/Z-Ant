@@ -64,7 +64,6 @@ pub fn reshape(comptime T: anytype, input: *Tensor(T), newShape: []const isize, 
 
     var output = try Tensor(T).fromShape(&pkg_allocator, temp_shape);
     errdefer output.deinit();
-    output.details = input.details;
 
     // Let reshape_lean handle the actual reshaping logic
     try reshape_lean(T, input, newShape, allowZero, &output);

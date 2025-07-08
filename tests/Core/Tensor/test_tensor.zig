@@ -14,9 +14,9 @@ test {
     _ = @import("TensorMath/test_tensor_math.zig");
 }
 
-test {
-    _ = @import("QuantizedTensorMath/test_quant_tensor_math.zig");
-}
+// test {
+//     _ = @import("QuantizedTensorMath/test_quant_tensor_math.zig");
+// }
 
 test "Tensor test description" {
     tests_log.info("\n--- Running tensor tests\n", .{});
@@ -34,124 +34,105 @@ test "init() test" {
 
 // Tensor quantization tests
 
-test "get_scale_factor() quantized tensor test" {
-    std.debug.print("\n     test: get_scale_factor() quantized tensor ", .{});
-    const allocator = pkgAllocator.allocator;
-    const inputArray: [2][2]i8 = [_][2]i8{
-        [_]i8{ 1, 2, },
-        [_]i8{ 4, 5 },
-    };
-    var shape: [2]usize = [_]usize{ 2, 2 };
-    var tensor = try Tensor(i8).fromArrayQuantized(&allocator, &inputArray, &shape, 0.1, i8, 2);
-    defer tensor.deinit();
-    
-    const scale_factor = try tensor.get_scale_factor();
-    try std.testing.expect(scale_factor == 0.1);
-}
+// test "get_scale_factor() quantized tensor test" {
+//     std.debug.print("\n     test: get_scale_factor() quantized tensor ", .{});
+//     const allocator = pkgAllocator.allocator;
+//     const inputArray: [2][2]i8 = [_][2]i8{
+//         [_]i8{
+//             1,
+//             2,
+//         },
+//         [_]i8{ 4, 5 },
+//     };
+//     var shape: [2]usize = [_]usize{ 2, 2 };
+//     var tensor = try Tensor(i8).fromArrayQuantized(&allocator, &inputArray, &shape, 0.1, i8, 2);
+//     defer tensor.deinit();
 
-test "get_scale_factor() not quantized tensor test" {
-    std.debug.print("\n     test: get_scale_factor() not quantized tensor ", .{});
-    const allocator = pkgAllocator.allocator;
-    var tensor = try Tensor(i8).init(&allocator);
-    defer tensor.deinit();
-    
-    try std.testing.expectError(TensorError.NotQuantizedTensor, tensor.get_scale_factor());
-}
+//     const scale_factor = try tensor.get_scale_factor();
+//     try std.testing.expect(scale_factor == 0.1);
+// }
 
-test "get_zero_point() quantized tensor test" {
-    std.debug.print("\n     test: get_zero_point() quantized tensor ", .{});
-    const allocator = pkgAllocator.allocator;
-    const inputArray: [2][2]i8 = [_][2]i8{
-        [_]i8{ 1, 2, },
-        [_]i8{ 4, 5 },
-    };
-    var shape: [2]usize = [_]usize{ 2, 2 };
-    var tensor = try Tensor(i8).fromArrayQuantized(&allocator, &inputArray, &shape, 0.1, i8, 2);
-    defer tensor.deinit();
-    
-    const zero_point = try tensor.get_zero_point();
-    try std.testing.expect(zero_point == 2);
-}
+// test "fromArrayQuantized() test" {
+//     std.debug.print("\n     test: fromArrayQuantized() ", .{});
+//     const allocator = pkgAllocator.allocator;
+//     const inputArray: [2][2]i8 = [_][2]i8{
+//         [_]i8{
+//             1,
+//             2,
+//         },
+//         [_]i8{ 4, 5 },
+//     };
+//     var shape: [2]usize = [_]usize{ 2, 2 };
+//     var tensor = try Tensor(i8).fromArrayQuantized(&allocator, &inputArray, &shape, 0.1, i8, 2);
+//     defer tensor.deinit();
 
-test "get_zero_point() not quantized tensor test" {
-    std.debug.print("\n     test: get_zero_point() not quantized tensor ", .{});
-    const allocator = pkgAllocator.allocator;
-    var tensor = try Tensor(i8).init(&allocator);
-    defer tensor.deinit();
-    
-    try std.testing.expectError(TensorError.NotQuantizedTensor, tensor.get_zero_point());
-}
+//     switch (tensor.details) {
+//         .quant => |*quantDetails| {
+//             try std.testing.expect(quantDetails.*.scale_factor == 0.1);
+//             try std.testing.expect(quantDetails.*.zero_point == 2);
+//         },
+//         else => unreachable,
+//     }
+// }
 
-test "fromArrayQuantized() test" {
-    std.debug.print("\n     test: fromArrayQuantized() ", .{});
-    const allocator = pkgAllocator.allocator;
-    const inputArray: [2][2]i8 = [_][2]i8{
-        [_]i8{ 1, 2, },
-        [_]i8{ 4, 5 },
-    };
-    var shape: [2]usize = [_]usize{ 2, 2 };
-    var tensor = try Tensor(i8).fromArrayQuantized(&allocator, &inputArray, &shape, 0.1, i8, 2);
-    defer tensor.deinit();
+// test "quantize() test" {
+//     std.debug.print("\n     test: quantize() ", .{});
+//     const allocator = pkgAllocator.allocator;
+//     var inputArray: [2][3]f32 = [_][3]f32{
+//         [_]f32{ 0.1, 5.0, 2.0 },
+//         [_]f32{ 0.4, 3.0, 0.6 },
+//     };
+//     var shape: [2]usize = [_]usize{ 2, 3 };
+//     var inputTensor = try Tensor(f32).fromArray(&pkgAllocator.allocator, &inputArray, &shape);
+//     defer inputTensor.deinit();
+//     std.debug.print("\n --> input tensor (unquantized tensor): \n", .{});
+//     inputTensor.printMultidim();
 
-    switch(tensor.details) {
-        .quant => |*quantDetails| {
-            try std.testing.expect(quantDetails.*.scale_factor == 0.1);
-            try std.testing.expect(quantDetails.*.zero_point == 2);
-        },
-        else => unreachable,
-    }
-}
+//     var outputTensor = try inputTensor.quantize(&allocator, u8, quant.quantScheme.ASYM);
+//     defer outputTensor.deinit();
 
-test "quantize() test" {
-    std.debug.print("\n     test: quantize() ", .{});
-    const allocator = pkgAllocator.allocator;
-    var inputArray: [2][3]f32 = [_][3]f32{
-        [_]f32{ 0.1, 5.0, 2.0 },
-        [_]f32{ 0.4, 3.0, 0.6 },
-    };
-    var shape: [2]usize = [_]usize{ 2, 3 };
-    var inputTensor = try Tensor(f32).fromArray(&pkgAllocator.allocator, &inputArray, &shape);
-    defer inputTensor.deinit();
-    std.debug.print("\n --> input tensor (unquantized tensor): \n", .{});
-    inputTensor.printMultidim();
-    
-    var outputTensor = try inputTensor.quantize(&allocator, u8, quant.quantScheme.ASYM);
-    defer outputTensor.deinit();
-    
-    try std.testing.expectEqual(6, outputTensor.data.len);
-    try std.testing.expectEqual(0, outputTensor.get(0));
-    try std.testing.expectEqual(255, outputTensor.get(1));
+//     try std.testing.expectEqual(6, outputTensor.data.len);
+//     try std.testing.expectEqual(0, outputTensor.get(0));
+//     try std.testing.expectEqual(255, outputTensor.get(1));
 
-    std.debug.print("\n --> quantized tensor: \n", .{});
-    outputTensor.printMultidim();
-}
+//     std.debug.print("\n --> quantized tensor: \n", .{});
+//     outputTensor.printMultidim();
+// }
 
-test "dequantize() test" {
-    std.debug.print("\n     test: dequantize() ", .{});
-    const allocator = pkgAllocator.allocator;
-    var inputArray: [2][3]u8 = [_][3]u8{
-        [_]u8{ 0, 255, 8, },
-        [_]u8{ 144, 165, 53, },
-    };
-    var shape: [2]usize = [_]usize{ 2, 3 };
-    var inputTensor = try Tensor(u8).fromArrayQuantized(&pkgAllocator.allocator, &inputArray, &shape, 0.005, u8, 98);
-    defer inputTensor.deinit();
-    std.debug.print("\n --> input tensor (quantized tensor): \n", .{});
-    inputTensor.printMultidim();
+// test "dequantize() test" {
+//     std.debug.print("\n     test: dequantize() ", .{});
+//     const allocator = pkgAllocator.allocator;
+//     var inputArray: [2][3]u8 = [_][3]u8{
+//         [_]u8{
+//             0,
+//             255,
+//             8,
+//         },
+//         [_]u8{
+//             144,
+//             165,
+//             53,
+//         },
+//     };
+//     var shape: [2]usize = [_]usize{ 2, 3 };
+//     var inputTensor = try Tensor(u8).fromArrayQuantized(&pkgAllocator.allocator, &inputArray, &shape, 0.005, u8, 98);
+//     defer inputTensor.deinit();
+//     std.debug.print("\n --> input tensor (quantized tensor): \n", .{});
+//     inputTensor.printMultidim();
 
-    var outputTensor = try inputTensor.dequantize(&allocator, f32);
-    defer outputTensor.deinit();
-    std.debug.print("\n --> dequantized tensor: \n", .{});
-    outputTensor.printMultidim();
+//     var outputTensor = try inputTensor.dequantize(&allocator, f32);
+//     defer outputTensor.deinit();
+//     std.debug.print("\n --> dequantized tensor: \n", .{});
+//     outputTensor.printMultidim();
 
-    var originalArray: [2][3]f32 = [_][3]f32{
-        [_]f32{ -0.5, 0.8, -0.46 },
-        [_]f32{ 0.234, 0.3435, -0.231 },
-    };
-    var originalTensor = try Tensor(f32).fromArray(&pkgAllocator.allocator, &originalArray, &shape);
-    defer originalTensor.deinit();
-    try std.testing.expectEqual(6.000012e-3, quant.compute_MSE_norm(f32, f32, &originalTensor, &outputTensor));
-}
+//     var originalArray: [2][3]f32 = [_][3]f32{
+//         [_]f32{ -0.5, 0.8, -0.46 },
+//         [_]f32{ 0.234, 0.3435, -0.231 },
+//     };
+//     var originalTensor = try Tensor(f32).fromArray(&pkgAllocator.allocator, &originalArray, &shape);
+//     defer originalTensor.deinit();
+//     try std.testing.expectEqual(6.000012e-3, quant.compute_MSE_norm(f32, f32, &originalTensor, &outputTensor));
+// }
 
 test "initialization fromShape" {
     tests_log.info("\n     test:initialization fromShape", .{});

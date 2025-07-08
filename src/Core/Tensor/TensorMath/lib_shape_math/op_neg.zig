@@ -23,8 +23,6 @@ pub fn flip_matrix(comptime T: type, kernel: *Tensor(T)) !Tensor(T) {
 
     var flipped_kernel = try Tensor(T).fromShape(kernel.allocator, flipped_shape);
 
-    flipped_kernel.details = flipped_kernel.details;
-
     try flip_matrix_lean(T, kernel, &flipped_kernel);
     return flipped_kernel;
 }

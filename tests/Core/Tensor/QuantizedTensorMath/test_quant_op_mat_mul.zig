@@ -10,7 +10,6 @@ const tensorDetails = zant.core.tensor.TensorDetails;
 const quantDetails = zant.core.tensor.QuantDetails;
 const ErrorHandler = zant.utils.error_handler;
 
-
 // TESTS FOR QUANT MAT MUL
 
 test "Quant MatMul 2x2" {
@@ -27,23 +26,11 @@ test "Quant MatMul 2x2" {
     };
 
     var t1 = try Tensor(i8).fromArray(&allocator, &inputArray, &shape);
-    t1.details = tensorDetails{
-        .quant = quantDetails{
-            .tensorType = tensorType.QuantTensor,
-            .scale_factor = 0.01,
-            .zero_point = -2,
-        },
-    };
+
     defer t1.deinit();
 
     var t2 = try Tensor(i8).fromArray(&allocator, &inputArray, &shape);
-    t2.details = tensorDetails{
-        .quant = quantDetails{
-            .tensorType = tensorType.QuantTensor,
-            .scale_factor = 0.01,
-            .zero_point = -2,
-        },
-    };
+
     defer t2.deinit();
 
     // compute multiplication
@@ -51,16 +38,15 @@ test "Quant MatMul 2x2" {
     defer result_tensor.deinit();
 
     // check details
-    try std.testing.expect( result_tensor.details.quant.tensorType == tensorType.QuantTensor);
-    try std.testing.expect( result_tensor.details.quant.scale_factor == 0.0001);
-    try std.testing.expect( result_tensor.details.quant.zero_point == 0);
+    try std.testing.expect(result_tensor.details.quant.tensorType == tensorType.QuantTensor);
+    try std.testing.expect(result_tensor.details.quant.scale_factor == 0.0001);
+    try std.testing.expect(result_tensor.details.quant.zero_point == 0);
 
     // check results
-    try std.testing.expect( 33 == result_tensor.data[0]);
-    try std.testing.expect( 40 == result_tensor.data[1]);
-    try std.testing.expect( 60 == result_tensor.data[2]);
-    try std.testing.expect( 73 == result_tensor.data[3]);
-
+    try std.testing.expect(33 == result_tensor.data[0]);
+    try std.testing.expect(40 == result_tensor.data[1]);
+    try std.testing.expect(60 == result_tensor.data[2]);
+    try std.testing.expect(73 == result_tensor.data[3]);
 }
 
 test "Quant Error when input tensors have incompatible sizes for MatMul" {
@@ -163,30 +149,28 @@ test "Quant MatMul 4x4" {
     defer result_tensor.deinit();
 
     // check details
-    try std.testing.expect( result_tensor.details.quant.tensorType == tensorType.QuantTensor);
-    try std.testing.expect( result_tensor.details.quant.scale_factor < 0.00061 and result_tensor.details.quant.scale_factor > 0.00059);
-    try std.testing.expect( result_tensor.details.quant.zero_point == 0);
+    try std.testing.expect(result_tensor.details.quant.tensorType == tensorType.QuantTensor);
+    try std.testing.expect(result_tensor.details.quant.scale_factor < 0.00061 and result_tensor.details.quant.scale_factor > 0.00059);
+    try std.testing.expect(result_tensor.details.quant.zero_point == 0);
 
     // check results
-    try std.testing.expect( 90 == result_tensor.data[0]);
-    try std.testing.expect( 100 == result_tensor.data[1]);
-    try std.testing.expect( 110 == result_tensor.data[2]);
-    try std.testing.expect( 120 == result_tensor.data[3]);
-    try std.testing.expect( 127 == result_tensor.data[4]);
-    try std.testing.expect( 127 == result_tensor.data[5]);
-    try std.testing.expect( 127 == result_tensor.data[6]);
-    try std.testing.expect( 127 == result_tensor.data[7]);
-    try std.testing.expect( 127 == result_tensor.data[8]);
-    try std.testing.expect( 127 == result_tensor.data[9]);
-    try std.testing.expect( 127 == result_tensor.data[10]);
-    try std.testing.expect( 127 == result_tensor.data[11]);
-    try std.testing.expect( 127 == result_tensor.data[12]);
-    try std.testing.expect( 127 == result_tensor.data[13]);
-    try std.testing.expect( 127 == result_tensor.data[14]);
-    try std.testing.expect( 127 == result_tensor.data[15]);
-
+    try std.testing.expect(90 == result_tensor.data[0]);
+    try std.testing.expect(100 == result_tensor.data[1]);
+    try std.testing.expect(110 == result_tensor.data[2]);
+    try std.testing.expect(120 == result_tensor.data[3]);
+    try std.testing.expect(127 == result_tensor.data[4]);
+    try std.testing.expect(127 == result_tensor.data[5]);
+    try std.testing.expect(127 == result_tensor.data[6]);
+    try std.testing.expect(127 == result_tensor.data[7]);
+    try std.testing.expect(127 == result_tensor.data[8]);
+    try std.testing.expect(127 == result_tensor.data[9]);
+    try std.testing.expect(127 == result_tensor.data[10]);
+    try std.testing.expect(127 == result_tensor.data[11]);
+    try std.testing.expect(127 == result_tensor.data[12]);
+    try std.testing.expect(127 == result_tensor.data[13]);
+    try std.testing.expect(127 == result_tensor.data[14]);
+    try std.testing.expect(127 == result_tensor.data[15]);
 }
-
 
 // TEST FOR QUANT BLOCKED MAT MUL
 
@@ -228,16 +212,15 @@ test "Quant Blocked MatMul 2x2" {
     defer result_tensor.deinit();
 
     // check details
-    try std.testing.expect( result_tensor.details.quant.tensorType == tensorType.QuantTensor);
-    try std.testing.expect( result_tensor.details.quant.scale_factor == 0.0001);
-    try std.testing.expect( result_tensor.details.quant.zero_point == 0);
+    try std.testing.expect(result_tensor.details.quant.tensorType == tensorType.QuantTensor);
+    try std.testing.expect(result_tensor.details.quant.scale_factor == 0.0001);
+    try std.testing.expect(result_tensor.details.quant.zero_point == 0);
 
     // check results
-    try std.testing.expect( 33 == result_tensor.data[0]);
-    try std.testing.expect( 40 == result_tensor.data[1]);
-    try std.testing.expect( 60 == result_tensor.data[2]);
-    try std.testing.expect( 73 == result_tensor.data[3]);
-
+    try std.testing.expect(33 == result_tensor.data[0]);
+    try std.testing.expect(40 == result_tensor.data[1]);
+    try std.testing.expect(60 == result_tensor.data[2]);
+    try std.testing.expect(73 == result_tensor.data[3]);
 }
 
 test "Quant Blocked Error when input tensors have incompatible sizes for MatMul" {
@@ -340,30 +323,28 @@ test "Quant Blocked MatMul 4x4" {
     defer result_tensor.deinit();
 
     // check details
-    try std.testing.expect( result_tensor.details.quant.tensorType == tensorType.QuantTensor);
-    try std.testing.expect( result_tensor.details.quant.scale_factor < 0.00061 and result_tensor.details.quant.scale_factor > 0.00059);
-    try std.testing.expect( result_tensor.details.quant.zero_point == 0);
+    try std.testing.expect(result_tensor.details.quant.tensorType == tensorType.QuantTensor);
+    try std.testing.expect(result_tensor.details.quant.scale_factor < 0.00061 and result_tensor.details.quant.scale_factor > 0.00059);
+    try std.testing.expect(result_tensor.details.quant.zero_point == 0);
 
     // check results
-    try std.testing.expect( 90 == result_tensor.data[0]);
-    try std.testing.expect( 100 == result_tensor.data[1]);
-    try std.testing.expect( 110 == result_tensor.data[2]);
-    try std.testing.expect( 120 == result_tensor.data[3]);
-    try std.testing.expect( 127 == result_tensor.data[4]);
-    try std.testing.expect( 127 == result_tensor.data[5]);
-    try std.testing.expect( 127 == result_tensor.data[6]);
-    try std.testing.expect( 127 == result_tensor.data[7]);
-    try std.testing.expect( 127 == result_tensor.data[8]);
-    try std.testing.expect( 127 == result_tensor.data[9]);
-    try std.testing.expect( 127 == result_tensor.data[10]);
-    try std.testing.expect( 127 == result_tensor.data[11]);
-    try std.testing.expect( 127 == result_tensor.data[12]);
-    try std.testing.expect( 127 == result_tensor.data[13]);
-    try std.testing.expect( 127 == result_tensor.data[14]);
-    try std.testing.expect( 127 == result_tensor.data[15]);
-
+    try std.testing.expect(90 == result_tensor.data[0]);
+    try std.testing.expect(100 == result_tensor.data[1]);
+    try std.testing.expect(110 == result_tensor.data[2]);
+    try std.testing.expect(120 == result_tensor.data[3]);
+    try std.testing.expect(127 == result_tensor.data[4]);
+    try std.testing.expect(127 == result_tensor.data[5]);
+    try std.testing.expect(127 == result_tensor.data[6]);
+    try std.testing.expect(127 == result_tensor.data[7]);
+    try std.testing.expect(127 == result_tensor.data[8]);
+    try std.testing.expect(127 == result_tensor.data[9]);
+    try std.testing.expect(127 == result_tensor.data[10]);
+    try std.testing.expect(127 == result_tensor.data[11]);
+    try std.testing.expect(127 == result_tensor.data[12]);
+    try std.testing.expect(127 == result_tensor.data[13]);
+    try std.testing.expect(127 == result_tensor.data[14]);
+    try std.testing.expect(127 == result_tensor.data[15]);
 }
-
 
 // BENCHMARK
 
@@ -381,8 +362,8 @@ test "Compare MatMul implementations with execution time" {
     // Initialize with different values for each matrix
     for (0..16) |i| {
         for (0..16) |j| {
-            matrix1[i][j] = @floatFromInt((i * 16 + j) / 2 );
-            matrix2[i][j] = @floatFromInt(((15 - i) * 16 + (15 - j)) / 2);  // Reverse pattern
+            matrix1[i][j] = @floatFromInt((i * 16 + j) / 2);
+            matrix2[i][j] = @floatFromInt(((15 - i) * 16 + (15 - j)) / 2); // Reverse pattern
             // Int version
             quant_matrix1[i][j] = @intCast((i * 16 + j) / 2);
             quant_matrix2[i][j] = @intCast(((15 - i) * 16 + (15 - j)) / 2); // Reverse pattern
@@ -466,43 +447,35 @@ test "Compare MatMul implementations with execution time" {
     std.debug.print("Quantized execution time: {d} ns\n", .{avg_quant});
     std.debug.print("Quantized Blocked execution time: {d} ns\n", .{avg_quant_blocked});
 
-    std.debug.print("\nSIMD is {d:.2}x {s} than flat\n", .{ 
-        if (avg_simd < avg_flat)
-            @as(f64, @floatFromInt(avg_flat)) / @as(f64, @floatFromInt(avg_simd))
-        else
-            @as(f64, @floatFromInt(avg_simd)) / @as(f64, @floatFromInt(avg_flat)),
-        if (avg_simd < avg_flat) 
-            "faster"
-        else
-            "slower" });
+    std.debug.print("\nSIMD is {d:.2}x {s} than flat\n", .{ if (avg_simd < avg_flat)
+        @as(f64, @floatFromInt(avg_flat)) / @as(f64, @floatFromInt(avg_simd))
+    else
+        @as(f64, @floatFromInt(avg_simd)) / @as(f64, @floatFromInt(avg_flat)), if (avg_simd < avg_flat)
+        "faster"
+    else
+        "slower" });
 
-    std.debug.print("Blocked SIMD is {d:.2}x {s} than flat\n", .{ 
-        if (avg_blocked_simd < avg_flat)
-            @as(f64, @floatFromInt(avg_flat)) / @as(f64, @floatFromInt(avg_blocked_simd))
-        else
-            @as(f64, @floatFromInt(avg_blocked_simd)) / @as(f64, @floatFromInt(avg_flat)),
-        if (avg_blocked_simd < avg_flat) 
-            "faster"
-        else
-            "slower" });
+    std.debug.print("Blocked SIMD is {d:.2}x {s} than flat\n", .{ if (avg_blocked_simd < avg_flat)
+        @as(f64, @floatFromInt(avg_flat)) / @as(f64, @floatFromInt(avg_blocked_simd))
+    else
+        @as(f64, @floatFromInt(avg_blocked_simd)) / @as(f64, @floatFromInt(avg_flat)), if (avg_blocked_simd < avg_flat)
+        "faster"
+    else
+        "slower" });
 
-    std.debug.print("Quantized is {d:.2}x {s} than SIMD\n", .{ 
-        if (avg_quant < avg_simd)
-            @as(f64, @floatFromInt(avg_simd)) / @as(f64, @floatFromInt(avg_quant))
-        else
-            @as(f64, @floatFromInt(avg_quant)) / @as(f64, @floatFromInt(avg_simd)),
-        if (avg_quant < avg_simd) 
-            "faster"
-        else
-            "slower" });
+    std.debug.print("Quantized is {d:.2}x {s} than SIMD\n", .{ if (avg_quant < avg_simd)
+        @as(f64, @floatFromInt(avg_simd)) / @as(f64, @floatFromInt(avg_quant))
+    else
+        @as(f64, @floatFromInt(avg_quant)) / @as(f64, @floatFromInt(avg_simd)), if (avg_quant < avg_simd)
+        "faster"
+    else
+        "slower" });
 
-    std.debug.print("Blocked Quantized is {d:.2}x {s} than Blocked SIMD\n", .{ 
-        if (avg_quant_blocked < avg_blocked_simd)
-            @as(f64, @floatFromInt(avg_blocked_simd)) / @as(f64, @floatFromInt(avg_quant_blocked))
-        else
-            @as(f64, @floatFromInt(avg_quant_blocked)) / @as(f64, @floatFromInt(avg_blocked_simd)),
-        if (avg_quant_blocked < avg_blocked_simd) 
-            "faster"
-        else
-            "slower" });
+    std.debug.print("Blocked Quantized is {d:.2}x {s} than Blocked SIMD\n", .{ if (avg_quant_blocked < avg_blocked_simd)
+        @as(f64, @floatFromInt(avg_blocked_simd)) / @as(f64, @floatFromInt(avg_quant_blocked))
+    else
+        @as(f64, @floatFromInt(avg_quant_blocked)) / @as(f64, @floatFromInt(avg_blocked_simd)), if (avg_quant_blocked < avg_blocked_simd)
+        "faster"
+    else
+        "slower" });
 }

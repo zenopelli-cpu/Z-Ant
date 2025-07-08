@@ -303,72 +303,64 @@ pub fn Tensor(comptime T: type) type {
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------
         /// Given a multidimensional array with its shape, the quantized output type, the scale factor and zero point, returns the equivalent quantized Tensor.
         /// Note: the type T (Tensor parameter) should be the quantized output data type.
-        pub fn fromArrayQuantized(
-            allocator: *const std.mem.Allocator,
-            inputArray: anytype,
-            shape: []usize,
-            scale_factor: f32,
-            comptime outputType: type,
-            zero_point: i32,
-        ) !Tensor(outputType) {
+        // pub fn fromArrayQuantized(
+        //     allocator: *const std.mem.Allocator,
+        //     inputArray: anytype,
+        //     shape: []usize,
+        //     scale_factor: f32,
+        //     comptime outputType: type,
+        //     zero_point: i32,
+        // ) !Tensor(outputType) {
 
-            // Calculate total size based on shape
-            var total_size: usize = 1;
-            for (shape) |dim| {
-                total_size *= dim;
-            }
+        //     // Calculate total size based on shape
+        //     var total_size: usize = 1;
+        //     for (shape) |dim| {
+        //         total_size *= dim;
+        //     }
 
-            // Allocate memory for tensor shape
-            const tensorShape = try allocator.alloc(usize, shape.len);
-            @memcpy(tensorShape, shape);
+        //     // Allocate memory for tensor shape
+        //     const tensorShape = try allocator.alloc(usize, shape.len);
+        //     @memcpy(tensorShape, shape);
 
-            // Allocate memory for tensor data
-            const tensorData = try allocator.alloc(outputType, total_size);
+        //     // Allocate memory for tensor data
+        //     const tensorData = try allocator.alloc(outputType, total_size);
 
-            // Flatten the input array into output tensor data
-            _ = flattenArray(outputType, inputArray, tensorData, 0);
+        //     // Flatten the input array into output tensor data
+        //     _ = flattenArray(outputType, inputArray, tensorData, 0);
 
-            // Return the new tensor
-            return Tensor(outputType){
-                .data = tensorData,
-                .size = total_size,
-                .shape = tensorShape,
-                .allocator = allocator,
-                .owns_memory = true,
-                .details = TensorDetails{
-                    .quant = QuantDetails{
-                        .tensorType = TensorType.QuantTensor,
-                        .scale_factor = scale_factor,
-                        .zero_point = zero_point,
-                    },
-                },
-            };
-        }
+        //     // Return the new tensor
+        //     return Tensor(outputType){
+        //         .data = tensorData,
+        //         .size = total_size,
+        //         .shape = tensorShape,
+        //         .allocator = allocator,
+        //     };
+        // }
 
-        /// Quantizes this Tensor to the outputType.
-        /// Returns the quantized Tensor.
-        pub fn quantize(self: *@This(), allocator: *const std.mem.Allocator, comptime outputType: type, scheme: quant.quantScheme) !Tensor(outputType) {
-            const hardcodedScheme = quant.quantScheme.ASYM; // asymm hardcoded
-            _ = scheme;
+        // /// Quantizes this Tensor to the outputType.
+        // /// Returns the quantized Tensor.
+        // pub fn quantize(self: *@This(), allocator: *const std.mem.Allocator, comptime outputType: type, scheme: quant.quantScheme) !Tensor(outputType) {
+        //     const hardcodedScheme = quant.quantScheme.ASYM; // asymm hardcoded
+        //     _ = scheme;
 
-            // quantization (get outputArray, scaleFactor, zeroPoint) // minmax quantization "hardcoded"
-            const result = try quant.minmax_array_quant(T, outputType, hardcodedScheme, self.data);
-            defer pkgAllocator.allocator.free(result.quantizedArray);
+        //     // quantization (get outputArray, scaleFactor, zeroPoint) // minmax quantization "hardcoded"
+        //     const result = try quant.minmax_array_quant(T, outputType, hardcodedScheme, self.data);
+        //     defer pkgAllocator.allocator.free(result.quantizedArray);
 
-            return Tensor(outputType).fromArrayQuantized(allocator, result.quantizedArray, self.shape, result.scale, outputType, result.zero);
-        }
+        //     return Tensor(outputType).fromArrayQuantized(allocator, result.quantizedArray, self.shape, result.scale, outputType, result.zero);
+        // }
 
-        /// Dequantizes this Tensor to the outputType.
-        /// Returns the dequantized Tensor.
-        pub fn dequantize(self: *@This(), allocator: *const std.mem.Allocator, comptime outputType: type) !Tensor(outputType) {
-            // dequantization
-            const scale = try self.get_scale_factor();
-            const zero = try self.get_zero_point();
-            const result = try quant.dequantize_array(outputType, T, self.data, scale, @as(i32, @intCast(zero)));
-            defer pkgAllocator.allocator.free(result);
+        // /// Dequantizes this Tensor to the outputType.
+        // /// Returns the dequantized Tensor.
+        // pub fn dequantize(self: *@This(), allocator: *const std.mem.Allocator, comptime outputType: type) !Tensor(outputType) {
+        //     // dequantization
+        //     const scale = try self.get_scale_factor();
+        //     const zero = try self.get_zero_point();
+        //     const result = try quant.dequantize_array(outputType, T, self.data, scale, @as(i32, @intCast(zero)));
+        //     defer pkgAllocator.allocator.free(result);
 
-            return Tensor(outputType).fromArray(allocator, result, self.shape);
-        }
+        //     return Tensor(outputType).fromArray(allocator, result, self.shape);
+        // }
 
         ///------------------------------------------------ Functions that support operating with Quant and Clust Tensors ---------------------------------------------
         /// zero point correction
@@ -418,30 +410,6 @@ pub fn Tensor(comptime T: type) type {
         pub fn set_at(self: *@This(), indices: []const usize, value: T) !void {
             const idx = try self.flatten_index(indices);
             return self.set(idx, value);
-        }
-
-        /// Returns the quantization scale factor of the quantized tensor.
-        /// Errors:
-        ///     - TensorError.NotQuantizedTensor;
-        pub inline fn get_scale_factor(self: *@This()) !f32 {
-            switch (self.details) {
-                .quant => |quantDetails| {
-                    return quantDetails.scale_factor;
-                },
-                else => return TensorError.NotQuantizedTensor,
-            }
-        }
-
-        /// Returns the quantization zero point of the quantized tensor.
-        /// Errors:
-        ///     - TensorError.NotQuantizedTensor;
-        pub inline fn get_zero_point(self: *@This()) !i32 {
-            switch (self.details) {
-                .quant => |quantDetails| {
-                    return quantDetails.zero_point;
-                },
-                else => return TensorError.NotQuantizedTensor,
-            }
         }
 
         ///------------------------------------------------------------------------------------------------------------------------------------------------------------
