@@ -252,7 +252,7 @@ pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(
             result.data[j] = sum;
         }
     } else if (actual_B_ptr.shape.len >= 2 and actual_B_ptr.shape[actual_B_ptr.shape.len - 1] > vals_in_cache) {
-        try op_mat_mul.lean_blocked_mat_mul(T, actual_A_ptr, actual_B_ptr, result);
+        try TensMath.lean_blocked_mat_mul(T, actual_A_ptr, actual_B_ptr, result);
     } else {
         try TensMath.mat_mul_lean(T, actual_A_ptr, actual_B_ptr, result);
     }
