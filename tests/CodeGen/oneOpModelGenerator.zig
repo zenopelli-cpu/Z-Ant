@@ -7,11 +7,13 @@ const pkgAllocator = zant.utils.allocator;
 const allocator = pkgAllocator.allocator;
 
 const onnx = zant.onnx;
-const codeGen = @import("codegen");
+const IR_codeGen = @import("IR_zant").IR_codegen;
 
+// called by "zig build test-codegen-gen" optionals:" -Dlog -Dmodel="name" -D ..." see build.zig"
 pub fn main() !void {
     std.debug.print("One ONNX Operator Model Generator", .{});
 
+    //collecting available operations from tests/CodeGen/Python-ONNX/available_operations.txt
     std.debug.print("\n     opening available_operations...", .{});
     const op_file = try std.fs.cwd().openFile("tests/CodeGen/Python-ONNX/available_operations.txt", .{});
     defer op_file.close();
@@ -50,19 +52,24 @@ pub fn main() !void {
     try test_oneop_writer.writeAll("\n");
 
     while (true) {
+
         // Get the next line from the iterator.
         const maybe_line = lines_iter.next();
 
-        if (maybe_line) |ml| std.debug.print("maybe_line: {any}\n", .{ml}) else {
-            std.debug.print("maybe_line: null -----> break\n", .{});
+        if (maybe_line) |_| std.debug.print("\n", .{}) else {
+            std.debug.print("NO MORE OPERATIONS -----> break\n", .{});
             break;
         }
 
         const raw_line = maybe_line.?;
+
+        // if it is a comment or an empty line ignore it
+        if (raw_line[0] == '#' or raw_line[0] == '\n') continue;
+
         // Trim whitespace from the line.
         const trimmed_line = std.mem.trim(u8, raw_line, " \t\r\n");
         if (trimmed_line.len > 0) {
-            std.debug.print("Operation: {s}\n", .{trimmed_line});
+            std.debug.print(" ############ Operation: {s} ############\n", .{trimmed_line});
         }
 
         // Construct the model file path: "Phython-ONNX/{op}_0.onnx"
@@ -75,7 +82,7 @@ pub fn main() !void {
 
         //Printing the model:
         //DEBUG
-        model.print();
+        //model.print();
 
         std.debug.print("\n CODEGENERATING {s} ...", .{model_path});
 
@@ -86,22 +93,19 @@ pub fn main() !void {
 
         // CORE PART -------------------------------------------------------
         // ONNX model parsing
-        try codeGen.globals.setGlobalAttributes(model);
-
-        // Create the code for the model
-        try codeGen.skeleton.writeZigFile(trimmed_line, generated_path, model, false);
+        try IR_codeGen.codegnenerateFromOnnx(trimmed_line, generated_path, model);
 
         // Create relative tests
-        try codeGen.tests.writeSlimTestFile(trimmed_line, generated_path);
+        try IR_codeGen.testWriter.writeSlimTestFile(trimmed_line, generated_path);
 
-        // Copy user test file into the generated test file
+        // Copy user test file into the generated test file, do not touch, this is not related to model codegen !
         const dataset_test_model_path = try std.fmt.allocPrint(allocator, "datasets/oneOpModels/{s}_0_user_tests.json", .{trimmed_line});
         defer allocator.free(dataset_test_model_path);
 
         const generated_test_model_path = try std.fmt.allocPrint(allocator, "generated/oneOpModels/{s}/user_tests.json", .{trimmed_line});
         defer allocator.free(generated_test_model_path);
 
-        try codeGen.utils.copyFile(dataset_test_model_path, generated_test_model_path);
+        try IR_codeGen.utils.copyFile(dataset_test_model_path, generated_test_model_path);
         std.debug.print("Written user test for {s}", .{trimmed_line});
 
         // Add relative one op test to global tests file

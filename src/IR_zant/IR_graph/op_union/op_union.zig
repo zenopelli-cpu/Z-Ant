@@ -1,0 +1,348 @@
+const std = @import("std");
+const zant = @import("zant");
+const onnx = zant.onnx;
+const NodeProto = onnx.NodeProto;
+
+const allocator = std.heap.page_allocator;
+pub const operators = @import("operators/operators.zig");
+
+const tensorZant = @import("../tensorZant.zig");
+const TensorZant = tensorZant.TensorZant;
+
+pub const Op_union = union(enum) {
+    add: operators.Add,
+    averagePool: operators.AveragePool,
+    batchNormalization: operators.BatchNormalization,
+    ceil: operators.Ceil,
+    concat: operators.Concat,
+    constant: operators.Constant,
+    conv: operators.Conv,
+    div: operators.Div,
+    elu: operators.Elu,
+    flatten: operators.Flatten,
+    floor: operators.Floor,
+    gather: operators.Gather,
+    gemm: operators.Gemm,
+    gelu: operators.Gelu,
+    identity: operators.Identity,
+    leakyRelu: operators.LeakyRelu,
+    matMul: operators.MatMul,
+    maxPool: operators.MaxPool,
+    mul: operators.Mul,
+    neg: operators.Neg,
+    oneHot: operators.OneHot,
+    reduceMean: operators.ReduceMean,
+    relu: operators.Relu,
+    reshape: operators.Reshape,
+    resize: operators.Resize,
+    shape: operators.Shape,
+    sigmoid: operators.Sigmoid,
+    slice: operators.Slice,
+    softmax: operators.Softmax,
+    split: operators.Split,
+    sqrt: operators.Sqrt,
+    sub: operators.Sub,
+    tanh: operators.Tanh,
+    transpose: operators.Transpose,
+    unsqueeze: operators.Unsqueeze,
+
+    useless: operators.Useless,
+
+    pub fn init(nodeProto: *NodeProto) !Op_union {
+        const op_type = nodeProto.op_type;
+        if (std.mem.eql(u8, op_type, "Add")) {
+            return Op_union{ .add = try operators.Add.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "AveragePool")) {
+            return Op_union{ .averagePool = try operators.AveragePool.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "BatchNormalization")) {
+            return Op_union{ .batchNormalization = try operators.BatchNormalization.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Ceil")) {
+            return Op_union{ .ceil = try operators.Ceil.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Concat")) {
+            return Op_union{ .concat = try operators.Concat.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Constant")) {
+            return Op_union{ .constant = try operators.Constant.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Conv")) {
+            return Op_union{ .conv = try operators.Conv.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Div")) {
+            return Op_union{ .div = try operators.Div.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Elu")) {
+            return Op_union{ .elu = try operators.Elu.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Flatten")) {
+            return Op_union{ .flatten = try operators.Flatten.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Floor")) {
+            return Op_union{ .floor = try operators.Floor.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Gather")) {
+            return Op_union{ .gather = try operators.Gather.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Gemm")) {
+            return Op_union{ .gemm = try operators.Gemm.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Gelu")) {
+            return Op_union{ .gelu = try operators.Gelu.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Identity")) {
+            return Op_union{ .identity = try operators.Identity.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "LeakyRelu")) {
+            return Op_union{ .leakyRelu = try operators.LeakyRelu.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "MatMul")) {
+            return Op_union{ .matMul = try operators.MatMul.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "MaxPool")) {
+            return Op_union{ .maxPool = try operators.MaxPool.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Mul")) {
+            return Op_union{ .mul = try operators.Mul.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Neg")) {
+            return Op_union{ .neg = try operators.Neg.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "OneHot")) {
+            return Op_union{ .oneHot = try operators.OneHot.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "ReduceMean")) {
+            return Op_union{ .reduceMean = try operators.ReduceMean.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Relu")) {
+            return Op_union{ .relu = try operators.Relu.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Reshape")) {
+            return Op_union{ .reshape = try operators.Reshape.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Resize")) {
+            return Op_union{ .resize = try operators.Resize.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Shape")) {
+            return Op_union{ .shape = try operators.Shape.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Sigmoid")) {
+            return Op_union{ .sigmoid = try operators.Sigmoid.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Slice")) {
+            return Op_union{ .slice = try operators.Slice.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Softmax")) {
+            return Op_union{ .softmax = try operators.Softmax.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Split")) {
+            return Op_union{ .split = try operators.Split.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Sqrt")) {
+            return Op_union{ .sqrt = try operators.Sqrt.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Sub")) {
+            return Op_union{ .sub = try operators.Sub.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Tanh")) {
+            return Op_union{ .tanh = try operators.Tanh.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Transpose")) {
+            return Op_union{ .transpose = try operators.Transpose.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Unsqueeze")) {
+            return Op_union{ .unsqueeze = try operators.Unsqueeze.init(nodeProto) };
+        } else {
+            std.debug.print("\n\nERROR: init() is not available for {s} operator!! \n\n", .{op_type});
+            return Op_union{ .useless = try operators.Useless.init(nodeProto) };
+        }
+    }
+
+    pub fn get_output_shape(self: Op_union) []usize {
+        switch (self) {
+            .add => |ptr| return ptr.get_output_shape(),
+            .averagePool => |ptr| return ptr.get_output_shape(),
+            .batchNormalization => |ptr| return ptr.get_output_shape(),
+            .ceil => |ptr| return ptr.get_output_shape(),
+            .concat => |ptr| return ptr.get_output_shape(),
+            .constant => |ptr| return ptr.get_output_shape(),
+            .conv => |ptr| return ptr.get_output_shape(),
+            .div => |ptr| return ptr.get_output_shape(),
+            .elu => |ptr| return ptr.get_output_shape(),
+            .flatten => |ptr| return ptr.get_output_shape(),
+            .floor => |ptr| ptr.get_output_shape(),
+            .gather => |ptr| return ptr.get_output_shape(),
+            .gemm => |ptr| return ptr.get_output_shape(),
+            .gelu => |ptr| return ptr.get_output_shape(),
+            .identity => |ptr| return ptr.get_output_shape(),
+            .leakyRelu => |ptr| return ptr.get_output_shape(),
+            .matMul => |ptr| return ptr.get_output_shape(),
+            .maxPool => |ptr| return ptr.get_output_shape(),
+            .mul => |ptr| return ptr.get_output_shape(),
+            .neg => |ptr| return ptr.get_output_shape(),
+            .oneHot => |ptr| return ptr.get_output_shape(),
+            .reduceMean => |ptr| return ptr.get_output_shape(),
+            .relu => |ptr| return ptr.get_output_shape(),
+            .reshape => |ptr| return ptr.get_output_shape(),
+            .resize => |ptr| return ptr.get_output_shape(),
+            .shape => |ptr| return ptr.get_output_shape(),
+            .sigmoid => |ptr| return ptr.get_output_shape(),
+            .slice => |ptr| return ptr.get_output_shape(),
+            .softmax => |ptr| return ptr.get_output_shape(),
+            .split => |ptr| return ptr.get_output_shape(),
+            .sqrt => |ptr| return ptr.get_output_shape(),
+            .sub => |ptr| return ptr.get_output_shape(),
+            .tanh => |ptr| return ptr.get_output_shape(),
+            .transpose => |ptr| return ptr.get_output_shape(),
+            .unsqueeze => |ptr| return ptr.get_output_shape(),
+            else => {
+                std.debug.print("\n\nERROR: get_output_shape() is not available!! \n\n", .{});
+                return error.OpNotAvailable;
+            },
+        }
+    }
+
+    pub fn get_output_tensors(self: Op_union) ![]*TensorZant {
+        return switch (self) {
+            .add => |ptr| try ptr.get_output_tensors(),
+            .averagePool => |ptr| try ptr.get_output_tensors(),
+            .batchNormalization => |ptr| try ptr.get_output_tensors(),
+            .ceil => |ptr| try ptr.get_output_tensors(),
+            .concat => |ptr| try ptr.get_output_tensors(),
+            .constant => |ptr| try ptr.get_output_tensors(),
+            .conv => |ptr| try ptr.get_output_tensors(),
+            .div => |ptr| try ptr.get_output_tensors(),
+            .elu => |ptr| try ptr.get_output_tensors(),
+            .flatten => |ptr| try ptr.get_output_tensors(),
+            .floor => |ptr| try ptr.get_output_tensors(),
+            .gather => |ptr| try ptr.get_output_tensors(),
+            .gemm => |ptr| try ptr.get_output_tensors(),
+            .gelu => |ptr| try ptr.get_output_tensors(),
+            .identity => |ptr| try ptr.get_output_tensors(),
+            .leakyRelu => |ptr| try ptr.get_output_tensors(),
+            .matMul => |ptr| try ptr.get_output_tensors(),
+            .maxPool => |ptr| try ptr.get_output_tensors(),
+            .mul => |ptr| try ptr.get_output_tensors(),
+            .neg => |ptr| try ptr.get_output_tensors(),
+            .oneHot => |ptr| try ptr.get_output_tensors(),
+            .reduceMean => |ptr| try ptr.get_output_tensors(),
+            .relu => |ptr| try ptr.get_output_tensors(),
+            .reshape => |ptr| try ptr.get_output_tensors(),
+            .resize => |ptr| try ptr.get_output_tensors(),
+            .shape => |ptr| try ptr.get_output_tensors(),
+            .sigmoid => |ptr| try ptr.get_output_tensors(),
+            .slice => |ptr| try ptr.get_output_tensors(),
+            .softmax => |ptr| try ptr.get_output_tensors(),
+            .split => |ptr| try ptr.get_output_tensors(),
+            .sqrt => |ptr| try ptr.get_output_tensors(),
+            .sub => |ptr| try ptr.get_output_tensors(),
+            .tanh => |ptr| try ptr.get_output_tensors(),
+            .transpose => |ptr| try ptr.get_output_tensors(),
+            .unsqueeze => |ptr| try ptr.get_output_tensors(),
+            else => {
+                std.debug.print("\n\nERROR: get_output_tensors() is not available for {any}!! \n\n", .{self});
+                return error.get_output_tensors_op_notAvailable;
+            },
+        };
+    }
+
+    pub fn get_input_tensors(self: Op_union) ![]*TensorZant {
+        return switch (self) {
+            .add => |ptr| try ptr.get_input_tensors(),
+            .averagePool => |ptr| try ptr.get_input_tensors(),
+            .batchNormalization => |ptr| try ptr.get_input_tensors(),
+            .ceil => |ptr| try ptr.get_input_tensors(),
+            .concat => |ptr| try ptr.get_input_tensors(),
+            .constant => |ptr| try ptr.get_input_tensors(),
+            .conv => |ptr| try ptr.get_input_tensors(),
+            .div => |ptr| try ptr.get_input_tensors(),
+            .elu => |ptr| try ptr.get_input_tensors(),
+            .flatten => |ptr| try ptr.get_input_tensors(),
+            .floor => |ptr| try ptr.get_input_tensors(),
+            .gather => |ptr| try ptr.get_input_tensors(),
+            .gemm => |ptr| try ptr.get_input_tensors(),
+            .gelu => |ptr| try ptr.get_input_tensors(),
+            .identity => |ptr| try ptr.get_input_tensors(),
+            .leakyRelu => |ptr| try ptr.get_input_tensors(),
+            .matMul => |ptr| try ptr.get_input_tensors(),
+            .maxPool => |ptr| try ptr.get_input_tensors(),
+            .mul => |ptr| try ptr.get_input_tensors(),
+            .neg => |ptr| try ptr.get_input_tensors(),
+            .oneHot => |ptr| try ptr.get_input_tensors(),
+            .reduceMean => |ptr| try ptr.get_input_tensors(),
+            .relu => |ptr| try ptr.get_input_tensors(),
+            .reshape => |ptr| try ptr.get_input_tensors(),
+            .resize => |ptr| try ptr.get_input_tensors(),
+            .shape => |ptr| try ptr.get_input_tensors(),
+            .sigmoid => |ptr| try ptr.get_input_tensors(),
+            .slice => |ptr| try ptr.get_input_tensors(),
+            .softmax => |ptr| try ptr.get_input_tensors(),
+            .split => |ptr| try ptr.get_input_tensors(),
+            .sqrt => |ptr| try ptr.get_input_tensors(),
+            .sub => |ptr| try ptr.get_input_tensors(),
+            .tanh => |ptr| try ptr.get_input_tensors(),
+            .transpose => |ptr| try ptr.get_input_tensors(),
+            .unsqueeze => |ptr| try ptr.get_input_tensors(),
+            else => {
+                std.debug.print("\n\nERROR: get_input_tensors() is not available for {any} \n\n", .{self});
+                return error.get_input_tensors_op_notAvailable;
+            },
+        };
+    }
+
+    pub fn write_op(self: Op_union, writer: std.fs.File.Writer) !void {
+        switch (self) {
+            .add => |ptr| try ptr.write_op(writer),
+            .averagePool => |ptr| try ptr.write_op(writer),
+            .batchNormalization => |ptr| try ptr.write_op(writer),
+            .ceil => |ptr| try ptr.write_op(writer),
+            .concat => |ptr| try ptr.write_op(writer),
+            .constant => |ptr| try ptr.write_op(writer),
+            .conv => |ptr| try ptr.write_op(writer),
+            .div => |ptr| try ptr.write_op(writer),
+            .elu => |ptr| try ptr.write_op(writer),
+            .flatten => |ptr| try ptr.write_op(writer),
+            .floor => |ptr| try ptr.write_op(writer),
+            .gather => |ptr| try ptr.write_op(writer),
+            .gemm => |ptr| try ptr.write_op(writer),
+            .gelu => |ptr| try ptr.write_op(writer),
+            .identity => |ptr| try ptr.write_op(writer),
+            .leakyRelu => |ptr| try ptr.write_op(writer),
+            .matMul => |ptr| try ptr.write_op(writer),
+            .maxPool => |ptr| try ptr.write_op(writer),
+            .mul => |ptr| try ptr.write_op(writer),
+            .neg => |ptr| try ptr.write_op(writer),
+            .oneHot => |ptr| try ptr.write_op(writer),
+            .reduceMean => |ptr| try ptr.write_op(writer),
+            .relu => |ptr| try ptr.write_op(writer),
+            .reshape => |ptr| try ptr.write_op(writer),
+            .resize => |ptr| try ptr.write_op(writer),
+            .shape => |ptr| try ptr.write_op(writer),
+            .sigmoid => |ptr| try ptr.write_op(writer),
+            .slice => |ptr| try ptr.write_op(writer),
+            .softmax => |ptr| try ptr.write_op(writer),
+            .split => |ptr| try ptr.write_op(writer), //not working! error: .FAULT => unreachable,
+            .sqrt => |ptr| try ptr.write_op(writer),
+            .sub => |ptr| try ptr.write_op(writer),
+            .tanh => |ptr| try ptr.write_op(writer),
+            .transpose => |ptr| try ptr.write_op(writer),
+            .unsqueeze => |ptr| try ptr.write_op(writer),
+            else => {
+                std.debug.print("\n\nERROR: write_op() is not available!! \n\n", .{});
+                return error.write_op_notAvailable;
+            },
+        }
+    }
+
+    pub fn print(self: Op_union) !void {
+        switch (self) {
+            .add => |ptr| ptr.print(),
+            .averagePool => |ptr| ptr.print(),
+            .batchNormalization => |ptr| ptr.print(),
+            .ceil => |ptr| ptr.print(),
+            .concat => |ptr| ptr.print(),
+            .constant => |ptr| ptr.print(),
+            .conv => |ptr| ptr.print(),
+            .div => |ptr| ptr.print(),
+            .elu => |ptr| ptr.print(),
+            .flatten => |ptr| ptr.print(),
+            .floor => |ptr| ptr.print(),
+            .gather => |ptr| ptr.print(),
+            .gemm => |ptr| ptr.print(),
+            .gelu => |ptr| ptr.print(),
+            .identity => |ptr| ptr.print(),
+            .leakyRelu => |ptr| ptr.print(),
+            .matMul => |ptr| ptr.print(),
+            .maxPool => |ptr| ptr.print(),
+            .mul => |ptr| ptr.print(),
+            .neg => |ptr| ptr.print(),
+            .oneHot => |ptr| ptr.print(),
+            .reduceMean => |ptr| ptr.print(),
+            .relu => |ptr| ptr.print(),
+            .reshape => |ptr| ptr.print(),
+            .resize => |ptr| ptr.print(),
+            .shape => |ptr| ptr.print(),
+            .sigmoid => |ptr| ptr.print(),
+            .slice => |ptr| ptr.print(),
+            .softmax => |ptr| ptr.print(),
+            .split => |ptr| ptr.print(),
+            .sqrt => |ptr| ptr.print(),
+            .sub => |ptr| ptr.print(),
+            .tanh => |ptr| ptr.print(),
+            .transpose => |ptr| ptr.print(),
+            .unsqueeze => |ptr| ptr.print(),
+            else => {
+                std.debug.print("\n\nERROR: print() is not available!! \n\n", .{});
+                return error.print_notAvailable;
+            },
+        }
+    }
+};

@@ -6,8 +6,71 @@ const Tensor = zant.core.tensor.Tensor;
 const PoolingType = zant.core.tensor.math_standard.PoolingType;
 const AutoPadType = zant.core.tensor.math_standard.AutoPadType;
 
+const tests_log = std.log.scoped(.test_pooling);
+
+const Uops = zant.uops;
+const UOpBuilder = Uops.UOpBuilder;
+const DType = Uops.DType;
+const Any = Uops.Any;
+const lowerMaxPool2d = zant.core.tensor.math_standard.lowerMaxPool2d;
+
+test "lowerMaxPool2d - print UOps sequence" {
+    std.debug.print("\n     test: lowerMaxPool2d - print UOps sequence\n", .{});
+
+    const test_allocator = pkgAllocator.allocator;
+    var b = UOpBuilder.init(test_allocator);
+    defer b.deinit();
+
+    // Create dummy input tensor
+    var input_shape: [4]usize = [_]usize{ 1, 1, 5, 5 };
+    var inputArray: [1][1][5][5]f32 = [_][1][5][5]f32{
+        [_][5][5]f32{
+            [_][5]f32{
+                [_]f32{ 1, 1, 1, 1, 1 },
+                [_]f32{ 1, 1, 1, 1, 1 },
+                [_]f32{ 1, 1, 1, 1, 1 },
+                [_]f32{ 1, 1, 1, 1, 1 },
+                [_]f32{ 1, 1, 1, 1, 1 },
+            },
+        },
+    };
+
+    var input_tensor = try Tensor(f32).fromArray(&test_allocator, &inputArray, &input_shape);
+    defer input_tensor.deinit();
+
+    const X_id = b.push(.DEFINE_GLOBAL, .f32, &.{}, Any{ .shape = &input_shape });
+
+    // Define output shape and other parameters for max pooling
+    const out_shape = [_]usize{ 1, 1, 3, 3 }; // With 2x2 kernel and stride 1, output is (5-2+1)x(5-2+1)
+    const in_stride = [_]isize{ 25, 25, 5, 1 }; // Strides for 1x1x5x5 tensor in row-major format
+    const pads = [_]usize{ 0, 0 }; // No padding
+    const strides_hw = [_]usize{ 1, 1 }; // Stride of 1 in height and width
+    const dil_hw = [_]usize{ 1, 1 }; // No dilation
+    const kHW = [_]usize{ 2, 2 }; // 2x2 kernel
+
+    // Call lowerMaxPool2d
+    _ = lowerMaxPool2d(
+        &b,
+        X_id,
+        &out_shape,
+        &in_stride,
+        pads,
+        strides_hw,
+        dil_hw,
+        kHW,
+        .f32,
+        false,
+    );
+
+    // Print the generated UOps sequence
+    std.debug.print("\nUOps sequence for MaxPool2d:\n", .{});
+    for (b.list.items, 0..) |op, i| {
+        std.debug.print("{d:3}: {s}\n", .{ i, @tagName(op.op) });
+    }
+}
+
 test "Pooling 2D" {
-    std.debug.print("\n     test: Pooling 2D\n", .{});
+    tests_log.info("\n     test: Pooling 2D\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -101,7 +164,7 @@ test "Pooling 2D" {
 }
 
 test "Pooling multidim" {
-    std.debug.print("\n     test: Pooling multidim\n", .{});
+    tests_log.info("\n     test: Pooling multidim\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -154,7 +217,7 @@ test "Pooling multidim" {
 }
 
 test "ONNX MaxPool - NOTSET padding" {
-    std.debug.print("\n     test: ONNX MaxPool - NOTSET padding\n", .{});
+    tests_log.info("\n     test: ONNX MaxPool - NOTSET padding\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -202,7 +265,7 @@ test "ONNX MaxPool - NOTSET padding" {
 }
 
 test "ONNX MaxPool - SAME_UPPER padding" {
-    std.debug.print("\n     test: ONNX MaxPool - SAME_UPPER padding\n", .{});
+    tests_log.info("\n     test: ONNX MaxPool - SAME_UPPER padding\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -254,7 +317,7 @@ test "ONNX MaxPool - SAME_UPPER padding" {
 }
 
 test "ONNX MaxPool - with dilation" {
-    std.debug.print("\n     test: ONNX MaxPool - with dilation\n", .{});
+    tests_log.info("\n     test: ONNX MaxPool - with dilation\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -304,7 +367,7 @@ test "ONNX MaxPool - with dilation" {
 }
 
 test "ONNX MaxPool - ceil mode" {
-    std.debug.print("\n     test: ONNX MaxPool - ceil mode\n", .{});
+    tests_log.info("\n     test: ONNX MaxPool - ceil mode\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -351,7 +414,7 @@ test "ONNX MaxPool - ceil mode" {
 }
 
 test "ONNX MaxPool - explicit padding" {
-    std.debug.print("\n     test: ONNX MaxPool - explicit padding\n", .{});
+    tests_log.info("\n     test: ONNX MaxPool - explicit padding\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -413,4 +476,274 @@ test "ONNX MaxPool - explicit padding" {
     try std.testing.expectEqual(@as(f32, 8), result.output.data[13]);
     try std.testing.expectEqual(@as(f32, 9), result.output.data[14]);
     try std.testing.expectEqual(@as(f32, 9), result.output.data[15]);
+}
+
+test "ONNX AveragePool - NOTSET padding" {
+    tests_log.info("\n     test: ONNX AveragePool - NOTSET padding\n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Input: 1x1x4x4
+    var input_shape = [_]usize{ 1, 1, 4, 4 };
+    var input_data = [_]f32{
+        1,  2,  3,  4,
+        5,  6,  7,  8,
+        9,  10, 11, 12,
+        13, 14, 15, 16,
+    };
+
+    var input = try Tensor(f32).fromArray(&allocator, &input_data, &input_shape);
+    defer input.deinit();
+
+    var kernel_shape = [_]usize{ 2, 2 };
+    var strides = [_]usize{ 2, 2 };
+    var dilations = [_]usize{ 1, 1 };
+    var pads = [_]usize{ 0, 0, 0, 0 }; // top, left, bottom, right
+
+    var output = try TensMath.onnx_averagepool(
+        f32,
+        &input,
+        &kernel_shape,
+        &strides,
+        &dilations,
+        &pads,
+        .NOTSET,
+        false,
+        false, // count_include_pad = false
+    );
+    defer output.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), output.shape[0]);
+    try std.testing.expectEqual(@as(usize, 1), output.shape[1]);
+    try std.testing.expectEqual(@as(usize, 2), output.shape[2]);
+    try std.testing.expectEqual(@as(usize, 2), output.shape[3]);
+
+    try std.testing.expectEqual(@as(f32, 3.5), output.data[0]); // (1+2+5+6)/4
+    try std.testing.expectEqual(@as(f32, 5.5), output.data[1]); // (3+4+7+8)/4
+    try std.testing.expectEqual(@as(f32, 11.5), output.data[2]); // (9+10+13+14)/4
+    try std.testing.expectEqual(@as(f32, 13.5), output.data[3]); // (11+12+15+16)/4
+}
+
+test "ONNX AveragePool - SAME_UPPER padding" {
+    tests_log.info("\n     test: ONNX AveragePool - SAME_UPPER padding\n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Input: 1x1x3x3
+    var input_shape = [_]usize{ 1, 1, 3, 3 };
+    var input_data = [_]f32{
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9,
+    };
+
+    var input = try Tensor(f32).fromArray(&allocator, &input_data, &input_shape);
+    defer input.deinit();
+
+    var kernel_shape = [_]usize{ 2, 2 };
+    var strides = [_]usize{ 1, 1 };
+    var dilations = [_]usize{ 1, 1 };
+    var pads = [_]usize{ 0, 0, 0, 0 }; // non usati con SAME_UPPER
+
+    var output = try TensMath.onnx_averagepool(
+        f32,
+        &input,
+        &kernel_shape,
+        &strides,
+        &dilations,
+        &pads,
+        .SAME_UPPER,
+        false,
+        false,
+    );
+    defer output.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), output.shape[0]);
+    try std.testing.expectEqual(@as(usize, 1), output.shape[1]);
+    try std.testing.expectEqual(@as(usize, 3), output.shape[2]);
+    try std.testing.expectEqual(@as(usize, 3), output.shape[3]);
+
+    try std.testing.expectEqual(@as(f32, 3.0), output.data[0]); // (1+2+4+5)/4
+    try std.testing.expectEqual(@as(f32, 4.0), output.data[1]); // (2+3+5+6)/4
+    try std.testing.expectEqual(@as(f32, 4.5), output.data[2]); // (3+6+0+0)/2
+    try std.testing.expectEqual(@as(f32, 6.0), output.data[3]); // (4+5+7+8)/4
+    try std.testing.expectEqual(@as(f32, 7.0), output.data[4]); // (5+6+8+9)/4
+    try std.testing.expectEqual(@as(f32, 7.5), output.data[5]); // (6+9+0+0)/2
+    try std.testing.expectEqual(@as(f32, 7.5), output.data[6]); // (7+8+0+0)/2
+    try std.testing.expectEqual(@as(f32, 8.5), output.data[7]); // (8+9+0+0)/2
+    try std.testing.expectEqual(@as(f32, 9.0), output.data[8]); // (9+0+0+0)/1
+}
+
+test "ONNX AveragePool - with dilation" {
+    tests_log.info("\n     test: ONNX AveragePool - with dilation\n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Input: 1x1x4x4
+    var input_shape = [_]usize{ 1, 1, 4, 4 };
+    var input_data = [_]f32{
+        1,  2,  3,  4,
+        5,  6,  7,  8,
+        9,  10, 11, 12,
+        13, 14, 15, 16,
+    };
+
+    var input = try Tensor(f32).fromArray(&allocator, &input_data, &input_shape);
+    defer input.deinit();
+
+    var kernel_shape = [_]usize{ 2, 2 };
+    var strides = [_]usize{ 1, 1 };
+    var dilations = [_]usize{ 2, 2 };
+    var pads = [_]usize{ 0, 0, 0, 0 };
+
+    var output = try TensMath.onnx_averagepool(
+        f32,
+        &input,
+        &kernel_shape,
+        &strides,
+        &dilations,
+        &pads,
+        .NOTSET,
+        false,
+        false,
+    );
+    defer output.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), output.shape[0]);
+    try std.testing.expectEqual(@as(usize, 1), output.shape[1]);
+    try std.testing.expectEqual(@as(usize, 2), output.shape[2]);
+    try std.testing.expectEqual(@as(usize, 2), output.shape[3]);
+
+    try std.testing.expectEqual(@as(f32, 6.0), output.data[0]); // (1+3+9+11)/4
+    try std.testing.expectEqual(@as(f32, 7.0), output.data[1]); // (2+4+10+12)/4
+    try std.testing.expectEqual(@as(f32, 10.0), output.data[2]); // (5+7+13+15)/4
+    try std.testing.expectEqual(@as(f32, 11.0), output.data[3]); // (6+8+14+16)/4
+}
+
+test "ONNX AveragePool - ceil mode" {
+    tests_log.info("\n     test: ONNX AveragePool - ceil mode\n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Input: 1x1x3x3
+    var input_shape = [_]usize{ 1, 1, 3, 3 };
+    var input_data = [_]f32{
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9,
+    };
+
+    var input = try Tensor(f32).fromArray(&allocator, &input_data, &input_shape);
+    defer input.deinit();
+
+    var kernel_shape = [_]usize{ 2, 2 };
+    var strides = [_]usize{ 2, 2 };
+    var dilations = [_]usize{ 1, 1 };
+    var pads = [_]usize{ 0, 0, 0, 0 };
+
+    var output = try TensMath.onnx_averagepool(
+        f32,
+        &input,
+        &kernel_shape,
+        &strides,
+        &dilations,
+        &pads,
+        .NOTSET,
+        true, // ceil_mode = true
+        false,
+    );
+    defer output.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), output.shape[0]);
+    try std.testing.expectEqual(@as(usize, 1), output.shape[1]);
+    try std.testing.expectEqual(@as(usize, 2), output.shape[2]);
+    try std.testing.expectEqual(@as(usize, 2), output.shape[3]);
+
+    try std.testing.expectEqual(@as(f32, 3.0), output.data[0]); // (1+2+4+5)/4
+    try std.testing.expectEqual(@as(f32, 4.5), output.data[1]); // (3+6)/2
+    try std.testing.expectEqual(@as(f32, 7.5), output.data[2]); // (7+8)/2
+    try std.testing.expectEqual(@as(f32, 9.0), output.data[3]); // (9)/1
+}
+
+test "ONNX AveragePool - explicit padding with count_include_pad" {
+    tests_log.info("\n     test: ONNX AveragePool - explicit padding with count_include_pad\n", .{});
+
+    const allocator = pkgAllocator.allocator;
+
+    // Input: 1x1x3x3
+    var input_shape = [_]usize{ 1, 1, 3, 3 };
+    var input_data = [_]f32{
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9,
+    };
+
+    var input = try Tensor(f32).fromArray(&allocator, &input_data, &input_shape);
+    defer input.deinit();
+
+    var kernel_shape = [_]usize{ 2, 2 };
+    var strides = [_]usize{ 1, 1 };
+    var dilations = [_]usize{ 1, 1 };
+    var pads = [_]usize{ 0, 0, 1, 1 }; // bottom, right padding
+
+    var output = try TensMath.onnx_averagepool(
+        f32,
+        &input,
+        &kernel_shape,
+        &strides,
+        &dilations,
+        &pads,
+        .NOTSET,
+        false,
+        true, // count_include_pad = true
+    );
+    defer output.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), output.shape[0]);
+    try std.testing.expectEqual(@as(usize, 1), output.shape[1]);
+    try std.testing.expectEqual(@as(usize, 3), output.shape[2]);
+    try std.testing.expectEqual(@as(usize, 3), output.shape[3]);
+
+    try std.testing.expectEqual(@as(f32, 3.0), output.data[0]); // (1+2+4+5)/4
+    try std.testing.expectEqual(@as(f32, 4.0), output.data[1]); // (2+3+5+6)/4
+    try std.testing.expectEqual(@as(f32, 2.25), output.data[2]); // (3+6+0+0)/4
+    try std.testing.expectEqual(@as(f32, 6.0), output.data[3]); // (4+5+7+8)/4
+    try std.testing.expectEqual(@as(f32, 7.0), output.data[4]); // (5+6+8+9)/4
+    try std.testing.expectEqual(@as(f32, 3.75), output.data[5]); // (6+9+0+0)/4
+    try std.testing.expectEqual(@as(f32, 3.75), output.data[6]); // (7+8+0+0)/4
+    try std.testing.expectEqual(@as(f32, 4.25), output.data[7]); // (8+9+0+0)/4
+    try std.testing.expectEqual(@as(f32, 2.25), output.data[8]); // (9+0+0+0)/4
+}
+
+test "Manual AveragePool Test" {
+    const T = f32;
+    var allocator = std.testing.allocator;
+
+    // Input tensor [1, 1, 4, 4]
+    var input_shape = [_]usize{ 1, 1, 4, 4 };
+    var input_data = [_]f32{
+        1,  2,  3,  4,
+        5,  6,  7,  8,
+        9,  10, 11, 12,
+        13, 14, 15, 16,
+    };
+    var input = try Tensor(T).fromArray(&allocator, &input_data, &input_shape);
+    defer input.deinit();
+
+    // Output tensor [1, 1, 3, 3]
+    var output_shape = [_]usize{ 1, 1, 3, 3 };
+    var output = try Tensor(T).fromShape(&allocator, &output_shape);
+    defer output.deinit();
+
+    const kernel_shape = [_]usize{ 2, 2 };
+    const strides = [_]usize{ 1, 1 };
+    const dilations = [_]usize{ 1, 1 };
+    const pads = [_]usize{ 0, 0, 0, 0 };
+
+    try TensMath.onnx_averagepool_lean(T, &input, &output, &kernel_shape, &strides, &dilations, &pads, .NOTSET, false);
+
+    const expected = [_]f32{ 3.5, 4.5, 5.5, 7.5, 8.5, 9.5, 11.5, 12.5, 13.5 };
+    for (output.data, expected) |got, exp| {
+        try std.testing.expectApproxEqAbs(got, exp, 1e-5);
+    }
 }

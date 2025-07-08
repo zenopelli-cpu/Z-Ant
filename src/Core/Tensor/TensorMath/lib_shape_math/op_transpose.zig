@@ -39,8 +39,6 @@ pub fn transpose2D(comptime T: type, t: *Tensor(T)) !Tensor(T) {
         .size = t.size,
         .shape = tensorShape,
         .allocator = allocator,
-        .owns_memory = true,
-        .details = t.details,
     };
 }
 
@@ -101,13 +99,13 @@ fn transpose(comptime T: type, t: *Tensor(T), perms: []usize) !Tensor(T) {
 
 /// Given a 4D tensor it returns the tensor with the last 2 dimensions transposed. Operates on both data and shape, does not modify self, used by gemm.
 pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T) {
-    //std.debug.print("\n[DEBUG] transposeLastTwo:", .{});
-    //std.debug.print("\n  Input tensor shape: ", .{});
-    //for (tensor.shape) |s| std.debug.print("{d} ", .{s});
+    //std.log.debug("\n[DEBUG] transposeLastTwo:", .{});
+    //std.log.debug("\n  Input tensor shape: ", .{});
+    //for (tensor.shape) |s| std.log.debug("{d} ", .{s});
 
     // Verifying correct shape
     if (tensor.shape.len != 2 and tensor.shape.len != 4) {
-        //std.debug.print("\n  Error: Expected 2D or 4D tensor, got {d}D", .{tensor.shape.len});
+        //std.log.debug("\n  Error: Expected 2D or 4D tensor, got {d}D", .{tensor.shape.len});
         return TensorMathError.InputTensorsWrongShape;
     }
 
@@ -138,15 +136,15 @@ pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T
         newShape[3] = rows;
     }
 
-    //std.debug.print("\n  Rows: {d}, Cols: {d}, Total: {d}", .{ rows, cols, total });
-    //std.debug.print("\n  New shape: ", .{});
-    //for (newShape) |s| std.debug.print("{d} ", .{s});
+    //std.log.debug("\n  Rows: {d}, Cols: {d}, Total: {d}", .{ rows, cols, total });
+    //std.log.debug("\n  New shape: ", .{});
+    //for (newShape) |s| std.log.debug("{d} ", .{s});
 
     // Create a non-const copy of the input data using pkg_allocator
     const outData = try pkg_allocator.alloc(T, total);
     errdefer pkg_allocator.free(outData);
 
-    //std.debug.print("\n  Transposing data...", .{});
+    //std.log.debug("\n  Transposing data...", .{});
 
     if (tensor.shape.len == 2) {
         // Simple 2D transpose - Fixed indexing
@@ -172,15 +170,13 @@ pub fn transposeLastTwo(comptime T: anytype, tensor: *const Tensor(T)) !Tensor(T
         }
     }
 
-    //std.debug.print("\n  Transpose complete", .{});
+    //std.log.debug("\n  Transpose complete", .{});
 
     return Tensor(T){
         .data = outData,
         .size = total,
         .shape = newShape,
         .allocator = &pkg_allocator,
-        .owns_memory = true,
-        .details = tensor.details,
     };
 }
 
@@ -202,26 +198,29 @@ pub fn transpose_onnx(comptime T: type, input: *Tensor(T), perm: ?[]const usize)
 /// Lean version of transpose_onnx that operates on an existing output tensor
 /// Handles implicit broadcasting if the permutation length is greater than the input rank.
 //TODO SHAPETRACKER we'll gonna love you
+//Pass allocator until we have a shape tracker
 pub fn transpose_onnx_lean(
     comptime T: type,
     input: *Tensor(T),
     perm: ?[]const usize,
     output: *Tensor(T),
+    output_allocator: std.mem.Allocator,
 ) !void {
     const input_rank = input.shape.len;
     const perm_rank = if (perm) |p| p.len else input_rank; // Effective rank
-    const allocator = pkg_allocator; // Use a consistent allocator
+    // Use pkg_allocator for temporary internal calculations
+    const allocator = pkg_allocator;
 
     if (perm_rank == 0 and input_rank == 0) {
         // Handle scalar case (rank 0)
         if (output.size < 1) {
-            if (output.data.len > 0) allocator.free(output.data);
-            output.data = try allocator.alloc(T, 1);
+            // Use output_allocator to manage output tensor's memory
+            output.data = try output_allocator.alloc(T, 1);
         }
         output.size = 1;
         if (input.size > 0) output.data[0] = input.data[0]; // Copy scalar value
-        // Output shape should be [] (handled by caller or later step)
-        return; // Scalar transpose is a no-op on data
+        // Output shape handling needs clarification for scalar case
+        return;
     }
 
     // -----------------------------
@@ -233,11 +232,11 @@ pub fn transpose_onnx_lean(
     if (perm) |p| {
         // Validate length
         if (p.len != perm_rank) {
-            //std.debug.print("ERROR: transpose_onnx_lean perm.len = {}, perm_rank = {}. Should be equal.\\n", .{ p.len, perm_rank });
+            //std.log.debug("ERROR: transpose_onnx_lean perm.len = {}, perm_rank = {}. Should be equal.\\n", .{ p.len, perm_rank });
             return error.InvalidPermutation;
         }
         if (input_rank > perm_rank) {
-            //std.debug.print("ERROR: transpose_onnx_lean input_rank ({}) > perm_rank ({}) not supported\\n", .{ input_rank, perm_rank });
+            //std.log.debug("ERROR: transpose_onnx_lean input_rank ({}) > perm_rank ({}) not supported\\n", .{ input_rank, perm_rank });
             return error.UnsupportedBroadcast;
         }
 
@@ -261,7 +260,7 @@ pub fn transpose_onnx_lean(
 
     // -----------------------------
     // 2) Create effective input shape and compute input strides
-    //    Input strides are based on *actual* input shape
+    //    (Uses 'allocator' for temporary effective_input_shape)
     // -----------------------------
     var effective_input_shape = try allocator.alloc(usize, perm_rank);
     defer allocator.free(effective_input_shape);
@@ -270,9 +269,7 @@ pub fn transpose_onnx_lean(
     for (0..leading_ones) |i| {
         effective_input_shape[i] = 1;
     }
-    if (input_rank > 0) {
-        @memcpy(effective_input_shape[leading_ones..], input.shape);
-    }
+    @memcpy(effective_input_shape[leading_ones..], input.shape);
 
     var input_strides = try allocator.alloc(usize, input_rank);
     defer allocator.free(input_strides);
@@ -290,7 +287,7 @@ pub fn transpose_onnx_lean(
 
     // -----------------------------
     // 3) Compute the output shape and output strides
-    //    Based on effective input shape and perm
+    //    (Uses 'allocator' for temporary output_shape and output_strides)
     // -----------------------------
     var output_shape = try allocator.alloc(usize, perm_rank);
     defer allocator.free(output_shape);
@@ -304,11 +301,10 @@ pub fn transpose_onnx_lean(
 
     // Check if output tensor needs resizing or shape update
     if (output.shape.len != perm_rank) {
-        if (output.owns_memory and output.shape.len > 0) allocator.free(output.shape);
-        // Note: We are taking ownership if we allocate shape
-        output.shape = try allocator.alloc(usize, perm_rank);
-        output.owns_memory = true; // Might need adjustment based on tensor logic
+        // Use output_allocator to manage output tensor's shape memory
+        output.shape = try output_allocator.alloc(usize, perm_rank);
     }
+    // Copy calculated shape into output tensor's shape slice
     @memcpy(output.shape, output_shape);
 
     var output_strides = try allocator.alloc(usize, perm_rank);
@@ -320,38 +316,28 @@ pub fn transpose_onnx_lean(
         while (i > 0) {
             i -= 1;
             output_strides[i] = stride;
-            stride *= output_shape[i]; // Use calculated output shape
+            stride *= output.shape[i]; // Use output tensor's actual shape
         }
     }
 
     // -----------------------------
-    // 4) Allocate output data if needed
+    // 4) Allocate output data if needed, using output_allocator
     // -----------------------------
     const size_matches = (output.data.len == total_size);
 
     if (size_matches) {
-        // Size is correct, proceed using existing buffer (owned or unowned).
-        // Ownership status remains unchanged.
+        // Size is correct, proceed using existing buffer.
     } else {
-        // Size mismatch, reallocation is needed.
-        if (!output.owns_memory) {
-            // Cannot reallocate an unowned buffer of the wrong size.
-            std.debug.print("ERROR: transpose_onnx_lean output tensor has wrong size ({d}) but is unowned. Expected size {d}. Caller must provide correct buffer.\\n", .{ output.data.len, total_size });
-            return error.OutputBufferWrongSize; // Require caller to provide correct buffer
+        // Size mismatch, reallocation needed.
+
+        // Output owns memory, reallocate using output_allocator.
+        if (output.data.len > 0) {
+            output_allocator.free(output.data);
+        }
+        if (total_size > 0) {
+            output.data = try output_allocator.alloc(T, total_size);
         } else {
-            // Output owns memory, but it's the wrong size. Reallocate.
-            if (output.data.len > 0) { // Free only if there's something to free
-                allocator.free(output.data);
-            }
-            // Allocate new data
-            if (total_size > 0) {
-                output.data = try allocator.alloc(T, total_size);
-                // output.owns_memory remains true (still owns the new buffer)
-            } else {
-                // Handle zero-size output after freeing
-                output.data = &[_]T{};
-                output.owns_memory = false; // Doesn't own the empty slice
-            }
+            output.data = &[_]T{};
         }
     }
     output.size = total_size;
@@ -450,7 +436,7 @@ pub fn get_transpose_output_shape(input_shape: []const usize, perm: ?[]const usi
     if (perm) |p| {
         if (p.len != perm_rank) {
             // This case should technically not happen if perm_rank is derived from p.len, but good practice
-            std.debug.print("ERROR: perm length mismatch internal logic! p.len={} perm_rank={}\\n", .{ p.len, perm_rank });
+            std.log.warn("ERROR: perm length mismatch internal logic! p.len={} perm_rank={}\\n", .{ p.len, perm_rank });
             return error.InvalidPermutation;
         }
 
@@ -490,7 +476,7 @@ pub fn get_transpose_output_shape(input_shape: []const usize, perm: ?[]const usi
     for (0..perm_rank) |i| {
         const input_dim_index = real_perm[i];
         if (input_dim_index >= perm_rank) { // Sanity check
-            std.debug.print("ERROR: real_perm[{}]={} is out of bounds for perm_rank={}\\n", .{ i, input_dim_index, perm_rank });
+            std.log.warn("ERROR: real_perm[{}]={} is out of bounds for perm_rank={}\\n", .{ i, input_dim_index, perm_rank });
             return error.InvalidPermutation;
         }
         output_shape[i] = effective_input_shape[input_dim_index];

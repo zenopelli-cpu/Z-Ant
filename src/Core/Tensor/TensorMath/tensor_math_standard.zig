@@ -14,6 +14,22 @@ pub const reshape_lean = op_reshape.reshape_lean;
 pub const reshape_lean_f32 = op_reshape.reshape_lean_f32;
 pub const reshape_lean_common = op_reshape.reshape_lean_common;
 pub const get_reshape_output_shape = op_reshape.get_reshape_output_shape;
+pub const lowerReshape = op_reshape.lowerReshape;
+
+//---flatten
+const op_flatten = @import("lib_shape_math/op_flatten.zig");
+
+pub const flatten = op_flatten.flatten;
+pub const flatten_lean = op_flatten.flatten_lean;
+pub const get_flatten_output_shape = op_flatten.get_flatten_output_shape;
+
+//---squeeze
+const op_squeeze = @import("lib_shape_math/op_squeeze.zig");
+
+pub const squeeze = op_squeeze.squeeze;
+pub const squeeze_lean = op_squeeze.squeeze_lean;
+pub const get_squeeze_output_shape = op_squeeze.get_squeeze_output_shape;
+
 //---gather
 
 const op_gather = @import("lib_shape_math/op_gather.zig");
@@ -35,6 +51,14 @@ const op_clip = @import("lib_elementWise_math/op_clip.zig");
 
 pub const clip = op_clip.clip;
 pub const clip_lean = op_clip.lean_clip;
+pub const lowerClip = op_clip.lowerClip;
+
+//--floor
+const op_floor = @import("lib_elementWise_math/op_floor.zig");
+
+pub const floor = op_floor.floor;
+pub const floor_lean = op_floor.floor_lean;
+pub const get_floor_output_shape = op_floor.get_floor_output_shape;
 
 //--unsqueeze
 const op_unsqueeze = @import("lib_shape_math/op_unsqueeze.zig");
@@ -54,6 +78,7 @@ const op_identity = @import("lib_shape_math/op_identity.zig");
 pub const identity = op_identity.identity;
 pub const identity_lean = op_identity.identity_lean;
 pub const get_identity_output_shape = op_identity.get_identity_shape_output;
+pub const lowerIdentity = op_identity.lowerIdentity;
 
 // ---------- importing pooling methods ----------
 const op_transp = @import("lib_shape_math/op_transpose.zig");
@@ -70,6 +95,7 @@ pub const addPaddingAndDilation = op_padding.addPaddingAndDilation;
 pub const neg = op_neg.neg;
 pub const neg_lean = op_neg.neg_lean;
 pub const get_neg_output_shape = op_neg.get_neg_output_shape;
+pub const lowerNeg = op_neg.lowerNeg;
 pub const flip = op_neg.flip_matrix;
 pub const flip_lean = op_neg.flip_matrix_lean;
 
@@ -88,7 +114,12 @@ pub const mat_mul_lean = op_mat_mul.lean_mat_mul;
 pub const blocked_mat_mul = op_mat_mul.blocked_mat_mul;
 pub const blocked_mat_mul_lean = op_mat_mul.lean_blocked_mat_mul;
 pub const get_mat_mul_output_shape = op_mat_mul.get_mat_mul_output_shape;
-pub const dot_product_tensor_flat = op_mat_mul.dot_product_tensor_flat;
+//----------- importing standard elu method -----------
+const op_elu = @import("op_elu.zig");
+
+pub const elu = op_elu.elu;
+pub const elu_lean = op_elu.elu_lean;
+pub const get_elu_output_shape = op_elu.get_elu_output_shape;
 
 // ---------- importing standard gemm method ----------
 const op_gemm = @import("op_gemm.zig");
@@ -100,6 +131,13 @@ const op_mean = @import("op_mean.zig");
 pub const mean_standard = op_mean.mean_standard;
 pub const mean_lean = op_mean.mean_lean;
 pub const get_mean_output_shape = op_mean.get_mean_output_shape;
+
+//----------- importing standard onehot method ----------
+const op_oneHot = @import("op_oneHot.zig");
+
+pub const oneHot = op_oneHot.onehot;
+pub const oneHot_lean = op_oneHot.onehot_lean;
+pub const get_oneHot_output_shape = op_oneHot.get_onehot_output_shape;
 
 // ---------- importing standard Batch Normalization ----------
 const op_bachNorm = @import("op_batchNormalization.zig");
@@ -139,6 +177,12 @@ pub const AutoPadType = pooling_math_lib.AutoPadType;
 pub const get_onnx_maxpool_output_shape = pooling_math_lib.get_onnx_maxpool_output_shape;
 pub const get_pooling_output_shape = pooling_math_lib.get_pooling_output_shape;
 pub const PoolingType = pooling_math_lib.PoolingType;
+
+pub const lowerMaxPool2d = pooling_math_lib.lowerMaxPool2d;
+
+pub const onnx_averagepool = pooling_math_lib.onnx_averagepool;
+pub const onnx_averagepool_lean = pooling_math_lib.lean_onnx_averagepool;
+pub const get_onnx_averagepool_output_shape = pooling_math_lib.get_onnx_averagepool_output_shape;
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -190,10 +234,22 @@ const division = @import("lib_elementWise_math/op_division.zig");
 pub const div = division.div;
 pub const div_lean = division.div_lean;
 
+//cast
+const op_cast = @import("op_cast.zig");
+pub const cast_lean = op_cast.cast_lean;
+
 //--tanh
 const tanhy = @import("lib_elementWise_math/op_tanh.zig");
 pub const tanh = tanhy.tanh;
 pub const tanh_lean = tanhy.tanh_lean;
+pub const get_tanh_output_shape = tanhy.get_tanh_output_shape;
+
+//--gelu
+const Gelu = @import("lib_elementWise_math/op_gelu.zig");
+
+pub const gelu = Gelu.gelu;
+pub const gelu_lean = Gelu.gelu_lean;
+pub const get_gelu_output_shape = Gelu.get_gelu_output_shape;
 
 //--ceil
 const Ceil = @import("lib_elementWise_math/op_ceil.zig");
@@ -201,6 +257,13 @@ const Ceil = @import("lib_elementWise_math/op_ceil.zig");
 pub const ceil = Ceil.ceil;
 pub const ceil_lean = Ceil.ceil_lean;
 pub const get_ceil_output_shape = Ceil.get_ceil_output_shape;
+
+//--sqrt
+const Sqrt = @import("lib_elementWise_math/op_sqrt.zig");
+
+pub const sqrt = Sqrt.sqrt;
+pub const sqrt_lean = Sqrt.sqrt_lean;
+pub const get_sqrt_output_shape = Sqrt.get_sqrt_output_shape;
 
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");

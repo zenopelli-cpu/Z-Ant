@@ -1,6 +1,6 @@
 const std = @import("std");
 const zant = @import("zant");
-const codegen = @import("codegen");
+const codegen = @import("IR_zant").IR_codegen;
 const utils = codegen.utils;
 const Tensor = zant.core.tensor.Tensor;
 const pkgAllocator = zant.utils.allocator;
@@ -11,7 +11,9 @@ const model = @import("model_options.zig");
 const ITERATION_COUNT: u32 = 100;
 
 test "Static Library - Random data Prediction Test" {
-    std.debug.print("\n     test: Static Library - Model: {s}  - Random data Prediction Test\n", .{model.name});
+    std.testing.log_level = .info;
+
+    std.debug.print("\ntest: Static Library - Model: {s}  - Random data Prediction Test -------------------------\n", .{model.name});
 
     var input_shape = model.input_shape;
 
@@ -50,7 +52,9 @@ test "Static Library - Random data Prediction Test" {
 }
 
 test "Static Library - Inputs Prediction Test" {
-    std.debug.print("\n     test: Codegen one-op model: \"{s}\" compare with Pre-Generated results.\n", .{model.name});
+    std.testing.log_level = .info;
+
+    std.debug.print("\ntest: Codegen one-op model: \"{s}\" compare with Pre-Generated results. -------------------------\n", .{model.name});
 
     var input_shape = model.input_shape;
 
@@ -91,9 +95,8 @@ test "Static Library - Inputs Prediction Test" {
             const result_value = result[i];
             const expected_output_value = expected_output;
             const approx_eq = std.math.approxEqAbs(model.data_type, expected_output_value, result_value, 0.001);
-            if(!approx_eq)
+            if (!approx_eq)
                 std.debug.print("Test failed for input: {d} expected: {} got: {}\n", .{ i, expected_output_value, result_value });
-            
             try std.testing.expect(approx_eq);
         }
     }

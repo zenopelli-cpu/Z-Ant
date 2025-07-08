@@ -20,44 +20,62 @@ const UNROLL_FACTOR: usize = 10;
 // TODO: add support for matrix multiplication for matrix distribuited in multi-batch/multi-channel tensors (for example of shape {2, 3, 5, 5}), now supports only tensors with shape {1, 1, N, M}
 /// Performs classic matrix multiplication on given tensors using the least 2 dimensions
 pub inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T)) !Tensor(T) {
-    // std.debug.print("\nStarting matrix multiplication validation...\n", .{});
+    // std.log.debug("\nStarting matrix multiplication validation...\n", .{});
 
     // The two tensors needs to have the same dimensions N
     if (A.shape.len != B.shape.len) {
-        // std.debug.print("Error: Input tensors have different dimensions. A: {}, B: {}\n", .{ A.shape.len, B.shape.len });
+        // std.log.debug("Error: Input tensors have different dimensions. A: {}, B: {}\n", .{ A.shape.len, B.shape.len });
         return TensorMathError.InputTensorDifferentShape;
     }
 
     const dim_num = A.shape.len;
 
-    // The last dimension (number of cols) of A must be equal to the second last dimension (number of rows) of B
-    if (A.shape[dim_num - 1] != B.shape[dim_num - 2]) {
-        // std.debug.print("Error: Incompatible matrix dimensions for multiplication. A[{}]={}, B[{}]={}\n", .{ dim_num - 1, A.shape[dim_num - 1], dim_num - 2, B.shape[dim_num - 2] });
-        return TensorMathError.InputTensorsWrongShape;
+    // Special handling for 1D tensors (vectors)
+    if (dim_num == 1) {
+        // For 1D vectors, we treat it as a dot product
+        const K = A.shape[0];
+
+        if (K != B.shape[0]) {
+            return TensorMathError.InputTensorsWrongShape;
+        }
+
+        // Create a scalar output (1x1 tensor)
+        const allocator = pkg_allocator;
+        var out_shape = try allocator.alloc(usize, 1);
+        defer allocator.free(out_shape);
+        out_shape[0] = 1;
+
+        var Y = try Tensor(T).fromShape(&allocator, out_shape);
+        errdefer Y.deinit();
+
+        @memset(Y.data, 0);
+        try lean_mat_mul(T, A, B, &Y);
+
+        return Y;
     }
 
-    // The input tensors must have at least 2 dimensions
-    if (dim_num < 2) {
-        // std.debug.print("Error: Input tensors must have at least 2 dimensions. Got: {}\n", .{dim_num});
+    // For tensors with >= 2 dimensions
+
+    // The last dimension (number of cols) of A must be equal to the second last dimension (number of rows) of B
+    if (A.shape[dim_num - 1] != B.shape[dim_num - 2]) {
+        // std.log.debug("Error: Incompatible matrix dimensions for multiplication. A[{}]={}, B[{}]={}\n", .{ dim_num - 1, A.shape[dim_num - 1], dim_num - 2, B.shape[dim_num - 2] });
         return TensorMathError.InputTensorsWrongShape;
     }
 
     // Create output tensor
-
     const M = A.shape[dim_num - 2];
     const N = B.shape[dim_num - 1];
     const K = A.shape[dim_num - 1];
 
     // Check if the input tensors are empty
     if (M * N == 0 or K == 0) {
-        // std.debug.print("Error: Empty input tensors. M={}, N={}, K={}\n", .{ M, N, K });
+        // std.log.debug("Error: Empty input tensors. M={}, N={}, K={}\n", .{ M, N, K });
         return TensorMathError.InputTensorsWrongShape;
     }
 
-    // std.debug.print("Validation passed, proceeding with multiplication\n", .{});
+    // std.log.debug("Validation passed, proceeding with multiplication\n", .{});
 
     // Setup output tensor shape
-
     const allocator = pkg_allocator;
     var out_shape = try allocator.alloc(usize, dim_num);
     defer allocator.free(out_shape);
@@ -73,13 +91,12 @@ pub inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor
     out_shape[dim_num - 1] = B.shape[dim_num - 1];
 
     // Create output tensor
-
     var Y = try Tensor(T).fromShape(&allocator, out_shape);
     errdefer Y.deinit();
 
-    // std.debug.print("Output tensor shape: ", .{});
-    // for (Y.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\n", .{});
+    // std.log.debug("Output tensor shape: ", .{});
+    // for (Y.shape) |dim| std.log.debug("{} ", .{dim});
+    // std.log.debug("\n", .{});
 
     @memset(Y.data, 0);
 
@@ -92,6 +109,37 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     const DEFAULT_VECTOR_WIDTH: usize = comptime (std.simd.suggestVectorLength(T) orelse 4);
     const dim_num = A.shape.len;
 
+    // Handle 1D tensors as special case
+    if (dim_num == 1) {
+        if (B.shape.len != 1) {
+            return TensorMathError.InputTensorDifferentShape;
+        }
+
+        // For 1D vectors, we treat them as a dot product
+        // A is a 1D vector (1xK), B is a 1D vector (Kx1), Y is a scalar (1x1)
+        const K = A.shape[0];
+
+        if (K != B.shape[0]) {
+            return TensorMathError.InputTensorsWrongShape;
+        }
+
+        if (Y.shape.len != 1) {
+            return TensorMathError.OutputTensorWrongShape;
+        }
+        if (Y.shape[0] != 1) {
+            return TensorMathError.OutputTensorWrongShape;
+        }
+
+        var sum: T = 0;
+        for (0..K) |k| {
+            sum += A.data[k] * B.data[k];
+        }
+
+        Y.data[0] = sum;
+        return;
+    }
+
+    // Regular matrix multiplication for dim_num >= 2
     const M = A.shape[dim_num - 2];
     const N = B.shape[dim_num - 1];
     const K = A.shape[dim_num - 1];
@@ -116,14 +164,14 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
 
     // Debug prints only when needed
     if (false) {
-        std.debug.print("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
-        std.debug.print("Input tensor A shape: ", .{});
-        for (A.shape) |dim| std.debug.print("{} ", .{dim});
-        std.debug.print("\nInput tensor B shape: ", .{});
-        for (B.shape) |dim| std.debug.print("{} ", .{dim});
-        std.debug.print("\nOutput tensor Y shape: ", .{});
-        for (Y.shape) |dim| std.debug.print("{} ", .{dim});
-        std.debug.print("\n", .{});
+        std.log.debug("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
+        std.log.debug("Input tensor A shape: ", .{});
+        for (A.shape) |dim| std.log.debug("{} ", .{dim});
+        std.log.debug("\nInput tensor B shape: ", .{});
+        for (B.shape) |dim| std.log.debug("{} ", .{dim});
+        std.log.debug("\nOutput tensor Y shape: ", .{});
+        for (Y.shape) |dim| std.log.debug("{} ", .{dim});
+        std.log.debug("\n", .{});
     }
 
     // SIMD vector type
@@ -138,7 +186,7 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     // Main matrix multiplication loop with SIMD
     var i: usize = 0;
     while (i < M) : (i += 1) {
-        // if (i % 100 == 0) std.debug.print("Processing row {}/{}\n", .{ i, M });
+        // if (i % 100 == 0) std.log.debug("Processing row {}/{}\n", .{ i, M });
         const row_offset = i * K;
         const out_offset = i * N;
 
@@ -187,31 +235,61 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
         }
     }
 
-    // std.debug.print("Matrix multiplication completed\n", .{});
+    // std.log.debug("Matrix multiplication completed\n", .{});
 }
 
 const CACHE_BLOCK_SIZE_BYTES: usize = std.atomic.cache_line;
 
 pub inline fn blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T)) !Tensor(T) {
-    // std.debug.print("\nStarting matrix multiplication validation...\n", .{});
+    // std.log.debug("\nStarting matrix multiplication validation...\n", .{});
 
     // The two tensors needs to have the same dimensions N
     if (A.shape.len != B.shape.len) {
-        // std.debug.print("Error: Input tensors have different dimensions. A: {}, B: {}\n", .{ A.shape.len, B.shape.len });
+        // std.log.debug("Error: Input tensors have different dimensions. A: {}, B: {}\n", .{ A.shape.len, B.shape.len });
         return TensorMathError.InputTensorDifferentShape;
     }
 
     const dim_num = A.shape.len;
 
+    // Special handling for 1D tensors (vectors)
+    if (dim_num == 1) {
+        // For 1D vectors, we treat it as a dot product
+        const K = A.shape[0];
+
+        if (K != B.shape[0]) {
+            return TensorMathError.InputTensorsWrongShape;
+        }
+
+        // Create a scalar output (1x1 tensor)
+        const allocator = pkg_allocator;
+        var out_shape = try allocator.alloc(usize, 1);
+        defer allocator.free(out_shape);
+        out_shape[0] = 1;
+
+        var Y = try Tensor(T).fromShape(&allocator, out_shape);
+        errdefer Y.deinit();
+
+        @memset(Y.data, 0);
+
+        // Since this is just a dot product, we'll calculate it directly
+        var sum: T = 0;
+        for (0..K) |k| {
+            sum += A.data[k] * B.data[k];
+        }
+
+        Y.data[0] = sum;
+        return Y;
+    }
+
     // The last dimension (number of cols) of A must be equal to the second last dimension (number of rows) of B
     if (A.shape[dim_num - 1] != B.shape[dim_num - 2]) {
-        // std.debug.print("Error: Incompatible matrix dimensions for multiplication. A[{}]={}, B[{}]={}\n", .{ dim_num - 1, A.shape[dim_num - 1], dim_num - 2, B.shape[dim_num - 2] });
+        // std.log.debug("Error: Incompatible matrix dimensions for multiplication. A[{}]={}, B[{}]={}\n", .{ dim_num - 1, A.shape[dim_num - 1], dim_num - 2, B.shape[dim_num - 2] });
         return TensorMathError.InputTensorsWrongShape;
     }
 
     // The input tensors must have at least 2 dimensions
     if (dim_num < 2) {
-        // std.debug.print("Error: Input tensors must have at least 2 dimensions. Got: {}\n", .{dim_num});
+        // std.log.debug("Error: Input tensors must have at least 2 dimensions. Got: {}\n", .{dim_num});
         return TensorMathError.InputTensorsWrongShape;
     }
 
@@ -223,11 +301,11 @@ pub inline fn blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *cons
 
     // Check if the input tensors are empty
     if (M * N == 0 or K == 0) {
-        // std.debug.print("Error: Empty input tensors. M={}, N={}, K={}\n", .{ M, N, K });
+        // std.log.debug("Error: Empty input tensors. M={}, N={}, K={}\n", .{ M, N, K });
         return TensorMathError.InputTensorsWrongShape;
     }
 
-    // std.debug.print("Validation passed, proceeding with multiplication\n", .{});
+    // std.log.debug("Validation passed, proceeding with multiplication\n", .{});
 
     // Setup output tensor shape
 
@@ -250,9 +328,9 @@ pub inline fn blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *cons
     var Y = try Tensor(T).fromShape(&allocator, out_shape);
     errdefer Y.deinit();
 
-    // std.debug.print("Output tensor shape: ", .{});
-    // for (Y.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\n", .{});
+    // std.log.debug("Output tensor shape: ", .{});
+    // for (Y.shape) |dim| std.log.debug("{} ", .{dim});
+    // std.log.debug("\n", .{});
 
     @memset(Y.data, 0);
 
@@ -264,6 +342,39 @@ pub inline fn blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *cons
 //Loosely inspired from https://coffeebeforearch.github.io/2020/06/23/mmul.html
 //Easy to implement, works, loses some efficiency on non-square matrices or really large B matrices
 pub inline fn lean_blocked_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T), C: *const Tensor(T)) !void {
+    const dim_num = A.shape.len;
+
+    // Handle 1D tensors as special case
+    if (dim_num == 1) {
+        if (B.shape.len != 1) {
+            return TensorMathError.InputTensorDifferentShape;
+        }
+
+        // For 1D vectors, we treat them as a dot product
+        // A is a 1D vector (1xK), B is a 1D vector (Kx1), C is a scalar (1x1)
+        const K = A.shape[0];
+
+        if (K != B.shape[0]) {
+            return TensorMathError.InputTensorsWrongShape;
+        }
+
+        if (C.shape.len != 1) {
+            return TensorMathError.OutputTensorWrongShape;
+        }
+        if (C.shape[0] != 1) {
+            return TensorMathError.OutputTensorWrongShape;
+        }
+
+        var sum: T = 0;
+        for (0..K) |k| {
+            sum += A.data[k] * B.data[k];
+        }
+
+        C.data[0] = sum;
+        return;
+    }
+
+    // Regular matrix multiplication for dim_num >= 2
     const cache_block_size = comptime (CACHE_BLOCK_SIZE_BYTES / @sizeOf(T));
 
     const a_rows = A.shape[A.shape.len - 2];
@@ -409,6 +520,20 @@ inline fn simd_tile_mul(
 }
 
 pub fn get_mat_mul_output_shape(shape_a: []const usize, shape_b: []const usize) ![]usize {
+    // Handle 1D tensors (vectors) as special case
+    if (shape_a.len == 1 and shape_b.len == 1) {
+        // For 1D vectors, output is a scalar (1D tensor with size 1)
+        if (shape_a[0] != shape_b[0]) {
+            return error.ShapeMismatch;
+        }
+
+        var output_shape = try pkg_allocator.alloc(usize, 1);
+        errdefer pkg_allocator.free(output_shape);
+        output_shape[0] = 1;
+        return output_shape;
+    }
+
+    // Regular case for matrices/tensors
     if (shape_a.len < 2 or shape_b.len < 2) {
         return error.InvalidShape;
     }
@@ -480,7 +605,7 @@ fn multidim_multiplication(comptime inputType: anytype, comptime outputType: any
     } else {
         for (0..t1.shape[current_depth]) |element_at_current_depth| {
             //print location:
-            //std.debug.print("\n depth: {} element_at_current_depth: {}", .{ current_depth, element_at_current_depth });
+            //std.log.debug("\n depth: {} element_at_current_depth: {}", .{ current_depth, element_at_current_depth });
             location[current_depth] = element_at_current_depth;
             //otherwise I have to go deeper
             try multidim_multiplication(
@@ -516,15 +641,9 @@ pub fn benchmark_dot_product() !void {
 
     // Benchmark SIMD version
     const timer = try std.time.Timer.start();
-    var result1 = try mat_mul(f32, f32, &t1, &t2);
+    var result1 = try mat_mul(f32, &t1, &t2);
     defer result1.deinit();
     const simd_time = timer.lap();
-
-    // Benchmark flat version
-    const timer2 = try std.time.Timer.start();
-    var result2 = try dot_product_tensor_flat(f32, f32, &t1, &t2);
-    defer result2.deinit();
-    const flat_time = timer2.lap();
 
     // Benchmark recursive version
     var shape_out = [_]usize{ 1024, 1024 };
@@ -538,19 +657,16 @@ pub fn benchmark_dot_product() !void {
     const recursive_time = timer3.lap();
 
     // Print results
-    std.debug.print("\nBenchmark Results:\n", .{});
-    std.debug.print("SIMD version: {d:.2} ms\n", .{@as(f64, @floatFromInt(simd_time)) / 1_000_000.0});
-    std.debug.print("Flat version: {d:.2} ms\n", .{@as(f64, @floatFromInt(flat_time)) / 1_000_000.0});
-    std.debug.print("Recursive version: {d:.2} ms\n", .{@as(f64, @floatFromInt(recursive_time)) / 1_000_000.0});
-    std.debug.print("\nSpeedups:\n", .{});
-    std.debug.print("SIMD vs Recursive: {d:.2}x\n", .{@as(f64, @floatFromInt(recursive_time)) / @as(f64, @floatFromInt(simd_time))});
-    std.debug.print("Flat vs Recursive: {d:.2}x\n", .{@as(f64, @floatFromInt(recursive_time)) / @as(f64, @floatFromInt(flat_time))});
-    std.debug.print("SIMD vs Flat: {d:.2}x\n", .{@as(f64, @floatFromInt(flat_time)) / @as(f64, @floatFromInt(simd_time))});
+    std.log.debug("\nBenchmark Results:\n", .{});
+    std.log.debug("SIMD version: {d:.2} ms\n", .{@as(f64, @floatFromInt(simd_time)) / 1_000_000.0});
+    std.log.debug("Recursive version: {d:.2} ms\n", .{@as(f64, @floatFromInt(recursive_time)) / 1_000_000.0});
+    std.log.debug("\nSpeedups:\n", .{});
+    std.log.debug("SIMD vs Recursive: {d:.2}x\n", .{@as(f64, @floatFromInt(recursive_time)) / @as(f64, @floatFromInt(simd_time))});
 
     // Verify results are the same
-    for (result1.data, result2.data, result3.data) |v1, v2, v3| {
-        if (@abs(v1 - v2) > 0.001 or @abs(v1 - v3) > 0.001) {
-            std.debug.print("Warning: Results differ!\n", .{});
+    for (result1.data, result3.data) |v1, v3| {
+        if (@abs(v1 - v3) > 0.001) {
+            std.log.warn("Warning: Results differ!\n", .{});
             break;
         }
     }

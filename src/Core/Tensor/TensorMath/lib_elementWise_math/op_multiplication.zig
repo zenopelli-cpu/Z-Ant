@@ -58,6 +58,7 @@ pub fn mul(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T)) !Tensor(T) {
 // --------- lean MUL
 pub inline fn mul_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), result: *Tensor(T)) !void {
     // Simple case: same size tensors
+
     if (lhs.size == rhs.size and std.mem.eql(usize, lhs.shape, result.shape)) {
         for (0..lhs.size) |i| {
             result.data[i] = lhs.data[i] * rhs.data[i];
@@ -117,10 +118,13 @@ pub inline fn mul_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), re
     i = max_rank;
     while (i > 0) {
         i -= 1;
+        // Calculate the broadcasted dimension size for the current dimension
+        const out_dim_size = @max(shape1[i], shape2[i]);
         out_strides[i] = stride;
         strides1[i] = if (shape1[i] > 1) stride else 0;
         strides2[i] = if (shape2[i] > 1) stride else 0;
-        stride *= result.shape[i];
+        // Use the calculated broadcasted dimension size for stride calculation
+        stride *= out_dim_size;
     }
 
     // Perform multiplication with broadcasting
@@ -181,9 +185,9 @@ pub fn get_mul_output_shape(lhs: []const usize, rhs: []const usize) ![]usize {
         const dim2 = if (rank2 + i >= max_rank) rhs[rank2 + i - max_rank] else 1;
 
         if (dim1 != dim2 and dim1 != 1 and dim2 != 1) {
-            std.debug.print("Incompatible broadcast shapes: dim1={}, dim2={}, index={}\n", .{ dim1, dim2, i });
-            std.debug.print("lhs shape: {any}\n", .{lhs});
-            std.debug.print("rhs shape: {any}\n", .{rhs});
+            std.log.warn("Incompatible broadcast shapes: dim1={}, dim2={}, index={}\n", .{ dim1, dim2, i });
+            std.log.warn("lhs shape: {any}\n", .{lhs});
+            std.log.warn("rhs shape: {any}\n", .{rhs});
             return TensorMathError.IncompatibleBroadcastShapes;
         }
         out_shape[i] = @max(dim1, dim2);
