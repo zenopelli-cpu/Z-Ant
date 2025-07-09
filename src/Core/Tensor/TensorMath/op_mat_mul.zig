@@ -676,6 +676,72 @@ pub fn benchmark_dot_product() !void {
         }
     }
 }
+
+/// Implementation of dot product using flat iteration
+pub fn dot_product_tensor_flat(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
+    const nDimT1 = t1.shape.len;
+    const nDimT2 = t2.shape.len;
+    if (nDimT1 != nDimT2) return TensorMathError.InputTensorDifferentShape;
+    if (t1.shape[nDimT1 - 1] != t2.shape[nDimT1 - 2]) return TensorMathError.InputTensorsWrongShape;
+
+    if (@TypeOf(outputType) == @TypeOf(inputType)) {
+        // Skip check if same type
+    } else {
+        if (@bitSizeOf(outputType) <= 16) {
+            if (@bitSizeOf(outputType) <= (@bitSizeOf(inputType) * 2)) return TensorMathError.TooSmallOutputType;
+        } else {
+            if (@bitSizeOf(outputType) <= @bitSizeOf(inputType)) return TensorMathError.TooSmallOutputType;
+        }
+    }
+
+    const allocator = pkg_allocator;
+    var out_shape = try allocator.alloc(usize, nDimT1);
+    defer allocator.free(out_shape);
+    errdefer allocator.free(out_shape);
+
+    for (0..(nDimT1 - 2)) |i| {
+        out_shape[i] = t1.shape[i];
+    }
+    out_shape[nDimT1 - 2] = t1.shape[nDimT1 - 2];
+    out_shape[nDimT1 - 1] = t2.shape[nDimT1 - 1];
+
+    const M = t1.shape[nDimT1 - 2];
+    const N = t2.shape[nDimT1 - 1];
+    const K = t1.shape[nDimT1 - 1];
+
+    if (M * N == 0 or K == 0) {
+        allocator.free(out_shape);
+        return TensorMathError.InputTensorsWrongShape;
+    }
+
+    var out_tensor = try Tensor(outputType).fromShape(&allocator, out_shape);
+    errdefer out_tensor.deinit();
+
+    const inner_dim = t1.shape[nDimT1 - 1];
+    const t1_stride = t1.shape[nDimT1 - 1];
+    const t2_stride = t2.shape[nDimT1 - 1];
+
+    var batch_idx: usize = 0;
+    while (batch_idx < M * N) : (batch_idx += 1) {
+        const out_row = (batch_idx / N) % M;
+        const out_col = batch_idx % N;
+
+        var sum: outputType = 0;
+        const row_offset = out_row * t1_stride;
+        const col_offset = out_col;
+
+        var k: usize = 0;
+        while (k < inner_dim) : (k += 1) {
+            const t1_val = t1.data[row_offset + k];
+            const t2_val = t2.data[k * t2_stride + col_offset];
+            sum += t1_val * t2_val;
+        }
+
+        out_tensor.data[batch_idx] = sum;
+    }
+
+    return out_tensor;
+}
 /// https://onnx.ai/onnx/operators/onnx__MatMul.html
 pub fn lowerMatMul(
     b: *UOpBuilder,

@@ -1,30 +1,38 @@
+# The operation marked with "#" has a bug or must be implemented
+# Remember to launch first of all : python3 tests/CodeGen/Python-ONNX/onnx_gen.py  to generate the models
 Add  
 AveragePool
 BatchNormalization  
 Ceil  
-Concat  
-Conv  
-Div  
+Concat
+#Constant: misssing Python generator
+Conv   
 Div  
 Elu  
-Flatten
+# Flatten: sometime it works, sometime it doesn't
 Floor
 Gather  
+#Gelu : It loops whitout never ending
 Gemm  
-Gelu
 Identity  
 LeakyRelu  
 MatMul  
 MaxPool  
-Mean
 Mul  
+Neg
+OneHot
+#Reducemean: misssing Python generator
 Relu  
-Reshape  
+# Reshape: lunch onnx generator  
+# Resize: error: UnsupportedDataType
+#:bugged -> error: UnsupportedDataType probably related to protoTensor2AnyTensor
+#Shape: error in python3 tests/CodeGen/Python-ONNX/onnx_gen.py Error running model for Shape (ID: 0): [ONNXRuntimeError] : 1 : FAIL : Load model from datasets/oneOpModels/Shape_0.onnx failed:Type Error: Type (tensor(float)) of output arg (Shape_param_out_0) of node (Shape_node) does not match expected type (tensor(int64)).
 Sigmoid  
-Slice  
-Split 
+#Slice: missing codegeneration inside op_slice.zig, complete all the node's methods
+#Softmax: Math is bugged, it only accept 2d tensors
+#Split: standardMath not respecting onnx standard and incomplete node initialization
 Sqrt 
 Sub  
 Tanh
-Transpose
-Squeeze
+Transpose  
+#Unsqueeze

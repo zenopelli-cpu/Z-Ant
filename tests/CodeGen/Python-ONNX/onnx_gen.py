@@ -238,7 +238,7 @@ def generate_fuzz_model(op_name):
         )
 
         # Input info fittizio
-        input_info = helper.make_tensor_value_info("useless_input", TensorProto.INT64, indices_shape)
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, indices_shape)
 
         # Metadati
         metadata = {
@@ -478,10 +478,14 @@ def generate_fuzz_model(op_name):
         shape_tensor = helper.make_tensor(input_names[1], TensorProto.INT64, [len(new_shape)], new_shape)
         initializers.append(shape_tensor)
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, new_shape)
-        node = helper.make_node(op_name, inputs=[input_names[0], input_names[1]], outputs=[output_names[0]],
-                                name=f"{op_name}_node")
+        node = helper.make_node(op_name, 
+                                inputs=[input_names[0], input_names[1]], 
+                                outputs=[output_names[0]],
+                                name=f"{op_name}_node",
+                                shape = new_shape,
+                                )
         
-        metadata = {"input_shapes": [shape, new_shape], "output_shapes": [new_shape]}
+        metadata = {"input_shapes": [shape, new_shape], "output_shapes": [new_shape], "shape": shape}
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "Resize":
@@ -1156,10 +1160,7 @@ def load_supported_ops(filename="tests/CodeGen/Python-ONNX/available_operations.
     """Carica le operazioni supportate da un file oppure restituisce una lista di default."""
     try:
         with open(filename, "r") as file:
-            ops = [line.strip() for line in file if line.strip()]
-            # Remove the problematic Shape operator for now
-            if "Shape" in ops:
-                ops.remove("Shape")
+            ops = [line.strip() for line in file if line.strip() and not line.strip().startswith("#")]
             return ops
     except FileNotFoundError:
         print(f"Warning: {filename} not found. Using default operations.")

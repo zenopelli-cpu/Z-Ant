@@ -22,6 +22,8 @@ pub fn slice_onnx(comptime T: type, input: *Tensor(T), starts: []const i64, ends
     var output = try Tensor(T).fromShape(input.allocator, output_shape);
     errdefer output.deinit();
 
+    output.details = input.details;
+
     try lean_slice_onnx(T, input, starts, ends, axes, steps, &output);
     return output;
 }

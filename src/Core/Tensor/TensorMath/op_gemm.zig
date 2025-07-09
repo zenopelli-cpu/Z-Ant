@@ -6,7 +6,6 @@ const TensorError = zant.utils.error_handler.TensorError;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 const pkg_allocator = zant.utils.allocator.allocator;
 const TensMath = @import("tensor_math_standard.zig");
-const op_mat_mul = @import("op_mat_mul.zig");
 
 // Note that this function cuold benefit from SIMD optimizations
 
@@ -252,9 +251,9 @@ pub fn lean_gemm(comptime T: anytype, A: *Tensor(T), B: *Tensor(T), C: ?*Tensor(
             result.data[j] = sum;
         }
     } else if (actual_B_ptr.shape.len >= 2 and actual_B_ptr.shape[actual_B_ptr.shape.len - 1] > vals_in_cache) {
-        try op_mat_mul.lean_blocked_mat_mul(T, actual_A_ptr, actual_B_ptr, result);
+        try TensMath.blocked_mat_mul_lean(T, actual_A_ptr, actual_B_ptr, result);
     } else {
-        try op_mat_mul.lean_mat_mul(T, actual_A_ptr, actual_B_ptr, result);
+        try TensMath.mat_mul_lean(T, actual_A_ptr, actual_B_ptr, result);
     }
 
     // result = alpha * A * B

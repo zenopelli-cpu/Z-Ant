@@ -28,8 +28,10 @@ pub fn softmax(comptime T: anytype, tensor: *Tensor(T)) !Tensor(T) {
 }
 
 pub inline fn lean_softmax(comptime T: anytype, input: *Tensor(T), output: *Tensor(T)) !void {
-    const rows = input.shape[0];
-    const cols = input.shape[1];
+    const n_dims = input.shape.len;
+
+    const rows = input.shape[n_dims - 2];
+    const cols = input.shape[n_dims - 1];
 
     var max_val: T = undefined;
     var sum_of_exp: T = 0.0;
@@ -63,6 +65,7 @@ pub inline fn lean_softmax(comptime T: anytype, input: *Tensor(T), output: *Tens
 }
 
 pub fn softmax_backward(comptime T: anytype, dL_dX: *Tensor(T), softmax_output: *Tensor(T)) !void {
+
     //checks
     if (dL_dX.size <= 0) return TensorError.ZeroSizeTensor;
     if (dL_dX.size != softmax_output.size) return TensorMathError.InputTensorDifferentSize;

@@ -24,6 +24,7 @@ pub fn resize(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales
     // Create output tensor
     const output_shape = try get_resize_output_shape(t.shape, scales, sizes);
     defer t.allocator.free(output_shape);
+
     var output = try Tensor(T).fromShape(t.allocator, output_shape);
 
     //call rezise_lean

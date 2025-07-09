@@ -75,6 +75,7 @@ pub const TensorMathError = error{
 /// Tensor errors
 pub const TensorError = error{
     TensorNotInitialized,
+    NotQuantizedTensor,
     InputArrayWrongType,
     InputArrayWrongSize,
     EmptyTensor,
@@ -166,6 +167,7 @@ pub fn errorDetails(myError: anyerror) []const u8 {
 
         //TENSOR
         TensorError.TensorNotInitialized => "Tensor: tensor not initialized",
+        TensorError.NotQuantizedTensor => "Tensor: tensor not quantized",
         TensorError.InputArrayWrongType => "Tensor: input array has wrong type",
         TensorError.InputArrayWrongSize => "Tensor: input array size mismatch",
         TensorError.EmptyTensor => "Tensor: empty tensor",
