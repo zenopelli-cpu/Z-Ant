@@ -27,9 +27,6 @@ pub fn build(b: *std.Build) void {
 
     const zant_mod = b.createModule(.{ .root_source_file = b.path("src/zant.zig") });
     zant_mod.addOptions("build_options", build_options);
-    // Please check this part again
-    // At the moment it works, but it looks demonic
-    zant_mod.addImport("zant", zant_mod);
 
     const IR_zant_mod = b.createModule(.{ .root_source_file = b.path("src/IR_zant/IR_zant.zig") });
     IR_zant_mod.addImport("zant", zant_mod);
