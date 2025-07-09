@@ -122,7 +122,7 @@ pub const Add = struct {
         std.debug.print("\n ADD:\n {any}", .{self});
     }
 
-    pub fn render_lower_add(self: Add, builder: *UOpBuilder) !void {
+    pub fn render_lower(self: Add, builder: *UOpBuilder) !void {
         const A_id = self.input_A.get_tensorZantID();
         const B_id = self.input_B.get_tensorZantID();
         const out_id = self.output_C.get_tensorZantID();
@@ -154,7 +154,8 @@ pub const Add = struct {
         strideA: []const usize, // per-dim strides (0 ⇒ broadcast)
         strideB: []const usize,
         out_dtype: DType, // promoted element type
-    ) void { // returns id of result buffer
+    ) void {
+        // returns id of result buffer
         // ── Set-up phase ────────────────────────────────────────────────────
         // _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
         // _ = b.push(.SHAPE, .i32, &.{B_id}, null); // b_shape  (dbg only)

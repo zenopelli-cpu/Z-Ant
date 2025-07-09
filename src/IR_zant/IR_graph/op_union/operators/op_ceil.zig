@@ -106,7 +106,7 @@ pub const Ceil = struct {
         std.debug.print("\n Ceil:\n {any}", .{self});
     }
 
-    pub fn render_lower_ceil(self: Ceil, builder: *UOpBuilder) !void {
+    pub fn render_lower(self: Ceil, builder: *UOpBuilder) !void {
         const X_id = self.input_X.get_tensorZantID();
         const out_id = self.output_Y.get_tensorZantID();
         const out_shape = self.get_output_shape();

@@ -241,7 +241,7 @@ pub const Conv = struct {
         std.debug.print("\n CONV:\n {any}", .{self});
     }
 
-    pub fn render_lower_conv2d(self: Conv, builder: *UOpBuilder) !void {
+    pub fn render_lower(self: Conv, builder: *UOpBuilder) !void {
         const X_id = self.input_X.get_tensorZantID();
         const W_id = self.input_W.get_tensorZantID();
         const out_shape = self.get_output_shape();

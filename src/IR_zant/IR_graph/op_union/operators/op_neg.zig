@@ -106,7 +106,7 @@ pub const Neg = struct {
         std.debug.print("\n Neg:\n {any}", .{self});
     }
 
-    pub fn render_lower_neg(self: Neg, builder: *UOpBuilder) !void {
+    pub fn render_lower(self: Neg, builder: *UOpBuilder) !void {
         const A_id = self.input_X.get_tensorZantID();
         const StrideA = self.input_X.stride;
         const out_shape = self.get_output_shape();

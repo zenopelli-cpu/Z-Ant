@@ -38,6 +38,7 @@ pub fn render(
 
     // Write vector definition and reduction in one step
     try writer.print(
+        \\
         \\const vec{d}: @Vector({s}.len, {s}) = {s};
         \\const {s}: {s} = @reduce({s}, vec{d});
         \\

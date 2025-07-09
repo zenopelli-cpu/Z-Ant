@@ -130,7 +130,7 @@ pub const Sub = struct {
         });
     }
 
-    pub fn render_lower_sub(self: Sub, builder: *UOpBuilder) !void {
+    pub fn render_lower(self: Sub, builder: *UOpBuilder) !void {
         const A_id = self.input_A.get_tensorZantID();
         const B_id = self.input_B.get_tensorZantID();
         const out_id = self.output_Y.get_tensorZantID();

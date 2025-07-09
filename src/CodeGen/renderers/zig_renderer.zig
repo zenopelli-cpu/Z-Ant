@@ -245,48 +245,49 @@ pub fn ZigRenderer(comptime WriterType: type) type {
             self.final_output_buffer_id = null; // Reset output buffer ID
         }
 
-        // NEW: Method to render a full function
-        pub fn render_as_function(self: *Self, uops: []const UOp, input_ids: []const usize) !void {
-            // Reset state
-            self.reset();
+        // TODELETE ?? mirko: this function is not used anywere
+        // // NEW: Method to render a full function
+        // pub fn render_as_function(self: *Self, uops: []const UOp, input_ids: []const usize) !void {
+        //     // Reset state
+        //     self.reset();
 
-            // 1. Identify buffers
-            try self.identify_buffers(uops, input_ids);
+        //     // 1. Identify buffers
+        //     try self.identify_buffers(uops, input_ids);
 
-            // 2. Get output buffer info
-            const output_id = self.final_output_buffer_id orelse return error.OutputBufferNotFound;
-            const output_info = self.buffer_map.get(output_id) orelse return error.OutputBufferNotFound;
-            const output_type = DTypeInfo.asString(output_info.dtype);
+        //     // 2. Get output buffer info
+        //     const output_id = self.final_output_buffer_id orelse return error.OutputBufferNotFound;
+        //     const output_info = self.buffer_map.get(output_id) orelse return error.OutputBufferNotFound;
+        //     const output_type = DTypeInfo.asString(output_info.dtype);
 
-            // --- Add std import ---
-            try self.writer.print("const std = @import(\"std\");\n\n", .{});
-            // --- End Add std import ---
+        //     // --- Add std import ---
+        //     try self.writer.print("const std = @import(\"std\");\n\n", .{});
+        //     // --- End Add std import ---
 
-            // 3. Generate function signature
-            try self.write_function_signature(input_ids, output_type);
+        //     // 3. Generate function signature
+        //     try self.write_function_signature(input_ids, output_type);
 
-            // 4. Generate buffer allocations
-            try self.write_buffer_allocations(output_id);
+        //     // 4. Generate buffer allocations
+        //     try self.write_buffer_allocations(output_id);
 
-            // 5. Create ptr_map for kernel rendering
-            var ptr_map = std.AutoHashMap(usize, []const u8).init(self.allocator);
-            defer {
-                self.free_ptr_map_values(&ptr_map);
-                ptr_map.deinit();
-            }
+        //     // 5. Create ptr_map for kernel rendering
+        //     var ptr_map = std.AutoHashMap(usize, []const u8).init(self.allocator);
+        //     defer {
+        //         self.free_ptr_map_values(&ptr_map);
+        //         ptr_map.deinit();
+        //     }
 
-            // Populate ptr_map with buffer names
-            var map_iter = self.buffer_map.iterator();
-            while (map_iter.next()) |entry| {
-                try ptr_map.put(entry.key_ptr.*, entry.value_ptr.name);
-            }
+        //     // Populate ptr_map with buffer names
+        //     var map_iter = self.buffer_map.iterator();
+        //     while (map_iter.next()) |entry| {
+        //         try ptr_map.put(entry.key_ptr.*, entry.value_ptr.name);
+        //     }
 
-            // 6. Render kernel body
-            try self.render_kernel_body(uops, &ptr_map);
+        //     // 6. Render kernel body
+        //     try self.render_kernel_body(uops, &ptr_map);
 
-            // 7. Generate return statement
-            try self.writer.print("    return {s};\n}}\n", .{output_info.name});
-        }
+        //     // 7. Generate return statement
+        //     try self.writer.print("    return {s};\n}}\n", .{output_info.name});
+        // }
 
         pub fn render_body(self: *Self, uops: []const UOp, input_ids: []const usize) !void {
             // Reset state

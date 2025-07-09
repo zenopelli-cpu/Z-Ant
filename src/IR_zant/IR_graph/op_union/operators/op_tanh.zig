@@ -107,7 +107,7 @@ pub const Tanh = struct {
         });
     }
 
-    pub fn render_lower_tanh(self: Tanh, builder: *UOpBuilder) !void {
+    pub fn render_lower(self: Tanh, builder: *UOpBuilder) !void {
         const X_id = self.input_X.get_tensorZantID();
         const out_shape = self.get_output_shape();
         const out_dtype = utils.tensorTypeToDtype(self.output_Y.ty);

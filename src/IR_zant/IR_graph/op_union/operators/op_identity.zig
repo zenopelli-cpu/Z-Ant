@@ -106,7 +106,7 @@ pub const Identity = struct {
         std.debug.print("\n Identity:\n {any}", .{self});
     }
 
-    pub fn render_lower_identity(self: Identity, builder: *UOpBuilder) !void {
+    pub fn render_lower(self: Identity, builder: *UOpBuilder) !void {
         const A_id = self.input.get_tensorZantID();
         const StrideA = self.input.stride;
         const out_shape = self.get_output_shape();

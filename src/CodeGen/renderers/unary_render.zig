@@ -10,7 +10,6 @@ pub fn render(
     uop: UOp,
     ptr_map: *const std.AutoHashMap(usize, []const u8),
 ) !void {
-
     const supported_ops = [_]UOpType{ .EXP2, .NEG, .CAST, .CLIP };
 
     // Validate operation type
@@ -43,51 +42,50 @@ pub fn render(
             const t: usize = 12123;
             const t8: u8 = t & 0xFF;
             _ = t8;
-            if(uop.dtype!=uop.arg.?.clip_bounds.type){
+            if (uop.dtype != uop.arg.?.clip_bounds.type) {
                 return error.TypeNotMatching;
             }
 
-            if(uop.arg.?.clip_bounds.max.getDType()!=uop.arg.?.clip_bounds.type or
-               uop.arg.?.clip_bounds.min.getDType()!=uop.arg.?.clip_bounds.type){
+            if (uop.arg.?.clip_bounds.max.getDType() != uop.arg.?.clip_bounds.type or
+                uop.arg.?.clip_bounds.min.getDType() != uop.arg.?.clip_bounds.type)
+            {
                 return error.TypeNotMatching;
             }
 
             const is_accumulator_update = std.mem.startsWith(u8, src_var, "acc_");
-            
-            const maxstr = switch(uop.arg.?.clip_bounds.type){
-                .f32 => try std.fmt.allocPrint(allocator, "{}", .{ uop.arg.?.clip_bounds.max.f32 } ),
-                .i32 => try std.fmt.allocPrint(allocator, "{}", .{ uop.arg.?.clip_bounds.max.i32 } ),
-                .i8 => try std.fmt.allocPrint(allocator, "{}", .{ uop.arg.?.clip_bounds.max.i8 } ),
-                .u16 => try std.fmt.allocPrint(allocator, "{}", .{ uop.arg.?.clip_bounds.max.u16 } ),
+
+            const maxstr = switch (uop.arg.?.clip_bounds.type) {
+                .f32 => try std.fmt.allocPrint(allocator, "{}", .{uop.arg.?.clip_bounds.max.f32}),
+                .i32 => try std.fmt.allocPrint(allocator, "{}", .{uop.arg.?.clip_bounds.max.i32}),
+                .i8 => try std.fmt.allocPrint(allocator, "{}", .{uop.arg.?.clip_bounds.max.i8}),
+                .u16 => try std.fmt.allocPrint(allocator, "{}", .{uop.arg.?.clip_bounds.max.u16}),
                 else => return error.ClipWithBoolean,
             };
             defer allocator.free(maxstr);
-            
-            const minstr = switch(uop.arg.?.clip_bounds.type){
-                .f32 => try std.fmt.allocPrint(allocator, "{}", .{ uop.arg.?.clip_bounds.min.f32 } ),
-                .i32 => try std.fmt.allocPrint(allocator, "{}", .{ uop.arg.?.clip_bounds.min.i32 } ),
-                .i8 => try std.fmt.allocPrint(allocator, "{}", .{ uop.arg.?.clip_bounds.min.i8 } ),
-                .u16 => try std.fmt.allocPrint(allocator, "{}", .{ uop.arg.?.clip_bounds.min.u16 } ),
+
+            const minstr = switch (uop.arg.?.clip_bounds.type) {
+                .f32 => try std.fmt.allocPrint(allocator, "{}", .{uop.arg.?.clip_bounds.min.f32}),
+                .i32 => try std.fmt.allocPrint(allocator, "{}", .{uop.arg.?.clip_bounds.min.i32}),
+                .i8 => try std.fmt.allocPrint(allocator, "{}", .{uop.arg.?.clip_bounds.min.i8}),
+                .u16 => try std.fmt.allocPrint(allocator, "{}", .{uop.arg.?.clip_bounds.min.u16}),
                 else => return error.ClipWithBoolean,
             };
             defer allocator.free(minstr);
 
-
-            if(is_accumulator_update){
-                try writer.print("  {s} = if ( {s} < {s} ) if ( {s} > {s} ) {s} else {s} else {s};\n", .{ src_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
+            if (is_accumulator_update) {
+                try writer.print("  {s} = if ( {s} < {s} ) if ( {s} > {s} ) {s} else {s} else {s};\n", .{ src_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr });
             } else {
-                try writer.print("  const {s} = if ( {s} < {s} ) if ( {s} > {s} ) {s} else {s} else {s};\n", .{ result_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr});
+                try writer.print("  const {s} = if ( {s} < {s} ) if ( {s} > {s} ) {s} else {s} else {s};\n", .{ result_var, src_var, maxstr, src_var, minstr, src_var, minstr, maxstr });
             }
         },
         else => unreachable,
     }
 }
 
-
 // if(is_accumulator_update){
-            //     try writer.print(" {s} = if({s} < {s}) { if ({s} > {s}) {s} else {s};} else {s}; // CLIP into Accumulator (uop {d})\n",
-            //         .{result_var, src_var, min_str, src_var, max_str, max_str, src_var, min_str, uop.id});
-            // } else {
-            //     try writer.print(" const {s} = if({s} < {s}) { if ({s} > {s}) {s} else {s};} else {s};\n", 
-            //         .{result_var, src_var, min_str, src_var, max_str, max_str, src_var, min_str});
-            // }
+//     try writer.print(" {s} = if({s} < {s}) { if ({s} > {s}) {s} else {s};} else {s}; // CLIP into Accumulator (uop {d})\n",
+//         .{result_var, src_var, min_str, src_var, max_str, max_str, src_var, min_str, uop.id});
+// } else {
+//     try writer.print(" const {s} = if({s} < {s}) { if ({s} > {s}) {s} else {s};} else {s};\n",
+//         .{result_var, src_var, min_str, src_var, max_str, max_str, src_var, min_str});
+// }

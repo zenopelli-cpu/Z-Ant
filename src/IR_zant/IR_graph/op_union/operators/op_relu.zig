@@ -105,7 +105,7 @@ pub const Relu = struct {
         std.debug.print("\n Relu:\n {any}", .{self});
     }
 
-    pub fn render_lower_relu(self: Relu, builder: *UOpBuilder) !void {
+    pub fn render_lower(self: Relu, builder: *UOpBuilder) !void {
         const X_id = self.input_X.get_tensorZantID();
         const out_shape = self.get_output_shape();
         const out_dtype = utils.tensorTypeToDtype(self.output_Y.ty);

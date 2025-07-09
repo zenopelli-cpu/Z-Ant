@@ -9,6 +9,9 @@ pub const operators = @import("operators/operators.zig");
 const tensorZant = @import("../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
 
+// --- uops ---
+const UOpBuilder = zant.uops.UOpBuilder;
+
 pub const Op_union = union(enum) {
     add: operators.Add,
     averagePool: operators.AveragePool,
@@ -341,6 +344,28 @@ pub const Op_union = union(enum) {
             .unsqueeze => |ptr| ptr.print(),
             else => {
                 std.debug.print("\n\nERROR: print() is not available!! \n\n", .{});
+                return error.print_notAvailable;
+            },
+        }
+    }
+
+    pub fn render_lower_math_op(self: Op_union, builder: *UOpBuilder) !void {
+        switch (self) {
+            .add => |ptr| ptr.render_lower(builder),
+            .ceil => |ptr| ptr.render_lower(builder),
+            .conv => |ptr| ptr.render_lower(builder),
+            .identity => |ptr| ptr.render_lower(builder),
+            .div => |ptr| ptr.render_lower(builder),
+            .identity => |ptr| ptr.render_lower(builder),
+            .matMul => |ptr| ptr.render_lower(builder),
+            .maxPool => |ptr| ptr.render_lower(builder),
+            .mul => |ptr| ptr.render_lower(builder),
+            .neg => |ptr| ptr.render_lower(builder),
+            .relu => |ptr| ptr.render_lower(builder),
+            .reshape => |ptr| ptr.render_lower(builder),
+            .tanh => |ptr| ptr.render_lower(builder),
+            else => {
+                std.debug.print("\n\nERROR: render_lower() is not available!! \n\n", .{});
                 return error.print_notAvailable;
             },
         }

@@ -199,7 +199,7 @@ pub const Reshape = struct {
         std.debug.print("\n Reshape:\n {any}", .{self});
     }
 
-    pub fn render_lower_reshape(self: Reshape, builder: *UOpBuilder) !void {
+    pub fn render_lower(self: Reshape, builder: *UOpBuilder) !void {
         const X_id = self.data.get_tensorZantID();
         const out_id = self.get_output_tensor().get_tensorZantID();
         const out_shape = self.get_output_shape();

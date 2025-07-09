@@ -16,6 +16,9 @@ const utils = zant.utils;
 //--- zant structures
 const TensorZant = @import("tensorZant.zig").TensorZant;
 
+// --- uops ---
+const UOpBuilder = zant.uops.UOpBuilder;
+
 pub const NodeZant = struct {
     name: ?[]const u8, //name of the node
     op_type: []const u8, //onnx name of the operation, see here: https://onnx.ai/onnx/operators/
@@ -57,5 +60,9 @@ pub const NodeZant = struct {
 
     pub fn get_input_tensors(self: *NodeZant) ![]*TensorZant {
         return try self.op.get_input_tensors();
+    }
+
+    pub fn render_lower_math_op(self: *NodeZant, builder: *UOpBuilder) !void {
+        return try self.op.render_lower_math_op(builder);
     }
 };

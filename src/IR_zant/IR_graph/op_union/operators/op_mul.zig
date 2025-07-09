@@ -128,7 +128,7 @@ pub const Mul = struct {
         std.debug.print("\n Mul:\n {any}", .{self});
     }
 
-    pub fn render_lower_mul(self: Mul, builder: *UOpBuilder) !void {
+    pub fn render_lower(self: Mul, builder: *UOpBuilder) !void {
         const A_id = self.input_A.get_tensorZantID();
         const B_id = self.input_B.get_tensorZantID();
         const out_id = self.output_C.get_tensorZantID();

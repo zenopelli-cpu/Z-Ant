@@ -12,7 +12,6 @@ const allocator = zant.utils.allocator.allocator;
 
 const codegen = @import("codegen.zig");
 const utils = codegen.utils;
-const mathGen = codegen.lower_math_handler;
 const codegen_options = @import("codegen_options");
 
 const globals = codegen.globals;
@@ -80,13 +79,14 @@ pub inline fn writePredict(writer: std.fs.File.Writer, nodes: std.ArrayList(*Nod
 inline fn write_graphSerialization(writer: std.fs.File.Writer, nodes: std.ArrayList(*NodeZant)) !void {
     const Writer = @TypeOf(writer);
 
+    // initializing the renderer and the builder
     var renderer = ZigRenderer(Writer).init(zant.utils.allocator.allocator, writer);
 
     var builder = Builder.init(zant.utils.allocator.allocator);
     defer builder.deinit();
 
     for (nodes.items) |node| {
-        try mathGen.render_lower_math_op(&builder, node);
+        try node.render_lower_math_op(&builder);
     }
 
     const uop_list = try builder.toOwnedSlice();
@@ -422,10 +422,6 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         \\        data[i] = input[i]; // Copying input elements 
         \\    }}
     , .{});
-}
-
-fn writeOperation(writer: std.fs.File.Writer, readyNode: *ReadyNode) !void {
-    try mathGen.render_lower_math_op(writer, readyNode);
 }
 
 fn writeReturn(writer: std.fs.File.Writer) !void {
