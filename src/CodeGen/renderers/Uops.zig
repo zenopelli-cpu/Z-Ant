@@ -329,20 +329,3 @@ pub const UOpBuilder = struct {
         self.list.deinit();
     }
 };
-
-// Team 1 ZantSyntaxTree - From Onnx to ZantSyntaxTree
-// Mirko
-// Pietro
-// Filippo
-
-// ---Optimization--- Constant folding kernel fusion ---
-
-// Team 2 IR - From High Level IR Math to Low Level IR Math (e.g.LowerRelu LowerAdd)
-// Marco
-// Mattia
-// Alessandro/Adriano
-
-// Team 3 Renderer -From Uops to zig code
-// Burak
-// Matteo
-// Alessandro/Adriano

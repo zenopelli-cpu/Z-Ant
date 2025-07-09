@@ -18,6 +18,12 @@ const TensorCategory = tensorZant_lib.TensorCategory;
 const tensorMath = zant.core.tensor.math_standard;
 
 const utils = IR_zant.IR_codegen.utils;
+
+// --- uops ---
+const UOpBuilder = zant.uops.UOpBuilder;
+const DType = zant.uops.DType;
+const Any = zant.uops.Any;
+
 // https://onnx.ai/onnx/operators/onnx__Identity.html#l-onnx-doc-identity
 // INPUTS:
 //      - input (heterogeneous) - V:  input tensor.
@@ -98,5 +104,46 @@ pub const Identity = struct {
 
     pub fn print(self: Identity) void {
         std.debug.print("\n Identity:\n {any}", .{self});
+    }
+
+    pub fn render_lower_identity(self: Identity, builder: *UOpBuilder) !void {
+        const A_id = self.input.get_tensorZantID();
+        const StrideA = self.input.stride;
+        const out_shape = self.get_output_shape();
+        const out_dtype = utils.tensorTypeToDtype(self.output.ty);
+
+        const out_buf_id = lowerIdentity(
+            &builder,
+            A_id,
+            StrideA,
+            out_shape,
+            out_dtype,
+        );
+        _ = out_buf_id;
+    }
+
+    // https://onnx.ai/onnx/operators/onnx__Identity.html
+    pub fn lowerIdentity(
+        b: *UOpBuilder,
+        A_id: usize, // input-tensor SSA ids
+        strideA: []const isize,
+        out_shape: []const usize,
+        out_dtype: DType, // promoted element type
+    ) usize { // returns id of result buffer
+
+        // ── Set-up phase ────────────────────────────────────────────────────
+        _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
+
+        const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideA } });
+
+        const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
+
+        // ── Copy of the data ───────────────────────────────────────────────
+
+        const copy_id = b.push(.COPY, out_dtype, &.{id_viewA}, null);
+
+        _ = b.push(.STORE, out_dtype, &.{ id_outBuf, copy_id }, null);
+
+        return id_outBuf;
     }
 };

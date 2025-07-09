@@ -14,7 +14,6 @@ pub const reshape_lean = op_reshape.reshape_lean;
 pub const reshape_lean_f32 = op_reshape.reshape_lean_f32;
 pub const reshape_lean_common = op_reshape.reshape_lean_common;
 pub const get_reshape_output_shape = op_reshape.get_reshape_output_shape;
-pub const lowerReshape = op_reshape.lowerReshape;
 
 //---flatten
 const op_flatten = @import("lib_shape_math/op_flatten.zig");
@@ -78,7 +77,6 @@ const op_identity = @import("lib_shape_math/op_identity.zig");
 pub const identity = op_identity.identity;
 pub const identity_lean = op_identity.identity_lean;
 pub const get_identity_output_shape = op_identity.get_identity_shape_output;
-pub const lowerIdentity = op_identity.lowerIdentity;
 
 // ---------- importing pooling methods ----------
 const op_transp = @import("lib_shape_math/op_transpose.zig");
@@ -219,9 +217,9 @@ pub const slice_onnx = op_slice.slice_onnx;
 pub const slice_onnx_lean = op_slice.lean_slice_onnx;
 pub const get_slice_output_shape = op_slice.get_slice_output_shape;
 
+//--matmul
 const mult = @import("lib_elementWise_math/op_multiplication.zig");
 
-//TODO: pub const sub_tensors_lean = elementWise_math_lib.sub_tensors_lean;
 //--mul
 pub const lean_matmul = op_mat_mul.lean_mat_mul;
 pub const mul = mult.mul;
@@ -240,6 +238,7 @@ pub const cast_lean = op_cast.cast_lean;
 
 //--tanh
 const tanhy = @import("lib_elementWise_math/op_tanh.zig");
+
 pub const tanh = tanhy.tanh;
 pub const tanh_lean = tanhy.tanh_lean;
 pub const get_tanh_output_shape = tanhy.get_tanh_output_shape;
@@ -257,7 +256,6 @@ const Ceil = @import("lib_elementWise_math/op_ceil.zig");
 pub const ceil = Ceil.ceil;
 pub const ceil_lean = Ceil.ceil_lean;
 pub const get_ceil_output_shape = Ceil.get_ceil_output_shape;
-pub const lowerCeil = Ceil.lowerCeil;
 
 //--sqrt
 const Sqrt = @import("lib_elementWise_math/op_sqrt.zig");
@@ -272,28 +270,29 @@ pub const isOneHot = logical_math_lib.isOneHot;
 pub const isSafe = logical_math_lib.isSafe;
 pub const equal = logical_math_lib.equal;
 
-const op_relu = @import("lib_activation_function_math/op_reLU.zig");
 //ReLU
+const op_relu = @import("lib_activation_function_math/op_reLU.zig");
+
 pub const ReLU = op_relu.ReLU_standard;
 pub const ReLU_lean = op_relu.lean_ReLU;
-pub const ReLU_backward = op_relu.ReLU_backward;
-pub const lowerReLU = op_relu.lowerReLU;
 
-const op_leaky_relu = @import("lib_activation_function_math/op_leaky_reLU.zig");
 //Leaky ReLU
+const op_leaky_relu = @import("lib_activation_function_math/op_leaky_reLU.zig");
+
 pub const leakyReLU = op_leaky_relu.leakyReLU;
 pub const leakyReLU_lean = op_leaky_relu.lean_leakyReLU;
 pub const leakyReLU_backward = op_leaky_relu.leakyReLU_backward;
 pub const get_leaky_relu_output_shape = op_leaky_relu.get_leaky_relu_output_shape;
 
+//Sigmoid
 const op_sigmoid = @import("lib_activation_function_math/op_sigmoid.zig");
 
-//Sigmoid
 pub const sigmoid = op_sigmoid.sigmoid;
 pub const sigmoid_lean = op_sigmoid.sigmoid_lean;
 pub const sigmoid_backward = op_sigmoid.sigmoid_backward;
 pub const get_sigmoid_output_shape = op_sigmoid.get_sigmoid_output_shape;
 pub const lowerSigmoid = op_sigmoid.lowerSigmoid;
+
 //Softmax
 const op_softmax = @import("lib_activation_function_math/op_softmax.zig");
 
@@ -304,14 +303,7 @@ pub const get_longsoftmax_output_shape = op_softmax.get_longsoftmax_output_shape
 
 //Transpose
 const op_Transpose = @import("lib_shape_math/op_transpose.zig");
+
 pub const transpose_onnx = op_Transpose.transpose_onnx;
 pub const transpose_onnx_lean = op_Transpose.transpose_onnx_lean;
 pub const get_transpose_output_shape = op_Transpose.get_transpose_output_shape;
-
-pub const lowerAdd = add.lowerAdd;
-pub const lowerSub = sub.lowerSub;
-pub const lowerMul = mult.lowerMul;
-pub const lowerDiv = division.lowerDiv;
-pub const lowerTanh = tanhy.lowerTanh;
-pub const lowerMatMul = op_mat_mul.lowerMatMul;
-pub const lowerConv2d = convolution_math_lib.lowerConv2d;

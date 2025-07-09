@@ -18,6 +18,12 @@ const TensorCategory = tensorZant_lib.TensorCategory;
 const tensorMath = zant.core.tensor.math_standard;
 
 const utils = IR_zant.IR_codegen.utils;
+
+// --- uops ---
+const UOpBuilder = zant.uops.UOpBuilder;
+const DType = zant.uops.DType;
+const Any = zant.uops.Any;
+
 // https://onnx.ai/onnx/operators/onnx__Div.html
 // INPUTS:
 //      - A (heterogeneous) - T: First operand.
@@ -116,5 +122,69 @@ pub const Div = struct {
 
     pub fn print(self: Div) void {
         std.debug.print("\n Div:\n {any}", .{self});
+    }
+
+    pub fn lower_div(self: Div, builder: *UOpBuilder) !void {
+        const A_id = self.input_A.get_tensorZantID();
+        const B_id = self.input_B.get_tensorZantID();
+        const out_shape = self.get_output_shape();
+        const strideA = self.input_A.stride;
+        const strideB = self.input_B.stride;
+        const out_dtype = utils.tensorTypeToDtype(self.output_C.ty);
+
+        const out_buf_id = try lowerDiv(
+            &builder,
+            A_id,
+            B_id,
+            out_shape,
+            strideA,
+            strideB,
+            out_dtype,
+        );
+        _ = out_buf_id;
+    }
+
+    pub fn lowerDiv(
+        b: *UOpBuilder,
+        A_id: usize, // input-tensor SSA ids
+        B_id: usize,
+        out_shape: []const usize, // broadcasted shape
+        strideA: []const isize, // per-dim strides (0 ⇒ broadcast)
+        strideB: []const isize,
+        out_dtype: DType, // promoted element type
+    ) usize { // returns id of result buffer
+
+        // ── Set-up phase ────────────────────────────────────────────────────
+        _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
+        _ = b.push(.SHAPE, .i32, &.{B_id}, null); // b_shape  (dbg only)
+
+        const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideA } });
+
+        const id_viewB = b.push(.VIEW, out_dtype, &.{B_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideB } });
+
+        const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
+
+        // ── Flat element loop ───────────────────────────────────────────────
+        var nelem: usize = 1;
+        for (out_shape) |d| nelem *= d;
+
+        const id_range = b.push(.RANGE, .u16, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = nelem } });
+
+        const id_gepA = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
+
+        const id_gepB = b.push(.GEP, out_dtype, &.{ id_viewB, id_range }, Any{ .mem_info = .{ .base = id_viewB, .offset = 0, .stride = 1 } });
+
+        const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
+        const id_loadB = b.push(.LOAD, out_dtype, &.{id_gepB}, null);
+
+        const id_div = b.push(.FDIV, out_dtype, &.{ id_loadA, id_loadB }, null);
+
+        const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
+
+        _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_div }, null);
+
+        _ = b.push(.ENDRANGE, .bool, &.{id_range}, null);
+
+        return id_outBuf; // SSA id of the output tensor
     }
 };

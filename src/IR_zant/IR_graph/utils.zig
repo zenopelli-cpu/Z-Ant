@@ -15,10 +15,13 @@ const DataType = onnx.DataType;
 const allocator = std.heap.page_allocator;
 
 // --- zant ---
-const TensorType = @import("tensorZant.zig").TensorType;
+const TensorType = zant.IR_graph.tensorZant_lib.TensorType;
 pub const tensorZant_lib = @import("tensorZant.zig");
 pub const TensorZant = tensorZant_lib.TensorZant;
 pub const TensorCategory = tensorZant_lib.TensorCategory;
+
+// --- uops ---
+const DType = zant.uops.DType;
 
 pub fn getValueInfoTensorFromGraphInfo(name: []const u8, protoGraph: *GraphProto) ?*ValueInfoProto {
     for (protoGraph.value_info) |vi| {
@@ -127,6 +130,24 @@ pub fn usizeSliceToI64Slice(input: []usize) ![]const i64 {
     return output;
 }
 
+// TODO where to get out_Dtype?
+pub fn tensorTypeToDtype(tensor_type: TensorType) DType {
+    return switch (tensor_type) {
+        .f16 => DType.f16,
+        .f32 => DType.f32,
+        .f64 => DType.f64,
+        .i8 => DType.i8,
+        .i16 => DType.i16,
+        .i32 => DType.i32,
+        .i64 => DType.i64,
+        .u8 => DType.u8,
+        .u16 => DType.u16,
+        .u32 => DType.u32,
+        .u64 => DType.u64,
+        .bool => DType.bool,
+        .undefined => DType.undefined,
+    };
+}
 // ----------------- STRUCT TYPE management -------------
 
 pub fn protoTensor2AnyTensor(proto: *TensorProto) !AnyTensor {

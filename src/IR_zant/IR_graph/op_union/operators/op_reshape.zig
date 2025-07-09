@@ -1,5 +1,6 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
+const pkg_allocator = zant.utils.allocator.allocator;
 const zant = @import("zant");
 const IR_zant = @import("../../../IR_zant.zig");
 
@@ -18,6 +19,11 @@ const TensorCategory = tensorZant_lib.TensorCategory;
 const tensorMath = zant.core.tensor.math_standard;
 
 const utils = IR_zant.IR_codegen.utils;
+
+// --- uops ---
+const UOpBuilder = zant.uops.UOpBuilder;
+const DType = zant.uops.DType;
+const Any = zant.uops.Any;
 
 // https://onnx.ai/onnx/operators/onnx__Reshape.html#l-onnx-doc-reshape
 // INPUTS:
@@ -191,5 +197,80 @@ pub const Reshape = struct {
 
     pub fn print(self: Reshape) void {
         std.debug.print("\n Reshape:\n {any}", .{self});
+    }
+
+    pub fn render_lower_reshape(self: Reshape, builder: *UOpBuilder) !void {
+        const X_id = self.data.get_tensorZantID();
+        const out_id = self.get_output_tensor().get_tensorZantID();
+        const out_shape = self.get_output_shape();
+        const out_dtype = utils.tensorTypeToDtype(self.reshaped.ty);
+
+        try lowerReshape(
+            builder,
+            X_id,
+            out_id,
+            out_shape,
+            out_dtype,
+        );
+    }
+
+    /// https://onnx.ai/onnx/operators/onnx__Reshape.html
+    pub fn lowerReshape(
+        b: *UOpBuilder,
+        A_id: usize, // input-tensor SSA id
+        out_id: usize,
+        out_shape: []const usize,
+        out_dtype: DType, // promoted element type
+    ) !void { // returns id of result buffer
+
+        // ── Set-up phase ────────────────────────────────────────────────────
+        _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
+
+        const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = &.{ 1, 1 } } });
+
+        // ── Flat element loop ────────────────────────────────────────────────
+
+        // For dim = -1 calculate -1 from number elemets
+        // For dim = 0 get the previous dim value from the previous shape
+
+        var nelem: usize = 1;
+        for (out_shape) |dim| nelem *= dim;
+
+        var id_ranges = std.ArrayList(usize).init(pkg_allocator);
+        defer id_ranges.deinit();
+
+        _ = b.push(.RESHAPE, out_dtype, &.{id_viewA}, Any{ .shape = out_shape });
+
+        for (out_shape) |dim| {
+            const id_range = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = dim } });
+            id_ranges.append(id_range) catch {};
+        }
+
+        var src_A = std.ArrayList(usize).init(pkg_allocator);
+        defer src_A.deinit();
+        try src_A.append(id_viewA);
+        for (id_ranges.items) |range| {
+            try src_A.append(range);
+        }
+
+        const id_gepA = b.push(.GEP, out_dtype, src_A.items, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
+
+        const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
+
+        var src_0 = std.ArrayList(usize).init(pkg_allocator);
+        defer src_0.deinit();
+
+        try src_0.append(out_id);
+        for (id_ranges.items) |range| {
+            try src_0.append(range);
+        }
+
+        const id_gepO = b.push(.GEP, out_dtype, src_0.items, Any{ .mem_info = .{ .base = out_id, .offset = 0, .stride = 1 } });
+
+        _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_loadA }, null);
+
+        for (id_ranges.items) |i| {
+            _ = b.push(.ENDRANGE, .bool, &.{i}, null);
+        }
     }
 };
