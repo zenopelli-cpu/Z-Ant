@@ -186,8 +186,6 @@ pub fn transpose_onnx(comptime T: type, input: *Tensor(T), perm: ?[]const usize)
     var output = try Tensor(T).fromShape(&pkg_allocator, input.shape);
     errdefer output.deinit();
 
-    output.details = input.details;
-
     try transpose_onnx_lean(T, input, perm, &output);
 
     return output;

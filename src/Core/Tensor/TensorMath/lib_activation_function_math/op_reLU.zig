@@ -21,8 +21,6 @@ pub inline fn ReLU_standard(comptime T: anytype, tensor: *Tensor(T)) !Tensor(T) 
 
     // Allocate output with same shape
     var output = try Tensor(T).fromShape(&pkg_allocator, tensor.shape);
-    // Propagate quantization details if present
-    output.details = tensor.details;
 
     try lean_ReLU(T, tensor, &output);
 

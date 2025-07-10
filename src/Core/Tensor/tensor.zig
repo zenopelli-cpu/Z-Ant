@@ -293,8 +293,6 @@ pub fn Tensor(comptime T: type) type {
                 .size = data.len,
                 .shape = @constCast(shape),
                 .allocator = allocator,
-                .owns_memory = true,
-                .details = .none,
             };
         }
 

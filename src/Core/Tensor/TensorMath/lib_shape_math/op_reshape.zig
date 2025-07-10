@@ -37,8 +37,6 @@ pub fn reshape_f32(comptime T: anytype, input: *Tensor(T), newShape: []f32, allo
     var output = try Tensor(T).fromShape(&pkg_allocator, temp_shape);
     errdefer output.deinit();
 
-    output.details = input.details;
-
     // Let reshape_lean handle the actual reshaping logic
     try reshape_lean_f32(T, input, newShape, allowZero, &output);
 
