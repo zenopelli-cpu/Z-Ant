@@ -1,5 +1,7 @@
 const std = @import("std");
 const zant = @import("zant");
+const codegen = @import("codegen_v2.zig");
+const IR_zant = @import("IR_zant");
 
 const Tensor = zant.core.tensor.Tensor;
 const tensorMath = zant.core.tensor.math_standard;
@@ -8,14 +10,14 @@ const ModelOnnx = onnx.ModelProto;
 const DataType = onnx.DataType;
 const TensorProto = onnx.TensorProto;
 const allocator = zant.utils.allocator.allocator;
-const codegen = @import("codegen").codegen_v2;
+
 // Access global codegen state and utilities
 const globals = codegen.globals;
 const utils = codegen.utils;
 const codeGenInitializers = codegen.parameters;
 const coddeGenPredict = codegen.predict;
 const codegen_options = @import("codegen_options");
-const NodeZant = zant.IR_graph.NodeZant;
+const NodeZant = IR_zant.NodeZant;
 
 /// Writes a Zig source file containing the generated code for an ONNX model.
 ///

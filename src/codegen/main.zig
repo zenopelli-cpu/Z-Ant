@@ -1,4 +1,6 @@
 const std = @import("std");
+const zant = @import("zant");
+const onnx = zant.onnx;
 
 const codegen = @import("codegen");
 const codegen_options = codegen.codegen_options;
@@ -18,10 +20,25 @@ pub fn main() !void {
     std.debug.print("\n     dynamic:{} ", .{codegen_options.dynamic});
     std.debug.print("\n     version:{s} ", .{codegen_options.version});
 
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const gpa_allocator = gpa.allocator();
+
+    const model_name = codegen_options.model;
+    const model_path = try std.fmt.allocPrint(gpa_allocator, "datasets/models/{s}/{s}.onnx", .{ model_name, model_name });
+    defer gpa_allocator.free(model_path);
+
+    var model = try onnx.parseFromFile(gpa_allocator, model_path);
+    defer model.deinit(gpa_allocator);
+
+    // model.print(); // << ---------- USEFUL FOR DEBUG
+
+    // try onnx.printModelDetails(&model);  // << ---------- USEFUL FOR DEBUG
+
     if (std.mem.eql(u8, codegen_options.version, "v1")) {
-        try codegen.codegen_v1_exe.main();
+        try codegen.codegen_v1_exe.main_v1(model);
     }
     // else {
-    //     try codegen.codegen_v2_exe.main();
+    //     try codegen.codegen_v2_exe.main_v2(&model);
     // }
 }

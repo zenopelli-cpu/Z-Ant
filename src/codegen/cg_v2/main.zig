@@ -1,7 +1,9 @@
 const std = @import("std");
 const zant = @import("zant");
 const onnx = zant.onnx;
-const IR_graph = zant.IR_graph;
+const ModelOnnx = onnx.ModelProto;
+
+const IR_zant = @import("IR_zant");
 const Tensor = zant.core.tensor.Tensor;
 const tensorMath = zant.core.tensor.math_standard;
 const allocator = zant.utils.allocator.allocator;
@@ -10,17 +12,12 @@ const codeGen_utils = codeGen.utils;
 const codeGen_init = codeGen.parameters;
 const codeGen_predict = codeGen.predict;
 const codeGen_tests = codeGen.tests;
-const globals = codeGen.globals;
 const codegen_options = codeGen.codegen_options;
 
-pub fn main() !void {
+pub fn main_v2(model: *ModelOnnx) !void {
     const model_name = codegen_options.model;
-    const model_path = codegen_options.model_path;
 
-    var model: onnx.ModelProto = try onnx.parseFromFile(allocator, model_path);
-    defer model.deinit(allocator);
-
-    var graphZant: IR_graph.GraphZant = try IR_graph.init(&model);
+    var graphZant: IR_zant.GraphZant = try IR_zant.init(model);
     defer graphZant.deinit();
 
     model.print();
@@ -29,9 +26,6 @@ pub fn main() !void {
     const generated_path = codegen_options.generated_path;
     //const generated_path = "src/codeGen/";
     try std.fs.cwd().makePath(generated_path);
-
-    // ONNX model parsing
-    try globals.setGlobalAttributes(model);
 
     //DEBUG
     //utils.printTensorHashMap(tensorHashMap);
