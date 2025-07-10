@@ -62,8 +62,8 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
         inputs[0].getShape().len,
         inputs[0].getShape(),
         output_size,
-        codegen_options.IR_type,
-        codegen_options.IR_user_tests.len > 0,
+        codegen_options.type,
+        codegen_options.user_tests.len > 0,
         try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path}),
     });
 
@@ -79,8 +79,8 @@ pub fn writeTestFile(model_name: []const u8, model_path: []const u8) !void {
     std.log.info("\n\nGenerated test file: {s}\n", .{test_file_path});
 
     // Copy user test file into the generated test file
-    if (codegen_options.IR_user_tests.len > 0) {
-        const provided_user_tests_path = codegen_options.IR_user_tests;
+    if (codegen_options.user_tests.len > 0) {
+        const provided_user_tests_path = codegen_options.user_tests;
         const user_tests_path = try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path});
         try copyFile(provided_user_tests_path, user_tests_path);
     }

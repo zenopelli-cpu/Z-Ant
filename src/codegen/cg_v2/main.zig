@@ -5,15 +5,13 @@ const IR_graph = zant.IR_graph;
 const Tensor = zant.core.tensor.Tensor;
 const tensorMath = zant.core.tensor.math_standard;
 const allocator = zant.utils.allocator.allocator;
-const codeGen = @import("codegen").codegen_v2;
+const codeGen = @import("codegen_v2.zig");
 const codeGen_utils = codeGen.utils;
 const codeGen_init = codeGen.parameters;
-const codeGen_mathHandl = codeGen.math_handler;
 const codeGen_predict = codeGen.predict;
 const codeGen_tests = codeGen.tests;
-
-const codegen_options = @import("codegen_options");
 const globals = codeGen.globals;
+const codegen_options = codeGen.codegen_options;
 
 pub fn main() !void {
     const model_name = codegen_options.model;

@@ -4,6 +4,10 @@ const std = @import("std");
 /// This function defines how to build the project by specifying various modules and their dependencies.
 /// @param b - The build context, which provides utilities for configuring the build process.
 pub fn build(b: *std.Build) void {
+
+    // ****************************************************************************************************************
+    // ************************************************  BUILD OPTIONS  ***********************************************
+    // ****************************************************************************************************************
     const build_options = b.addOptions();
     build_options.addOption(bool, "trace_allocator", b.option(bool, "trace_allocator", "Use a tracing allocator") orelse true);
     build_options.addOption([]const u8, "allocator", (b.option([]const u8, "allocator", "Allocator to use") orelse "raw_c_allocator"));
@@ -22,49 +26,6 @@ pub fn build(b: *std.Build) void {
 
     const target = b.resolveTargetQuery(target_query);
     const optimize = b.standardOptimizeOption(.{});
-
-    // -------------------- Modules creation
-
-    const zant_mod = b.createModule(.{ .root_source_file = b.path("src/zant.zig") });
-    zant_mod.addOptions("build_options", build_options);
-
-    const IR_zant_mod = b.createModule(.{ .root_source_file = b.path("src/IR_zant/IR_zant.zig") });
-    IR_zant_mod.addImport("zant", zant_mod);
-
-    const codegen_mod = b.createModule(.{ .root_source_file = b.path("src/codegen/codegen.zig") });
-    codegen_mod.addImport("zant", zant_mod);
-    codegen_mod.addImport("IR_zant", IR_zant_mod);
-
-    const Img2Tens_mod = b.createModule(.{ .root_source_file = b.path("src/ImageToTensor/imageToTensor.zig") });
-    Img2Tens_mod.addImport("zant", zant_mod);
-
-    //************************************************UNIT TESTS************************************************
-
-    // // Define unified tests for the project.
-    // const unit_tests = b.addTest(.{
-    //     .name = "test_lib",
-    //     .root_source_file = b.path("tests/test_lib.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-
-    // // Define test options
-    // const test_options = b.addOptions();
-    // test_options.addOption(bool, "heavy", b.option(bool, "heavy", "Run heavy tests") orelse false);
-    // unit_tests.root_module.addOptions("test_options", test_options);
-
-    // const test_name = b.option([]const u8, "test_name", "specify a test name to run") orelse "";
-    // test_options.addOption([]const u8, "test_name", test_name);
-
-    // unit_tests.root_module.addImport("zant", zant_mod);
-    // unit_tests.root_module.addImport("IR_zant", IR_zant_mod);
-
-    // unit_tests.linkLibC();
-
-    // // Add a build step to run all unit tests.
-    // const run_unit_tests = b.addRunArtifact(unit_tests);
-    // const test_step = b.step("test", "Run all unit tests");
-    // test_step.dependOn(&run_unit_tests.step);
 
     // ****************************************************************************************************************
     // ************************************************ CODEGEN OPTIONS ***********************************************
@@ -109,21 +70,64 @@ pub fn build(b: *std.Build) void {
 
     // Define IR codegen options
     const codegen_options = b.addOptions(); // Model name option
-    codegen_options.addOption([]const u8, "IR_model", model_name_option);
-    codegen_options.addOption([]const u8, "IR_model_path", model_path_option);
-    codegen_options.addOption([]const u8, "IR_generated_path", generated_path_option);
-    codegen_options.addOption([]const u8, "IR_user_tests", user_tests_option);
-    codegen_options.addOption(bool, "IR_log", log_option);
-    codegen_options.addOption(bool, "IR_do_export", export_option);
-    codegen_options.addOption([]const u8, "IR_shape", shape_option);
-    codegen_options.addOption([]const u8, "IR_type", input_type_option);
-    codegen_options.addOption([]const u8, "IR_output_type", output_type_option);
-    codegen_options.addOption(bool, "IR_comm", comm_option);
-    codegen_options.addOption(bool, "IR_dynamic", dynamic_option);
+    codegen_options.addOption([]const u8, "model", model_name_option);
+    codegen_options.addOption([]const u8, "model_path", model_path_option);
+    codegen_options.addOption([]const u8, "generated_path", generated_path_option);
+    codegen_options.addOption([]const u8, "user_tests", user_tests_option);
+    codegen_options.addOption(bool, "log", log_option);
+    codegen_options.addOption(bool, "do_export", export_option);
+    codegen_options.addOption([]const u8, "shape", shape_option);
+    codegen_options.addOption([]const u8, "type", input_type_option);
+    codegen_options.addOption([]const u8, "output_type", output_type_option);
+    codegen_options.addOption(bool, "comm", comm_option);
+    codegen_options.addOption(bool, "dynamic", dynamic_option);
     codegen_options.addOption([]const u8, "version", codegen_version_option);
 
-    // adding the options to the modules that needs them
-    codegen_mod.addOptions("codegen_options", codegen_options);
+    // --------------------------------------------------------------
+    // ---------------------- Modules creation ----------------------
+    // --------------------------------------------------------------
+
+    const zant_mod = b.createModule(.{ .root_source_file = b.path("src/zant.zig") });
+    zant_mod.addOptions("build_options", build_options);
+
+    const IR_zant_mod = b.createModule(.{ .root_source_file = b.path("src/IR_zant/IR_zant.zig") });
+    IR_zant_mod.addImport("zant", zant_mod);
+
+    const codegen_mod = b.createModule(.{ .root_source_file = b.path("src/codegen/codegen.zig") });
+    codegen_mod.addImport("zant", zant_mod);
+    codegen_mod.addImport("IR_zant", IR_zant_mod);
+    codegen_mod.addOptions("codegen_options", codegen_options); //<<--OSS!! it is an option!
+
+    const Img2Tens_mod = b.createModule(.{ .root_source_file = b.path("src/ImageToTensor/imageToTensor.zig") });
+    Img2Tens_mod.addImport("zant", zant_mod);
+
+    //************************************************ UNIT TESTS ************************************************
+
+    // // Define unified tests for the project.
+    // const unit_tests = b.addTest(.{
+    //     .name = "test_lib",
+    //     .root_source_file = b.path("tests/test_lib.zig"),
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+
+    // // Define test options
+    // const test_options = b.addOptions();
+    // test_options.addOption(bool, "heavy", b.option(bool, "heavy", "Run heavy tests") orelse false);
+    // unit_tests.root_module.addOptions("test_options", test_options);
+
+    // const test_name = b.option([]const u8, "test_name", "specify a test name to run") orelse "";
+    // test_options.addOption([]const u8, "test_name", test_name);
+
+    // unit_tests.root_module.addImport("zant", zant_mod);
+    // unit_tests.root_module.addImport("IR_zant", IR_zant_mod);
+
+    // unit_tests.linkLibC();
+
+    // // Add a build step to run all unit tests.
+    // const run_unit_tests = b.addRunArtifact(unit_tests);
+    // const test_step = b.step("test", "Run all unit tests");
+    // test_step.dependOn(&run_unit_tests.step);
 
     // ************************************************ CODEGEN IR EXECUTABLE ************************************************
     //

@@ -15,7 +15,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const gpa_allocator = gpa.allocator();
 
-    const model_name = codegen_options.IR_model;
+    const model_name = codegen_options.model;
     const model_path = try std.fmt.allocPrint(gpa_allocator, "datasets/models/{s}/{s}.onnx", .{ model_name, model_name });
     defer gpa_allocator.free(model_path);
 
@@ -26,8 +26,8 @@ pub fn main() !void {
 
     // try onnx.printModelDetails(&model);  // << ---------- USEFUL FOR DEBUG
 
-    try IR_codegen.codegnenerateFromOnnx(model_name, codegen_options.IR_generated_path, model);
+    try IR_codegen.codegnenerateFromOnnx(model_name, codegen_options.generated_path, model);
 
     // Test the generated code
-    try codeGen_tests.writeTestFile(model_name, codegen_options.IR_generated_path);
+    try codeGen_tests.writeTestFile(model_name, codegen_options.generated_path);
 }

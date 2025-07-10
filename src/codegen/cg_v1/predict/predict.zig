@@ -24,13 +24,13 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
     // Static initialization for output tensors if not using dynamic allocation
     //
     // declare all the outputs for each node, aka: linkers
-    if (!codegen_options.IR_dynamic) try write_linkersInitialization(writer);
+    if (!codegen_options.dynamic) try write_linkersInitialization(writer);
 
     // declare all the outputs of  the network
     try write_outputsInitialization(writer);
 
     // method to reset the tensors values
-    if (!codegen_options.IR_dynamic) try write_linkersResetMethod(writer);
+    if (!codegen_options.dynamic) try write_linkersResetMethod(writer);
 
     const inputs = try IR_utils.getInputs(tensorZantMap);
     const outputs = try IR_utils.getInputs(tensorZantMap);
@@ -59,7 +59,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
         \\) void {{
     , .{if (do_export == true) "export" else ""});
 
-    if (codegen_options.IR_log) {
+    if (codegen_options.log) {
         _ = try writer.print(
             \\
             \\
@@ -70,7 +70,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
     }
 
     //if I'm using statical allocation I'll reset all the Link tensors to zero
-    if (!codegen_options.IR_dynamic) {
+    if (!codegen_options.dynamic) {
         _ = try writer.print(
             \\
             \\    // Reset all linker tensors to zero before each prediction
@@ -83,7 +83,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
     try write_predictInitialization(writer);
 
     // Allocate output tensors for dynamic mode
-    if (codegen_options.IR_dynamic) {
+    if (codegen_options.dynamic) {
         const output_tensors: []TensorZant = try IR_utils.getOutputs(tensorZantMap);
         for (output_tensors) |*tz| {
             _ = try write_TensorShape(writer, tz);
@@ -142,7 +142,7 @@ fn write_TensorAllocation(writer: std.fs.File.Writer, tz: *TensorZant, size: i64
 
     const type_str = tz.ty.toString();
 
-    if (codegen_options.IR_dynamic) {
+    if (codegen_options.dynamic) {
         // Dynamic allocation: Use fromShape
         try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return;", .{ sanitized_name, type_str, sanitized_name });
     } else {
@@ -160,7 +160,7 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
         \\fn resetOutputTensors() void {{
     , .{});
 
-    if (codegen_options.IR_log) {
+    if (codegen_options.log) {
         _ = try writer.print(
             \\
             \\    if (log_function) |log| {{
@@ -173,14 +173,14 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
     const linkers: []TensorZant = try IR_utils.getLinkers(tensorZantMap);
 
     for (linkers) |*tz| {
-        if (!codegen_options.IR_dynamic) {
+        if (!codegen_options.dynamic) {
             _ = try writer.print(
                 \\
                 \\    @memset(array_{s}[0..], 0);
             , .{try tz.getNameSanitized()});
         }
 
-        if (codegen_options.IR_log) {
+        if (codegen_options.log) {
             _ = try writer.print(
                 \\
                 \\    if (log_function) |log| {{
@@ -194,14 +194,14 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
     const outputs: []TensorZant = try IR_utils.getOutputs(tensorZantMap);
 
     for (outputs) |*tz| {
-        if (!codegen_options.IR_dynamic) {
+        if (!codegen_options.dynamic) {
             _ = try writer.print(
                 \\
                 \\    @memset(array_{s}[0..], 0);
             , .{try tz.getNameSanitized()});
         }
 
-        if (codegen_options.IR_log) {
+        if (codegen_options.log) {
             _ = try writer.print(
                 \\
                 \\    if (log_function) |log| {{
@@ -220,7 +220,7 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
 // -------------------------------- WRITE OUTPUT --------------------------------
 // Initializes output tensor of each node in the computation graph
 fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
-    if (!codegen_options.IR_dynamic) {
+    if (!codegen_options.dynamic) {
         try writer.print(
             \\
             \\
@@ -296,7 +296,7 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
     , .{try outputs[0].getNameSanitized()});
 
     // Add deallocation for dynamic tensors
-    if (codegen_options.IR_dynamic) {
+    if (codegen_options.dynamic) {
         const linkers: []TensorZant = try IR_utils.getLinkers(tensorZantMap);
         for (linkers) |*tz| {
             _ = try writer.print(
@@ -313,7 +313,7 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
         }
     }
 
-    if (codegen_options.IR_log) {
+    if (codegen_options.log) {
         _ = try writer.print(
             \\
             \\    if (log_function) |log| {{
@@ -381,10 +381,10 @@ fn write_checks(writer: std.fs.File.Writer) !void {
 
 fn write_graphSerialization(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
     for (linearizedGraph.items, 0..) |node, i| {
-        if (codegen_options.IR_comm) {
+        if (codegen_options.comm) {
             try write_op_info(writer, node);
         }
-        if (codegen_options.IR_log) {
+        if (codegen_options.log) {
             try writer.print(
                 \\ 
                 \\
@@ -395,12 +395,12 @@ fn write_graphSerialization(writer: std.fs.File.Writer, linearizedGraph: std.Arr
         }
 
         //Before computing the OP, init link tensors when we are in dynamic allocation
-        if (codegen_options.IR_dynamic) try allocate_output_link_tensors(writer, node);
+        if (codegen_options.dynamic) try allocate_output_link_tensors(writer, node);
 
         try node.write_op(writer);
 
         //After computing the OP, delete link tensors that are not useful anymore when we are in dynamic allocation
-        if (codegen_options.IR_dynamic) try deallocate_useless_link_tensors(writer, i, linearizedGraph);
+        if (codegen_options.dynamic) try deallocate_useless_link_tensors(writer, i, linearizedGraph);
     }
 }
 

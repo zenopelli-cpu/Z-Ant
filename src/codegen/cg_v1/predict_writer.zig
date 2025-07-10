@@ -33,19 +33,19 @@ pub fn write(generated_path: []const u8, model_name: []const u8, linearizedGraph
     // Write the necessary library imports to the generated Zig file
     try write_libraries(writer);
 
-    if (codegen_options.IR_log) {
+    if (codegen_options.log) {
         //log function setting
         try write_logFunction(writer);
     }
 
     //Fixed Buffer Allocator (only for static allocation)
-    if (!codegen_options.IR_dynamic) {
+    if (!codegen_options.dynamic) {
         try write_FBA(writer);
     }
 
     // _ = linearizedGraph;
     // Generate prediction function code
-    try codeGenPredict.writePredict(writer, linearizedGraph, codegen_options.IR_do_export);
+    try codeGenPredict.writePredict(writer, linearizedGraph, codegen_options.do_export);
 }
 
 /// Writes the required library imports to the generated Zig file for predict function.
@@ -82,7 +82,7 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
         \\    log_function = func;
         \\}}
         \\
-    , .{if (codegen_options.IR_do_export == true) "export" else ""});
+    , .{if (codegen_options.do_export == true) "export" else ""});
 }
 
 fn write_FBA(writer: std.fs.File.Writer) !void {
