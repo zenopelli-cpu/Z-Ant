@@ -15,8 +15,8 @@ const DataType = onnx.DataType;
 const allocator = std.heap.page_allocator;
 
 // --- zant ---
-const TensorType = zant.IR_graph.tensorZant_lib.TensorType;
 pub const tensorZant_lib = @import("tensorZant.zig");
+const TensorType = tensorZant_lib.TensorType;
 pub const TensorZant = tensorZant_lib.TensorZant;
 pub const TensorCategory = tensorZant_lib.TensorCategory;
 
