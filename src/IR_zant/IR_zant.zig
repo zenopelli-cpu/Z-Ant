@@ -9,7 +9,7 @@ const onnx = zant.onnx;
 const ModelProto = onnx.ModelProto;
 const GraphProto = onnx.GraphProto;
 
-//--- zant ---
+//--- IR Zant Library ---
 pub const graphZant_lib = @import("graphZant.zig");
 pub const GraphZant = graphZant_lib.GraphZant;
 

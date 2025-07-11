@@ -2,7 +2,7 @@ const testing = std.testing;
 
 const std = @import("std");
 const zant = @import("zant");
-const IR_zant = zant.IR_graph;
+const IR_zant = @import("IR_zant");
 
 const NodeZant = IR_zant.NodeZant;
 const onnx = zant.onnx;
@@ -18,15 +18,15 @@ test "getInitializers() mnist-8 and TensorZant.getters" {
 
     //model.print();
 
-    var graphZant: IR_zant.IR_graph.GraphZant = try IR_zant.IR_graph.init(&model);
+    var graphZant: IR_zant.GraphZant = try IR_zant.init(&model);
     defer graphZant.deinit();
 
     const linearizedGraph = try graphZant.linearize(allocator);
     defer linearizedGraph.deinit();
 
-    var tensorMap = IR_zant.IR_graph.tensorZant_lib.tensorMap;
+    var tensorMap = IR_zant.tensorZant_lib.tensorMap;
 
-    const initializers = try IR_zant.IR_graph.utils.getInitializers(&tensorMap);
+    const initializers = try IR_zant.utils.getInitializers(&tensorMap);
 
     for (initializers) |*init| {
         std.debug.print("\nname: {s} ", .{init.name});

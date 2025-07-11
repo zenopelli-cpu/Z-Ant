@@ -1,25 +1,35 @@
 const std = @import("std");
+
+// --- from Zant ---
 const zant = @import("zant");
-const codegen = @import("codegen");
-const Renderer = codegen.renderer;
-const UOp = zant.uops.UOp;
-const UOpType = zant.uops.UOpType;
-const Tensor = zant.core.tensor.Tensor;
 const onnx = zant.onnx;
-const IR_graph = zant.IR_graph;
+const Tensor = zant.core.tensor.Tensor;
 
-const sum_tensors = zant.core.tensor.math_standard.sum_tensors;
-
+// --- from Codegen v2 ---
+const codegen = @import("codegen").codegen_v2;
+const Renderer = codegen.renderer;
+const UOp = codegen.uops.UOp;
+const UOpType = codegen.uops.UOpType;
 const ZigRenderer = Renderer.ZigRenderer;
-const lowerAdd = zant.core.tensor.math_standard.lowerAdd;
-const lowerMatMul = zant.core.tensor.math_standard.lowerMatMul;
-const lowerMaxPool2d = zant.core.tensor.math_standard.lowerMaxPool2d;
-const UOpBuilder = zant.uops.UOpBuilder;
-const DType = zant.uops.DType;
-const DTypeValue = zant.uops.DTypeValue;
-const lowerNeg = zant.core.tensor.math_standard.lowerNeg;
-const lowerReshape = zant.core.tensor.math_standard.lowerReshape;
-const lowerClip = zant.core.tensor.math_standard.lowerClip;
+const UOpBuilder = codegen.uops.UOpBuilder;
+const DType = codegen.uops.DType;
+const DTypeValue = codegen.uops.DTypeValue;
+
+// --- from IR_zant ---
+const IR_zant = @import("IR_zant");
+const Add = IR_zant.operators.Add;
+const MatMul = IR_zant.operators.MatMul;
+const MaxPool2d = IR_zant.operators.MaxPool;
+const Neg = IR_zant.operators.Neg;
+const Reshape = IR_zant.operators.Reshape;
+const Clip = IR_zant.operators.Clip;
+
+const lowerAdd = Add.lowerAdd;
+const lowerMatMul = MatMul.lowerMatMul;
+const lowerMaxPool2d = MaxPool2d.lowerMaxPool2d;
+const lowerNeg = Neg.lowerNeg;
+const lowerReshape = Reshape.lowerReshape;
+const lowerClip = Clip.lowerClip;
 
 // /* REMOVED OLD TESTS
 // test "Arithmetic operations" { ... }
@@ -1198,7 +1208,7 @@ test "Parameter Generation Pipeline" {
     var model: onnx.ModelProto = try onnx.parseFromFile(allocator, "datasets/models/mnist-8/mnist-8.onnx");
     defer model.deinit(allocator);
 
-    var graphZant: IR_graph.GraphZant = try IR_graph.init(&model);
+    var graphZant: IR_zant.GraphZant = try IR_zant.init(&model);
     defer graphZant.deinit();
 
     const output_filename = "tests/CodeGen/renderer/parameter_output.zig";

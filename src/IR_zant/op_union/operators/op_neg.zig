@@ -20,9 +20,11 @@ const tensorMath = zant.core.tensor.math_standard;
 const utils = IR_zant.utils;
 
 // --- uops ---
-const UOpBuilder = zant.uops.UOpBuilder;
-const DType = zant.uops.DType;
-const Any = zant.uops.Any;
+const cg_v2 = @import("codegen").codegen_v2;
+const Uops = cg_v2.uops;
+const UOpBuilder = cg_v2.builder;
+const DType = Uops.DType;
+const Any = Uops.Any;
 
 // https://onnx.ai/onnx/operators/onnx__Neg.html#l-onnx-doc-neg
 // INPUTS:
@@ -123,7 +125,7 @@ pub const Neg = struct {
     }
 
     // https://onnx.ai/onnx/operators/onnx__Neg.html
-    fn lowerNeg(
+    pub fn lowerNeg(
         b: *UOpBuilder,
         A_id: usize, // input-tensor SSA ids
         strideA: []const usize, // per-dim strides (0 ⇒ broadcast)

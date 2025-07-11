@@ -2,7 +2,7 @@ const testing = std.testing;
 
 const std = @import("std");
 const zant = @import("zant");
-const IR_zant = zant.IR_graph;
+const IR_zant = @import("IR_zant");
 
 const onnx = zant.onnx;
 const allocator = zant.utils.allocator.allocator;
@@ -17,7 +17,7 @@ test "parsing mnist-8 graphZant" {
 
     //model.print();
 
-    var graphZant: IR_zant.IR_graph.GraphZant = try IR_zant.IR_graph.init(&model);
+    var graphZant: IR_zant.GraphZant = try IR_zant.init(&model);
     defer graphZant.deinit();
 
     //USELESS SHIT FOR DEBUG

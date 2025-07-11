@@ -97,37 +97,39 @@ pub fn build(b: *std.Build) void {
     codegen_mod.addImport("zant", zant_mod);
     codegen_mod.addImport("IR_zant", IR_zant_mod);
     codegen_mod.addOptions("codegen_options", codegen_options); //<<--OSS!! it is an option!
+    IR_zant_mod.addImport("codegen", codegen_mod);
 
     const Img2Tens_mod = b.createModule(.{ .root_source_file = b.path("src/ImageToTensor/imageToTensor.zig") });
     Img2Tens_mod.addImport("zant", zant_mod);
 
     //************************************************ UNIT TESTS ************************************************
 
-    // // Define unified tests for the project.
-    // const unit_tests = b.addTest(.{
-    //     .name = "test_lib",
-    //     .root_source_file = b.path("tests/test_lib.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
+    // Define unified tests for the project.
+    const unit_tests = b.addTest(.{
+        .name = "test_lib",
+        .root_source_file = b.path("tests/test_lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
-    // // Define test options
-    // const test_options = b.addOptions();
-    // test_options.addOption(bool, "heavy", b.option(bool, "heavy", "Run heavy tests") orelse false);
-    // unit_tests.root_module.addOptions("test_options", test_options);
+    // Define test options
+    const test_options = b.addOptions();
+    test_options.addOption(bool, "heavy", b.option(bool, "heavy", "Run heavy tests") orelse false);
+    unit_tests.root_module.addOptions("test_options", test_options);
 
-    // const test_name = b.option([]const u8, "test_name", "specify a test name to run") orelse "";
-    // test_options.addOption([]const u8, "test_name", test_name);
+    const test_name = b.option([]const u8, "test_name", "specify a test name to run") orelse "";
+    test_options.addOption([]const u8, "test_name", test_name);
 
-    // unit_tests.root_module.addImport("zant", zant_mod);
-    // unit_tests.root_module.addImport("IR_zant", IR_zant_mod);
+    unit_tests.root_module.addImport("zant", zant_mod);
+    unit_tests.root_module.addImport("IR_zant", IR_zant_mod);
+    unit_tests.root_module.addImport("codegen", codegen_mod);
 
-    // unit_tests.linkLibC();
+    unit_tests.linkLibC();
 
-    // // Add a build step to run all unit tests.
-    // const run_unit_tests = b.addRunArtifact(unit_tests);
-    // const test_step = b.step("test", "Run all unit tests");
-    // test_step.dependOn(&run_unit_tests.step);
+    // Add a build step to run all unit tests.
+    const run_unit_tests = b.addRunArtifact(unit_tests);
+    const test_step = b.step("test", "Run all unit tests");
+    test_step.dependOn(&run_unit_tests.step);
 
     // ************************************************ CODEGEN IR EXECUTABLE ************************************************
     //

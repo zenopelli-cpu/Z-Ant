@@ -21,9 +21,11 @@ const mathHandler_log = std.log.scoped(.mathHandler);
 const utils = IR_zant.utils;
 
 // --- uops ---
-const UOpBuilder = zant.uops.UOpBuilder;
-const DType = zant.uops.DType;
-const Any = zant.uops.Any;
+const cg_v2 = @import("codegen").codegen_v2;
+const Uops = cg_v2.uops;
+const UOpBuilder = cg_v2.builder;
+const DType = Uops.DType;
+const Any = Uops.Any;
 
 // https://onnx.ai/onnx/operators/onnx__MatMul.html#l-onnx-doc-matmul
 // INPUTS:

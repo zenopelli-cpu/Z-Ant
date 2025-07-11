@@ -16,9 +16,11 @@ const TensorCategory = tensorZant.TensorCategory;
 const IR_utils = @import("../../utils.zig"); //this is IR utils
 
 // --- uops ---
-const UOpBuilder = zant.uops.UOpBuilder;
-const DType = zant.uops.DType;
-const Any = zant.uops.Any;
+const cg_v2 = @import("codegen").codegen_v2;
+const Uops = cg_v2.uops;
+const UOpBuilder = cg_v2.builder;
+const DType = Uops.DType;
+const Any = Uops.Any;
 
 // https://onnx.ai/onnx/operators/onnx__Add.html
 // INPUTS:
