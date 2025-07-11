@@ -7,9 +7,9 @@ const pkgAllocator = zant.utils.allocator;
 const allocator = pkgAllocator.allocator;
 
 const onnx = zant.onnx;
-const IR_codeGen = @import("IR_zant").IR_codegen;
+const IR_codeGen = @import("codegen").codegen_v1;
 
-// called by "zig build test-codegen-gen" optionals:" -Dlog -Dmodel="name" -D ..." see build.zig"
+// called by "zig build test-codegen-gen" optionals:" -Dlog -Dmodel="name" -D ..." see build.zig in "codegen options"
 pub fn main() !void {
     std.debug.print("One ONNX Operator Model Generator", .{});
 

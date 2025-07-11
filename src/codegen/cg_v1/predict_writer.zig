@@ -67,7 +67,7 @@ fn write_libraries(writer: std.fs.File.Writer) !void {
         \\ const tensMath = zant.core.tensor.math_standard;
         \\ const pkgAllocator = zant.utils.allocator;
         \\ const allocator = pkgAllocator.allocator;
-        \\ const utils = codegen.utils;
+        \\ const utils = @import("codegen").codegen_v1.utils;
         \\ const param_lib = @import("static_parameters.zig");
         \\
     , .{});

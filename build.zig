@@ -161,187 +161,192 @@ pub fn build(b: *std.Build) void {
     const IR_codegen_step = b.step("IR_codegen", "code generation");
     IR_codegen_step.dependOn(&IR_codegen_cmd.step);
 
-    // //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//
-    // ////\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+    //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//
+    ////\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 
-    // // ************************************************ STATIC LIBRARY CREATION ************************************************
+    // ************************************************ STATIC LIBRARY CREATION ************************************************
 
-    // const lib_model_path = std.fmt.allocPrint(b.allocator, "{s}lib_{s}.zig", .{ generated_path_option, model_name_option }) catch |err| {
-    //     std.log.scoped(.build).warn("Error allocating lib model path: {}\n", .{err});
-    //     return;
-    // };
+    const lib_model_path = std.fmt.allocPrint(b.allocator, "{s}lib_{s}.zig", .{ generated_path_option, model_name_option }) catch |err| {
+        std.log.scoped(.build).warn("Error allocating lib model path: {}\n", .{err});
+        return;
+    };
 
-    // const static_lib = b.addStaticLibrary(.{
-    //     .name = "zant",
-    //     .root_source_file = b.path(lib_model_path),
-    //     .target = target,
-    //     .optimize = .ReleaseSmall,
-    // });
-    // static_lib.linkLibC();
-    // static_lib.root_module.addImport("zant", zant_mod);
-    // static_lib.root_module.addImport("IR_zant", IR_zant_mod); //IR_codegen
+    const static_lib = b.addStaticLibrary(.{
+        .name = "zant",
+        .root_source_file = b.path(lib_model_path),
+        .target = target,
+        .optimize = .ReleaseSmall,
+    });
+    static_lib.linkLibC();
+    static_lib.root_module.addImport("zant", zant_mod);
+    static_lib.root_module.addImport("IR_zant", IR_zant_mod); //IR_codegen
 
-    // const install_lib_step = b.addInstallArtifact(static_lib, .{ .dest_dir = .{ .override = .{ .custom = model_name_option } } });
-    // const lib_step = b.step("lib", "Compile tensor_math static library");
-    // lib_step.dependOn(&install_lib_step.step);
+    const install_lib_step = b.addInstallArtifact(static_lib, .{ .dest_dir = .{ .override = .{ .custom = model_name_option } } });
+    const lib_step = b.step("lib", "Compile tensor_math static library");
+    lib_step.dependOn(&install_lib_step.step);
 
-    // // Output path for the generated library
-    // var output_path_option = b.option([]const u8, "output_path", "Output path") orelse "";
-    // if (output_path_option.len != 0) {
-    //     if (!std.mem.endsWith(u8, output_path_option, "/")) {
-    //         output_path_option = std.fmt.allocPrint(b.allocator, "{s}/", .{output_path_option}) catch |err| {
-    //             std.log.scoped(.build).warn("Error normalizing path: {}\n", .{err});
-    //             return;
-    //         };
-    //     }
-    //     const old_path = std.fmt.allocPrint(b.allocator, "zig-out/{s}/", .{model_name_option}) catch |err| {
-    //         std.log.scoped(.build).warn("Error allocating old path: {}\n", .{err});
-    //         return;
-    //     };
-    //     output_path_option = std.fmt.allocPrint(b.allocator, "{s}{s}/", .{ output_path_option, model_name_option }) catch |err| {
-    //         std.log.scoped(.build).warn("Error allocating output path: {}\n", .{err});
-    //         return;
-    //     };
-    //     const move_step = b.addSystemCommand(&[_][]const u8{
-    //         "mv",
-    //         old_path,
-    //         output_path_option,
-    //     });
-    //     move_step.step.dependOn(&install_lib_step.step);
-    //     lib_step.dependOn(&move_step.step);
-    //     move_step.step.dependOn(&install_lib_step.step);
-    //     lib_step.dependOn(&move_step.step);
-    // }
+    // Output path for the generated library
+    var output_path_option = b.option([]const u8, "output_path", "Output path") orelse "";
+    if (output_path_option.len != 0) {
+        if (!std.mem.endsWith(u8, output_path_option, "/")) {
+            output_path_option = std.fmt.allocPrint(b.allocator, "{s}/", .{output_path_option}) catch |err| {
+                std.log.scoped(.build).warn("Error normalizing path: {}\n", .{err});
+                return;
+            };
+        }
+        const old_path = std.fmt.allocPrint(b.allocator, "zig-out/{s}/", .{model_name_option}) catch |err| {
+            std.log.scoped(.build).warn("Error allocating old path: {}\n", .{err});
+            return;
+        };
+        output_path_option = std.fmt.allocPrint(b.allocator, "{s}{s}/", .{ output_path_option, model_name_option }) catch |err| {
+            std.log.scoped(.build).warn("Error allocating output path: {}\n", .{err});
+            return;
+        };
+        const move_step = b.addSystemCommand(&[_][]const u8{
+            "mv",
+            old_path,
+            output_path_option,
+        });
+        move_step.step.dependOn(&install_lib_step.step);
+        lib_step.dependOn(&move_step.step);
+        move_step.step.dependOn(&install_lib_step.step);
+        lib_step.dependOn(&move_step.step);
+    }
 
-    // // ************************************************ GENERATED LIBRARY TESTS ************************************************
+    // ************************************************ GENERATED LIBRARY TESTS ************************************************
 
-    // // Add test for generated library
-    // const test_model_path = std.fmt.allocPrint(b.allocator, "{s}test_{s}.zig", .{ generated_path_option, model_name_option }) catch |err| {
-    //     std.log.scoped(.build).warn("Error allocating test model path: {}\n", .{err});
-    //     return;
-    // };
+    // Add test for generated library
+    const test_model_path = std.fmt.allocPrint(b.allocator, "{s}test_{s}.zig", .{ generated_path_option, model_name_option }) catch |err| {
+        std.log.scoped(.build).warn("Error allocating test model path: {}\n", .{err});
+        return;
+    };
 
-    // const test_generated_lib = b.addTest(.{
-    //     .name = "test_generated_lib",
-    //     .root_source_file = b.path(test_model_path),
-    //     .target = target,
-    //     .optimize = .Debug,
-    // });
+    const test_generated_lib = b.addTest(.{
+        .name = "test_generated_lib",
+        .root_source_file = b.path(test_model_path),
+        .target = target,
+        .optimize = .Debug,
+    });
 
-    // test_generated_lib.root_module.addImport("zant", zant_mod);
-    // test_generated_lib.root_module.addImport("IR_zant", IR_zant_mod); //codegen
-    // test_generated_lib.linkLibC();
+    test_generated_lib.root_module.addImport("zant", zant_mod);
+    test_generated_lib.root_module.addImport("IR_zant", IR_zant_mod); //codegen
+    test_generated_lib.linkLibC();
 
-    // const run_test_generated_lib = b.addRunArtifact(test_generated_lib);
-    // const test_step_generated_lib = b.step("test-generated-lib", "Run generated library tests");
-    // test_step_generated_lib.dependOn(&run_test_generated_lib.step);
+    const run_test_generated_lib = b.addRunArtifact(test_generated_lib);
+    const test_step_generated_lib = b.step("test-generated-lib", "Run generated library tests");
+    test_step_generated_lib.dependOn(&run_test_generated_lib.step);
 
-    // // ************************************************ ONEOP CODEGEN ************************************************
-    // // Setup oneOp codegen
+    // ************************************************ ONEOP CODEGEN ************************************************
+    // Setup oneOp codegen
+    // Remember to launch : python3 tests/CodeGen/Python-ONNX/onnx_gen.py to generate the onnx models
 
-    // const oneop_codegen_exe = b.addExecutable(.{
-    //     .name = "oneop_codegen",
-    //     .root_source_file = b.path("tests/CodeGen/oneOpModelGenerator.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
+    const oneop_codegen_exe = b.addExecutable(.{
+        .name = "oneop_codegen",
+        .root_source_file = b.path("tests/CodeGen/oneOpModelGenerator.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
-    // oneop_codegen_exe.root_module.addImport("zant", zant_mod);
-    // oneop_codegen_exe.root_module.addImport("IR_zant", IR_zant_mod); //codegen
-    // oneop_codegen_exe.linkLibC();
+    oneop_codegen_exe.root_module.addImport("zant", zant_mod);
+    oneop_codegen_exe.root_module.addImport("IR_zant", IR_zant_mod);
+    oneop_codegen_exe.root_module.addImport("codegen", codegen_mod); //codegen
+    oneop_codegen_exe.linkLibC();
 
-    // const run_oneop_codegen_exe = b.addRunArtifact(oneop_codegen_exe);
-    // const step_test_oneOp_codegen = b.step("test-codegen-gen", "Run generated library tests");
-    // step_test_oneOp_codegen.dependOn(&run_oneop_codegen_exe.step);
+    const run_oneop_codegen_exe = b.addRunArtifact(oneop_codegen_exe);
+    const step_test_oneOp_codegen = b.step("test-codegen-gen", "Run generated library tests");
+    step_test_oneOp_codegen.dependOn(&run_oneop_codegen_exe.step);
 
-    // // ************************************************ ONEOP TESTING ************************************************
-    // // Setup test_all_oneOp
+    // ************************************************ ONEOP TESTING ************************************************
+    // Setup test_all_oneOp
 
-    // const test_all_oneOp = b.addTest(.{
-    //     .name = "test_all_oneOp",
-    //     .root_source_file = b.path("generated/oneOpModels/test_oneop_models.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
+    const test_all_oneOp = b.addTest(.{
+        .name = "test_all_oneOp",
+        .root_source_file = b.path("generated/oneOpModels/test_oneop_models.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
-    // test_all_oneOp.root_module.addImport("zant", zant_mod);
-    // test_all_oneOp.root_module.addImport("IR_zant", IR_zant_mod); //codegen
-    // test_all_oneOp.linkLibC();
+    test_all_oneOp.root_module.addImport("zant", zant_mod);
+    test_all_oneOp.root_module.addImport("IR_zant", IR_zant_mod);
+    test_all_oneOp.root_module.addImport("codegen", codegen_mod); //codegen
 
-    // const run_test_all_oneOp = b.addRunArtifact(test_all_oneOp);
+    test_all_oneOp.linkLibC();
 
-    // // ************************************************
-    // // Setup test oneop
-    // // It will run
-    // // - run_oneop_codegen_exe
-    // // - run_test_all_oneOp
+    const run_test_all_oneOp = b.addRunArtifact(test_all_oneOp);
 
-    // const step_test_oneOp = b.step("test-codegen", "Run generated library tests");
-    // step_test_oneOp.dependOn(&run_test_all_oneOp.step);
+    // ************************************************
+    // Setup test oneop
+    // It will run
+    // - run_oneop_codegen_exe
+    // - run_test_all_oneOp
 
-    // // ************************************************
-    // // Benchmark
+    const step_test_oneOp = b.step("test-codegen", "Run generated library tests");
+    step_test_oneOp.dependOn(&run_test_all_oneOp.step);
 
-    // const benchmark = b.addExecutable(.{
-    //     .name = "benchmark",
-    //     .root_source_file = b.path("benchmarks/main.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
+    // ************************************************
+    // Benchmark
 
-    // const bench_options = b.addOptions();
-    // bench_options.addOption(bool, "full", b.option(bool, "full", "Choose whenever run full benchmark or not") orelse false);
+    const benchmark = b.addExecutable(.{
+        .name = "benchmark",
+        .root_source_file = b.path("benchmarks/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
-    // benchmark.root_module.addImport("zant", zant_mod);
-    // benchmark.root_module.addOptions("bench_options", bench_options);
-    // benchmark.linkLibC();
+    const bench_options = b.addOptions();
+    bench_options.addOption(bool, "full", b.option(bool, "full", "Choose whenever run full benchmark or not") orelse false);
 
-    // const run_benchmark = b.addRunArtifact(benchmark);
-    // const benchmark_step = b.step("benchmark", "Run benchmarks");
-    // benchmark_step.dependOn(&run_benchmark.step);
+    benchmark.root_module.addImport("zant", zant_mod);
+    benchmark.root_module.addImport("codegen", codegen_mod); //codegen
+    benchmark.root_module.addOptions("bench_options", bench_options);
+    benchmark.linkLibC();
 
-    // // ************************************************ ONNX PARSER TESTS ************************************************
-    // // Add test for generated library
+    const run_benchmark = b.addRunArtifact(benchmark);
+    const benchmark_step = b.step("benchmark", "Run benchmarks");
+    benchmark_step.dependOn(&run_benchmark.step);
 
-    // const test_onnx_parser = b.addTest(.{
-    //     .name = "test_generated_lib",
-    //     .root_source_file = b.path("tests/Onnx/onnx_loader.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
+    // ************************************************ ONNX PARSER TESTS ************************************************
+    // Add test for generated library
 
-    // test_onnx_parser.root_module.addImport("zant", zant_mod);
-    // test_onnx_parser.linkLibC();
+    const test_onnx_parser = b.addTest(.{
+        .name = "test_generated_lib",
+        .root_source_file = b.path("tests/Onnx/onnx_loader.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
-    // const run_test_onnx_parser = b.addRunArtifact(test_onnx_parser);
-    // const step_test_onnx_parser = b.step("onnx-parser", "Run generated library tests");
-    // step_test_onnx_parser.dependOn(&run_test_onnx_parser.step);
+    test_onnx_parser.root_module.addImport("zant", zant_mod);
+    test_onnx_parser.linkLibC();
 
-    // // ************************************************ MAIN EXECUTABLE (for profiling) ************************************************
+    const run_test_onnx_parser = b.addRunArtifact(test_onnx_parser);
+    const step_test_onnx_parser = b.step("onnx-parser", "Run generated library tests");
+    step_test_onnx_parser.dependOn(&run_test_onnx_parser.step);
 
-    // // Path to the generated model options file (moved here)
-    // const model_options_path = std.fmt.allocPrint(b.allocator, "{s}model_options.zig", .{generated_path_option}) catch |err| {
-    //     std.log.scoped(.build).warn("Error allocating model options path: {}\n", .{err});
-    //     return;
-    // };
+    // ************************************************ MAIN EXECUTABLE (for profiling) ************************************************
 
-    // const main_executable = b.addExecutable(.{
-    //     .name = "main_profiling_target",
-    //     .root_source_file = b.path("src/main.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
+    // Path to the generated model options file (moved here)
+    const model_options_path = std.fmt.allocPrint(b.allocator, "{s}model_options.zig", .{generated_path_option}) catch |err| {
+        std.log.scoped(.build).warn("Error allocating model options path: {}\n", .{err});
+        return;
+    };
 
-    // main_executable.linkLibC();
-    // main_executable.linkLibrary(static_lib);
-    // const model_opts_mod = b.createModule(.{
-    //     .root_source_file = b.path(model_options_path),
-    // });
-    // model_opts_mod.addImport("zant", zant_mod);
-    // model_opts_mod.addImport("IR_zant", IR_zant_mod);
-    // main_executable.root_module.addImport("model_opts", model_opts_mod);
-    // const install_main_exe_step = b.addInstallArtifact(main_executable, .{}); // Installa l'eseguibile
+    const main_executable = b.addExecutable(.{
+        .name = "main_profiling_target",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
-    // const build_main_step = b.step("build-main", "Build the main executable for profiling");
-    // build_main_step.dependOn(&install_main_exe_step.step);
+    main_executable.linkLibC();
+    main_executable.linkLibrary(static_lib);
+    const model_opts_mod = b.createModule(.{
+        .root_source_file = b.path(model_options_path),
+    });
+    model_opts_mod.addImport("zant", zant_mod);
+    model_opts_mod.addImport("IR_zant", IR_zant_mod);
+    main_executable.root_module.addImport("model_opts", model_opts_mod);
+    const install_main_exe_step = b.addInstallArtifact(main_executable, .{}); // Installa l'eseguibile
+
+    const build_main_step = b.step("build-main", "Build the main executable for profiling");
+    build_main_step.dependOn(&install_main_exe_step.step);
 }

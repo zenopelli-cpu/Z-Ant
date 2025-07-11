@@ -9,8 +9,8 @@ const allocator = zant.utils.allocator.allocator;
 
 const IR_zant = @import("IR_zant");
 const IR_graph = IR_zant.IR_graph;
-const IR_codegen = IR_zant.IR_codegen;
-const testWriter = IR_codegen.testWriter;
+
+const testWriter = @import("tests_writer.zig");
 
 // -------------------- GETTERS --------------------
 
