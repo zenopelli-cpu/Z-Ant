@@ -109,6 +109,7 @@ pub const split_lean = op_split.split_lean;
 const op_mat_mul = @import("op_mat_mul.zig");
 pub const mat_mul = op_mat_mul.mat_mul;
 pub const mat_mul_lean = op_mat_mul.lean_mat_mul;
+pub const lean_matmul = op_mat_mul.lean_mat_mul;
 pub const blocked_mat_mul = op_mat_mul.blocked_mat_mul;
 pub const blocked_mat_mul_lean = op_mat_mul.lean_blocked_mat_mul;
 pub const get_mat_mul_output_shape = op_mat_mul.get_mat_mul_output_shape;
@@ -189,7 +190,9 @@ pub const mean = reduction_math_lib.mean;
 pub const reduce_mean = reduction_math_lib.reduce_mean;
 pub const reduce_mean_lean = reduction_math_lib.lean_reduce_mean;
 pub const get_reduce_mean_output_shape = reduction_math_lib.get_reduce_mean_output_shape;
+
 // ---------- importing standard Element-Wise math ----------
+
 const add = @import("lib_elementWise_math/op_addition.zig");
 //--add bias
 pub const add_bias = add.add_bias;
@@ -199,6 +202,7 @@ pub const sum_tensors_lean = add.lean_sum_tensors;
 //--sum tensor list
 pub const sum_tensor_list = add.sum_tensor_list;
 pub const sum_tensor_list_lean = add.lean_sum_tensor_list;
+
 //--sub
 const sub = @import("lib_elementWise_math/op_subtraction.zig");
 
@@ -207,12 +211,14 @@ pub const sub_tensors_lean = sub.lean_sub_tensors;
 
 //--shape
 const op_shape = @import("lib_shape_math/op_shape.zig");
+
 pub const shape_onnx = op_shape.shape_onnx;
 pub const shape_onnx_lean = op_shape.lean_shape_onnx;
 pub const get_shape_output_shape = op_shape.get_shape_output_shape;
 
 //--slice
 const op_slice = @import("lib_shape_math/op_slice.zig");
+
 pub const slice_onnx = op_slice.slice_onnx;
 pub const slice_onnx_lean = op_slice.lean_slice_onnx;
 pub const get_slice_output_shape = op_slice.get_slice_output_shape;
@@ -221,7 +227,6 @@ pub const get_slice_output_shape = op_slice.get_slice_output_shape;
 const mult = @import("lib_elementWise_math/op_multiplication.zig");
 
 //--mul
-pub const lean_matmul = op_mat_mul.lean_mat_mul;
 pub const mul = mult.mul;
 pub const mul_lean = mult.mul_lean;
 pub const get_mul_output_shape = mult.get_mul_output_shape;
@@ -263,6 +268,12 @@ const Sqrt = @import("lib_elementWise_math/op_sqrt.zig");
 pub const sqrt = Sqrt.sqrt;
 pub const sqrt_lean = Sqrt.sqrt_lean;
 pub const get_sqrt_output_shape = Sqrt.get_sqrt_output_shape;
+
+//--QuantizeLinear
+const QuantizeLinear = @import("lib_elementWise_math/op_quantizeLinear.zig");
+
+const quantizeLinear = QuantizeLinear.quantizeLinear;
+const quantizeLinear_lean = QuantizeLinear.quantizeLinear_lean;
 
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");

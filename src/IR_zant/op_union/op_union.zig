@@ -34,6 +34,7 @@ pub const Op_union = union(enum) {
     mul: operators.Mul,
     neg: operators.Neg,
     oneHot: operators.OneHot,
+    quantizeLinear: operators.QuantizeLinear,
     reduceMean: operators.ReduceMean,
     relu: operators.Relu,
     reshape: operators.Reshape,
@@ -95,6 +96,8 @@ pub const Op_union = union(enum) {
             return Op_union{ .neg = try operators.Neg.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "OneHot")) {
             return Op_union{ .oneHot = try operators.OneHot.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "QuantizeLinear")) {
+            return Op_union{ .quantizeLinear = try operators.QuantizeLinear.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "ReduceMean")) {
             return Op_union{ .reduceMean = try operators.ReduceMean.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Relu")) {
@@ -152,6 +155,7 @@ pub const Op_union = union(enum) {
             .mul => |ptr| return ptr.get_output_shape(),
             .neg => |ptr| return ptr.get_output_shape(),
             .oneHot => |ptr| return ptr.get_output_shape(),
+            .quantizeLinear => |ptr| return ptr.get_output_shape(),
             .reduceMean => |ptr| return ptr.get_output_shape(),
             .relu => |ptr| return ptr.get_output_shape(),
             .reshape => |ptr| return ptr.get_output_shape(),
@@ -196,6 +200,7 @@ pub const Op_union = union(enum) {
             .mul => |ptr| try ptr.get_output_tensors(),
             .neg => |ptr| try ptr.get_output_tensors(),
             .oneHot => |ptr| try ptr.get_output_tensors(),
+            .quantizeLinear => |ptr| try ptr.get_output_tensors(),
             .reduceMean => |ptr| try ptr.get_output_tensors(),
             .relu => |ptr| try ptr.get_output_tensors(),
             .reshape => |ptr| try ptr.get_output_tensors(),
@@ -240,6 +245,7 @@ pub const Op_union = union(enum) {
             .mul => |ptr| try ptr.get_input_tensors(),
             .neg => |ptr| try ptr.get_input_tensors(),
             .oneHot => |ptr| try ptr.get_input_tensors(),
+            .quantizeLinear => |ptr| try ptr.get_input_tensors(),
             .reduceMean => |ptr| try ptr.get_input_tensors(),
             .relu => |ptr| try ptr.get_input_tensors(),
             .reshape => |ptr| try ptr.get_input_tensors(),
@@ -284,6 +290,7 @@ pub const Op_union = union(enum) {
             .mul => |ptr| try ptr.write_op(writer),
             .neg => |ptr| try ptr.write_op(writer),
             .oneHot => |ptr| try ptr.write_op(writer),
+            .quantizeLinear => |ptr| try ptr.write_op(writer),
             .reduceMean => |ptr| try ptr.write_op(writer),
             .relu => |ptr| try ptr.write_op(writer),
             .reshape => |ptr| try ptr.write_op(writer),
@@ -328,6 +335,7 @@ pub const Op_union = union(enum) {
             .mul => |ptr| ptr.print(),
             .neg => |ptr| ptr.print(),
             .oneHot => |ptr| ptr.print(),
+            .quatizeLinear => |ptr| ptr.print(),
             .reduceMean => |ptr| ptr.print(),
             .relu => |ptr| ptr.print(),
             .reshape => |ptr| ptr.print(),

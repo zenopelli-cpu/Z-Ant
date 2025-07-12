@@ -19,6 +19,7 @@ pub const MaxPool = @import("op_maxPool.zig").MaxPool;
 pub const Mul = @import("op_mul.zig").Mul;
 pub const Neg = @import("op_neg.zig").Neg;
 pub const OneHot = @import("op_oneHot.zig").OneHot;
+pub const QuantizeLinear = @import("op_quantizeLinear.zig").QuantizeLinear;
 pub const ReduceMean = @import("op_reduceMean.zig").ReduceMean;
 pub const Relu = @import("op_relu.zig").Relu;
 pub const Reshape = @import("op_reshape.zig").Reshape;

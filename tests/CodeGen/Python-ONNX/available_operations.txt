@@ -5,7 +5,7 @@ AveragePool
 BatchNormalization  
 Ceil  
 Concat
-#Constant: misssing Python generator
+Constant
 Conv   
 Div  
 Elu  
@@ -21,6 +21,8 @@ MaxPool
 Mul  
 Neg
 OneHot
+QuantizeLinear
+#Pad: incomplete
 #Reducemean: misssing Python generator
 Relu  
 # Reshape: lunch onnx generator  

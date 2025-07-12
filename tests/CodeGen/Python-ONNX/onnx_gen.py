@@ -432,12 +432,12 @@ def generate_fuzz_model(op_name):
         node_inputs = [input_names[0], input_names[1]]
         constant_value = None # Initialize to None
 
-        if mode == "constant":
-            constant_value = round(random.uniform(-1.0, 1.0), 2) # Random constant value
-            constant_tensor = helper.make_tensor(input_names[2], TensorProto.FLOAT, [], [constant_value])
-            initializers.append(constant_tensor)
-            node_inputs.append(input_names[2]) # Add constant_value input only for 'constant' mode
-        
+    elif mode == "Constant":
+        constant_value = round(random.uniform(-1.0, 1.0), 2) # Random constant value
+        constant_tensor = helper.make_tensor(input_names[2], TensorProto.FLOAT, [], [constant_value])
+        initializers.append(constant_tensor)
+        node_inputs.append(input_names[2]) # Add constant_value input only for 'constant' mode
+    
         # Create the Pad node with mode as attribute
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
         node = helper.make_node(
@@ -1047,6 +1047,69 @@ def generate_fuzz_model(op_name):
         }
 
         return [input_info], output_info, [node], initializers, metadata
+    
+    elif op_name == "QuantizeLinear":
+        # Randomly pick input shape
+        shape = [random.randint(1, 4) for _ in range(3)]  # e.g., 3D tensor
+        data = np.random.randn(*shape).astype(np.float32)
+
+        # y_scale: either scalar or per-axis
+        if random.choice([True, False]):
+            # Per-tensor
+            y_scale = np.array([round(random.uniform(0.01, 1.0), 4)], dtype=np.float32)
+        else:
+            # Per-axis, pick axis 1 for example
+            axis = 1
+            length = shape[axis]
+            y_scale = np.random.rand(length).astype(np.float32) * 0.5 + 0.1
+
+        # Match y_zero_point shape and choose type
+        dtype = random.choice([TensorProto.UINT8, TensorProto.INT8,
+                            TensorProto.UINT16, TensorProto.INT16,
+                            TensorProto.UINT4, TensorProto.INT4])
+        zp_shape = y_scale.shape
+        if dtype in (TensorProto.UINT4, TensorProto.INT4):
+            max_val = 2**4 - 1 if dtype == TensorProto.UINT4 else 2**3 - 1
+            min_val = 0 if dtype == TensorProto.UINT4 else -2**3
+            scale_zp = np.random.randint(min_val, max_val + 1, size=zp_shape)
+        else:
+            info = np.iinfo({
+                TensorProto.UINT8: np.uint8, TensorProto.INT8: np.int8,
+                TensorProto.UINT16: np.uint16, TensorProto.INT16: np.int16
+            }[dtype])
+            scale_zp = np.random.randint(info.min, info.max + 1, size=zp_shape)
+
+        scale_name = input_names[1]
+        zp_name = input_names[2]
+        initializers.append(helper.make_tensor(
+            scale_name, TensorProto.FLOAT, list(zp_shape), y_scale.flatten().tolist()))
+        initializers.append(helper.make_tensor(
+            zp_name, dtype, list(zp_shape), scale_zp.flatten().tolist()))
+
+        # Prepare main input
+        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
+        initializers.append(init_tensor)
+
+        # Create output metadata
+        output_info = helper.make_tensor_value_info(output_names[0], dtype, shape)
+
+        node = helper.make_node(
+            "QuantizeLinear",
+            inputs=[input_names[0], scale_name, zp_name],
+            outputs=[output_names[0]],
+            axis=axis if 'axis' in locals() else None,
+            name=f"QuantizeLinear_node_dtype{dtype}_axis{locals().get('axis', 'None')}"
+        )
+
+        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+        metadata = {
+            "input_shapes": [shape],
+            "scale_shape": list(zp_shape),
+            "dtype": dtype,
+            "axis": locals().get("axis", None)
+        }
+        return [input_info], output_info, [node], initializers, metadata
+
     else:
         # Caso di fallback per operatori non gestiti esplicitamente
         shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
@@ -1184,6 +1247,9 @@ def main():
                         help="Directory to save generated models.")
     parser.add_argument("--metadata-file", type=str, default="datasets/oneOpModels/results.json",
                         help="File to save metadata and execution data.")
+    parser.add_argument("--op", type=str, default="all",
+                        help="File to save metadata and execution data.")
+    
     args = parser.parse_args()
     
     if args.seed is not None:
@@ -1195,7 +1261,8 @@ def main():
         output_dir += '/'
     os.makedirs(output_dir, exist_ok=True)
     
-    supported_ops = load_supported_ops()
+    if args.op == "all" : supported_ops = load_supported_ops() 
+    else: supported_ops = [args.op] 
     
     print(f"\n supported_ops : {supported_ops}")
     

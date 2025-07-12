@@ -28,6 +28,14 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     // ****************************************************************************************************************
+    // ************************************************ TESTING OPTIONS ***********************************************
+    // ****************************************************************************************************************
+    const op_to_test_option = b.option([]const u8, "op", "operator name") orelse "all";
+
+    const testing_options = b.addOptions();
+    testing_options.addOption([]const u8, "op", op_to_test_option);
+
+    // ****************************************************************************************************************
     // ************************************************ CODEGEN OPTIONS ***********************************************
     // ****************************************************************************************************************
 
@@ -250,6 +258,7 @@ pub fn build(b: *std.Build) void {
     oneop_codegen_exe.root_module.addImport("zant", zant_mod);
     oneop_codegen_exe.root_module.addImport("IR_zant", IR_zant_mod);
     oneop_codegen_exe.root_module.addImport("codegen", codegen_mod); //codegen
+    oneop_codegen_exe.root_module.addOptions("testing_options", testing_options); //<<--OSS!! it is an option!
     oneop_codegen_exe.linkLibC();
 
     const run_oneop_codegen_exe = b.addRunArtifact(oneop_codegen_exe);
@@ -269,6 +278,7 @@ pub fn build(b: *std.Build) void {
     test_all_oneOp.root_module.addImport("zant", zant_mod);
     test_all_oneOp.root_module.addImport("IR_zant", IR_zant_mod);
     test_all_oneOp.root_module.addImport("codegen", codegen_mod); //codegen
+    test_all_oneOp.root_module.addOptions("testing_options", testing_options); //<<--OSS!! it is an option!
 
     test_all_oneOp.linkLibC();
 
