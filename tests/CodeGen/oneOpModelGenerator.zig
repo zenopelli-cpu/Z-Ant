@@ -34,7 +34,10 @@ pub fn main() !void {
     //retrive the operations I want to test
     const operations = try get_operations();
 
+    std.debug.print("\n --- {} operations are present", .{operations.items.len});
+
     for (operations.items) |op_name| {
+        std.debug.print("\n\n >>>>>>>> {s} ", .{op_name});
 
         // Construct the model file path: "Phython-ONNX/{op}_0.onnx"
         const model_path = try std.fmt.allocPrint(allocator, "datasets/oneOpModels/{s}_0.onnx", .{op_name});
@@ -116,6 +119,7 @@ fn get_operations() !std.ArrayList([]const u8) {
 
             if (maybe_line) |_| std.debug.print("\n", .{}) else {
                 std.debug.print("NO MORE OPERATIONS -----> break\n", .{});
+                break;
             }
 
             const raw_line = maybe_line.?;
@@ -127,7 +131,9 @@ fn get_operations() !std.ArrayList([]const u8) {
             const trimmed_line = std.mem.trim(u8, raw_line, " \t\r\n");
             if (trimmed_line.len > 0) {
                 std.debug.print(" ############ Loading Operation: {s} ############\n", .{trimmed_line});
-                try op_list.append(trimmed_line);
+                const copy = try allocator.alloc(u8, trimmed_line.len);
+                @memcpy(copy, trimmed_line);
+                try op_list.append(copy);
             }
         }
     }

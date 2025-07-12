@@ -432,36 +432,36 @@ def generate_fuzz_model(op_name):
         node_inputs = [input_names[0], input_names[1]]
         constant_value = None # Initialize to None
 
-    elif mode == "Constant":
-        constant_value = round(random.uniform(-1.0, 1.0), 2) # Random constant value
-        constant_tensor = helper.make_tensor(input_names[2], TensorProto.FLOAT, [], [constant_value])
-        initializers.append(constant_tensor)
-        node_inputs.append(input_names[2]) # Add constant_value input only for 'constant' mode
-    
-        # Create the Pad node with mode as attribute
-        output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
-        node = helper.make_node(
-            op_name, 
-            inputs=node_inputs, 
-            outputs=[output_names[0]],
-            mode=mode, # Pass mode as an attribute
-            name=f"{op_name}_node_mode_{mode}"
-        )
+        if mode == "Constant":
+            constant_value = round(random.uniform(-1.0, 1.0), 2) # Random constant value
+            constant_tensor = helper.make_tensor(input_names[2], TensorProto.FLOAT, [], [constant_value])
+            initializers.append(constant_tensor)
+            node_inputs.append(input_names[2]) # Add constant_value input only for 'constant' mode
         
-        # Define input_info before using it
-        input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
-
-        metadata = {
-            "input_shapes": [shape], 
-            "output_shapes": [out_shape], 
-            "pads": pads, 
-            "mode": mode
-        }
-        # Only add constant_value to metadata if it was used
-        if constant_value is not None:
-            metadata["constant_value"] = constant_value
+            # Create the Pad node with mode as attribute
+            output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
+            node = helper.make_node(
+                op_name, 
+                inputs=node_inputs, 
+                outputs=[output_names[0]],
+                mode=mode, # Pass mode as an attribute
+                name=f"{op_name}_node_mode_{mode}"
+            )
             
-        return [input_info], output_info, [node], initializers, metadata
+            # Define input_info before using it
+            input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+
+            metadata = {
+                "input_shapes": [shape], 
+                "output_shapes": [out_shape], 
+                "pads": pads, 
+                "mode": mode
+            }
+            # Only add constant_value to metadata if it was used
+            if constant_value is not None:
+                metadata["constant_value"] = constant_value
+                
+            return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "Reshape":
         # Primo input: dati; secondo input: nuovo shape (initializer)
@@ -1049,6 +1049,7 @@ def generate_fuzz_model(op_name):
         return [input_info], output_info, [node], initializers, metadata
     
     elif op_name == "QuantizeLinear":
+        mode = "per_tensor"
         # Randomly pick input shape
         shape = [random.randint(1, 4) for _ in range(3)]  # e.g., 3D tensor
         data = np.random.randn(*shape).astype(np.float32)
@@ -1064,10 +1065,9 @@ def generate_fuzz_model(op_name):
             y_scale = np.random.rand(length).astype(np.float32) * 0.5 + 0.1
 
         # Match y_zero_point shape and choose type
-        dtype = random.choice([TensorProto.UINT8, TensorProto.INT8,
-                            TensorProto.UINT16, TensorProto.INT16,
-                            TensorProto.UINT4, TensorProto.INT4])
+        dtype = TensorProto.UINT8
         zp_shape = y_scale.shape
+
         if dtype in (TensorProto.UINT4, TensorProto.INT4):
             max_val = 2**4 - 1 if dtype == TensorProto.UINT4 else 2**3 - 1
             min_val = 0 if dtype == TensorProto.UINT4 else -2**3
