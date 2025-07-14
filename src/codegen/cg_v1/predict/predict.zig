@@ -33,7 +33,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
     if (!codegen_options.dynamic) try write_linkersResetMethod(writer);
 
     const inputs = try IR_utils.getInputs(tensorZantMap);
-    const outputs = try IR_utils.getInputs(tensorZantMap);
+    const outputs = try IR_utils.getOutputs(tensorZantMap);
 
     //write input type
     _ = try writer.print(
