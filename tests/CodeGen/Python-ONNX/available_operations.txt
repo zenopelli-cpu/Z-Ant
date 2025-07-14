@@ -7,6 +7,7 @@ Ceil
 Concat
 Constant
 Conv   
+DequantizeLinear
 Div  
 Elu  
 # Flatten: sometime it works, sometime it doesn't

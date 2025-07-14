@@ -272,8 +272,14 @@ pub const get_sqrt_output_shape = Sqrt.get_sqrt_output_shape;
 //--QuantizeLinear
 const QuantizeLinear = @import("lib_elementWise_math/op_quantizeLinear.zig");
 
-const quantizeLinear = QuantizeLinear.quantizeLinear;
-const quantizeLinear_lean = QuantizeLinear.quantizeLinear_lean;
+pub const quantizeLinear = QuantizeLinear.quantizeLinear;
+pub const quantizeLinear_lean = QuantizeLinear.quantizeLinear_lean;
+
+//--DequanrizeLinear
+const DequantizeLinear = @import("lib_elementWise_math/op_dequantizeLinear.zig");
+
+pub const dequantizeLinear = DequantizeLinear.dequantizeLinear;
+pub const dequantizeLinear_lean = DequantizeLinear.dequantizeLinear_lean;
 
 // ---------- importing standard basic methods ----------
 const logical_math_lib = @import("lib_logical_math.zig");

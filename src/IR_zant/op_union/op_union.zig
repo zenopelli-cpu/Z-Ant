@@ -20,6 +20,7 @@ pub const Op_union = union(enum) {
     concat: operators.Concat,
     constant: operators.Constant,
     conv: operators.Conv,
+    dequantizeLinear: operators.DequantizeLinear,
     div: operators.Div,
     elu: operators.Elu,
     flatten: operators.Flatten,
@@ -68,6 +69,8 @@ pub const Op_union = union(enum) {
             return Op_union{ .constant = try operators.Constant.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Conv")) {
             return Op_union{ .conv = try operators.Conv.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "DequantizeLinear")) {
+            return Op_union{ .dequantizeLinear = try operators.DequantizeLinear.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Div")) {
             return Op_union{ .div = try operators.Div.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Elu")) {
@@ -292,6 +295,7 @@ pub const Op_union = union(enum) {
             .concat => |ptr| try ptr.write_op(writer),
             .constant => |ptr| try ptr.write_op(writer),
             .conv => |ptr| try ptr.write_op(writer),
+            .dequantizeLinear => |ptr| try ptr.write_op(writer),
             .div => |ptr| try ptr.write_op(writer),
             .elu => |ptr| try ptr.write_op(writer),
             .flatten => |ptr| try ptr.write_op(writer),

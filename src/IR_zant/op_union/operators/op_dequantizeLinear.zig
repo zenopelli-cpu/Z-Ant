@@ -23,41 +23,36 @@ const utils = IR_zant.utils;
 // https://onnx.ai/onnx/operators/onnx__QuantizeLinear.html?utm_source=chatgpt.com
 // INPUTS:
 //      - x (heterogeneous) - T1:  input tensor.
-//      - y_scale (heterogeneous) - T2:  Scale for doing quantization to get y.
-//      - y_zero_point (optional, heterogeneous) - 3:  Zero point for doing quantization to get y.
+//      - x_scale (heterogeneous) - T2:  Scale for input x.
+//      - x_zero_point (optional, heterogeneous) - T3:  Zero point for input x.
 // OUTPUTS:
-//      -  y (heterogeneous) - T3:  N-D quantized output tensor. It has same shape as input x.
+//      -  y (heterogeneous) - T3:  N-D full precision output tensor. It has same shape as input x.
 // ATTRIBUTES:
 //      - axis - INT (Optional, default is '1'): The axis of the dequantizing dimension of the input tensor.
 //      - block_size - INT (Optional, default is '0'): The size of the quantization block (number of times every scale is replicated)
 //      - output_dtype - INT (Optional, default is '0'): The output data type.
-//      - precision - INT (Optional, default is '0'): The precision of the division operation between x and y_scale. If not provided, it will be the same as the type of y_scale.
-//      - saturate - INT (default is '1'):The parameter defines how the conversion behaves if an input value is out of range of the destination type.
-pub const QuantizeLinear = struct {
+
+pub const DequantizeLinear = struct {
     //inputs
     x: *TensorZant,
-    y_scale: *TensorZant,
-    y_zero_point: ?*TensorZant,
+    x_scale: *TensorZant,
+    x_zero_point: ?*TensorZant,
     //outputs
     y: *TensorZant,
     //attributes
     axis: i64,
     block_size: i64,
     output_dtype: TensorType,
-    precision: i64,
-    saturate: i64,
 
-    pub fn init(nodeProto: *NodeProto) !QuantizeLinear {
+    pub fn init(nodeProto: *NodeProto) !DequantizeLinear {
         const x = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
-        const y_scale = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_y_scale_notFound;
-        const y_zero_point = if (nodeProto.input.len > 2) if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_y_zero_point_notFound else null;
+        const x_scale = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_x_scale_notFound;
+        const x_zero_point = if (nodeProto.input.len > 2) if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_x_zero_point_notFound else null;
         const y = if (tensorZant_lib.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
         var axis: i64 = 1;
         var block_size: i64 = 0;
         var output_dtype: i64 = 0;
-        var precision: i64 = 0;
-        var saturate: i64 = 1;
 
         for (nodeProto.attribute) |attr| {
             if (std.mem.indexOf(u8, attr.name, "axis")) |_| {
@@ -66,10 +61,6 @@ pub const QuantizeLinear = struct {
                 if (attr.type == onnx.AttributeType.INT) block_size = attr.i else return error.Block_size_NotINT;
             } else if (std.mem.indexOf(u8, attr.name, "output_dtype")) |_| {
                 if (attr.type == onnx.AttributeType.INT) output_dtype = attr.i else return error.Output_dtype_NotINT;
-            } else if (std.mem.indexOf(u8, attr.name, "precision")) |_| {
-                if (attr.type == onnx.AttributeType.INT) precision = attr.i else return error.PrecisionNotINT;
-            } else if (std.mem.indexOf(u8, attr.name, "saturate")) |_| {
-                if (attr.type == onnx.AttributeType.INT) saturate = attr.i else return error.SaturateNotINT;
             }
         }
 
@@ -100,35 +91,33 @@ pub const QuantizeLinear = struct {
         //set the output type:
         if (y.ty == tensorZant_lib.TensorType.undefined) y.ty = outputType;
 
-        return QuantizeLinear{
+        return DequantizeLinear{
             .x = x,
-            .y_scale = y_scale,
-            .y_zero_point = y_zero_point,
+            .x_scale = x_scale,
+            .x_zero_point = x_zero_point,
             .y = y,
             .axis = axis,
             .block_size = block_size,
             .output_dtype = outputType,
-            .precision = precision,
-            .saturate = saturate,
         };
     }
 
-    pub fn get_output_shape(self: QuantizeLinear) []usize {
+    pub fn get_output_shape(self: DequantizeLinear) []usize {
         return self.y.getShape();
     }
 
-    pub fn get_input_tensors(self: QuantizeLinear) ![]*TensorZant {
+    pub fn get_input_tensors(self: DequantizeLinear) ![]*TensorZant {
         var inputs = std.ArrayList(*TensorZant).init(allocator);
         defer inputs.deinit();
 
         try inputs.append(self.x);
-        try inputs.append(self.y_scale);
-        if (self.y_zero_point != null) try inputs.append(self.y_zero_point);
+        try inputs.append(self.x_scale);
+        if (self.x_zero_point != null) try inputs.append(self.x_zero_point);
 
         return inputs.toOwnedSlice();
     }
 
-    pub fn get_output_tensors(self: QuantizeLinear) ![]*TensorZant {
+    pub fn get_output_tensors(self: DequantizeLinear) ![]*TensorZant {
         var outputs = std.ArrayList(*TensorZant).init(allocator);
         defer outputs.deinit();
 
@@ -137,7 +126,7 @@ pub const QuantizeLinear = struct {
         return outputs.toOwnedSlice();
     }
 
-    pub fn write_op(self: QuantizeLinear, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: DequantizeLinear, writer: std.fs.File.Writer) !void {
         // Create input tensor string
         var x_tensor_string: []const u8 = undefined;
         defer allocator.free(x_tensor_string);
@@ -153,37 +142,37 @@ pub const QuantizeLinear = struct {
         }
 
         // Create y_scale_tensor_string tensor string
-        var y_scale_tensor_string: []const u8 = undefined;
-        defer allocator.free(y_scale_tensor_string);
+        var x_scale_tensor_string: []const u8 = undefined;
+        defer allocator.free(x_scale_tensor_string);
 
-        if (self.y_scale.tc == TensorCategory.INITIALIZER) {
-            y_scale_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+        if (self.x_scale.tc == TensorCategory.INITIALIZER) {
+            x_scale_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@as(*const Tensor(f32), @constCast(&param_lib.tensor_",
-                try self.y_scale.getNameSanitized(),
+                try self.x_scale.getNameSanitized(),
                 "))",
             });
         } else {
-            y_scale_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@as(*const Tensor(f32), &tensor_", try self.y_scale.getNameSanitized(), ")" });
+            x_scale_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@as(*const Tensor(f32), &tensor_", try self.x_scale.getNameSanitized(), ")" });
         }
 
-        // Create ?y_zero_point_tensor_string tensor string
-        var y_zero_point_tensor_string: []const u8 = "null";
-        defer allocator.free(y_zero_point_tensor_string);
+        // Create ?x_zero_point_tensor_string tensor string
+        var x_zero_point_tensor_string: []const u8 = "null";
+        defer allocator.free(x_zero_point_tensor_string);
 
-        if (self.y_zero_point.?.tc == TensorCategory.INITIALIZER) {
-            y_zero_point_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+        if (self.x_zero_point.?.tc == TensorCategory.INITIALIZER) {
+            x_zero_point_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@as(?*const Tensor(",
                 self.y.ty.toString(),
                 "), @constCast(&param_lib.tensor_",
-                try self.y_zero_point.?.getNameSanitized(),
+                try self.x_zero_point.?.getNameSanitized(),
                 "))",
             });
         } else {
-            y_zero_point_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            x_zero_point_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@as(?*const Tensor(",
                 self.y.ty.toString(),
                 "), &tensor_",
-                try self.y_zero_point.?.getNameSanitized(),
+                try self.x_zero_point.?.getNameSanitized(),
                 ")",
             });
         }
@@ -205,11 +194,11 @@ pub const QuantizeLinear = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.quantizeLinear_lean({s}, // InputType
+            \\    tensMath.dequantizeLinear_lean({s}, // InputType
             \\                                 {s}, // OutputType
             \\                                 {s}, // x: input tensor
-            \\                                 {s}, // y_scale
-            \\                                 {s}, // y_zero_point
+            \\                                 {s}, // x_scale
+            \\                                 {s}, // x_zero_point
             \\                                 {},  // axis
             \\                                 {},  // block_size
             \\                                 &tensor_{s}, // y: output tensor
@@ -218,19 +207,19 @@ pub const QuantizeLinear = struct {
             self.x.ty.toString(),
             self.y.ty.toString(),
             x_tensor_string,
-            y_scale_tensor_string,
-            y_zero_point_tensor_string,
+            x_scale_tensor_string,
+            x_zero_point_tensor_string,
             self.axis,
             self.block_size,
             try self.y.getNameSanitized(),
         });
     }
 
-    pub fn compute_output_shape(self: QuantizeLinear) []usize {
+    pub fn compute_output_shape(self: DequantizeLinear) []usize {
         return self.x.shape;
     }
 
-    pub fn print(self: QuantizeLinear) void {
+    pub fn print(self: DequantizeLinear) void {
         std.debug.print("\n QuantizeLinear:\n {any}", .{self});
     }
 };

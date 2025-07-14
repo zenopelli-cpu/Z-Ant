@@ -782,3 +782,30 @@ test "floor_standard - basic case with special values" {
     }
     try std.testing.expectEqualSlices(usize, &shape, result.shape);
 }
+
+test "QuantizeLinear basic with u8 output" {
+    tests_log.info("\n     test: QuantizeLinear basic with uint8 output", .{});
+    const allocator = std.testing.allocator;
+
+    const input_array = [_]f32{ 0.0, 1.0, 2.0, 3.0 };
+    const scale_val: f32 = 0.5;
+    const zero_point_val: u8 = 128;
+
+    var shape = [_]usize{4};
+    var input = try Tensor(f32).fromArray(&allocator, &input_array, &shape);
+    defer input.deinit();
+
+    var shape1 = [_]usize{1};
+    var scale_tensor = try Tensor(f32).fromArray(&allocator, &[_]f32{scale_val}, &shape1);
+    defer scale_tensor.deinit();
+
+    var shape2 = [_]usize{1};
+    var zp_tensor = try Tensor(u8).fromArray(&allocator, &[_]u8{zero_point_val}, &shape2);
+    defer zp_tensor.deinit();
+
+    var output = try TensMath.quantizeLinear(f32, u8, &input, &scale_tensor, &zp_tensor, 0, -1);
+    defer output.deinit();
+
+    const expected = [_]u8{ 128, 130, 132, 134 };
+    try std.testing.expectEqualSlices(u8, &expected, output.data);
+}

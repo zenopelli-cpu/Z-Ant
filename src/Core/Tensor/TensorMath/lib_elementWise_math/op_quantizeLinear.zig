@@ -27,7 +27,7 @@ pub fn quantizeLinear(
     comptime InputType: anytype,
     comptime OutputType: anytype,
     x: *const Tensor(InputType),
-    y_scale: *const Tensor(OutputType),
+    y_scale: *const Tensor(f32),
     y_zero_point: ?*const Tensor(OutputType),
     axis: i32,
     block_size: i32,
@@ -60,7 +60,7 @@ pub inline fn quantizeLinear_lean(
     comptime InputType: anytype,
     comptime OutputType: anytype,
     x: *const Tensor(InputType),
-    y_scale: *const Tensor(OutputType),
+    y_scale: *const Tensor(f32),
     y_zero_point: ?*const Tensor(OutputType),
     axis: i32,
     block_size: i32,
@@ -77,25 +77,25 @@ pub inline fn quantizeLinear_lean(
     //      Blocked quantization: The scale’s shape is identical to the input’s shape, except for one dimension, in which blocking is performed. Given x shape (D0, ..., Di, ..., Dn), axis=i, and block size B: y_scale shape is (D0, ..., ceil(Di/B), ..., Dn).
 
     const N = x.size;
-    const rank = x.shape.len;
+    const rank = @as(i32, @intCast(x.shape.len));
     const is_axis = y_scale.data.len > 1;
     const is_block = block_size > 0;
 
     for (0..N) |i| {
         // Determine index into scale/zero_point:
         var idx: usize = 0;
-        const zp: i128 = 0;
+        var zp: i128 = 0;
         if (is_block) {
             const dim = if (axis < 0) rank + axis else axis;
-            const dim_size = x.shape[dim];
-            const block_count = (dim_size + block_size - 1) / block_size;
+            const dim_size = x.shape[@as(usize, @intCast(dim))];
+            const block_count = @divTrunc(@as(i32, @intCast(dim_size)) + block_size - 1, block_size);
             const stride = block_size;
-            const pos = (i / stride) % block_count;
-            idx = pos;
+            const pos = @rem(@divTrunc(@as(i32, @intCast(i)), stride), block_count);
+            idx = @as(usize, @intCast(pos));
             zp = @as(i128, y_zero_point.?.data[idx]);
         } else if (is_axis) {
             const dim = if (axis < 0) rank + axis else axis;
-            const dim_size = x.shape[dim];
+            const dim_size = x.shape[@as(usize, @intCast(dim))];
             const stride_per = x.size / dim_size;
             idx = (i / stride_per) % dim_size;
             zp = @as(i128, y_zero_point.?.data[idx]);
@@ -103,12 +103,15 @@ pub inline fn quantizeLinear_lean(
             idx = 0;
         }
 
-        const s: OutputType = y_scale.data[idx];
+        const s: OutputType = @as(OutputType, @intFromFloat(y_scale.data[idx]));
         const xf: InputType = @as(InputType, x.data[i]);
-        const scaled = xf / s;
-        const rounded = @round(scaled);
-        rounded = if (scaled - rounded == 0.5 and rounded % 2 == 1) (if (scaled > 0) rounded - 1 else rounded - 1);
-        const q = rounded + zp;
+        const scaled = xf / @as(f32, @floatFromInt(s));
+        var rounded = @round(scaled);
+        rounded = if (scaled - rounded == 0.5 and @rem(rounded, 2) == 1)
+            rounded - 1
+        else
+            rounded;
+        const q = @as(i128, @intFromFloat(rounded)) + zp;
 
         //saturate
         const clamped: i128 = switch (OutputType) {
@@ -122,6 +125,6 @@ pub inline fn quantizeLinear_lean(
             else => q,
         };
 
-        y.data[i] = @as(OutputType, clamped);
+        y.data[i] = @as(OutputType, @intCast(clamped));
     }
 }
