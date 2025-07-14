@@ -175,11 +175,14 @@ pub fn protoTensor2AnyTensor(proto: *TensorProto) !AnyTensor {
     }
     defer allocator.free(shape);
 
+    std.debug.print("\n       protoTensor2AnyTensor -> proto.? type: {any}", .{proto});
+
     if (proto.float_data) |float_data| {
         const tensor = try allocator.create(Tensor(f32));
         tensor.* = try Tensor(f32).fromArray(&allocator, float_data, shape);
         return AnyTensor{ .f32 = tensor };
     } else if (proto.int32_data) |int32_data| {
+        if (proto.data_type == .UINT8) return truncate_to_UINT8(i32, int32_data, shape);
         const tensor = try allocator.create(Tensor(i32));
         tensor.* = try Tensor(i32).fromArray(&allocator, int32_data, shape);
         return AnyTensor{ .i32 = tensor };
@@ -257,6 +260,23 @@ fn fromRawData(T: type, raw_data: []const u8, shape: []usize) !AnyTensor {
             error.TypeNotAvailable;
         },
     };
+}
+
+//sometimes the onnx saves the UINT8 arrays as int32, not even raw data, just int32. You have to notice it by checking if the destination type is U8 when parsing an int32, like above.
+fn truncate_to_UINT8(inputType: type, data: []inputType, shape: []usize) !AnyTensor {
+    const len = data.len;
+
+    // Allocate output buffer
+    const output: []u8 = try allocator.alloc(u8, len);
+
+    // Convert each element to u8 with truncation
+    for (data, output) |val, *out| {
+        out.* = @intCast(val); // or use @truncate(u8, val) if you're sure
+    }
+
+    const tensor = try allocator.create(Tensor(u8));
+    tensor.* = try Tensor(u8).fromArray(&allocator, output, shape);
+    return AnyTensor{ .u8 = tensor };
 }
 
 pub fn broadcastShapes(general_allocator: std.mem.Allocator, shape1: []usize, shape2: []usize) ![]usize {

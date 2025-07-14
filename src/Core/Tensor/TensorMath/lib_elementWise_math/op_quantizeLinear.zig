@@ -26,9 +26,9 @@ const Converter = zant.utils.type_converter;
 pub fn quantizeLinear(
     comptime InputType: anytype,
     comptime OutputType: anytype,
-    x: *const Tensor(InputType),
-    y_scale: *const Tensor(OutputType),
-    y_zero_point: ?*const Tensor(OutputType),
+    x: *const Tensor(InputType), //T1
+    y_scale: *const Tensor(InputType), //T2
+    y_zero_point: ?*const Tensor(OutputType), //T3
     axis: i32,
     block_size: i32,
     // output_dtype: i32, only used when parsing, see IR_zant/op_union_operators/op_quantizeLinear
@@ -59,15 +59,15 @@ pub fn quantizeLinear(
 pub inline fn quantizeLinear_lean(
     comptime InputType: anytype,
     comptime OutputType: anytype,
-    x: *const Tensor(InputType),
-    y_scale: *const Tensor(OutputType),
-    y_zero_point: ?*const Tensor(OutputType),
+    x: *Tensor(InputType), //T1
+    y_scale: *Tensor(InputType), //T2
+    y_zero_point: ?*Tensor(OutputType), //T3=T4
     axis: i32,
     block_size: i32,
     // output_dtype: i32, only used when parsing, see IR_zant/op_union_operators/op_quantizeLinear
     // precision: i32, only used when parsing, see IR_zant/op_union_operators/op_quantizeLinear
     // saturate: i32, only used when parsing, see IR_zant/op_union_operators/op_quantizeLinear
-    y: *Tensor(OutputType),
+    y: *Tensor(OutputType), //T4
 ) !void {
 
     // quantization formula: y = saturate((x / y_scale) + y_zero_point)
@@ -84,7 +84,7 @@ pub inline fn quantizeLinear_lean(
     for (0..N) |i| {
         // Determine index into scale/zero_point:
         var idx: usize = 0;
-        const zp: i128 = 0;
+        var zp: i128 = 0;
         if (is_block) {
             const dim = if (axis < 0) rank + axis else axis;
             const dim_size = x.shape[dim];
@@ -103,7 +103,7 @@ pub inline fn quantizeLinear_lean(
             idx = 0;
         }
 
-        const s: OutputType = y_scale.data[idx];
+        const s: InputType = y_scale.data[idx];
         const xf: InputType = @as(InputType, x.data[i]);
         const scaled = xf / s;
         const rounded = @round(scaled);

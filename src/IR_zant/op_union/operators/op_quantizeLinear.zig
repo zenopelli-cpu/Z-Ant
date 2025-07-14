@@ -175,7 +175,7 @@ pub const QuantizeLinear = struct {
                 y_zero_point_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                     "@constCast(&param_lib.tensor_",
                     try self.y_zero_point.?.getNameSanitized(),
-                    ".data)",
+                    ")",
                 });
             } else {
                 y_zero_point_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try self.y_zero_point.?.getNameSanitized() });
