@@ -110,10 +110,45 @@ pub const GraphZant = struct {
         }
     }
 
-    pub fn print_beafore_linearizzation(self: *GraphZant) void {
+    pub fn print_before_linearizzation(self: *GraphZant) void {
         std.debug.print("\n\nGraphZant: {s}\n", .{self.name orelse "<unnamed>"});
         for (self.nodes.items) |node| {
             node.nodeProto.print("   ");
         }
+    }
+
+    // Splits a linearized graph of NodeZant into two partitions:
+    // one that fits within `max_edge_memory` (bytes), and one for server execution.
+    pub fn splitNodesByMemory(nodes: std.ArrayList(*NodeZant), max_edge_memory: usize) !struct {
+        edge_nodes: std.ArrayList(*NodeZant),
+        server_nodes: std.ArrayList(*NodeZant),
+    } {
+        var edge_nodes = std.ArrayList(*NodeZant).init(allocator);
+        var server_nodes = std.ArrayList(*NodeZant).init(allocator);
+
+        var cumulative_memory: usize = 0;
+
+        var i: usize = 0;
+        while (i < nodes.items.len) : (i += 1) {
+            const node = nodes.items[i];
+            const node_mem = try node.op.get_memory_footprint();
+
+            if (cumulative_memory + node_mem <= max_edge_memory) {
+                try edge_nodes.append(node);
+                cumulative_memory += node_mem;
+            } else {
+                break;
+            }
+        }
+
+        // append the remaining nodes to the server
+        while (i < nodes.items.len) : (i += 1) {
+            try server_nodes.append(nodes.items[i]);
+        }
+
+        return .{
+            .edge_nodes = edge_nodes,
+            .server_nodes = server_nodes,
+        };
     }
 };

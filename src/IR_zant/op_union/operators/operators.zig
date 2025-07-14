@@ -5,6 +5,7 @@ pub const Ceil = @import("op_ceil.zig").Ceil;
 pub const Concat = @import("op_concat.zig").Concat;
 pub const Constant = @import("op_constant.zig").Constant;
 pub const Conv = @import("op_conv.zig").Conv;
+pub const DequantizeLinear = @import("op_dequantizeLinear.zig").DequantizeLinear;
 pub const Div = @import("op_div.zig").Div;
 pub const Elu = @import("op_elu.zig").Elu;
 pub const Flatten = @import("op_flatten.zig").Flatten;
