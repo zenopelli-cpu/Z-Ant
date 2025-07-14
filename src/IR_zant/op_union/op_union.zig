@@ -267,6 +267,22 @@ pub const Op_union = union(enum) {
         };
     }
 
+    pub fn get_memory_footprint(self: Op_union) !usize {
+        const input_tensors = try self.get_input_tensors();
+        const output_tensors = try self.get_output_tensors();
+
+        var node_mem: usize = 0;
+        for (input_tensors) |t| {
+            node_mem += t.getSize() * @sizeOf(t.ty);
+        }
+
+        for (output_tensors) |t| {
+            node_mem += t.getSize() * @sizeOf(t.ty);
+        }
+
+        return node_mem;
+    }
+
     pub fn write_op(self: Op_union, writer: std.fs.File.Writer) !void {
         switch (self) {
             .add => |ptr| try ptr.write_op(writer),
