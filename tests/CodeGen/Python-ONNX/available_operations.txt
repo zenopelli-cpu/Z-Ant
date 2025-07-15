@@ -5,7 +5,7 @@ AveragePool
 BatchNormalization  
 Ceil  
 Concat
-Constant
+# Constant
 Conv   
 DequantizeLinear
 Div  

@@ -175,8 +175,6 @@ pub fn protoTensor2AnyTensor(proto: *TensorProto) !AnyTensor {
     }
     defer allocator.free(shape);
 
-    std.debug.print("\n       protoTensor2AnyTensor -> proto.? type: {any}", .{proto});
-
     if (proto.float_data) |float_data| {
         const tensor = try allocator.create(Tensor(f32));
         tensor.* = try Tensor(f32).fromArray(&allocator, float_data, shape);

@@ -383,14 +383,14 @@ pub fn copyFile(src_path: []const u8, dst_path: []const u8) !void {
 }
 
 // Read the user_tests json file and return a list of test cases
-pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Parsed([]testWriter.UserTest(T)) {
+pub fn loadUserTests(comptime T_in: type, comptime T_out: type, user_tests_path: []const u8) !std.json.Parsed([]testWriter.UserTest(T_in, T_out)) {
     const user_tests_file = try std.fs.cwd().openFile(user_tests_path, .{});
     defer user_tests_file.close();
 
     const user_tests_content: []const u8 = try user_tests_file.readToEndAlloc(allocator, 1024 * 1024);
     defer allocator.free(user_tests_content);
 
-    const parsed_user_tests = try std.json.parseFromSlice([]testWriter.UserTest(T), allocator, user_tests_content, .{});
+    const parsed_user_tests = try std.json.parseFromSlice([]testWriter.UserTest(T_in, T_out), allocator, user_tests_content, .{});
 
     return parsed_user_tests;
 }

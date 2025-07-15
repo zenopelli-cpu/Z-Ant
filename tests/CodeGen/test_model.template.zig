@@ -20,7 +20,7 @@ test "Static Library - Random data Prediction Test" {
     }
 
     // Create input data array directly instead of ArrayList
-    var input_data = try allocator.alloc(model.data_type, input_data_size);
+    var input_data = try allocator.alloc(model.input_data_type, input_data_size);
     defer allocator.free(input_data);
 
     // Generate random data
@@ -31,10 +31,10 @@ test "Static Library - Random data Prediction Test" {
 
     // Fill with random values
     for (0..input_data_size) |i| {
-        input_data[i] = rand.float(model.data_type) * 100;
+        input_data[i] = rand.float(model.input_data_type) * 100;
     }
 
-    var result: [*]model.data_type = undefined;
+    var result: [*]model.output_data_type = undefined;
 
     // Create a logging function
     const LogFn = fn ([*c]u8) callconv(.C) void;
@@ -90,7 +90,7 @@ test "Static Library - Wrong Input Shape" {
     }
 
     // Init array with only ones with dynamic input_data_size
-    var input_data = try allocator.alloc(model.data_type, input_data_size);
+    var input_data = try allocator.alloc(model.input_data_type, input_data_size);
     defer allocator.free(input_data);
 
     i = 0;
@@ -114,9 +114,9 @@ test "Static Library - Empty Input" {
     std.debug.print("\ntest: Static Library - {s} Empty Input -------------------\n", .{model.name});
 
     // Test with empty input
-    var input_data = [_]model.data_type{};
+    var input_data = [_]model.input_data_type{};
     var input_shape = [_]u32{};
-    var result: [*]model.data_type = undefined;
+    var result: [*]model.output_data_type = undefined;
 
     model.lib.predict(
         @ptrCast(&input_data),
@@ -150,7 +150,7 @@ test "Static Library - Wrong Number of Dimensions" {
         input_data[i] = 1.0;
     }
 
-    var result: [*]model.data_type = undefined;
+    var result: [*]model.output_data_type = undefined;
 
     model.lib.predict(
         @ptrCast(&input_data),
@@ -188,7 +188,7 @@ test "Static Library - User data Prediction Test" {
         input_data_len *= dim;
     }
 
-    const parsed_user_tests = try utils.loadUserTests(model.data_type, model.user_tests_path);
+    const parsed_user_tests = try utils.loadUserTests(model.input_data_type, model.output_data_type, model.user_tests_path);
     defer parsed_user_tests.deinit();
 
     const user_tests = parsed_user_tests.value;
@@ -200,7 +200,7 @@ test "Static Library - User data Prediction Test" {
 
         try std.testing.expectEqual(user_test.input.len, input_data_len);
 
-        var result: [*]model.data_type = undefined;
+        var result: [*]model.output_data_type = undefined;
 
         // Run prediction
         model.lib.predict(
@@ -211,12 +211,12 @@ test "Static Library - User data Prediction Test" {
         );
 
         if (std.mem.eql(u8, user_test.type, "classify")) {
-            var max_value: model.data_type = 0;
+            var max_value: model.input_data_type = 0;
             // Find the class with maximum value
-            if (model.data_type == f32 or model.data_type == f64) {
-                max_value = std.math.floatMin(model.data_type);
+            if (model.output_data_type == f32 or model.output_data_type == f64) {
+                max_value = std.math.floatMin(model.output_data_type);
             } else {
-                max_value = std.math.minInt(model.data_type);
+                max_value = std.math.minInt(model.output_data_type);
             }
 
             var max_index: usize = 0;

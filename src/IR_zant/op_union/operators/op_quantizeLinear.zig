@@ -158,9 +158,9 @@ pub const QuantizeLinear = struct {
 
         if (self.y_scale.tc == TensorCategory.INITIALIZER) {
             y_scale_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                "@as(*const Tensor(f32), @constCast(&param_lib.tensor_",
+                "@constCast(&param_lib.tensor_",
                 try self.y_scale.getNameSanitized(),
-                "))",
+                ")",
             });
         } else {
             y_scale_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@as(*const Tensor(f32), &tensor_", try self.y_scale.getNameSanitized(), ")" });

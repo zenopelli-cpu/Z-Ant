@@ -120,9 +120,6 @@ pub const TensorZant = struct {
             tensor.?.* = try utils.protoTensor2AnyTensor(tp); //create the ptr to AnyTensor
             shape_usize = tensor.?.get_shape(); //saves the shape
             ty = utils.getAnyTensorType(tensor.?.*);
-            std.debug.print("\n     tensor.? type: {any}", .{tensor.?});
-            std.debug.print("\n     tensorProto type: {any}", .{tp.data_type});
-            std.debug.print("\n     QUANT LINEAR ZERO_POINT type: {any}", .{ty});
         } else if (value_info) |vi| {
             shape_i64 = if (utils.getTensorShapeFromValueInfo(vi)) |s| s else { //search for the shape
                 std.debug.print("\n ERROR: {s} value_info shape not found ", .{name});

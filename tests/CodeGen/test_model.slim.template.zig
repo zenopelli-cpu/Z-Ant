@@ -23,7 +23,7 @@ test "Static Library - Random data Prediction Test" {
     }
 
     // Create input data array directly instead of ArrayList
-    var input_data = try allocator.alloc(model.data_type, input_data_size);
+    var input_data = try allocator.alloc(model.input_data_type, input_data_size);
     defer allocator.free(input_data);
 
     // Generate random data
@@ -35,10 +35,10 @@ test "Static Library - Random data Prediction Test" {
     for (0..ITERATION_COUNT) |_| {
         // Fill with random values
         for (0..input_data_size) |i| {
-            input_data[i] = rand.float(model.data_type) * 100;
+            input_data[i] = rand.float(model.input_data_type) * 100;
         }
 
-        var result: [*]model.data_type = undefined;
+        var result: [*]model.output_data_type = undefined;
 
         // Run prediction
         model.lib.predict(
@@ -69,7 +69,7 @@ test "Static Library - Inputs Prediction Test" {
 
     std.debug.print("{s}", .{user_tests_path});
 
-    const parsed_user_tests = try utils.loadUserTests(model.data_type, user_tests_path);
+    const parsed_user_tests = try utils.loadUserTests(model.input_data_type, model.output_data_type, user_tests_path);
     defer parsed_user_tests.deinit();
 
     const user_tests = parsed_user_tests.value;
@@ -81,7 +81,7 @@ test "Static Library - Inputs Prediction Test" {
 
         try std.testing.expectEqual(user_test.input.len, input_data_len);
 
-        var result: [*]model.data_type = undefined;
+        var result: [*]model.output_data_type = undefined;
 
         // Run prediction
         model.lib.predict(
@@ -93,11 +93,29 @@ test "Static Library - Inputs Prediction Test" {
 
         for (0.., user_test.output) |i, expected_output| {
             const result_value = result[i];
-            const expected_output_value = expected_output;
-            const approx_eq = std.math.approxEqAbs(model.data_type, expected_output_value, result_value, 0.001);
+
+            const approx_eq = std.math.approxEqAbs(model.output_data_type, expected_output, result_value, marginFor(model.output_data_type));
             if (!approx_eq)
-                std.debug.print("Test failed for input: {d} expected: {} got: {}\n", .{ i, expected_output_value, result_value });
+                std.debug.print("Test failed for input: {d} expected: {} got: {}\n", .{ i, expected_output, result_value });
             try std.testing.expect(approx_eq);
         }
     }
+}
+
+/// Returns `true` if `T` is any integer type (signed or unsigned).
+fn isInteger(comptime T: type) bool {
+    return switch (@typeInfo(T)) {
+        .int => true,
+        else => false,
+    };
+}
+
+/// Returns `0` (of type `T`) for integer `T`, otherwise `0.001` (of type `T`).
+fn marginFor(comptime T: type) T {
+    return if (@typeInfo(T) == .int)
+        // integer types: zero tolerance
+        0
+    else
+        // floating‑point (or any other type): tiny tolerance
+        0.001;
 }

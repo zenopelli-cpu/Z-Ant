@@ -17,12 +17,12 @@ const TensorZant = IR_zant.TensorZant;
 
 const tensorZantMap: *std.StringHashMap(TensorZant) = &IR_zant.tensorZant_lib.tensorMap;
 
-pub fn UserTest(comptime T: type) type {
+pub fn UserTest(comptime T_in: type, comptime T_out: type) type {
     return struct {
         name: []u8,
         type: []u8,
-        input: []T,
-        output: []T,
+        input: []T_in,
+        output: []T_out,
         expected_class: usize,
     };
 }
@@ -53,7 +53,8 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
         \\pub const name = "{s}";
         \\pub const input_shape = [{d}]u32{any};
         \\pub const output_data_len = {d};
-        \\pub const data_type = {s};
+        \\pub const input_data_type = {s};
+        \\pub const output_data_type = {s};
         \\pub const enable_user_tests : bool = {any};
         \\pub const user_tests_path = "{s}";
     , .{
@@ -62,7 +63,8 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
         inputs[0].getShape().len,
         inputs[0].getShape(),
         output_size,
-        codegen_options.type,
+        inputs[0].ty.toString(),
+        outputs[0].ty.toString(),
         codegen_options.user_tests.len > 0,
         try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path}),
     });
@@ -114,17 +116,4 @@ fn copyFile(src_path: []const u8, dst_path: []const u8) !void {
         if (bytes_read == 0) break;
         _ = try dst_file.write(buf[0..bytes_read]);
     }
-}
-
-// Read the user_tests json file and return a list of test cases
-pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Parsed([]UserTest(T)) {
-    const user_tests_file = try std.fs.cwd().openFile(user_tests_path, .{});
-    defer user_tests_file.close();
-
-    const user_tests_content: []const u8 = try user_tests_file.readToEndAlloc(allocator, 1024 * 1024);
-    defer allocator.free(user_tests_content);
-
-    const parsed_user_tests = try std.json.parseFromSlice([]UserTest(T), allocator, user_tests_content, .{});
-
-    return parsed_user_tests;
 }
