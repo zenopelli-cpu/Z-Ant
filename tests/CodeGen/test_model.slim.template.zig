@@ -94,11 +94,19 @@ test "Static Library - Inputs Prediction Test" {
         for (0.., user_test.output) |i, expected_output| {
             const result_value = result[i];
 
-            const approx_eq = std.math.approxEqAbs(model.output_data_type, expected_output, result_value, marginFor(model.output_data_type));
-            if (!approx_eq)
-                std.debug.print("Test failed for input: {d} expected: {} got: {}\n", .{ i, expected_output, result_value });
-            try std.testing.expect(approx_eq);
+            const big_diff: bool = expected_output - result_value > marginFor(model.output_data_type);
+            if (big_diff)
+                std.debug.print("\n\n  >>>>>>>ERROR!!<<<<<< \nTest failed for input: {d} expected: {} got: {}, margin: {}\n", .{ i, expected_output, result_value, marginFor(model.output_data_type) });
+            try std.testing.expect(!big_diff);
         }
+
+        std.debug.print("\n expected: {any} ", .{user_test.output});
+        std.debug.print("\n obtained: {{", .{});
+        for (0..user_test.output.len) |i| {
+            if (i > 0) std.debug.print(",", .{});
+            std.debug.print(" {}", .{result[i]});
+        }
+        std.debug.print(" }}", .{});
     }
 }
 

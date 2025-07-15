@@ -84,7 +84,7 @@ pub inline fn quantizeLinear_lean(
     for (0..N) |i| {
         // Determine index into scale/zero_point:
         var idx: usize = 0;
-        var zp: i128 = 0;
+
         if (is_block) {
             const dim = if (axis < 0) rank + axis else axis;
             const dim_size = x.shape[@as(usize, @intCast(dim))];
@@ -92,29 +92,26 @@ pub inline fn quantizeLinear_lean(
             const stride = block_size;
             const pos = @rem(@divTrunc(@as(i32, @intCast(i)), stride), block_count);
             idx = @as(usize, @intCast(pos));
-            zp = @as(i128, y_zero_point.?.data[idx]);
         } else if (is_axis) {
             const dim = if (axis < 0) rank + axis else axis;
             const dim_size = x.shape[@as(usize, @intCast(dim))];
             const stride_per = x.size / dim_size;
             idx = (i / stride_per) % dim_size;
-            zp = @as(i128, y_zero_point.?.data[idx]);
         } else {
             idx = 0;
         }
 
-        const s: OutputType = @as(OutputType, @intFromFloat(y_scale.data[idx]));
-        const xf: InputType = @as(InputType, x.data[i]);
-        const scaled = xf / @as(f32, @floatFromInt(s));
-        var rounded = @round(scaled);
+        const zp: OutputType = if (y_zero_point) |zp| zp.data[idx] else 0;
+        const scaled = x.data[i] / y_scale.data[idx];
+        var rounded = @round(scaled); // oss: @TypeOf(rounded) == TypeOf(scaled)
         rounded = if (scaled - rounded == 0.5 and @rem(rounded, 2) == 1)
             rounded - 1
         else
             rounded;
-        const q = @as(i128, @intFromFloat(rounded)) + zp;
+        const q = @as(i32, @intFromFloat(rounded)) + zp;
 
         //saturate
-        const clamped: i128 = switch (OutputType) {
+        const clamped: i32 = switch (OutputType) {
             u16 => std.math.clamp(q, 0, 65535),
             i16 => std.math.clamp(q, -32768, 32767),
             u8 => std.math.clamp(q, 0, 255),
