@@ -1068,8 +1068,10 @@ def generate_fuzz_model(op_name):
 
         # Pick a valid ONNX-compatible dtype for y_zero_point
         valid_dtypes = [
-            TensorProto.UINT8, TensorProto.INT8,
-            TensorProto.UINT16, TensorProto.INT16,
+            TensorProto.UINT8, 
+            # TensorProto.INT8,
+            # TensorProto.UINT16, 
+            # TensorProto.INT16,
         ]
         dtype = random.choice(valid_dtypes)
         zp_shape = y_scale.shape

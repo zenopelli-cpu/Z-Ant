@@ -95,18 +95,20 @@ test "Static Library - Inputs Prediction Test" {
             const result_value = result[i];
 
             const big_diff: bool = expected_output - result_value > marginFor(model.output_data_type);
-            if (big_diff)
+            if (big_diff) {
                 std.debug.print("\n\n  >>>>>>>ERROR!!<<<<<< \nTest failed for input: {d} expected: {} got: {}, margin: {}\n", .{ i, expected_output, result_value, marginFor(model.output_data_type) });
+
+                std.debug.print("\n expected: {any} ", .{user_test.output});
+                std.debug.print("\n obtained: {{", .{});
+                for (0..user_test.output.len) |j| {
+                    if (i > 0) std.debug.print(",", .{});
+                    std.debug.print(" {}", .{result[j]});
+                }
+                std.debug.print(" }}", .{});
+            }
+
             try std.testing.expect(!big_diff);
         }
-
-        std.debug.print("\n expected: {any} ", .{user_test.output});
-        std.debug.print("\n obtained: {{", .{});
-        for (0..user_test.output.len) |i| {
-            if (i > 0) std.debug.print(",", .{});
-            std.debug.print(" {}", .{result[i]});
-        }
-        std.debug.print(" }}", .{});
     }
 }
 
