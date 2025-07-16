@@ -109,6 +109,14 @@ test "Static Library - Inputs Prediction Test" {
 
             try std.testing.expect(!big_diff);
         }
+
+        // std.debug.print("\n expected: {any} ", .{user_test.output});
+        // std.debug.print("\n obtained: {{", .{});
+        // for (0..user_test.output.len) |j| {
+        //     if (j > 0) std.debug.print(",", .{});
+        //     std.debug.print(" {}", .{result[j]});
+        // }
+        // std.debug.print(" }}", .{});
     }
 }
 
