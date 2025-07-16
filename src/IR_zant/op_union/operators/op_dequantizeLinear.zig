@@ -20,11 +20,11 @@ const tensorMath = zant.core.tensor.math_standard;
 
 const utils = IR_zant.utils;
 
-// https://onnx.ai/onnx/operators/onnx__QuantizeLinear.html?utm_source=chatgpt.com
+// https://onnx.ai/onnx/operators/onnx__DequantizeLinear.html
 // INPUTS:
 //      - x (heterogeneous) - T1:  input tensor.
 //      - x_scale (heterogeneous) - T2:  Scale for input x.
-//      - x_zero_point (optional, heterogeneous) - T3:  Zero point for input x.
+//      - x_zero_point (optional, heterogeneous) - T1:  Zero point for input x.
 // OUTPUTS:
 //      -  y (heterogeneous) - T3:  N-D full precision output tensor. It has same shape as input x.
 // ATTRIBUTES:
@@ -147,9 +147,9 @@ pub const DequantizeLinear = struct {
 
         if (self.x_scale.tc == TensorCategory.INITIALIZER) {
             x_scale_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                "@as(*const Tensor(f32), @constCast(&param_lib.tensor_",
+                "@constCast(&param_lib.tensor_",
                 try self.x_scale.getNameSanitized(),
-                "))",
+                ")",
             });
         } else {
             x_scale_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@as(*const Tensor(f32), &tensor_", try self.x_scale.getNameSanitized(), ")" });
@@ -161,20 +161,12 @@ pub const DequantizeLinear = struct {
 
         if (self.x_zero_point.?.tc == TensorCategory.INITIALIZER) {
             x_zero_point_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                "@as(?*const Tensor(",
-                self.y.ty.toString(),
-                "), @constCast(&param_lib.tensor_",
-                try self.x_zero_point.?.getNameSanitized(),
-                "))",
-            });
-        } else {
-            x_zero_point_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                "@as(?*const Tensor(",
-                self.y.ty.toString(),
-                "), &tensor_",
+                "@constCast(&param_lib.tensor_",
                 try self.x_zero_point.?.getNameSanitized(),
                 ")",
             });
+        } else {
+            x_zero_point_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try self.x_zero_point.?.getNameSanitized() });
         }
 
         // Create output tensor_string tensor string

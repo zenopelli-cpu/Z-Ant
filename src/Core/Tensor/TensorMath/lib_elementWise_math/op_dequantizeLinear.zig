@@ -13,15 +13,23 @@ const Any = Uops.Any;
 const ArchitectureError = error_handler.ArchitectureError;
 const Converter = zant.utils.type_converter;
 
-pub fn dequantizeLinear(comptime InputType: anytype, comptime OutputType: anytype, x: *const Tensor(InputType), y_scale: *const Tensor(OutputType), y_zero_point: ?*const Tensor(InputType), axis: i32, block_size: i32) !Tensor(OutputType) {
+pub fn dequantizeLinear(
+    comptime InputType: anytype,
+    comptime OutputType: anytype,
+    x: *const Tensor(InputType), //T1
+    x_scale: *const Tensor(OutputType), //T2
+    x_zero_point: ?*const Tensor(InputType), //T1
+    axis: i32,
+    block_size: i32,
+) !Tensor(OutputType) {
     var out = try Tensor(OutputType).fromShape(x.allocator, x.shape);
 
     try dequantizeLinear_lean(
         InputType,
         OutputType,
         x,
-        y_scale,
-        y_zero_point,
+        x_scale,
+        x_zero_point,
         axis,
         block_size,
         &out,
@@ -32,23 +40,23 @@ pub fn dequantizeLinear(comptime InputType: anytype, comptime OutputType: anytyp
 pub inline fn dequantizeLinear_lean(
     InputType: anytype,
     comptime OutputType: anytype,
-    x: *const Tensor(InputType),
-    y_scale: *const Tensor(OutputType),
-    y_zero_point: ?*const Tensor(InputType),
+    x: *const Tensor(InputType), //T1
+    x_scale: *const Tensor(OutputType), //T2=T3
+    x_zero_point: ?*const Tensor(InputType), //T1
     axis: i32,
     block_size: i32,
-    y: *Tensor(OutputType),
+    y: *Tensor(OutputType), //T3
 ) !void {
     const N = x.size;
     const rank = x.shape.len;
-    const is_axis = y_scale.data.len > 1;
+    const is_axis = x_scale.data.len > 1;
     const is_block = block_size > 0;
 
     for (0..N) |i| {
         var idx: usize = 0;
         var zp_val: i128 = 0;
 
-        if (y_zero_point) |zp| {
+        if (x_zero_point) |zp| {
             if (is_block) {
                 const dim = if (axis < 0) rank + axis else axis;
                 const dim_size = x.shape[dim];
@@ -73,10 +81,9 @@ pub inline fn dequantizeLinear_lean(
             idx = 0;
         }
 
-        const scale: OutputType = y_scale.data[idx];
+        const scale: OutputType = x_scale.data[idx];
         const xval: InputType = x.data[i];
         const deq = @as(OutputType, @floatFromInt(@as(i128, xval) - zp_val)) * scale;
-
         y.data[i] = deq;
     }
 }
