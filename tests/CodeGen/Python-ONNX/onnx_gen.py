@@ -1340,7 +1340,7 @@ def main():
     parser.add_argument("--metadata-file", type=str, default="datasets/oneOpModels/results.json",
                         help="File to save metadata and execution data.")
     parser.add_argument("--op", type=str, default="all",
-                        help="File to save metadata and execution data.")
+                        help="Name of the operation you want to generate and test")
     
     args = parser.parse_args()
     
@@ -1362,6 +1362,7 @@ def main():
     
     for op in supported_ops:
         for i in range(args.iterations):
+
             print("Saving model to " + output_dir) 
             filename = f"{output_dir}{op}_{i}.onnx"
             try: 
