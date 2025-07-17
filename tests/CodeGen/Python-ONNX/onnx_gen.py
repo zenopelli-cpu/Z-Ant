@@ -8,6 +8,7 @@ from onnx import StringStringEntryProto
 import onnxruntime as ort  
 import json  
 import os  
+import pprint
 
 
 def random_shape(rank, min_dim=1, max_dim=10):
@@ -791,55 +792,74 @@ def generate_fuzz_model(op_name):
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "MaxPool":
-        # Create a simple MaxPool test with predictable dimensions and parameters
-        # Fixed input dimensions
-        N = 1
-        C = 1  # Single channel for simplicity
-        H = 4  # Small height
-        W = 4  # Small width
+        import random
+        import numpy as np
+        from onnx import helper, TensorProto
+
+        # Random values for channels and spatial dimensions
+        N = 1  # Keep batch size small for simplicity
+        C = 1 # random.randint(4, 15)
+        H = 4 # random.randint(4, 15)
+        W = 4 #random.randint(4, 15)
+    
         input_shape = [N, C, H, W]
-        
+
         # Create a simple input pattern with predictable values
         data = np.zeros(input_shape, dtype=np.float32)
-        for i in range(H):
-            for j in range(W):
-                data[0, 0, i, j] = float(i * W + j + 1)  # Simple increasing values
         
+        for c in range(C):
+            for i in range(H):
+                for j in range(W):
+                    # Fill the first batch, first channel slice with increasing values
+                    data[0, c, i, j] = float(c * H + i * W + j + 1)
+        
+
         init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, input_shape, data.flatten().tolist())
         initializers.append(init_tensor)
-        
-        # Use simple 2x2 kernel
+
+        # Kernel and stride parameters (fixed)
         kernel_shape = [2, 2]
-        
-        # Use stride of 1
         strides = [1, 1]
-        
-        # No padding
-        pads = [0, 0, 0, 0]  # [pad_top, pad_left, pad_bottom, pad_right]
-        
-        # Calculate output dimensions
+        pads = [0, 0, 0, 0]  # [top, left, bottom, right]
+
+        # Calculate output dimensions (H_out and W_out)
         H_out = ((H - kernel_shape[0]) // strides[0]) + 1
         W_out = ((W - kernel_shape[1]) // strides[1]) + 1
-        
+
+        # Output shape depends on input dims 
         output_shape = [N, C, H_out, W_out]
+    
+
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, output_shape)
-        
-        node = helper.make_node(op_name, inputs=[input_names[0]], outputs=[output_names[0]],
-                              kernel_shape=kernel_shape, 
-                              strides=strides, 
-                              pads=pads,
-                              auto_pad="NOTSET",
-                              name=f"{op_name}node_k{kernel_shape}_s{strides}_p{pads}")
-        
+
+        # Randomly choose auto_pad
+        auto_pad_options = ["NOTSET", "SAME_UPPER", "SAME_LOWER", "VALID"]
+        auto_pad = random.choice(auto_pad_options)
+
+        # creating the node
+        node = helper.make_node(
+            op_name,
+            inputs=[input_names[0]],
+            outputs=[output_names[0]],
+            kernel_shape=list(map(int, kernel_shape)),
+            # strides=list(map(int, strides)),
+            pads=list(map(int, pads)),
+            auto_pad=auto_pad,
+            name=f"{op_name}node_k{kernel_shape}_s{strides}_p{pads}"
+        )
+
+        print(node)
+
         input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, input_shape)
         metadata = {
-            "input_shapes": [input_shape], 
+            "input_shapes": [input_shape],
             "output_shapes": [output_shape],
-            "kernel_shape": kernel_shape, 
-            "strides": strides, 
+            "kernel_shape": kernel_shape,
+            "strides": strides,
             "pads": pads,
-            "auto_pad": "NOTSET"
+            "auto_pad": auto_pad,
         }
+
         return [input_info], output_info, [node], initializers, metadata
     
     elif op_name == "AveragePool":
@@ -1428,6 +1448,9 @@ def main():
                     "outputs": data["outputs"],
                     "metadata": metadata
                 }
+
+                print( "model info:")
+                pprint.pprint(model_info)
                 
                 test_file_name = f"{output_dir}{op}_{i}_user_tests.json"
                 print(f"Saving user tests to {test_file_name}")
@@ -1455,7 +1478,8 @@ def main():
                 all_models.append(model_info)
                 print(f"Successfully ran model for {op} (ID: {i})")
             except Exception as e:
-                print(f"Error running model for {op} (ID: {i}): {e}")
+                print(f"Error running model for {op} (ID: {i}): {e} ")
+
     
     with open(args.metadata_file, 'w') as f:
         json.dump(all_models, f, indent=2)

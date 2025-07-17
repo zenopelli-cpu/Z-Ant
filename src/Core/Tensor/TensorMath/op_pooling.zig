@@ -624,12 +624,16 @@ pub fn lean_onnx_maxpool(
     pads: []const usize,
     auto_pad: AutoPadType,
 ) !void {
-    const batch_size = input.shape[0];
-    const channels = input.shape[1];
-    const input_height = input.shape[2];
-    const input_width = input.shape[3];
-    const out_height = output.shape[2];
-    const out_width = output.shape[3];
+    const input_rank = input.shape.len;
+    const output_rank = input.shape.len;
+    if (input_rank != output_rank) return error.InputOutputDifferentRank;
+
+    const batch_size = if (input_rank == 4) input.shape[0] else 1;
+    const channels = input.shape[input_rank - 3];
+    const input_height = input.shape[input_rank - 2];
+    const input_width = input.shape[input_rank - 1];
+    const out_height = output.shape[output_rank - 2];
+    const out_width = output.shape[output_rank - 1];
 
     // Calculate padding based on auto_pad mode
     var pad_top: usize = 0;
