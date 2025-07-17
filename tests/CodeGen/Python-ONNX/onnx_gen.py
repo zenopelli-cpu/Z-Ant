@@ -1049,33 +1049,65 @@ def generate_fuzz_model(op_name):
         return [input_info], output_info, [node], initializers, metadata
     
     elif op_name == "QuantizeLinear":
-        mode = "per_tensor"
-
         # Randomly pick input shape
-        shape = [random.randint(1, 4) for _ in range(3)]  # e.g., 3D tensor
+        shape = [random.randint(1, 4) for _ in range(3)] # e.g., 3D tensor
         data = np.random.randn(*shape).astype(np.float32)
+        
+        # Randomly choose quantization mode
+        mode_choice = random.choice(["per_tensor", 
+                                     "per_axis", 
+                                    #  "per_block"
+                                     ])
 
-        # y_scale: either scalar (per-tensor) or 1D (per-axis)
-        if random.choice([True, False]):
-            # Per-tensor
+        if mode_choice == "per_tensor":
+            # Per-tensor quantization
+            mode = "per_tensor"
             y_scale = np.array([round(random.uniform(0.01, 1.0), 4)], dtype=np.float32)
-            axis = None
-        else:
-            # Per-axis, pick axis 1 for example
-            axis = 1
+            axis = 0
+            bl_size = 0
+            
+        elif mode_choice == "per_axis":
+            # Per-axis quantization
+            mode = "per_axis"
+            axis = random.randint(0, len(shape) - 1)  # Pick a random axis
             length = shape[axis]
             y_scale = np.random.rand(length).astype(np.float32) * 0.5 + 0.1
-
+            bl_size = 0
+            
+        else:  # per_block
+            # Per-block quantization
+            mode = "per_block"
+            axis = random.randint(0, len(shape) - 1)  # Pick a random axis
+            axis_size = shape[axis]
+            
+            # Block size should be a divisor of the axis size or smaller
+            # For simplicity, we'll use powers of 2 that are <= axis_size
+            possible_block_sizes = [2**i for i in range(1, int(np.log2(axis_size)) + 1) if 2**i <= axis_size]
+            if not possible_block_sizes:
+                possible_block_sizes = [1]  # Fallback to block size 1
+            
+            bl_size = random.choice(possible_block_sizes)
+            
+            # Calculate the number of blocks
+            num_blocks = (axis_size + bl_size - 1) // bl_size  # Ceiling division
+            
+            # Scale shape: broadcast-compatible with input, with axis dimension = num_blocks
+            scale_shape = [1] * len(shape)
+            scale_shape[axis] = num_blocks
+            y_scale = np.random.rand(*scale_shape).astype(np.float32) * 0.5 + 0.1
+        
         # Pick a valid ONNX-compatible dtype for y_zero_point
         valid_dtypes = [
-            TensorProto.UINT8, 
+            TensorProto.UINT8,
             # TensorProto.INT8,
-            # TensorProto.UINT16, 
+            # TensorProto.UINT16,
             # TensorProto.INT16,
         ]
         dtype = random.choice(valid_dtypes)
+        
+        # Get zero point shape (same as scale shape)
         zp_shape = y_scale.shape
-
+        
         # Map ONNX dtype to numpy dtype
         dtype_np = {
             TensorProto.UINT8: np.uint8,
@@ -1083,50 +1115,66 @@ def generate_fuzz_model(op_name):
             TensorProto.UINT16: np.uint16,
             TensorProto.INT16: np.int16,
         }[dtype]
-
+        
         # Generate y_zero_point with matching shape and dtype
         info = np.iinfo(dtype_np)
         scale_zp = np.random.randint(info.min, info.max + 1, size=zp_shape, dtype=dtype_np)
-
+        
         # Assign names
         scale_name = input_names[1]
         zp_name = input_names[2]
-
+        
         # Add scale and zero point initializers
         initializers.append(helper.make_tensor(
             scale_name, TensorProto.FLOAT, list(zp_shape), y_scale.flatten().tolist()))
         initializers.append(helper.make_tensor(
             zp_name, dtype, list(zp_shape), scale_zp.flatten().tolist()))
-
+        
         # Prepare main input tensor (x)
         init_tensor = helper.make_tensor(
             input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
         initializers.append(init_tensor)
-
+        
         # Create output metadata
         output_info = helper.make_tensor_value_info(output_names[0], dtype, shape)
-
+        
         # Create the QuantizeLinear node
         node_kwargs = {
             "inputs": [input_names[0], scale_name, zp_name],
             "outputs": [output_names[0]],
-            "name": f"QuantizeLinear_node_dtype{dtype}_axis{axis if axis is not None else 'None'}"
+            "name": f"QuantizeLinear_node_dtype{dtype}_mode{mode}_axis{axis if axis is not None else 'None'}"
         }
-        if axis is not None:
-            node_kwargs["axis"] = axis
-        node = helper.make_node("QuantizeLinear", **node_kwargs)
+        
+        # Add attributes based on mode
+        node_kwargs["axis"] = axis
+        node_kwargs["block_size"] = bl_size
+        
+        # node = helper.make_node("QuantizeLinear", **node_kwargs)
 
+
+        # node = helper.make_node(op_name, inputs=[input_names[0], input_names[1]], outputs=[output_names[0]],
+        #                         kernel_shape=kernel_shape, strides=strides, dilations=dilations,
+        #                         pads=[pad_h, pad_w, pad_h, pad_w],
+        #                         name=f"{op_name}node_k{kernel_shape}_s{strides}_d{dilations}_p{[pad_h, pad_w]}")
+
+        node = helper.make_node(op_name, inputs=[input_names[0], scale_name, zp_name], outputs=[output_names[0]],
+                                axis=axis, 
+                                # block_size = bl_size,  // dky but it is not supported, also if the standard onnx doc allows it
+                                name=f"{op_name}node_ax{axis}_bl{bl_size}")
+        
         # Dummy input_info, useful for the rest of the pipeline
         input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
-
+        
         # Metadata for codegen
         metadata = {
             "input_shapes": [shape],
             "scale_shape": list(zp_shape),
             "dtype": dtype,
-            "axis": axis
+            "axis": axis,
+            "block_size": bl_size,
+            "mode": mode
         }
-
+        
         return [input_info], output_info, [node], initializers, metadata
 
     
