@@ -48,10 +48,11 @@ Modify `onnx_gen.py` to support generating ONNX files for the new operation:
 - **Note:** Align your changes with how **Gemm**, **Div**, or **Conv** are handled.
 
 # Second part
-Now that we have correctly implemented the operation, we have to integrate it with code generation.
+Now that we have correctly implemented the operation, we have to integrate it with code generation.  
+Start by reading [op_template](op_template.md) guide.
 
 ### File location
-Create a new file in `src/IR_graph/op_union/operators`
+Create a new file in `src/IR_zant/op_union/operators`
 
 ## Step 1: create the struct & initialize it
 - Define a struct for the operation in the new file
