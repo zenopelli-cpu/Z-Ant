@@ -9,6 +9,7 @@ import onnxruntime as ort
 import json  
 import os  
 import pprint
+import traceback
 
 
 def random_shape(rank, min_dim=1, max_dim=10):
@@ -792,9 +793,6 @@ def generate_fuzz_model(op_name):
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "MaxPool":
-        import random
-        import numpy as np
-        from onnx import helper, TensorProto
 
         # Random values for channels and spatial dimensions
         N = 1  # Keep batch size small for simplicity
@@ -1070,8 +1068,12 @@ def generate_fuzz_model(op_name):
     
     elif op_name == "QuantizeLinear":
         # Randomly pick input shape
-        shape = [random.randint(1, 4) for _ in range(3)] # e.g., 3D tensor
-        data = np.random.randn(*shape).astype(np.float32)
+        N = 1
+        C = random.randint(1,4)
+        H = random.randint(10,50)
+        W = random.randint(10,50)
+        shape = [N, C, H, W]
+        data = np.random.randn(*shape).astype(np.float32) # Scale data to have values outside typical clip range
         
         # Randomly choose quantization mode
         mode_choice = random.choice(["per_tensor", 
@@ -1151,10 +1153,9 @@ def generate_fuzz_model(op_name):
             zp_name, dtype, list(zp_shape), scale_zp.flatten().tolist()))
         
         # Prepare main input tensor (x)
-        init_tensor = helper.make_tensor(
-            input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
+        init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
         initializers.append(init_tensor)
-        
+         
         # Create output metadata
         output_info = helper.make_tensor_value_info(output_names[0], dtype, shape)
         
@@ -1201,7 +1202,7 @@ def generate_fuzz_model(op_name):
     elif op_name == "DequantizeLinear":
         mode = "per_tensor"
         # Randomly pick input shape
-        shape = [random.randint(1, 4) for _ in range(3)]  # 3D tensor
+        shape = [ random.randint(1, 4) for _ in range(3)]  # 3D tensor
 
         # Select quantized input type
         dtype = random.choice([
@@ -1438,6 +1439,7 @@ def main():
                 print(f"Successfully generated model for {op} (ID: {i})")
             except Exception as e:
                 print(f"Error generating model for {op} (ID: {i}): {e}")
+                traceback.print_exc()
 
             try:
                 data = run_model(filename)
@@ -1449,8 +1451,9 @@ def main():
                     "metadata": metadata
                 }
 
-                print( "model info:")
-                pprint.pprint(model_info)
+                # FOR DEBUG
+                # print( "model info:")
+                # pprint.pprint(model_info)
                 
                 test_file_name = f"{output_dir}{op}_{i}_user_tests.json"
                 print(f"Saving user tests to {test_file_name}")
