@@ -76,135 +76,147 @@ pub fn sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
 }
 
 pub inline fn lean_sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType), outputTensor: *Tensor(outputType)) !void {
-    // Simple case: same size tensors
-    if (t1.size == t2.size) {
-        // Use unrolled loop for small sizes to avoid SIMD overhead
-        if (t1.size <= 8) {
-            comptime var unroll = 0;
-            inline while (unroll < 8) : (unroll += 1) {
-                if (unroll < t1.size) {
-                    outputTensor.data[unroll] = @as(outputType, t1.data[unroll] - t2.data[unroll]);
-                }
-            }
-            return;
-        }
-
-        // Use SIMD for larger sizes
-        const vector_len = std.simd.suggestVectorLength(inputType) orelse 4;
-        const Vec = @Vector(vector_len, inputType);
-
-        // Process 4 vectors at once to exploit instruction-level parallelism
-        const chunk_size = vector_len * 4;
-        const chunks = t1.size / chunk_size;
-        var i: usize = 0;
-
-        while (i < chunks * chunk_size) : (i += chunk_size) {
-            inline for (0..4) |offset| {
-                const v1: Vec = t1.data[i + offset * vector_len ..][0..vector_len].*;
-                const v2: Vec = t2.data[i + offset * vector_len ..][0..vector_len].*;
-                const result = v1 - v2;
-                comptime var j = 0;
-                inline while (j < vector_len) : (j += 1) {
-                    outputTensor.data[i + offset * vector_len + j] = @as(outputType, result[j]);
-                }
-            }
-        }
-
-        // Handle remaining elements with simple loop
-        while (i < t1.size) : (i += 1) {
-            outputTensor.data[i] = @as(outputType, t1.data[i] - t2.data[i]);
-        }
-        return;
-    }
-
-    // Broadcasting case - use stack arrays for small ranks to avoid allocations
     const rank1 = t1.shape.len;
     const rank2 = t2.shape.len;
     const max_rank = @max(rank1, rank2);
 
-    // Use stack arrays for common tensor ranks (up to 4D)
-    var stack_shape1: [4]usize = [_]usize{1} ** 4;
-    var stack_shape2: [4]usize = [_]usize{1} ** 4;
-    var stack_strides1: [4]usize = undefined;
-    var stack_strides2: [4]usize = undefined;
-    var stack_out_strides: [4]usize = undefined;
-    var stack_indices: [4]usize = [_]usize{0} ** 4;
+    // Fast path: identical shapes, no broadcasting needed
+    if (rank1 == rank2 and std.mem.eql(usize, t1.shape, t2.shape)) {
+        // Use SIMD for larger sizes when possible
+        const vector_len: usize = std.simd.suggestVectorLength(inputType) orelse 4;
+        const Vec = @Vector(vector_len, inputType);
 
-    const shape1 = if (max_rank <= 4) stack_shape1[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
-    const shape2 = if (max_rank <= 4) stack_shape2[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
-    const strides1 = if (max_rank <= 4) stack_strides1[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
-    const strides2 = if (max_rank <= 4) stack_strides2[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
-    const out_strides = if (max_rank <= 4) stack_out_strides[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
-    const indices = if (max_rank <= 4) stack_indices[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+        if (t1.size >= vector_len) {
+            // Process data in SIMD-sized chunks
+            const aligned_len = (t1.size / vector_len) * vector_len;
+            var i: usize = 0;
 
-    // Only defer if we actually allocated
-    if (max_rank > 4) {
-        defer pkg_allocator.free(shape1);
-        defer pkg_allocator.free(shape2);
-        defer pkg_allocator.free(strides1);
-        defer pkg_allocator.free(strides2);
-        defer pkg_allocator.free(out_strides);
-        defer pkg_allocator.free(indices);
+            // Main SIMD loop
+            while (i < aligned_len) : (i += vector_len) {
+                const v1: Vec = t1.data[i..][0..vector_len].*;
+                const v2: Vec = t2.data[i..][0..vector_len].*;
+                const result = v1 - v2;
+
+                // Store results
+                for (0..vector_len) |j| {
+                    outputTensor.data[i + j] = @as(outputType, result[j]);
+                }
+            }
+
+            // Handle remaining elements
+            while (i < t1.size) : (i += 1) {
+                outputTensor.data[i] = @as(outputType, t1.data[i] - t2.data[i]);
+            }
+            return;
+        }
     }
 
-    // Copy original shapes from right to left
-    var i: usize = 0;
-    while (i < rank1) : (i += 1) {
+    // Broadcasting path
+    var stack_shape1: [8]usize = [_]usize{1} ** 8;
+    var stack_shape2: [8]usize = [_]usize{1} ** 8;
+    var stack_strides1: [8]usize = undefined;
+    var stack_strides2: [8]usize = undefined;
+    var stack_out_strides: [8]usize = undefined;
+
+    // Use stack for common ranks, heap for larger
+    const shape1 = if (max_rank <= 8) stack_shape1[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    const shape2 = if (max_rank <= 8) stack_shape2[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    const strides1 = if (max_rank <= 8) stack_strides1[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    const strides2 = if (max_rank <= 8) stack_strides2[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    const out_strides = if (max_rank <= 8) stack_out_strides[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+
+    if (max_rank > 8) {
+        defer {
+            pkg_allocator.free(shape1);
+            pkg_allocator.free(shape2);
+            pkg_allocator.free(strides1);
+            pkg_allocator.free(strides2);
+            pkg_allocator.free(out_strides);
+        }
+    }
+
+    // Prepare shapes for broadcasting
+    @memset(shape1, 1);
+    @memset(shape2, 1);
+
+    // Copy shapes from right to left
+    for (0..rank1) |i| {
         shape1[max_rank - rank1 + i] = t1.shape[i];
     }
-    i = 0;
-    while (i < rank2) : (i += 1) {
+    for (0..rank2) |i| {
         shape2[max_rank - rank2 + i] = t2.shape[i];
     }
 
-    // Calculate strides from right to left
+    // Calculate strides for efficient access
     var stride: usize = 1;
-    i = max_rank;
+    var i = max_rank;
     while (i > 0) {
         i -= 1;
         out_strides[i] = stride;
         strides1[i] = if (shape1[i] > 1) stride else 0;
         strides2[i] = if (shape2[i] > 1) stride else 0;
-        stride *= outputTensor.shape[i];
+        const offset = max_rank -| i; // saturating subtraction
+        const shape_idx = if (offset < outputTensor.shape.len)
+            outputTensor.shape.len -| offset -| 1
+        else
+            0;
+        stride *= if (shape_idx < outputTensor.shape.len) outputTensor.shape[shape_idx] else 1;
     }
 
-    // Perform subtraction with broadcasting
-    @memset(indices, 0);
+    // Process elements with broadcasting
+    const vector_len: usize = std.simd.suggestVectorLength(inputType) orelse 4;
+    const Vec = @Vector(vector_len, inputType);
+    var contiguous_run: usize = 0;
+    var last_idx1: usize = 0;
+    var last_idx2: usize = 0;
 
     i = 0;
     while (i < outputTensor.size) : (i += 1) {
-        // Calculate indices for current position
-        var temp = i;
-        for (0..max_rank) |dim| {
-            const idx = max_rank - 1 - dim;
-            indices[idx] = temp / out_strides[idx];
-            temp = temp % out_strides[idx];
-        }
-
-        // Calculate input indices considering broadcasting
+        // Calculate input indices for broadcasting
         var idx1: usize = 0;
         var idx2: usize = 0;
+        var temp: usize = i;
 
-        // For same shape tensors, use the same index calculation
-        if (std.mem.eql(usize, shape1, shape2)) {
-            idx1 = i;
-            idx2 = i;
-        } else {
-            // For broadcasting case
-            for (0..max_rank) |dim| {
-                const pos = indices[dim];
-                // For t1: if dimension is 1, don't increment index (broadcasting)
+        // Calculate indices for both tensors
+        var dim: usize = 0;
+        while (dim < max_rank) : (dim += 1) {
+            const current_stride = out_strides[dim];
+            if (current_stride > 0) {
+                const pos = temp / current_stride;
+                temp = temp - (pos * current_stride);
+
                 if (shape1[dim] > 1) {
                     idx1 += pos * strides1[dim];
                 }
-                // For t2: if dimension is 1, don't increment index (broadcasting)
                 if (shape2[dim] > 1) {
-                    const t2_pos = pos % shape2[dim];
+                    const t2_pos = if (shape2[dim] > 1) pos % shape2[dim] else pos;
                     idx2 += t2_pos * strides2[dim];
                 }
             }
         }
 
-        outputTensor.data[i] = t1.data[idx1] - t2.data[idx2];
+        // Check if we can use SIMD for a contiguous run
+        if (i > 0 and idx1 == last_idx1 + 1 and idx2 == last_idx2 + 1) {
+            contiguous_run += 1;
+            if (contiguous_run >= vector_len) {
+                const start = i - vector_len + 1;
+                const v1: Vec = t1.data[idx1 - vector_len + 1 ..][0..vector_len].*;
+                const v2: Vec = t2.data[idx2 - vector_len + 1 ..][0..vector_len].*;
+                const result = v1 - v2;
+
+                inline for (0..vector_len) |j| {
+                    outputTensor.data[start + j] = @as(outputType, result[j]);
+                }
+                contiguous_run = 0;
+                continue;
+            }
+        } else {
+            contiguous_run = 0;
+        }
+
+        // Scalar operation for non-contiguous or remaining elements
+        outputTensor.data[i] = @as(outputType, t1.data[idx1] - t2.data[idx2]);
+        last_idx1 = idx1;
+        last_idx2 = idx2;
     }
 }

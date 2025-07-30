@@ -187,7 +187,8 @@ pub fn build(b: *std.Build) void {
     });
     static_lib.linkLibC();
     static_lib.root_module.addImport("zant", zant_mod);
-    static_lib.root_module.addImport("IR_zant", IR_zant_mod); //IR_codegen
+    static_lib.root_module.addImport("IR_zant", IR_zant_mod);
+    static_lib.root_module.addImport("codegen", codegen_mod);
 
     const install_lib_step = b.addInstallArtifact(static_lib, .{ .dest_dir = .{ .override = .{ .custom = model_name_option } } });
     const lib_step = b.step("lib", "Compile tensor_math static library");
@@ -238,6 +239,7 @@ pub fn build(b: *std.Build) void {
 
     test_generated_lib.root_module.addImport("zant", zant_mod);
     test_generated_lib.root_module.addImport("IR_zant", IR_zant_mod); //codegen
+    test_generated_lib.root_module.addImport("codegen", codegen_mod);
     test_generated_lib.linkLibC();
 
     const run_test_generated_lib = b.addRunArtifact(test_generated_lib);

@@ -53,40 +53,20 @@ pub inline fn lean_clip(
         return;
     }
 
-    // Use SIMD for larger sizes if applicable
-    const vector_len = std.simd.suggestVectorLength(T) orelse 4;
-    const use_simd = vector_len > 1 and inputTensor.size >= vector_len;
+    // Process elements in small chunks for better cache locality
+    var i: usize = 0;
+    const chunk_size = 32;
 
-    if (use_simd) {
-        // Process in chunks for better cache locality
-        const chunk_size = 16; // Process 16 elements at a time
-        const chunks = inputTensor.size / chunk_size;
-        var i: usize = 0;
+    while (i + chunk_size <= inputTensor.size) : (i += chunk_size) {
+        comptime var j = 0;
+        inline while (j < chunk_size) : (j += 1) {
+            outputTensor.data[i + j] = @min(@max(inputTensor.data[i + j], min_val), max_val);
+        }
+    }
 
-        // Process chunks
-        while (i < chunks * chunk_size) : (i += chunk_size) {
-            inline for (0..chunk_size) |offset| {
-                const val = inputTensor.data[i + offset];
-                // Apply standard clamp logic: Max(input, min) -> Min(result, max)
-                const temp = @max(val, min_val);
-                outputTensor.data[i + offset] = @min(temp, max_val);
-            }
-        }
-
-        // Handle remaining elements
-        while (i < inputTensor.size) : (i += 1) {
-            const val = inputTensor.data[i];
-            const temp = @max(val, min_val);
-            outputTensor.data[i] = @min(temp, max_val);
-        }
-    } else {
-        // Scalar loop for small sizes
-        for (0..inputTensor.size) |i| {
-            const val = inputTensor.data[i];
-            // Apply standard clamp logic: Max(input, min) -> Min(result, max)
-            const temp = @max(val, min_val);
-            outputTensor.data[i] = @min(temp, max_val);
-        }
+    // Handle remaining elements
+    while (i < inputTensor.size) : (i += 1) {
+        outputTensor.data[i] = @min(@max(inputTensor.data[i], min_val), max_val);
     }
 }
 

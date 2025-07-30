@@ -102,9 +102,11 @@ pub const Sub = struct {
         var tensor_B_string: []u8 = undefined;
         defer allocator.free(tensor_B_string);
 
-        if (self.input_B.tc == TensorCategory.INITIALIZER) {
+        if (self.input_B.tc == TensorCategory.INITIALIZER or self.input_B.tc == TensorCategory.CONSTANT) {
             tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                "@constCast(&param_lib.tensor_",
+                "@constCast(&",
+                if (self.input_B.tc == TensorCategory.CONSTANT) "" else "param_lib.",
+                "tensor_",
                 try utils.getSanitizedName(self.input_B.name),
                 ")",
             });
