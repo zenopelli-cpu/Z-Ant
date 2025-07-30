@@ -4,6 +4,7 @@ Add
 AveragePool
 BatchNormalization  
 Ceil  
+Clip
 Concat
 # Constant
 Conv   

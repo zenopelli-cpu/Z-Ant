@@ -17,6 +17,7 @@ pub const Op_union = union(enum) {
     averagePool: operators.AveragePool,
     batchNormalization: operators.BatchNormalization,
     ceil: operators.Ceil,
+    clip: operators.Clip,
     concat: operators.Concat,
     constant: operators.Constant,
     conv: operators.Conv,
@@ -63,6 +64,8 @@ pub const Op_union = union(enum) {
             return Op_union{ .batchNormalization = try operators.BatchNormalization.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Ceil")) {
             return Op_union{ .ceil = try operators.Ceil.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Clip")) {
+            return Op_union{ .clip = try operators.Clip.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Concat")) {
             return Op_union{ .concat = try operators.Concat.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Constant")) {
@@ -141,6 +144,7 @@ pub const Op_union = union(enum) {
             .averagePool => |ptr| return ptr.get_output_shape(),
             .batchNormalization => |ptr| return ptr.get_output_shape(),
             .ceil => |ptr| return ptr.get_output_shape(),
+            .clip => |ptr| return ptr.compute_output_shape(),
             .concat => |ptr| return ptr.get_output_shape(),
             .constant => |ptr| return ptr.get_output_shape(),
             .conv => |ptr| return ptr.get_output_shape(),
@@ -186,6 +190,7 @@ pub const Op_union = union(enum) {
             .averagePool => |ptr| try ptr.get_output_tensors(),
             .batchNormalization => |ptr| try ptr.get_output_tensors(),
             .ceil => |ptr| try ptr.get_output_tensors(),
+            .clip => |ptr| try ptr.get_output_tensors(),
             .concat => |ptr| try ptr.get_output_tensors(),
             .constant => |ptr| try ptr.get_output_tensors(),
             .conv => |ptr| try ptr.get_output_tensors(),
@@ -231,6 +236,7 @@ pub const Op_union = union(enum) {
             .averagePool => |ptr| try ptr.get_input_tensors(),
             .batchNormalization => |ptr| try ptr.get_input_tensors(),
             .ceil => |ptr| try ptr.get_input_tensors(),
+            .clip => |ptr| try ptr.get_input_tensors(),
             .concat => |ptr| try ptr.get_input_tensors(),
             .constant => |ptr| try ptr.get_input_tensors(),
             .conv => |ptr| try ptr.get_input_tensors(),
@@ -292,6 +298,7 @@ pub const Op_union = union(enum) {
             .averagePool => |ptr| try ptr.write_op(writer),
             .batchNormalization => |ptr| try ptr.write_op(writer),
             .ceil => |ptr| try ptr.write_op(writer),
+            .clip => |ptr| try ptr.write_op(writer),
             .concat => |ptr| try ptr.write_op(writer),
             .constant => |ptr| try ptr.write_op(writer),
             .conv => |ptr| try ptr.write_op(writer),
@@ -338,6 +345,7 @@ pub const Op_union = union(enum) {
             .averagePool => |ptr| ptr.print(),
             .batchNormalization => |ptr| ptr.print(),
             .ceil => |ptr| ptr.print(),
+            .clip => |ptr| ptr.print(),
             .concat => |ptr| ptr.print(),
             .constant => |ptr| ptr.print(),
             .conv => |ptr| ptr.print(),
@@ -377,6 +385,8 @@ pub const Op_union = union(enum) {
         }
     }
 
+    /// Render the lower-level math operation for the operator.
+    /// DEPRECATED, TO BE REMOVED IN FUTURE VERSIONS
     pub fn render_lower_math_op(self: Op_union, builder: *UOpBuilder) !void {
         switch (self) {
             .add => |ptr| ptr.render_lower(builder),

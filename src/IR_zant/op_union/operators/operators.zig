@@ -2,6 +2,7 @@ pub const Add = @import("op_add.zig").Add;
 pub const AveragePool = @import("op_averagePool.zig").AveragePool;
 pub const BatchNormalization = @import("op_batchNormalization.zig").BatchNormalization;
 pub const Ceil = @import("op_ceil.zig").Ceil;
+pub const Clip = @import("op_clip.zig").Clip;
 pub const Concat = @import("op_concat.zig").Concat;
 pub const Constant = @import("op_constant.zig").Constant;
 pub const Conv = @import("op_conv.zig").Conv;
