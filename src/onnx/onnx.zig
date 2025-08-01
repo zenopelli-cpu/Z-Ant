@@ -100,9 +100,13 @@ pub fn parseFromFile(allocator: std.mem.Allocator, file_path: []const u8) !Model
     errdefer model.deinit(allocator);
 
     if (model.graph.?.value_info.len == 0 and model.graph.?.nodes.len > 1) {
-        std.debug.print("\n\n+-------------------------------------------+ ", .{});
+        std.debug.print("\n\n\n+-------------------------------------------+ ", .{});
         std.debug.print("\n   Your model do not contains intermediate tensor shapes,\n   run ' python3 src/onnx/infer_shape.py --path {s} '", .{file_path});
         std.debug.print("\n+-------------------------------------------+ \n\n", .{});
+
+        std.debug.print("\n\n+-------------------------------------------+ ", .{});
+        std.debug.print("\n   Also ensure that the input shape is well known\n   run ' python3 src/onnx/input_setter.py --path {s} --shape B,C,H,W (eg., \"1,3,10,10\")'", .{file_path});
+        std.debug.print("\n+-------------------------------------------+ \n\n\n", .{});
 
         unreachable;
     }
