@@ -242,6 +242,12 @@ test "Static Library - User data Prediction Test" {
                 const expected_output_value = expected_output;
                 try std.testing.expectEqual(expected_output_value, result_value);
             }
+        } else if (std.mem.eql(u8, user_test.type, "exact")) {
+            for (0.., user_test.output) |i, expected_output| {
+                const result_value = result[i];
+                const expected_output_value = expected_output;
+                try std.testing.expectApproxEqAbs(expected_output_value, result_value, 0.0001);
+            }
         } else {
             std.debug.print("Unsupported test type: {s}\n", .{user_test.type});
             try std.testing.expect(false);

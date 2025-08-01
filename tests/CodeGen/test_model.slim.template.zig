@@ -128,7 +128,7 @@ fn isInteger(comptime T: type) bool {
     };
 }
 
-/// Returns `0` (of type `T`) for integer `T`, otherwise `0.001` (of type `T`).
+/// Returns `0` (of type `T`) for non-float `T`, otherwise `0.001` (of type `T`).
 fn marginFor(comptime T: type) T {
     return if (@typeInfo(T) == .int)
         // integer types: zero tolerance
