@@ -10,10 +10,14 @@ const model = @import("model_options.zig");
 
 const ITERATION_COUNT: u32 = 100;
 
+test "model info" {
+    std.debug.print("\n\n ++++++++++++++++ testing {s} ++++++++++++++++\n", .{model.name});
+}
+
 test "Static Library - Random data Prediction Test" {
     std.testing.log_level = .info;
 
-    std.debug.print("\ntest: Static Library - Model: {s}  - Random data Prediction Test -------------------------\n", .{model.name});
+    std.debug.print("\n--- Random data Prediction Test ---", .{});
 
     var input_shape = model.input_shape;
 
@@ -48,13 +52,13 @@ test "Static Library - Random data Prediction Test" {
             &result,
         );
     }
-    std.debug.print("\nRan 100 fuzzy tests on model \"{s}\", done without errors:\n", .{model.name});
+    std.debug.print("\n  - Ran {} fuzzy tests on model \"{s}\", done without errors:", .{ ITERATION_COUNT, model.name });
 }
 
 test "Static Library - Inputs Prediction Test" {
     std.testing.log_level = .info;
 
-    std.debug.print("\ntest: Codegen one-op model: \"{s}\" compare with Pre-Generated results. -------------------------\n", .{model.name});
+    std.debug.print("\n\n--- Pre-Generated results tests ---", .{});
 
     var input_shape = model.input_shape;
 
@@ -74,10 +78,10 @@ test "Static Library - Inputs Prediction Test" {
 
     const user_tests = parsed_user_tests.value;
 
-    std.debug.print("\nUser tests loaded.\n", .{});
+    std.debug.print("\n  - User tests loaded.", .{});
 
     for (user_tests) |user_test| {
-        std.debug.print("\n\tRunning user test: {s}\n\n", .{user_test.name});
+        std.debug.print("\n  - Running user test: {s}", .{user_test.name});
 
         try std.testing.expectEqual(user_test.input.len, input_data_len);
 
@@ -94,7 +98,7 @@ test "Static Library - Inputs Prediction Test" {
         for (0.., user_test.output) |i, expected_output| {
             const result_value = result[i];
 
-            const big_diff: bool = expected_output - result_value > marginFor(model.output_data_type);
+            const big_diff: bool = @abs(expected_output - result_value) > marginFor(model.output_data_type);
             if (big_diff) {
                 std.debug.print("\n\n  >>>>>>>ERROR!!<<<<<< \nTest failed for input: {d} expected: {} got: {}, margin: {}\n", .{ i, expected_output, result_value, marginFor(model.output_data_type) });
 
@@ -135,5 +139,5 @@ fn marginFor(comptime T: type) T {
         0
     else
         // floating‑point (or any other type): tiny tolerance
-        0.001;
+        0.00001;
 }
