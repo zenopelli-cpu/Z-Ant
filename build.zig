@@ -64,7 +64,7 @@ pub fn build(b: *std.Build) void {
             return;
         };
     }
-    const user_tests_option = b.option([]const u8, "enable_user_tests", "User tests path") orelse "";
+    const user_tests_option = b.option(bool, "enable_user_tests", "User tests path") orelse false;
     const log_option = b.option(bool, "log", "Run with log") orelse false;
     const shape_option = b.option([]const u8, "shape", "Input shape") orelse "";
     const input_type_option = b.option([]const u8, "type", "Input type") orelse "f32";
@@ -81,7 +81,7 @@ pub fn build(b: *std.Build) void {
     codegen_options.addOption([]const u8, "model", model_name_option);
     codegen_options.addOption([]const u8, "model_path", model_path_option);
     codegen_options.addOption([]const u8, "generated_path", generated_path_option);
-    codegen_options.addOption([]const u8, "user_tests", user_tests_option);
+    codegen_options.addOption(bool, "user_tests", user_tests_option);
     codegen_options.addOption(bool, "log", log_option);
     codegen_options.addOption(bool, "do_export", export_option);
     codegen_options.addOption([]const u8, "shape", shape_option);

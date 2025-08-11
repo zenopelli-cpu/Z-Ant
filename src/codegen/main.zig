@@ -11,7 +11,7 @@ pub fn main() !void {
     std.debug.print("\n     model:{s} ", .{codegen_options.model});
     std.debug.print("\n     model_path:{s} ", .{codegen_options.model_path});
     std.debug.print("\n     generated_path:{s} ", .{codegen_options.generated_path});
-    std.debug.print("\n     user_tests:{s} ", .{codegen_options.user_tests});
+    std.debug.print("\n     user_tests:{} ", .{codegen_options.user_tests});
     std.debug.print("\n     log:{} ", .{codegen_options.log});
     std.debug.print("\n     shape:{s} ", .{codegen_options.shape});
     std.debug.print("\n     type:{s} ", .{codegen_options.type});
@@ -39,7 +39,7 @@ pub fn main() !void {
         try codegen.codegen_v1_exe.main_v1(model);
     }
 
-    if (std.mem.eql(u8, codegen_options.version, "v2")) {
-        try codegen.codegen_v2_exe.main_v2(&model);
-    }
+    // if (std.mem.eql(u8, codegen_options.version, "v2")) {
+    //     try codegen.codegen_v2_exe.main_v2(&model);
+    // }
 }

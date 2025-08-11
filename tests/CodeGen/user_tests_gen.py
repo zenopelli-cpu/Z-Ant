@@ -72,7 +72,7 @@ def main():
             traceback.print_exc()
 
     # Save all test cases
-    test_file_name = "generated/"+model_name + "/user_tests.json"
+    test_file_name = "datasets/models/"+model_name + "/user_tests.json"
     with open(test_file_name, 'w') as f:
         json.dump(user_tests, f, indent=2)
 

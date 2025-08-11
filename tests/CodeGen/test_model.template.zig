@@ -8,9 +8,21 @@ const allocator = pkgAllocator.allocator;
 
 const model = @import("model_options.zig");
 
+test "model info" {
+    var buf: [20]u8 = undefined;
+    if (model.name.len > buf.len) return error.ModelNameTooLong;
+
+    // Fill the first `model.name.len` bytes with '+'
+    std.mem.set(u8, buf[0..model.name.len], '+');
+
+    std.debug.print("\n\n +++++++++++++++++++++++++++++++++++++++++++++++{s}", .{buf[0..model.name.len]});
+    std.debug.print("\n++++++++++++++++++ testing {s} ++++++++++++++++++", .{model.name});
+    std.debug.print("\n+++++++++++++++++++++++++++++++++++++++++++++++{s}", .{buf[0..model.name.len]});
+}
+
 test "Static Library - Random data Prediction Test" {
     std.testing.log_level = .info;
-    std.debug.print("\ntest: Static Library - {s} Random data Prediction Test -------------------\n", .{model.name});
+    std.debug.print("\n--- Random data Prediction Test ---", .{});
 
     var input_shape = model.input_shape;
 
@@ -61,7 +73,7 @@ test "Static Library - Random data Prediction Test" {
 test "Static Library - Wrong Input Shape" {
     std.testing.log_level = .info;
 
-    std.debug.print("\ntest: Static Library - {s} Wrong Input Shape -------------------\n", .{model.name});
+    std.debug.print("\n\n--- Wrong Input Shape test ---", .{});
 
     // Test with wrong input shape
 
@@ -111,7 +123,7 @@ test "Static Library - Wrong Input Shape" {
 test "Static Library - Empty Input" {
     std.testing.log_level = .info;
 
-    std.debug.print("\ntest: Static Library - {s} Empty Input -------------------\n", .{model.name});
+    std.debug.print("\n\n--- Empty Input test ---", .{});
 
     // Test with empty input
     var input_data = [_]model.input_data_type{};
@@ -129,7 +141,7 @@ test "Static Library - Empty Input" {
 test "Static Library - Wrong Number of Dimensions" {
     std.testing.log_level = .info;
 
-    std.debug.print("\ntest: Static Library - {s} Wrong Number of Dimensions -------------------\n", .{model.name});
+    std.debug.print("\n\n--- Wrong Number of Dimensions test ---", .{});
 
     const model_input_shape = model.input_shape;
 
@@ -163,7 +175,7 @@ test "Static Library - Wrong Number of Dimensions" {
 test "Static Library - User data Prediction Test" {
     std.testing.log_level = .info;
 
-    std.debug.print("\ntest: Static Library - {s} User data Prediction Test -------------------\n", .{model.name});
+    std.debug.print("\n\n--- User data Prediction test ---", .{});
 
     if (!model.enable_user_tests) {
         std.debug.print("\nUser tests are disabled for this model\n", .{});

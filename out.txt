@@ -1,0 +1,1410 @@
+
+
+codegenOptions: 
+     model:mobilenet_v2 
+     model_path:datasets/models/mobilenet_v2/mobilenet_v2.onnx 
+     generated_path:generated/mobilenet_v2/ 
+     user_tests:true 
+     log:true 
+     shape: 
+     type:f32 
+     output_type:f32 
+     comm:false 
+     dynamic:false 
+     version:v1 
+=========== ONNX Model Details ===========
+Model version: onnx.onnx.Version.IR_VERSION_2021_7_30
+Producer: pytorch
+
+Graph Statistics:
+  Number of nodes: 117
+  Operator distribution:
+    Flatten: 1
+    Sub: 1
+    Clip: 51
+    Add: 10
+    Conv: 51
+    GlobalAveragePool: 1
+    Div: 1
+    Gemm: 1
+
+Memory Requirements:
+  Total tensors: 110
+  Total weight size: 7188912 bytes (6.86 MB)
+=========================================
+
+ ---- initialize_tensorZantMap ---- 
+ -------- initializers 
+ ----------- init(/model/Constant_output_0, tp, null, null, .INITIALIZER) 
+                shape:{ 3, 1, 1 } 
+                type:f32 
+ ----------- init(/model/Constant_1_output_0, tp, null, null, .INITIALIZER) 
+                shape:{ 3, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_684, tp, null, null, .INITIALIZER) 
+                shape:{ 32, 3, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_685, tp, null, null, .INITIALIZER) 
+                shape:{ 32 } 
+                type:f32 
+ ----------- init(/model/backbone/conv1/Constant_output_0, tp, null, null, .INITIALIZER) 
+                shape:{ 1 } 
+                type:f32 
+ ----------- init(/model/backbone/conv1/Constant_1_output_0, tp, null, null, .INITIALIZER) 
+                shape:{ 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_687, tp, null, null, .INITIALIZER) 
+                shape:{ 32, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_688, tp, null, null, .INITIALIZER) 
+                shape:{ 32 } 
+                type:f32 
+ ----------- init(onnx::Conv_690, tp, null, null, .INITIALIZER) 
+                shape:{ 16, 32, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_691, tp, null, null, .INITIALIZER) 
+                shape:{ 16 } 
+                type:f32 
+ ----------- init(onnx::Conv_693, tp, null, null, .INITIALIZER) 
+                shape:{ 96, 16, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_694, tp, null, null, .INITIALIZER) 
+                shape:{ 96 } 
+                type:f32 
+ ----------- init(onnx::Conv_696, tp, null, null, .INITIALIZER) 
+                shape:{ 96, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_697, tp, null, null, .INITIALIZER) 
+                shape:{ 96 } 
+                type:f32 
+ ----------- init(onnx::Conv_699, tp, null, null, .INITIALIZER) 
+                shape:{ 24, 96, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_700, tp, null, null, .INITIALIZER) 
+                shape:{ 24 } 
+                type:f32 
+ ----------- init(onnx::Conv_702, tp, null, null, .INITIALIZER) 
+                shape:{ 144, 24, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_703, tp, null, null, .INITIALIZER) 
+                shape:{ 144 } 
+                type:f32 
+ ----------- init(onnx::Conv_705, tp, null, null, .INITIALIZER) 
+                shape:{ 144, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_706, tp, null, null, .INITIALIZER) 
+                shape:{ 144 } 
+                type:f32 
+ ----------- init(onnx::Conv_708, tp, null, null, .INITIALIZER) 
+                shape:{ 24, 144, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_709, tp, null, null, .INITIALIZER) 
+                shape:{ 24 } 
+                type:f32 
+ ----------- init(onnx::Conv_711, tp, null, null, .INITIALIZER) 
+                shape:{ 144, 24, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_712, tp, null, null, .INITIALIZER) 
+                shape:{ 144 } 
+                type:f32 
+ ----------- init(onnx::Conv_714, tp, null, null, .INITIALIZER) 
+                shape:{ 144, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_715, tp, null, null, .INITIALIZER) 
+                shape:{ 144 } 
+                type:f32 
+ ----------- init(onnx::Conv_717, tp, null, null, .INITIALIZER) 
+                shape:{ 32, 144, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_718, tp, null, null, .INITIALIZER) 
+                shape:{ 32 } 
+                type:f32 
+ ----------- init(onnx::Conv_720, tp, null, null, .INITIALIZER) 
+                shape:{ 192, 32, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_721, tp, null, null, .INITIALIZER) 
+                shape:{ 192 } 
+                type:f32 
+ ----------- init(onnx::Conv_723, tp, null, null, .INITIALIZER) 
+                shape:{ 192, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_724, tp, null, null, .INITIALIZER) 
+                shape:{ 192 } 
+                type:f32 
+ ----------- init(onnx::Conv_726, tp, null, null, .INITIALIZER) 
+                shape:{ 32, 192, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_727, tp, null, null, .INITIALIZER) 
+                shape:{ 32 } 
+                type:f32 
+ ----------- init(onnx::Conv_729, tp, null, null, .INITIALIZER) 
+                shape:{ 192, 32, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_730, tp, null, null, .INITIALIZER) 
+                shape:{ 192 } 
+                type:f32 
+ ----------- init(onnx::Conv_732, tp, null, null, .INITIALIZER) 
+                shape:{ 192, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_733, tp, null, null, .INITIALIZER) 
+                shape:{ 192 } 
+                type:f32 
+ ----------- init(onnx::Conv_735, tp, null, null, .INITIALIZER) 
+                shape:{ 32, 192, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_736, tp, null, null, .INITIALIZER) 
+                shape:{ 32 } 
+                type:f32 
+ ----------- init(onnx::Conv_738, tp, null, null, .INITIALIZER) 
+                shape:{ 192, 32, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_739, tp, null, null, .INITIALIZER) 
+                shape:{ 192 } 
+                type:f32 
+ ----------- init(onnx::Conv_741, tp, null, null, .INITIALIZER) 
+                shape:{ 192, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_742, tp, null, null, .INITIALIZER) 
+                shape:{ 192 } 
+                type:f32 
+ ----------- init(onnx::Conv_744, tp, null, null, .INITIALIZER) 
+                shape:{ 64, 192, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_745, tp, null, null, .INITIALIZER) 
+                shape:{ 64 } 
+                type:f32 
+ ----------- init(onnx::Conv_747, tp, null, null, .INITIALIZER) 
+                shape:{ 384, 64, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_748, tp, null, null, .INITIALIZER) 
+                shape:{ 384 } 
+                type:f32 
+ ----------- init(onnx::Conv_750, tp, null, null, .INITIALIZER) 
+                shape:{ 384, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_751, tp, null, null, .INITIALIZER) 
+                shape:{ 384 } 
+                type:f32 
+ ----------- init(onnx::Conv_753, tp, null, null, .INITIALIZER) 
+                shape:{ 64, 384, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_754, tp, null, null, .INITIALIZER) 
+                shape:{ 64 } 
+                type:f32 
+ ----------- init(onnx::Conv_756, tp, null, null, .INITIALIZER) 
+                shape:{ 384, 64, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_757, tp, null, null, .INITIALIZER) 
+                shape:{ 384 } 
+                type:f32 
+ ----------- init(onnx::Conv_759, tp, null, null, .INITIALIZER) 
+                shape:{ 384, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_760, tp, null, null, .INITIALIZER) 
+                shape:{ 384 } 
+                type:f32 
+ ----------- init(onnx::Conv_762, tp, null, null, .INITIALIZER) 
+                shape:{ 64, 384, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_763, tp, null, null, .INITIALIZER) 
+                shape:{ 64 } 
+                type:f32 
+ ----------- init(onnx::Conv_765, tp, null, null, .INITIALIZER) 
+                shape:{ 384, 64, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_766, tp, null, null, .INITIALIZER) 
+                shape:{ 384 } 
+                type:f32 
+ ----------- init(onnx::Conv_768, tp, null, null, .INITIALIZER) 
+                shape:{ 384, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_769, tp, null, null, .INITIALIZER) 
+                shape:{ 384 } 
+                type:f32 
+ ----------- init(onnx::Conv_771, tp, null, null, .INITIALIZER) 
+                shape:{ 64, 384, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_772, tp, null, null, .INITIALIZER) 
+                shape:{ 64 } 
+                type:f32 
+ ----------- init(onnx::Conv_774, tp, null, null, .INITIALIZER) 
+                shape:{ 384, 64, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_775, tp, null, null, .INITIALIZER) 
+                shape:{ 384 } 
+                type:f32 
+ ----------- init(onnx::Conv_777, tp, null, null, .INITIALIZER) 
+                shape:{ 384, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_778, tp, null, null, .INITIALIZER) 
+                shape:{ 384 } 
+                type:f32 
+ ----------- init(onnx::Conv_780, tp, null, null, .INITIALIZER) 
+                shape:{ 96, 384, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_781, tp, null, null, .INITIALIZER) 
+                shape:{ 96 } 
+                type:f32 
+ ----------- init(onnx::Conv_783, tp, null, null, .INITIALIZER) 
+                shape:{ 576, 96, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_784, tp, null, null, .INITIALIZER) 
+                shape:{ 576 } 
+                type:f32 
+ ----------- init(onnx::Conv_786, tp, null, null, .INITIALIZER) 
+                shape:{ 576, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_787, tp, null, null, .INITIALIZER) 
+                shape:{ 576 } 
+                type:f32 
+ ----------- init(onnx::Conv_789, tp, null, null, .INITIALIZER) 
+                shape:{ 96, 576, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_790, tp, null, null, .INITIALIZER) 
+                shape:{ 96 } 
+                type:f32 
+ ----------- init(onnx::Conv_792, tp, null, null, .INITIALIZER) 
+                shape:{ 576, 96, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_793, tp, null, null, .INITIALIZER) 
+                shape:{ 576 } 
+                type:f32 
+ ----------- init(onnx::Conv_795, tp, null, null, .INITIALIZER) 
+                shape:{ 576, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_796, tp, null, null, .INITIALIZER) 
+                shape:{ 576 } 
+                type:f32 
+ ----------- init(onnx::Conv_798, tp, null, null, .INITIALIZER) 
+                shape:{ 96, 576, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_799, tp, null, null, .INITIALIZER) 
+                shape:{ 96 } 
+                type:f32 
+ ----------- init(onnx::Conv_801, tp, null, null, .INITIALIZER) 
+                shape:{ 576, 96, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_802, tp, null, null, .INITIALIZER) 
+                shape:{ 576 } 
+                type:f32 
+ ----------- init(onnx::Conv_804, tp, null, null, .INITIALIZER) 
+                shape:{ 576, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_805, tp, null, null, .INITIALIZER) 
+                shape:{ 576 } 
+                type:f32 
+ ----------- init(onnx::Conv_807, tp, null, null, .INITIALIZER) 
+                shape:{ 160, 576, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_808, tp, null, null, .INITIALIZER) 
+                shape:{ 160 } 
+                type:f32 
+ ----------- init(onnx::Conv_810, tp, null, null, .INITIALIZER) 
+                shape:{ 960, 160, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_811, tp, null, null, .INITIALIZER) 
+                shape:{ 960 } 
+                type:f32 
+ ----------- init(onnx::Conv_813, tp, null, null, .INITIALIZER) 
+                shape:{ 960, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_814, tp, null, null, .INITIALIZER) 
+                shape:{ 960 } 
+                type:f32 
+ ----------- init(onnx::Conv_816, tp, null, null, .INITIALIZER) 
+                shape:{ 160, 960, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_817, tp, null, null, .INITIALIZER) 
+                shape:{ 160 } 
+                type:f32 
+ ----------- init(onnx::Conv_819, tp, null, null, .INITIALIZER) 
+                shape:{ 960, 160, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_820, tp, null, null, .INITIALIZER) 
+                shape:{ 960 } 
+                type:f32 
+ ----------- init(onnx::Conv_822, tp, null, null, .INITIALIZER) 
+                shape:{ 960, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_823, tp, null, null, .INITIALIZER) 
+                shape:{ 960 } 
+                type:f32 
+ ----------- init(onnx::Conv_825, tp, null, null, .INITIALIZER) 
+                shape:{ 160, 960, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_826, tp, null, null, .INITIALIZER) 
+                shape:{ 160 } 
+                type:f32 
+ ----------- init(onnx::Conv_828, tp, null, null, .INITIALIZER) 
+                shape:{ 960, 160, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_829, tp, null, null, .INITIALIZER) 
+                shape:{ 960 } 
+                type:f32 
+ ----------- init(onnx::Conv_831, tp, null, null, .INITIALIZER) 
+                shape:{ 960, 1, 3, 3 } 
+                type:f32 
+ ----------- init(onnx::Conv_832, tp, null, null, .INITIALIZER) 
+                shape:{ 960 } 
+                type:f32 
+ ----------- init(onnx::Conv_834, tp, null, null, .INITIALIZER) 
+                shape:{ 320, 960, 1, 1 } 
+                type:f32 
+ ----------- init(onnx::Conv_835, tp, null, null, .INITIALIZER) 
+                shape:{ 320 } 
+                type:f32 
+ ----------- init(model.cls_head.classifier.3.weight, tp, null, null, .INITIALIZER) 
+                shape:{ 4, 320 } 
+                type:f32 
+ ----------- init(model.cls_head.classifier.3.bias, tp, null, null, .INITIALIZER) 
+                shape:{ 4 } 
+                type:f32 
+ -------- inputs: 1 
+ ----------- init(onnx::Sub_0, null, vi, null, .INPUT) 
+                shape:{ 1, 3, 32, 32 } 
+                type:f32 
+ -------- outputs: 1
+ ----------- init(682, null, vi, null, .OUTPUT) 
+                shape:{ 1, 4 } 
+                type:f32 
+ -------- nodes: 117
+ --- 1 :  Sub - /model/Sub 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/Sub_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 3, 32, 32 } 
+                type:f32 
+ --- 2 :  Div - /model/Div 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/Div_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 3, 32, 32 } 
+                type:f32 
+ --- 3 :  Conv - /model/backbone/conv1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/conv1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 16, 16 } 
+                type:f32 
+ --- 4 :  Clip - /model/backbone/conv1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/conv1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 16, 16 } 
+                type:f32 
+ --- 5 :  Conv - /model/backbone/layer1/layer1.0/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer1/layer1.0/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 16, 16 } 
+                type:f32 
+ --- 6 :  Clip - /model/backbone/layer1/layer1.0/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer1/layer1.0/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 16, 16 } 
+                type:f32 
+ --- 7 :  Conv - /model/backbone/layer1/layer1.0/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer1/layer1.0/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 16, 16, 16 } 
+                type:f32 
+ --- 8 :  Clip - /model/backbone/layer1/layer1.0/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer1/layer1.0/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 16, 16, 16 } 
+                type:f32 
+ --- 9 :  Conv - /model/backbone/layer2/layer2.0/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.0/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 16, 16 } 
+                type:f32 
+ --- 10 :  Clip - /model/backbone/layer2/layer2.0/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.0/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 16, 16 } 
+                type:f32 
+ --- 11 :  Conv - /model/backbone/layer2/layer2.0/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.0/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 8, 8 } 
+                type:f32 
+ --- 12 :  Clip - /model/backbone/layer2/layer2.0/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.0/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 8, 8 } 
+                type:f32 
+ --- 13 :  Conv - /model/backbone/layer2/layer2.0/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.0/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 24, 8, 8 } 
+                type:f32 
+ --- 14 :  Clip - /model/backbone/layer2/layer2.0/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.0/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 24, 8, 8 } 
+                type:f32 
+ --- 15 :  Conv - /model/backbone/layer2/layer2.1/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.1/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 144, 8, 8 } 
+                type:f32 
+ --- 16 :  Clip - /model/backbone/layer2/layer2.1/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.1/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 144, 8, 8 } 
+                type:f32 
+ --- 17 :  Conv - /model/backbone/layer2/layer2.1/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.1/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 144, 8, 8 } 
+                type:f32 
+ --- 18 :  Clip - /model/backbone/layer2/layer2.1/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.1/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 144, 8, 8 } 
+                type:f32 
+ --- 19 :  Conv - /model/backbone/layer2/layer2.1/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.1/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 24, 8, 8 } 
+                type:f32 
+ --- 20 :  Clip - /model/backbone/layer2/layer2.1/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.1/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 24, 8, 8 } 
+                type:f32 
+ --- 21 :  Add - /model/backbone/layer2/layer2.1/Add 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer2/layer2.1/Add_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 24, 8, 8 } 
+                type:f32 
+ --- 22 :  Conv - /model/backbone/layer3/layer3.0/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.0/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 144, 8, 8 } 
+                type:f32 
+ --- 23 :  Clip - /model/backbone/layer3/layer3.0/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.0/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 144, 8, 8 } 
+                type:f32 
+ --- 24 :  Conv - /model/backbone/layer3/layer3.0/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.0/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 144, 4, 4 } 
+                type:f32 
+ --- 25 :  Clip - /model/backbone/layer3/layer3.0/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.0/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 144, 4, 4 } 
+                type:f32 
+ --- 26 :  Conv - /model/backbone/layer3/layer3.0/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.0/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 4, 4 } 
+                type:f32 
+ --- 27 :  Clip - /model/backbone/layer3/layer3.0/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.0/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 4, 4 } 
+                type:f32 
+ --- 28 :  Conv - /model/backbone/layer3/layer3.1/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.1/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 4, 4 } 
+                type:f32 
+ --- 29 :  Clip - /model/backbone/layer3/layer3.1/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.1/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 4, 4 } 
+                type:f32 
+ --- 30 :  Conv - /model/backbone/layer3/layer3.1/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.1/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 4, 4 } 
+                type:f32 
+ --- 31 :  Clip - /model/backbone/layer3/layer3.1/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.1/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 4, 4 } 
+                type:f32 
+ --- 32 :  Conv - /model/backbone/layer3/layer3.1/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.1/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 4, 4 } 
+                type:f32 
+ --- 33 :  Clip - /model/backbone/layer3/layer3.1/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.1/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 4, 4 } 
+                type:f32 
+ --- 34 :  Add - /model/backbone/layer3/layer3.1/Add 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.1/Add_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 4, 4 } 
+                type:f32 
+ --- 35 :  Conv - /model/backbone/layer3/layer3.2/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.2/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 4, 4 } 
+                type:f32 
+ --- 36 :  Clip - /model/backbone/layer3/layer3.2/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.2/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 4, 4 } 
+                type:f32 
+ --- 37 :  Conv - /model/backbone/layer3/layer3.2/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.2/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 4, 4 } 
+                type:f32 
+ --- 38 :  Clip - /model/backbone/layer3/layer3.2/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.2/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 4, 4 } 
+                type:f32 
+ --- 39 :  Conv - /model/backbone/layer3/layer3.2/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.2/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 4, 4 } 
+                type:f32 
+ --- 40 :  Clip - /model/backbone/layer3/layer3.2/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.2/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 4, 4 } 
+                type:f32 
+ --- 41 :  Add - /model/backbone/layer3/layer3.2/Add 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer3/layer3.2/Add_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 32, 4, 4 } 
+                type:f32 
+ --- 42 :  Conv - /model/backbone/layer4/layer4.0/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.0/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 4, 4 } 
+                type:f32 
+ --- 43 :  Clip - /model/backbone/layer4/layer4.0/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.0/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 4, 4 } 
+                type:f32 
+ --- 44 :  Conv - /model/backbone/layer4/layer4.0/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.0/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 2, 2 } 
+                type:f32 
+ --- 45 :  Clip - /model/backbone/layer4/layer4.0/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.0/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 192, 2, 2 } 
+                type:f32 
+ --- 46 :  Conv - /model/backbone/layer4/layer4.0/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.0/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 64, 2, 2 } 
+                type:f32 
+ --- 47 :  Clip - /model/backbone/layer4/layer4.0/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.0/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 64, 2, 2 } 
+                type:f32 
+ --- 48 :  Conv - /model/backbone/layer4/layer4.1/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.1/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 49 :  Clip - /model/backbone/layer4/layer4.1/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.1/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 50 :  Conv - /model/backbone/layer4/layer4.1/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.1/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 51 :  Clip - /model/backbone/layer4/layer4.1/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.1/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 52 :  Conv - /model/backbone/layer4/layer4.1/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.1/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 64, 2, 2 } 
+                type:f32 
+ --- 53 :  Clip - /model/backbone/layer4/layer4.1/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.1/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 64, 2, 2 } 
+                type:f32 
+ --- 54 :  Add - /model/backbone/layer4/layer4.1/Add 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.1/Add_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 64, 2, 2 } 
+                type:f32 
+ --- 55 :  Conv - /model/backbone/layer4/layer4.2/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.2/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 56 :  Clip - /model/backbone/layer4/layer4.2/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.2/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 57 :  Conv - /model/backbone/layer4/layer4.2/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.2/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 58 :  Clip - /model/backbone/layer4/layer4.2/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.2/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 59 :  Conv - /model/backbone/layer4/layer4.2/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.2/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 64, 2, 2 } 
+                type:f32 
+ --- 60 :  Clip - /model/backbone/layer4/layer4.2/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.2/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 64, 2, 2 } 
+                type:f32 
+ --- 61 :  Add - /model/backbone/layer4/layer4.2/Add 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.2/Add_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 64, 2, 2 } 
+                type:f32 
+ --- 62 :  Conv - /model/backbone/layer4/layer4.3/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.3/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 63 :  Clip - /model/backbone/layer4/layer4.3/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.3/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 64 :  Conv - /model/backbone/layer4/layer4.3/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.3/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 65 :  Clip - /model/backbone/layer4/layer4.3/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.3/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 66 :  Conv - /model/backbone/layer4/layer4.3/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.3/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 64, 2, 2 } 
+                type:f32 
+ --- 67 :  Clip - /model/backbone/layer4/layer4.3/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.3/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 64, 2, 2 } 
+                type:f32 
+ --- 68 :  Add - /model/backbone/layer4/layer4.3/Add 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer4/layer4.3/Add_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 64, 2, 2 } 
+                type:f32 
+ --- 69 :  Conv - /model/backbone/layer5/layer5.0/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.0/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 70 :  Clip - /model/backbone/layer5/layer5.0/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.0/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 71 :  Conv - /model/backbone/layer5/layer5.0/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.0/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 72 :  Clip - /model/backbone/layer5/layer5.0/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.0/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 384, 2, 2 } 
+                type:f32 
+ --- 73 :  Conv - /model/backbone/layer5/layer5.0/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.0/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 2, 2 } 
+                type:f32 
+ --- 74 :  Clip - /model/backbone/layer5/layer5.0/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.0/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 2, 2 } 
+                type:f32 
+ --- 75 :  Conv - /model/backbone/layer5/layer5.1/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.1/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 2, 2 } 
+                type:f32 
+ --- 76 :  Clip - /model/backbone/layer5/layer5.1/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.1/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 2, 2 } 
+                type:f32 
+ --- 77 :  Conv - /model/backbone/layer5/layer5.1/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.1/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 2, 2 } 
+                type:f32 
+ --- 78 :  Clip - /model/backbone/layer5/layer5.1/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.1/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 2, 2 } 
+                type:f32 
+ --- 79 :  Conv - /model/backbone/layer5/layer5.1/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.1/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 2, 2 } 
+                type:f32 
+ --- 80 :  Clip - /model/backbone/layer5/layer5.1/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.1/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 2, 2 } 
+                type:f32 
+ --- 81 :  Add - /model/backbone/layer5/layer5.1/Add 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.1/Add_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 2, 2 } 
+                type:f32 
+ --- 82 :  Conv - /model/backbone/layer5/layer5.2/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.2/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 2, 2 } 
+                type:f32 
+ --- 83 :  Clip - /model/backbone/layer5/layer5.2/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.2/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 2, 2 } 
+                type:f32 
+ --- 84 :  Conv - /model/backbone/layer5/layer5.2/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.2/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 2, 2 } 
+                type:f32 
+ --- 85 :  Clip - /model/backbone/layer5/layer5.2/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.2/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 2, 2 } 
+                type:f32 
+ --- 86 :  Conv - /model/backbone/layer5/layer5.2/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.2/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 2, 2 } 
+                type:f32 
+ --- 87 :  Clip - /model/backbone/layer5/layer5.2/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.2/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 2, 2 } 
+                type:f32 
+ --- 88 :  Add - /model/backbone/layer5/layer5.2/Add 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer5/layer5.2/Add_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 96, 2, 2 } 
+                type:f32 
+ --- 89 :  Conv - /model/backbone/layer6/layer6.0/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.0/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 2, 2 } 
+                type:f32 
+ --- 90 :  Clip - /model/backbone/layer6/layer6.0/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.0/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 2, 2 } 
+                type:f32 
+ --- 91 :  Conv - /model/backbone/layer6/layer6.0/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.0/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 1, 1 } 
+                type:f32 
+ --- 92 :  Clip - /model/backbone/layer6/layer6.0/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.0/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 576, 1, 1 } 
+                type:f32 
+ --- 93 :  Conv - /model/backbone/layer6/layer6.0/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.0/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 160, 1, 1 } 
+                type:f32 
+ --- 94 :  Clip - /model/backbone/layer6/layer6.0/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.0/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 160, 1, 1 } 
+                type:f32 
+ --- 95 :  Conv - /model/backbone/layer6/layer6.1/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.1/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 96 :  Clip - /model/backbone/layer6/layer6.1/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.1/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 97 :  Conv - /model/backbone/layer6/layer6.1/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.1/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 98 :  Clip - /model/backbone/layer6/layer6.1/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.1/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 99 :  Conv - /model/backbone/layer6/layer6.1/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.1/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 160, 1, 1 } 
+                type:f32 
+ --- 100 :  Clip - /model/backbone/layer6/layer6.1/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.1/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 160, 1, 1 } 
+                type:f32 
+ --- 101 :  Add - /model/backbone/layer6/layer6.1/Add 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.1/Add_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 160, 1, 1 } 
+                type:f32 
+ --- 102 :  Conv - /model/backbone/layer6/layer6.2/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.2/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 103 :  Clip - /model/backbone/layer6/layer6.2/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.2/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 104 :  Conv - /model/backbone/layer6/layer6.2/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.2/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 105 :  Clip - /model/backbone/layer6/layer6.2/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.2/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 106 :  Conv - /model/backbone/layer6/layer6.2/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.2/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 160, 1, 1 } 
+                type:f32 
+ --- 107 :  Clip - /model/backbone/layer6/layer6.2/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.2/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 160, 1, 1 } 
+                type:f32 
+ --- 108 :  Add - /model/backbone/layer6/layer6.2/Add 
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer6/layer6.2/Add_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 160, 1, 1 } 
+                type:f32 
+ --- 109 :  Conv - /model/backbone/layer7/layer7.0/conv/conv.0/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer7/layer7.0/conv/conv.0/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 110 :  Clip - /model/backbone/layer7/layer7.0/conv/conv.0/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer7/layer7.0/conv/conv.0/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 111 :  Conv - /model/backbone/layer7/layer7.0/conv/conv.1/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer7/layer7.0/conv/conv.1/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 112 :  Clip - /model/backbone/layer7/layer7.0/conv/conv.1/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer7/layer7.0/conv/conv.1/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 960, 1, 1 } 
+                type:f32 
+ --- 113 :  Conv - /model/backbone/layer7/layer7.0/conv/conv.2/Conv 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer7/layer7.0/conv/conv.2/Conv_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 320, 1, 1 } 
+                type:f32 
+ --- 114 :  Clip - /model/backbone/layer7/layer7.0/conv/conv.2/Clip 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/backbone/layer7/layer7.0/conv/conv.2/Clip_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 320, 1, 1 } 
+                type:f32 
+ --- 115 :  GlobalAveragePool - /model/cls_head/classifier/classifier.0/GlobalAveragePool 
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/cls_head/classifier/classifier.0/GlobalAveragePool_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 320, 1, 1 } 
+                type:f32 
+ --- 116 :  Flatten - /model/cls_head/classifier/classifier.1/Flatten 
+    inputs >>>
+    >>> outputs
+  +++
+ ----------- init(/model/cls_head/classifier/classifier.1/Flatten_output_0, null, vi, null, .LINK) 
+                shape:{ 1, 320 } 
+                type:f32 
+ --- 117 :  Gemm - /model/cls_head/classifier/classifier.3/Gemm 
+    inputs >>>
+    inputs >>>
+    inputs >>>
+    >>> outputsinfo: 
+ .......... file created, path:generated/mobilenet_v2/static_parameters.zig
+info: 
+ .......... file created, path:generated/mobilenet_v2/lib_mobilenet_v2.zig
+info: 
+
+Generated test file: generated/mobilenet_v2/test_mobilenet_v2.zig
+

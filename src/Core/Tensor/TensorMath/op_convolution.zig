@@ -46,6 +46,7 @@ pub export fn setLogFunctionC(func: ?*const fn ([*c]u8) callconv(.C) void) void 
     log_functionC = func;
 }
 pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void {
+
     // std.log.debug("\n[DEBUG] OnnxConvLean - Input shape: {any}", .{input.shape});
     // std.log.debug("\n[DEBUG] OnnxConvLean - Kernel shape: {any}", .{kernel.shape});
     // std.log.debug("\n[DEBUG] OnnxConvLean - Output shape: {any}", .{output.shape});

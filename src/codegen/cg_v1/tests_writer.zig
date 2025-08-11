@@ -55,18 +55,18 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
         \\pub const output_data_len = {d};
         \\pub const input_data_type = {s};
         \\pub const output_data_type = {s};
-        \\pub const enable_user_tests : bool = {any};
+        \\pub const user_tests: bool = {};
         \\pub const user_tests_path = "{s}";
     , .{
-        model_name,
-        model_name,
-        inputs[0].getShape().len,
-        inputs[0].getShape(),
-        output_size,
-        inputs[0].ty.toString(),
-        outputs[0].ty.toString(),
-        codegen_options.user_tests.len > 0,
-        try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path}),
+        model_name, //lib
+        model_name, //name
+        inputs[0].getShape().len, //input_shape d
+        inputs[0].getShape(), //input_shape any
+        output_size, //output_data_len
+        inputs[0].ty.toString(), //input_data_type
+        outputs[0].ty.toString(), //output_data_type
+        codegen_options.user_tests, //user_tests_path
+        try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path}), //user_tests_path
     });
 
     ////////////
@@ -81,8 +81,8 @@ pub fn writeTestFile(model_name: []const u8, model_path: []const u8) !void {
     std.log.info("\n\nGenerated test file: {s}\n", .{test_file_path});
 
     // Copy user test file into the generated test file
-    if (codegen_options.user_tests.len > 0) {
-        const provided_user_tests_path = codegen_options.user_tests;
+    if (codegen_options.user_tests) {
+        const provided_user_tests_path = try std.fmt.allocPrint(allocator, "datasets/models/{s}/user_tests.json", .{model_name});
         const user_tests_path = try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path});
         try copyFile(provided_user_tests_path, user_tests_path);
     }
