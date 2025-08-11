@@ -38,7 +38,8 @@ pub fn main() !void {
     if (std.mem.eql(u8, codegen_options.version, "v1")) {
         try codegen.codegen_v1_exe.main_v1(model);
     }
-    // else {
-    //     try codegen.codegen_v2_exe.main_v2(&model);
-    // }
+
+    if (std.mem.eql(u8, codegen_options.version, "v2")) {
+        try codegen.codegen_v2_exe.main_v2(&model);
+    }
 }

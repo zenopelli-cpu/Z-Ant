@@ -29,6 +29,7 @@ pub const Op_union = union(enum) {
     gather: operators.Gather,
     gemm: operators.Gemm,
     gelu: operators.Gelu,
+    globalAveragePool: operators.GlobalAveragePool,
     identity: operators.Identity,
     leakyRelu: operators.LeakyRelu,
     matMul: operators.MatMul,
@@ -84,10 +85,12 @@ pub const Op_union = union(enum) {
             return Op_union{ .floor = try operators.Floor.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Gather")) {
             return Op_union{ .gather = try operators.Gather.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Gemm")) {
-            return Op_union{ .gemm = try operators.Gemm.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Gelu")) {
             return Op_union{ .gelu = try operators.Gelu.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Gemm")) {
+            return Op_union{ .gemm = try operators.Gemm.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "GlobalAveragePool")) {
+            return Op_union{ .globalAveragePool = try operators.GlobalAveragePool.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Identity")) {
             return Op_union{ .identity = try operators.Identity.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "LeakyRelu")) {
@@ -155,6 +158,7 @@ pub const Op_union = union(enum) {
             .gather => |ptr| return ptr.get_output_shape(),
             .gemm => |ptr| return ptr.get_output_shape(),
             .gelu => |ptr| return ptr.get_output_shape(),
+            .globalAveragePool => |ptr| return ptr.get_output_shape(),
             .identity => |ptr| return ptr.get_output_shape(),
             .leakyRelu => |ptr| return ptr.get_output_shape(),
             .matMul => |ptr| return ptr.get_output_shape(),
@@ -201,6 +205,7 @@ pub const Op_union = union(enum) {
             .gather => |ptr| try ptr.get_output_tensors(),
             .gemm => |ptr| try ptr.get_output_tensors(),
             .gelu => |ptr| try ptr.get_output_tensors(),
+            .globalAveragePool => |ptr| try ptr.get_output_tensors(),
             .identity => |ptr| try ptr.get_output_tensors(),
             .leakyRelu => |ptr| try ptr.get_output_tensors(),
             .matMul => |ptr| try ptr.get_output_tensors(),
@@ -247,6 +252,7 @@ pub const Op_union = union(enum) {
             .gather => |ptr| try ptr.get_input_tensors(),
             .gemm => |ptr| try ptr.get_input_tensors(),
             .gelu => |ptr| try ptr.get_input_tensors(),
+            .globalAveragePool => |ptr| try ptr.get_input_tensors(),
             .identity => |ptr| try ptr.get_input_tensors(),
             .leakyRelu => |ptr| try ptr.get_input_tensors(),
             .matMul => |ptr| try ptr.get_input_tensors(),
@@ -310,6 +316,7 @@ pub const Op_union = union(enum) {
             .gather => |ptr| try ptr.write_op(writer),
             .gemm => |ptr| try ptr.write_op(writer),
             .gelu => |ptr| try ptr.write_op(writer),
+            .globalAveragePool => |ptr| try ptr.write_op(writer),
             .identity => |ptr| try ptr.write_op(writer),
             .leakyRelu => |ptr| try ptr.write_op(writer),
             .matMul => |ptr| try ptr.write_op(writer),
@@ -356,6 +363,7 @@ pub const Op_union = union(enum) {
             .gather => |ptr| ptr.print(),
             .gemm => |ptr| ptr.print(),
             .gelu => |ptr| ptr.print(),
+            .globalAveragePool => |ptr| ptr.print(),
             .identity => |ptr| ptr.print(),
             .leakyRelu => |ptr| ptr.print(),
             .matMul => |ptr| ptr.print(),

@@ -15,7 +15,8 @@ Elu
 Floor
 Gather  
 #Gelu : It loops whitout never ending
-Gemm  
+Gemm
+GlobalAveragePool  
 Identity  
 LeakyRelu  
 MatMul  

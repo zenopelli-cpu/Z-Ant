@@ -249,6 +249,7 @@ pub fn build(b: *std.Build) void {
     // ************************************************ ONEOP CODEGEN ************************************************
     // Setup oneOp codegen
     // Remember to launch : python3 tests/CodeGen/Python-ONNX/onnx_gen.py to generate the onnx models
+    // see: TESTING OPTIONS
 
     const oneop_codegen_exe = b.addExecutable(.{
         .name = "oneop_codegen",
@@ -269,6 +270,7 @@ pub fn build(b: *std.Build) void {
 
     // ************************************************ ONEOP TESTING ************************************************
     // Setup test_all_oneOp
+    // see: TESTING OPTIONS
 
     const test_all_oneOp = b.addTest(.{
         .name = "test_all_oneOp",

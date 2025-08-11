@@ -14,6 +14,7 @@ pub const Floor = @import("op_floor.zig").Floor;
 pub const Gather = @import("op_gather.zig").Gather;
 pub const Gelu = @import("op_gelu.zig").Gelu;
 pub const Gemm = @import("op_gemm.zig").Gemm;
+pub const GlobalAveragePool = @import("op_globalAveragePool.zig").GlobalAveragePool;
 pub const Identity = @import("op_identity.zig").Identity;
 pub const LeakyRelu = @import("op_leakyRelu.zig").LeakyRelu;
 pub const MatMul = @import("op_matMul.zig").MatMul;
