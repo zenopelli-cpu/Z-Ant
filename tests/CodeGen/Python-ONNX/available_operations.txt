@@ -11,7 +11,7 @@ Conv
 DequantizeLinear
 Div  
 Elu  
-# Flatten: sometime it works, sometime it doesn't
+Flatten
 Floor
 Gather  
 #Gelu : It loops whitout never ending

@@ -355,7 +355,7 @@ def generate_fuzz_model(op_name):
     
     elif op_name == "Flatten":
         # Generate casual rank and shape
-        rank = random.randint(0, 4)
+        rank = random.randint(1, 4)
         if rank == 0:
             shape = []  
         else:
@@ -404,7 +404,7 @@ def generate_fuzz_model(op_name):
         }
 
         return [input_info], output_info, [node], initializers, metadata
-    
+
     elif op_name == "Squeeze":
         # Generate input shape with at least one dimension of size 1
         shape = [1, random.randint(1, 3), 1, random.randint(5, 10)]
