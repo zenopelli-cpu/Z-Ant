@@ -80,16 +80,21 @@ pub fn onehot(comptime T: type, indices: *const Tensor(i64), depth: *const Tenso
 }
 
 pub fn onehot_lean(comptime T: type, indices: *const Tensor(i64), depth: i64, values: *const Tensor(T), axis: i64, output: *Tensor(T)) !void {
-    // Inizializza l'output con off_value
+    // Initialize output with off_value
     for (output.data) |*val| {
         val.* = values.data[0]; // off_value
     }
 
-    // Normalizza axis
-    const rank = @as(i64, @intCast(indices.shape.len));
-    const normalized_axis = if (axis < 0) axis + rank + 1 else axis;
+    // Normalize axis
+    const output_rank = @as(i64, @intCast(output.shape.len));
+    const normalized_axis = if (axis < 0) axis + output_rank else axis;
 
-    // Itera sugli indici
+    // Validate normalized axis
+    if (normalized_axis < 0 or normalized_axis >= output_rank) {
+        return error.InvalidAxis;
+    }
+
+    // Iterate over all indices
     const total_elements = blk: {
         var prod: usize = 1;
         for (indices.shape) |dim| prod *= dim;
@@ -99,36 +104,116 @@ pub fn onehot_lean(comptime T: type, indices: *const Tensor(i64), depth: i64, va
     for (0..total_elements) |flat_idx| {
         const index_val = indices.data[flat_idx];
 
-        // Ignora indici fuori range
+        // Skip indices out of range
         if (index_val < -depth or index_val >= depth) {
             continue;
         }
+
+        // Convert negative indices to positive
         const index = if (index_val < 0) index_val + depth else index_val;
 
-        // Calcola le coordinate multi-dimensionali
+        // Calculate multi-dimensional coordinates from flat index
         var input_coords = try pkgAllocator.alloc(usize, indices.shape.len);
         defer pkgAllocator.free(input_coords);
+
         var temp_idx = flat_idx;
-        for (indices.shape, 0..) |dim, i| {
-            input_coords[indices.shape.len - 1 - i] = temp_idx % dim;
-            temp_idx /= dim;
+        var i: usize = indices.shape.len;
+        while (i > 0) {
+            i -= 1;
+            input_coords[i] = temp_idx % indices.shape[i];
+            temp_idx /= indices.shape[i];
         }
 
-        // Calcola le coordinate dell'output
-        var output_coords = try pkgAllocator.alloc(usize, indices.shape.len + 1);
+        // Build output coordinates by inserting the new axis
+        var output_coords = try pkgAllocator.alloc(usize, output.shape.len);
         defer pkgAllocator.free(output_coords);
-        for (input_coords, 0..) |coord, i| {
-            if (i < normalized_axis) {
-                output_coords[i] = coord;
+
+        // Copy coordinates before the new axis
+        for (0..@intCast(normalized_axis)) |coord_idx| {
+            output_coords[coord_idx] = input_coords[coord_idx];
+        }
+
+        // Set the coordinate for the new axis (depth dimension)
+        output_coords[@intCast(normalized_axis)] = @intCast(index);
+
+        // Copy coordinates after the new axis
+        for (@intCast(normalized_axis)..input_coords.len) |coord_idx| {
+            output_coords[coord_idx + 1] = input_coords[coord_idx];
+        }
+
+        // Set on_value at the calculated position
+        const output_idx = try output.get_flat_index(output_coords);
+        output.data[output_idx] = values.data[1]; // on_value
+    }
+}
+
+// Alternative implementation that might be clearer and more efficient
+pub fn onehot_lean_v2(comptime T: type, indices: *const Tensor(i64), depth: i64, values: *const Tensor(T), axis: i64, output: *Tensor(T)) !void {
+    // Initialize output with off_value
+    @memset(output.data, values.data[0]);
+
+    // Normalize axis
+    const output_rank = @as(i64, @intCast(output.shape.len));
+    const normalized_axis = if (axis < 0) axis + output_rank else axis;
+
+    // Validate normalized axis
+    if (normalized_axis < 0 or normalized_axis >= output_rank) {
+        return error.InvalidAxis;
+    }
+
+    const axis_usize = @as(usize, @intCast(normalized_axis));
+
+    // Calculate strides for output tensor
+    var output_strides = try pkgAllocator.alloc(usize, output.shape.len);
+    defer pkgAllocator.free(output_strides);
+
+    output_strides[output.shape.len - 1] = 1;
+    if (output.shape.len > 1) {
+        var i: usize = output.shape.len - 1;
+        while (i > 0) {
+            i -= 1;
+            output_strides[i] = output_strides[i + 1] * output.shape[i + 1];
+        }
+    }
+
+    // Process each element in the indices tensor
+    const total_elements = blk: {
+        var prod: usize = 1;
+        for (indices.shape) |dim| prod *= dim;
+        break :blk prod;
+    };
+
+    for (0..total_elements) |flat_idx| {
+        const index_val = indices.data[flat_idx];
+
+        // Skip indices out of range
+        if (index_val < -depth or index_val >= depth) {
+            continue;
+        }
+
+        // Convert negative indices to positive
+        const index = if (index_val < 0) index_val + depth else index_val;
+
+        // Calculate position in output tensor
+        var output_idx: usize = 0;
+        var temp_idx = flat_idx;
+
+        // Map indices coordinates to output coordinates
+        var coord_idx: usize = 0;
+        for (0..output.shape.len) |out_dim| {
+            if (out_dim == axis_usize) {
+                // This is the new axis - use the index value
+                output_idx += @as(usize, @intCast(index)) * output_strides[out_dim];
             } else {
-                output_coords[i + 1] = coord;
+                // This corresponds to an original dimension
+                const coord = temp_idx % indices.shape[coord_idx];
+                temp_idx /= indices.shape[coord_idx];
+                output_idx += coord * output_strides[out_dim];
+                coord_idx += 1;
             }
         }
 
-        output_coords[@intCast(normalized_axis)] = @intCast(index);
-
-        // Imposta on_value
-        const output_idx = try output.get_flat_index(output_coords);
-        output.data[output_idx] = values.data[1]; // on_value
+        // Set on_value
+        output.data[output_idx] = values.data[1];
     }
 }

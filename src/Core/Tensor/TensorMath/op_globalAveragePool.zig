@@ -10,12 +10,6 @@ const UOpBuilder = Uops.UOpBuilder;
 const DType = Uops.DType;
 const Any = Uops.Any;
 
-pub const PoolingType = enum {
-    Max,
-    Min,
-    Avg,
-};
-
 pub const AutoPadType = enum {
     NOTSET,
     SAME_UPPER,

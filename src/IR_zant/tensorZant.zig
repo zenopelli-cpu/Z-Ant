@@ -308,7 +308,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
             try tensorMap.put(tensorZant.name, tensorZant);
         } else {
             for (node.input) |input_name| {
-                std.debug.print("\n    inputs >>>", .{});
+                std.debug.print("\n    inputs >>> {s}", .{input_name});
                 if (tensorMap.getPtr(input_name) != null) continue;
 
                 //if the tensor is null is represented by an empty string in the onnx, so It must not be initialized in the hashMap
@@ -328,7 +328,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                 try tensorMap.put(tensorZant.name, tensorZant);
             }
             for (node.output) |output_name| {
-                std.debug.print("\n    >>> outputs", .{});
+                std.debug.print("\n    >>> outputs {s}", .{output_name});
                 if (tensorMap.getPtr(output_name) != null) continue;
 
                 //WHy RESHAPE nodes need a different output initialization? Because the output shape is sometime specified in the attributes, sometime is passed as an initializer and sometimes is a ValueInfoProto

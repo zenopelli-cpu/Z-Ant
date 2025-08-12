@@ -1,0 +1,177 @@
+#!/bin/bash
+
+# zant - A shell wrapper for ONNX Python tools
+# Usage: ./zant <script> [flags]
+
+set -e
+
+# Script configurations
+declare -A SCRIPTS
+declare -A SCRIPT_PATHS
+declare -A SCRIPT_DESCRIPTIONS
+
+# Define available scripts
+SCRIPTS[onnx_gen]="tests/CodeGen/Python-ONNX/onnx_gen.py"
+SCRIPT_DESCRIPTIONS[onnx_gen]="Generate fuzzed ONNX models and save execution data in JSON"
+
+SCRIPTS[user_tests_gen]="tests/CodeGen/user_tests_gen.py"
+SCRIPT_DESCRIPTIONS[user_tests_gen]="Run ONNX model multiple times with random inputs and save execution data"
+
+SCRIPTS[infer_shape]="src/onnx/infer_shape.py"
+SCRIPT_DESCRIPTIONS[infer_shape]="Upgrade your model with all intermediate tensor's shapes"
+
+SCRIPTS[input_setter]="src/onnx/input_setter.py"
+SCRIPT_DESCRIPTIONS[input_setter]="Set input shape and infer shapes of the ONNX model"
+
+# Define flags for each script
+declare -A ONNX_GEN_FLAGS
+ONNX_GEN_FLAGS[iterations]="Number of models to generate for each operation (default: 1)"
+ONNX_GEN_FLAGS[seed]="Seed for random generation (for reproducibility)"
+ONNX_GEN_FLAGS[output-dir]="Directory to save generated models (default: datasets/oneOpModels)"
+ONNX_GEN_FLAGS[metadata-file]="File to save metadata and execution data (default: datasets/oneOpModels/results.json)"
+ONNX_GEN_FLAGS[op]="Name of the operation you want to generate and test (default: all)"
+
+declare -A USER_TESTS_GEN_FLAGS
+USER_TESTS_GEN_FLAGS[model]="Your ONNX model (required)"
+USER_TESTS_GEN_FLAGS[iterations]="Number of randomized inference runs (default: 1)"
+
+declare -A INFER_SHAPE_FLAGS
+INFER_SHAPE_FLAGS[path]="Path of your model (required)"
+
+declare -A INPUT_SETTER_FLAGS
+INPUT_SETTER_FLAGS[path]="Path of your model (required)"
+INPUT_SETTER_FLAGS[shape]="Input shape as comma-separated values, e.g., 1,3,34,34 (required)"
+
+# Function to print general usage
+print_usage() {
+    echo "zant - A shell wrapper for ONNX Python tools"
+    echo ""
+    echo "Usage: ./zant <script> [flags]"
+    echo ""
+    echo "Available scripts:"
+    for script in "${!SCRIPTS[@]}"; do
+        printf "  %-15s - %s\n" "$script" "${SCRIPT_DESCRIPTIONS[$script]}"
+    done
+    echo ""
+    echo "To see flags for a specific script:"
+    echo "  ./zant <script> --help"
+    echo ""
+    echo "Examples:"
+    echo "  ./zant onnx_gen --iterations 5 --seed 42"
+    echo "  ./zant user_tests_gen --model my_model --iterations 10"
+    echo "  ./zant infer_shape --path model.onnx"
+    echo "  ./zant input_setter --path model.onnx --shape 1,3,224,224"
+}
+
+# Function to print script-specific usage
+print_script_usage() {
+    local script="$1"
+    local script_upper=$(echo "$script" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+    local flags_var="${script_upper}_FLAGS[@]"
+    
+    echo "zant $script - ${SCRIPT_DESCRIPTIONS[$script]}"
+    echo ""
+    echo "Usage: ./zant $script [flags]"
+    echo ""
+    echo "Flags:"
+    
+    # Use indirect reference to get the flags array
+    eval "declare -A current_flags=(\${$flags_var})"
+    
+    for flag in "${!current_flags[@]}"; do
+        echo "  --$flag"
+        echo "      ${current_flags[$flag]}"
+    done
+    echo ""
+    echo "Python script location: ${SCRIPTS[$script]}"
+}
+
+# Function to validate if script exists
+validate_script() {
+    local script="$1"
+    if [[ ! -v SCRIPTS[$script] ]]; then
+        echo "Error: Unknown script '$script'"
+        echo ""
+        print_usage
+        exit 1
+    fi
+}
+
+# Function to check if Python script file exists
+check_script_file() {
+    local script="$1"
+    local script_path="${SCRIPTS[$script]}"
+    
+    if [[ ! -f "$script_path" ]]; then
+        echo "Error: Python script not found: $script_path"
+        echo "Make sure you're running this from the correct directory."
+        exit 1
+    fi
+}
+
+# Main execution function
+execute_script() {
+    local script="$1"
+    shift  # Remove script name from arguments
+    
+    local script_path="${SCRIPTS[$script]}"
+    local python_cmd="python3"
+    
+    # Check if python3 is available, fallback to python
+    if ! command -v python3 >/dev/null 2>&1; then
+        if command -v python >/dev/null 2>&1; then
+            python_cmd="python"
+        else
+            echo "Error: Neither python3 nor python found in PATH"
+            exit 1
+        fi
+    fi
+    
+    # Build the command
+    local cmd=("$python_cmd" "$script_path")
+    
+    # Add all remaining arguments
+    cmd+=("$@")
+    
+    # Print the command being executed
+    echo "Executing: ${cmd[*]}"
+    echo ""
+    
+    # Execute the command
+    exec "${cmd[@]}"
+}
+
+# Main script logic
+main() {
+    # Check if any arguments provided
+    if [[ $# -eq 0 ]]; then
+        print_usage
+        exit 1
+    fi
+    
+    local script="$1"
+    
+    # Handle help flags
+    if [[ "$script" == "--help" || "$script" == "-h" ]]; then
+        print_usage
+        exit 0
+    fi
+    
+    # Validate script exists
+    validate_script "$script"
+    
+    # Check for script-specific help
+    if [[ $# -eq 2 && ("$2" == "--help" || "$2" == "-h") ]]; then
+        print_script_usage "$script"
+        exit 0
+    fi
+    
+    # Check if script file exists
+    check_script_file "$script"
+    
+    # Execute the script with remaining arguments
+    execute_script "$@"
+}
+
+# Run main function with all arguments
+main "$@"

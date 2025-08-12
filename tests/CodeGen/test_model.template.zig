@@ -13,7 +13,7 @@ test "model info" {
     if (model.name.len > buf.len) return error.ModelNameTooLong;
 
     // Fill the first `model.name.len` bytes with '+'
-    std.mem.set(u8, buf[0..model.name.len], '+');
+    @memset(buf[0..model.name.len], '+');
 
     std.debug.print("\n\n +++++++++++++++++++++++++++++++++++++++++++++++{s}", .{buf[0..model.name.len]});
     std.debug.print("\n++++++++++++++++++ testing {s} ++++++++++++++++++", .{model.name});
@@ -177,7 +177,7 @@ test "Static Library - User data Prediction Test" {
 
     std.debug.print("\n\n--- User data Prediction test ---", .{});
 
-    if (!model.enable_user_tests) {
+    if (!model.user_tests) {
         std.debug.print("\nUser tests are disabled for this model\n", .{});
         return;
     }

@@ -289,30 +289,20 @@ pub const get_reduce_mean_output_shape = reduction_math_lib.get_reduce_mean_outp
 
 // ---------- importing standard pooling methods ----------
 
-//---pooling
-const pooling_math_lib = @import("op_pooling.zig");
-
-pub const pool_tensor = pooling_math_lib.pool_tensor;
-pub const multidim_pooling = pooling_math_lib.multidim_pooling;
-pub const pool_forward = pooling_math_lib.pool_forward;
-pub const pool_backward = pooling_math_lib.pool_backward;
-pub const get_pooling_output_shape = pooling_math_lib.get_pooling_output_shape;
-pub const PoolingType = pooling_math_lib.PoolingType;
-pub const AutoPadType = pooling_math_lib.AutoPadType;
-pub const lowerMaxPool2d = pooling_math_lib.lowerMaxPool2d;
-
 //---onnx_maxpool
-pub const onnx_maxpool = pooling_math_lib.onnx_maxpool;
-pub const onnx_maxpool_lean = pooling_math_lib.lean_onnx_maxpool;
-pub const get_onnx_maxpool_output_shape = pooling_math_lib.get_onnx_maxpool_output_shape;
+pub const op_maxPool = @import("op_maxPool.zig");
+pub const onnx_maxpool = op_maxPool.onnx_maxpool;
+pub const onnx_maxpool_lean = op_maxPool.lean_onnx_maxpool;
+pub const get_onnx_maxpool_output_shape = op_maxPool.get_onnx_maxpool_output_shape;
 
 //---onnx_averagepool
-pub const onnx_averagepool = pooling_math_lib.onnx_averagepool;
-pub const onnx_averagepool_lean = pooling_math_lib.lean_onnx_averagepool;
-pub const get_onnx_averagepool_output_shape = pooling_math_lib.get_onnx_averagepool_output_shape;
+pub const op_averagePool = @import("op_averagePool.zig");
+pub const onnx_averagepool = op_averagePool.onnx_averagepool;
+pub const onnx_averagepool_lean = op_averagePool.lean_onnx_averagepool;
+pub const get_onnx_averagepool_output_shape = op_averagePool.get_onnx_averagepool_output_shape;
 
 //---global average pooling
-const op_globalAveragePool = @import("op_globalAveragePool.zig");
+pub const op_globalAveragePool = @import("op_globalAveragePool.zig");
 pub const globalAveragePool = op_globalAveragePool.globalAveragePool;
 pub const globalAveragePool_lean = op_globalAveragePool.lean_globalAveragePool;
 pub const get_global_average_pool_output_shape = op_globalAveragePool.get_global_average_pool_output_shape;

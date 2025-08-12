@@ -114,7 +114,7 @@ pub const AveragePool = struct {
     }
 
     pub fn write_op(self: AveragePool, writer: std.fs.File.Writer) !void {
-
+        self.print();
         //input_X string equivalent
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);
@@ -154,9 +154,9 @@ pub const AveragePool = struct {
         var dilations_string: []const u8 = undefined;
         if (self.dilations != null) {
             dilations_string = try utils.i64SliceToUsizeArrayString(self.dilations.?);
-            defer allocator.free(dilations_string);
+            //defer allocator.free(dilations_string);
         } else {
-            dilations_string = try utils.i64SliceToUsizeArrayString(&[_]i64{ 1, 1, 1, 1 }); // TODO: Hardcoded in 4D, not the most elegant solutionk
+            dilations_string = try utils.i64SliceToUsizeArrayString(&[_]i64{ 1, 1 }); // TODO: Hardcoded in 4D -> 2 spatial dims, not the most elegant solutionk
         }
 
         // Crea stringa per pads
@@ -165,7 +165,7 @@ pub const AveragePool = struct {
             pads_string = try utils.i64SliceToUsizeArrayString(self.pads.?);
             // defer allocator.free(pads_string);
         } else {
-            return error.PadsNotFound;
+            pads_string = try utils.i64SliceToUsizeArrayString(&[_]i64{ 1, 1, 1, 1 }); // TODO: Hardcoded in 4D, not the most elegant solution
         }
 
         // Scrivi la chiamata a onnx_averagepool_lean
@@ -180,9 +180,12 @@ pub const AveragePool = struct {
             \\        {s}, // strides
             \\        {s}, // dilations
             \\        {s}, // pads
-            \\        tensMath.AutoPadType.{s}, // auto_pad
+            \\        tensMath.op_averagePool.AutoPadType.{s}, // auto_pad
             \\        {s}, // count_include_pad
-            \\    ) catch return;
+            \\    ) catch |e| {{
+            \\        std.debug.print("<<<<ERROR IN onnx_averagepool_lean: {{any}}", .{{e}});
+            \\        return;
+            \\    }};
         , .{
             self.input_X.ty.toString(),
             tensor_X_string, // Input
@@ -204,7 +207,7 @@ pub const AveragePool = struct {
             try utils.i64SliceToUsizeSlice(self.strides.?),
             try utils.i64SliceToUsizeSlice(self.dilations.?),
             try utils.i64SliceToUsizeSlice(self.pads.?),
-            "NOTSET",
+            self.auto_pad,
             try utils.i64SliceToUsizeSlice(self.ceil_mode),
         );
         return output_shape;
