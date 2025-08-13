@@ -166,7 +166,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // Create a build step to run the application.
-    const IR_codegen_step = b.step("IR_codegen", "code generation");
+    const IR_codegen_step = b.step("codegen", "code generation");
     IR_codegen_step.dependOn(&IR_codegen_cmd.step);
 
     //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//
