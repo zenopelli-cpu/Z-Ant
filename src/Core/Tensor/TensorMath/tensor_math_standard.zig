@@ -314,11 +314,11 @@ const convolution_math_lib = @import("op_convolution.zig");
 
 pub const convolve_tensor_with_bias = convolution_math_lib.convolve_tensor_with_bias;
 pub const convolution_backward_biases = convolution_math_lib.convolution_backward_biases;
-pub const get_convolution_output_shape = convolution_math_lib.get_convolution_output_shape;
-pub const Conv = convolution_math_lib.OnnxConv;
-pub const conv_lean = convolution_math_lib.OnnxConvLean;
+pub const get_convolution_output_shape = convolution_math_lib.calculateOutputShape;
+pub const conv = convolution_math_lib.conv;
+pub const conv_lean = convolution_math_lib.conv_lean;
 pub const setLogFunctionC = convolution_math_lib.setLogFunctionC;
-pub const convInteger_lean = convolution_math_lib.convInteger_lean;
+// pub const convInteger_lean = convolution_math_lib.convInteger_lean;
 
 // ---------- importing standard normalization methods ----------
 

@@ -10,6 +10,7 @@ const Uops = zant.uops;
 const UOpBuilder = Uops.UOpBuilder;
 const DType = Uops.DType;
 const Any = Uops.Any;
+
 /// Performs Element-wise binary division of two tensors with support for broadcasting.
 pub fn div(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T)) !Tensor(T) {
     // Handle broadcasting
@@ -63,7 +64,7 @@ pub fn div(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T)) !Tensor(T) {
 pub inline fn div_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), result: *Tensor(T)) !void {
 
     // Simple case: same size tensors
-    if (lhs.size == rhs.size and std.mem.eql(usize, lhs.shape, result.shape)) {
+    if (lhs.size == rhs.size and std.mem.eql(usize, lhs.shape, rhs.shape)) {
         for (0..lhs.size) |i| {
             result.data[i] = lhs.data[i] / rhs.data[i];
         }
@@ -80,15 +81,11 @@ pub inline fn div_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), re
     var stack_shape2: [4]usize = [_]usize{1} ** 4;
     var stack_strides1: [4]usize = undefined;
     var stack_strides2: [4]usize = undefined;
-    var stack_out_strides: [4]usize = undefined;
-    var stack_indices: [4]usize = [_]usize{0} ** 4;
 
     const shape1 = if (max_rank <= 4) stack_shape1[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
     const shape2 = if (max_rank <= 4) stack_shape2[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
     const strides1 = if (max_rank <= 4) stack_strides1[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
     const strides2 = if (max_rank <= 4) stack_strides2[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
-    const out_strides = if (max_rank <= 4) stack_out_strides[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
-    const indices = if (max_rank <= 4) stack_indices[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
 
     // Only defer if we actually allocated
     if (max_rank > 4) {
@@ -96,11 +93,9 @@ pub inline fn div_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), re
         defer pkg_allocator.free(shape2);
         defer pkg_allocator.free(strides1);
         defer pkg_allocator.free(strides2);
-        defer pkg_allocator.free(out_strides);
-        defer pkg_allocator.free(indices);
     }
 
-    // Copy original shapes from right to left
+    // Copy original shapes from right to left (align trailing dimensions)
     var i: usize = 0;
     while (i < rank1) : (i += 1) {
         shape1[max_rank - rank1 + i] = lhs.shape[i];
@@ -110,61 +105,92 @@ pub inline fn div_lean(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T), re
         shape2[max_rank - rank2 + i] = rhs.shape[i];
     }
 
-    // Verify shapes and calculate output shape
+    // Verify shapes are compatible for broadcasting
     for (0..max_rank) |dim| {
         if (shape1[dim] != shape2[dim] and shape1[dim] != 1 and shape2[dim] != 1) {
             return TensorMathError.IncompatibleBroadcastShapes;
         }
     }
 
-    // Calculate strides from right to left
+    // Calculate strides for each input tensor based on their ORIGINAL shapes, not the broadcasted shapes
+    // For tensor 1 (lhs)
     var stride: usize = 1;
+    i = rank1;
+    while (i > 0) {
+        i -= 1;
+        const padded_dim = max_rank - rank1 + i;
+        strides1[padded_dim] = stride;
+        stride *= lhs.shape[i];
+    }
+    // Fill leading dimensions with 0 stride (broadcasting)
+    for (0..(max_rank - rank1)) |dim| {
+        strides1[dim] = 0;
+    }
+
+    // For tensor 2 (rhs)
+    stride = 1;
+    i = rank2;
+    while (i > 0) {
+        i -= 1;
+        const padded_dim = max_rank - rank2 + i;
+        strides2[padded_dim] = stride;
+        stride *= rhs.shape[i];
+    }
+    // Fill leading dimensions with 0 stride (broadcasting)
+    for (0..(max_rank - rank2)) |dim| {
+        strides2[dim] = 0;
+    }
+
+    // Override strides for dimensions of size 1 (these should broadcast)
+    for (0..max_rank) |dim| {
+        if (shape1[dim] == 1) {
+            strides1[dim] = 0;
+        }
+        if (shape2[dim] == 1) {
+            strides2[dim] = 0;
+        }
+    }
+
+    // Calculate output strides
+    stride = 1;
+    i = max_rank;
+    while (i > 0) {
+        i -= 1;
+        stride *= result.shape[i];
+    }
+
+    // Calculate output strides for coordinate conversion
+    var out_strides = if (max_rank <= 4) stack_strides1[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    if (max_rank > 4) {
+        defer pkg_allocator.free(out_strides);
+    }
+
+    stride = 1;
     i = max_rank;
     while (i > 0) {
         i -= 1;
         out_strides[i] = stride;
-        strides1[i] = if (shape1[i] > 1) stride else 0;
-        strides2[i] = if (shape2[i] > 1) stride else 0;
         stride *= result.shape[i];
     }
 
     // Perform division with broadcasting
-    @memset(indices, 0);
-
-    i = 0;
-    while (i < result.size) : (i += 1) {
-        // Calculate indices for current position
-        var temp = i;
-        for (0..max_rank) |dim| {
-            const idx = max_rank - 1 - dim;
-            indices[idx] = temp / out_strides[idx];
-            temp = temp % out_strides[idx];
-        }
-
-        // Calculate input indices considering broadcasting
+    for (0..result.size) |linear_idx| {
+        // Convert linear index to multi-dimensional coordinates
         var idx1: usize = 0;
         var idx2: usize = 0;
 
-        // For same shape tensors, use the same index calculation
-        if (std.mem.eql(usize, shape1, shape2)) {
-            idx1 = i;
-            idx2 = i;
-        } else {
-            // For broadcasting case
-            for (0..max_rank) |dim| {
-                const pos = indices[dim];
-                // For lhs: if dimension is 1, don't increment index (broadcasting)
-                if (shape1[dim] > 1) {
-                    idx1 += pos * strides1[dim];
-                }
-                // For rhs: if dimension is 1, don't increment index (broadcasting)
-                if (shape2[dim] > 1) {
-                    const t2_pos = pos % shape2[dim];
-                    idx2 += t2_pos * strides2[dim];
-                }
-            }
+        // Calculate coordinates and map to input indices
+        for (0..max_rank) |dim| {
+            const coord = (linear_idx / out_strides[dim]) % result.shape[dim];
+
+            // Map coordinate to input tensor indices with broadcasting
+            const coord1 = if (shape1[dim] == 1) 0 else coord;
+            const coord2 = if (shape2[dim] == 1) 0 else coord;
+
+            idx1 += coord1 * strides1[dim];
+            idx2 += coord2 * strides2[dim];
         }
 
-        result.data[i] = lhs.data[idx1] / rhs.data[idx2];
+        result.data[linear_idx] = lhs.data[idx1] / rhs.data[idx2];
     }
 }
