@@ -9,6 +9,7 @@ const Uops = zant.uops;
 const UOpBuilder = Uops.UOpBuilder;
 const DType = Uops.DType;
 const Any = Uops.Any;
+
 /// Performs element-wise binary subtraction with Numpy-style broadcasting support
 pub fn sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
     // CHECKS:
@@ -31,7 +32,7 @@ pub fn sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
     var out_shape = try pkg_allocator.alloc(usize, max_rank);
     errdefer pkg_allocator.free(out_shape);
 
-    // Pad shapes with 1s for broadcasting
+    // Pad shapes with 1s for broadcasting (NumPy rule: pad on the left/leading side)
     var shape1 = try pkg_allocator.alloc(usize, max_rank);
     defer pkg_allocator.free(shape1);
     var shape2 = try pkg_allocator.alloc(usize, max_rank);
@@ -41,7 +42,7 @@ pub fn sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
     @memset(shape1, 1);
     @memset(shape2, 1);
 
-    // Copy original shapes from right to left
+    // Copy original shapes from right to left (trailing alignment)
     var i: usize = 0;
     while (i < rank1) : (i += 1) {
         shape1[max_rank - rank1 + i] = t1.shape[i];
@@ -51,18 +52,12 @@ pub fn sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
         shape2[max_rank - rank2 + i] = t2.shape[i];
     }
 
-    // Calculate broadcasted shape
+    // Calculate broadcasted shape (NumPy broadcasting rules)
     for (0..max_rank) |dim| {
         if (shape1[dim] != shape2[dim] and shape1[dim] != 1 and shape2[dim] != 1) {
             return TensorMathError.IncompatibleBroadcastShapes;
         }
         out_shape[dim] = @max(shape1[dim], shape2[dim]);
-    }
-
-    // Calculate total size
-    var total_size: usize = 1;
-    for (0..max_rank) |dim| {
-        total_size *= out_shape[dim];
     }
 
     // Create output tensor
@@ -111,35 +106,26 @@ pub inline fn lean_sub_tensors(comptime inputType: anytype, comptime outputType:
         }
     }
 
-    // Broadcasting path
+    // Broadcasting path - this is where the main fix is needed
     var stack_shape1: [8]usize = [_]usize{1} ** 8;
     var stack_shape2: [8]usize = [_]usize{1} ** 8;
-    var stack_strides1: [8]usize = undefined;
-    var stack_strides2: [8]usize = undefined;
-    var stack_out_strides: [8]usize = undefined;
 
     // Use stack for common ranks, heap for larger
     const shape1 = if (max_rank <= 8) stack_shape1[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
     const shape2 = if (max_rank <= 8) stack_shape2[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
-    const strides1 = if (max_rank <= 8) stack_strides1[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
-    const strides2 = if (max_rank <= 8) stack_strides2[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
-    const out_strides = if (max_rank <= 8) stack_out_strides[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
 
     if (max_rank > 8) {
         defer {
             pkg_allocator.free(shape1);
             pkg_allocator.free(shape2);
-            pkg_allocator.free(strides1);
-            pkg_allocator.free(strides2);
-            pkg_allocator.free(out_strides);
         }
     }
 
-    // Prepare shapes for broadcasting
+    // Prepare shapes for broadcasting (pad on the left with 1s)
     @memset(shape1, 1);
     @memset(shape2, 1);
 
-    // Copy shapes from right to left
+    // Copy shapes from right to left (trailing alignment)
     for (0..rank1) |i| {
         shape1[max_rank - rank1 + i] = t1.shape[i];
     }
@@ -147,76 +133,81 @@ pub inline fn lean_sub_tensors(comptime inputType: anytype, comptime outputType:
         shape2[max_rank - rank2 + i] = t2.shape[i];
     }
 
-    // Calculate strides for efficient access
+    // Calculate original strides for both input tensors
+    var stack_strides1: [8]usize = undefined;
+    var stack_strides2: [8]usize = undefined;
+    const strides1 = if (rank1 <= 8) stack_strides1[0..rank1] else try pkg_allocator.alloc(usize, rank1);
+    const strides2 = if (rank2 <= 8) stack_strides2[0..rank2] else try pkg_allocator.alloc(usize, rank2);
+
+    if (rank1 > 8 or rank2 > 8) {
+        defer {
+            if (rank1 > 8) pkg_allocator.free(strides1);
+            if (rank2 > 8) pkg_allocator.free(strides2);
+        }
+    }
+
+    // Calculate strides for t1
     var stride: usize = 1;
-    var i = max_rank;
-    while (i > 0) {
-        i -= 1;
-        out_strides[i] = stride;
-        strides1[i] = if (shape1[i] > 1) stride else 0;
-        strides2[i] = if (shape2[i] > 1) stride else 0;
-        const offset = max_rank -| i; // saturating subtraction
-        const shape_idx = if (offset < outputTensor.shape.len)
-            outputTensor.shape.len -| offset -| 1
-        else
-            0;
-        stride *= if (shape_idx < outputTensor.shape.len) outputTensor.shape[shape_idx] else 1;
+    var dim = rank1;
+    while (dim > 0) {
+        dim -= 1;
+        strides1[dim] = stride;
+        stride *= t1.shape[dim];
+    }
+
+    // Calculate strides for t2
+    stride = 1;
+    dim = rank2;
+    while (dim > 0) {
+        dim -= 1;
+        strides2[dim] = stride;
+        stride *= t2.shape[dim];
     }
 
     // Process elements with broadcasting
-    const vector_len: usize = std.simd.suggestVectorLength(inputType) orelse 4;
-    const Vec = @Vector(vector_len, inputType);
-    var contiguous_run: usize = 0;
-    var last_idx1: usize = 0;
-    var last_idx2: usize = 0;
+    for (0..outputTensor.size) |out_idx| {
+        // Convert linear output index to multi-dimensional coordinates
+        var coords: [8]usize = undefined;
+        var temp = out_idx;
 
-    i = 0;
-    while (i < outputTensor.size) : (i += 1) {
-        // Calculate input indices for broadcasting
+        // Calculate coordinates in output tensor
+        for (0..max_rank) |d| {
+            const dim_idx = max_rank - 1 - d;
+            coords[dim_idx] = temp % outputTensor.shape[dim_idx];
+            temp /= outputTensor.shape[dim_idx];
+        }
+
+        // Calculate input indices for both tensors using broadcasting rules
         var idx1: usize = 0;
         var idx2: usize = 0;
-        var temp: usize = i;
 
-        // Calculate indices for both tensors
-        var dim: usize = 0;
-        while (dim < max_rank) : (dim += 1) {
-            const current_stride = out_strides[dim];
-            if (current_stride > 0) {
-                const pos = temp / current_stride;
-                temp = temp - (pos * current_stride);
-
-                if (shape1[dim] > 1) {
-                    idx1 += pos * strides1[dim];
-                }
-                if (shape2[dim] > 1) {
-                    const t2_pos = if (shape2[dim] > 1) pos % shape2[dim] else pos;
-                    idx2 += t2_pos * strides2[dim];
-                }
+        // For tensor 1: map coordinates to actual tensor indices
+        for (0..max_rank) |d| {
+            const coord = coords[d];
+            // Map from broadcasted dimension to original tensor dimension
+            if (d >= (max_rank - rank1)) {
+                const t1_dim = d - (max_rank - rank1);
+                // If the original dimension is 1, use index 0 (broadcasting)
+                const actual_coord = if (t1.shape[t1_dim] == 1) 0 else coord;
+                idx1 += actual_coord * strides1[t1_dim];
             }
+            // If d < (max_rank - rank1), this dimension was padded with 1, so index is 0
         }
 
-        // Check if we can use SIMD for a contiguous run
-        if (i > 0 and idx1 == last_idx1 + 1 and idx2 == last_idx2 + 1) {
-            contiguous_run += 1;
-            if (contiguous_run >= vector_len) {
-                const start = i - vector_len + 1;
-                const v1: Vec = t1.data[idx1 - vector_len + 1 ..][0..vector_len].*;
-                const v2: Vec = t2.data[idx2 - vector_len + 1 ..][0..vector_len].*;
-                const result = v1 - v2;
-
-                inline for (0..vector_len) |j| {
-                    outputTensor.data[start + j] = @as(outputType, result[j]);
-                }
-                contiguous_run = 0;
-                continue;
+        // For tensor 2: map coordinates to actual tensor indices
+        for (0..max_rank) |d| {
+            const coord = coords[d];
+            // Map from broadcasted dimension to original tensor dimension
+            if (d >= (max_rank - rank2)) {
+                const t2_dim = d - (max_rank - rank2);
+                // If the original dimension is 1, use index 0 (broadcasting)
+                const actual_coord = if (t2.shape[t2_dim] == 1) 0 else coord;
+                idx2 += actual_coord * strides2[t2_dim];
             }
-        } else {
-            contiguous_run = 0;
+            // If d < (max_rank - rank2), this dimension was padded with 1, so index is 0
         }
 
-        // Scalar operation for non-contiguous or remaining elements
-        outputTensor.data[i] = @as(outputType, t1.data[idx1] - t2.data[idx2]);
-        last_idx1 = idx1;
-        last_idx2 = idx2;
+        // Perform the subtraction
+        outputTensor.data[out_idx] = @as(outputType, t1.data[idx1] - t2.data[idx2]);
     }
 }
