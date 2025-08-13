@@ -8,6 +8,8 @@ const allocator = pkgAllocator.allocator;
 
 const model = @import("model_options.zig");
 
+// ----------- FULL TEMPLATE -----------
+
 test "model info" {
     var buf: [20]u8 = undefined;
     if (model.name.len > buf.len) return error.ModelNameTooLong;

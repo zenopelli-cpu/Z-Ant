@@ -10,6 +10,8 @@ const model = @import("model_options.zig");
 
 const ITERATION_COUNT: u32 = 100;
 
+// ----------- SLIM TEMPLATE -----------
+
 test "model info" {
     std.debug.print("\n\n ++++++++++++++++ testing {s} ++++++++++++++++\n", .{model.name});
 }
@@ -67,13 +69,9 @@ test "Static Library - Inputs Prediction Test" {
         input_data_len *= dim;
     }
 
-    // Read json for output to compare it with.
-    const user_tests_path = try std.fmt.allocPrint(allocator, "generated/oneOpModels/{s}/user_tests.json", .{model.name});
-    defer allocator.free(user_tests_path);
+    std.debug.print(" {s}", .{model.user_tests_path});
 
-    std.debug.print("{s}", .{user_tests_path});
-
-    const parsed_user_tests = try utils.loadUserTests(model.input_data_type, model.output_data_type, user_tests_path);
+    const parsed_user_tests = try utils.loadUserTests(model.input_data_type, model.output_data_type, model.user_tests_path);
     defer parsed_user_tests.deinit();
 
     const user_tests = parsed_user_tests.value;

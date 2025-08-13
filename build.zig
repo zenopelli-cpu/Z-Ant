@@ -265,7 +265,7 @@ pub fn build(b: *std.Build) void {
     oneop_codegen_exe.linkLibC();
 
     const run_oneop_codegen_exe = b.addRunArtifact(oneop_codegen_exe);
-    const step_test_oneOp_codegen = b.step("test-codegen-gen", "Run generated library tests");
+    const step_test_oneOp_codegen = b.step("op-codegen-gen", "Codegenerate library tests");
     step_test_oneOp_codegen.dependOn(&run_oneop_codegen_exe.step);
 
     // ************************************************ ONEOP TESTING ************************************************
@@ -294,11 +294,55 @@ pub fn build(b: *std.Build) void {
     // - run_oneop_codegen_exe
     // - run_test_all_oneOp
 
-    const step_test_oneOp = b.step("test-codegen", "Run generated library tests");
+    const step_test_oneOp = b.step("op-codegen-test", "Run generated library tests");
     step_test_oneOp.dependOn(&run_test_all_oneOp.step);
 
-    // ************************************************
-    // Benchmark
+    // ************************************************ NODE EXTRACTOR GEN ************************************************
+
+    const extractor_options = b.addOptions(); // Model name option
+    extractor_options.addOption([]const u8, "model", model_name_option);
+
+    const node_extractor_generator = b.addExecutable(.{
+        .name = "node_extractor_generator",
+        .root_source_file = b.path("tests/CodeGen/node_extractor_generator.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    node_extractor_generator.root_module.addImport("zant", zant_mod);
+    node_extractor_generator.root_module.addImport("IR_zant", IR_zant_mod);
+    node_extractor_generator.root_module.addImport("codegen", codegen_mod); //codegen
+    node_extractor_generator.root_module.addOptions("extractor_options", extractor_options); //<<--OSS!! it is an option!
+    node_extractor_generator.linkLibC();
+
+    const run_node_extractor_generator = b.addRunArtifact(node_extractor_generator);
+    const step_node_extractor_generator = b.step("extractor-gen", "Codegenerate tests for extracted nodes ");
+    step_node_extractor_generator.dependOn(&run_node_extractor_generator.step);
+
+    // ************************************************ NODE EXTRACTOR TEST ************************************************
+    const test_extractor_path = std.fmt.allocPrint(b.allocator, "generated/{s}/extracted/test_extracted_models.zig", .{model_name_option}) catch |err| {
+        std.log.scoped(.build).warn("Error allocating test model path: {}\n", .{err});
+        return;
+    };
+
+    const test_node_extractor = b.addTest(.{
+        .name = "test_node_extractor",
+        .root_source_file = b.path(test_extractor_path),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    test_node_extractor.root_module.addImport("zant", zant_mod);
+    test_node_extractor.root_module.addImport("IR_zant", IR_zant_mod);
+    test_node_extractor.root_module.addImport("codegen", codegen_mod); //codegen
+    test_node_extractor.root_module.addOptions("extractor_options", extractor_options); //<<--OSS!! it is an option!
+    test_node_extractor.linkLibC();
+
+    const run_test_extractor = b.addRunArtifact(test_node_extractor);
+    const step_test_extractor = b.step("extractor-test", "Start extracted nodes tests");
+    step_test_extractor.dependOn(&run_test_extractor.step);
+
+    // ************************************************ BENCHMARK  ************************************************
 
     const benchmark = b.addExecutable(.{
         .name = "benchmark",
