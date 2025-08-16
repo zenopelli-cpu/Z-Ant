@@ -94,7 +94,7 @@ pub fn conv(
     defer if (temp_input) |*t| t.deinit();
 
     // Calculate output shape
-    const output_shape = try calculateOutputShape(T, &input_shape, weight.shape, stride, pads, dilations, group, auto_pad);
+    const output_shape = try calculateOutputShape(T, &input_shape, weight.shape, stride, pads, dilations, auto_pad);
 
     // Create output tensor
     var output = try Tensor(T).fromShape(&pkg_allocator, &output_shape);
@@ -283,9 +283,9 @@ pub fn conv_lean(
     }
 }
 
-/// Calculate output shape for convolution according to ONNX specification
 fn calculateOutputShape(
     comptime T: type,
+    allocator: std.mem.Allocator,
     input_shape: []const usize, // [N, C, H, W]
     weight_shape: []const usize, // [M, C/group, kH, kW]
     stride: ?[]const usize,
@@ -293,13 +293,11 @@ fn calculateOutputShape(
     dilations: ?[]const usize,
     // group: ?usize,
     auto_pad: ?[]const u8,
-) !@Vector(4, usize) {
+) ![]usize {
     _ = T; // Suppress unused parameter warning
-
     if (input_shape.len != 4 or weight_shape.len != 4) {
         return TensorMathError.InvalidDimensions;
     }
-
     const batch_size = input_shape[0];
     const in_height = input_shape[2];
     const in_width = input_shape[3];
@@ -329,7 +327,6 @@ fn calculateOutputShape(
             // For SAME padding, output size should be ceil(input_size / stride)
             const out_height = (in_height + stride_h - 1) / stride_h;
             const out_width = (in_width + stride_w - 1) / stride_w;
-
             const total_pad_h = if (out_height * stride_h + dilated_kernel_h > in_height)
                 (out_height - 1) * stride_h + dilated_kernel_h - in_height
             else
@@ -338,7 +335,6 @@ fn calculateOutputShape(
                 (out_width - 1) * stride_w + dilated_kernel_w - in_width
             else
                 0;
-
             if (std.mem.eql(u8, pad_mode, "SAME_UPPER")) {
                 pad_h_begin = total_pad_h / 2;
                 pad_h_end = total_pad_h - pad_h_begin;
@@ -381,7 +377,14 @@ fn calculateOutputShape(
     const out_height = (padded_height - dilated_kernel_h) / stride_h + 1;
     const out_width = (padded_width - dilated_kernel_w) / stride_w + 1;
 
-    return @Vector(4, usize){ batch_size, out_channels, out_height, out_width };
+    // Allocate and return slice
+    const output_shape = try allocator.alloc(usize, 4);
+    output_shape[0] = batch_size;
+    output_shape[1] = out_channels;
+    output_shape[2] = out_height;
+    output_shape[3] = out_width;
+
+    return output_shape;
 }
 
 // Test functions for validation

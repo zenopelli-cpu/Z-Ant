@@ -410,7 +410,7 @@ test "OnnxConv - all padding modes and features" {
         const stride = [_]usize{1};
         const pads = [_]usize{ 0, 0, 0, 0 };
 
-        var result = try TensMath.Conv(f32, &input_tensor, &kernel_tensor, null, &stride, &pads, null, null, null);
+        var result = try TensMath.conv(f32, &input_tensor, &kernel_tensor, null, &stride, &pads, null, null, null);
         defer result.deinit();
 
         try std.testing.expectEqual(@as(usize, 1), result.shape[0]); // batch

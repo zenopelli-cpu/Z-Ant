@@ -26,9 +26,9 @@ const Converter = zant.utils.type_converter;
 pub fn quantizeLinear(
     comptime InputType: anytype,
     comptime OutputType: anytype,
-    x: *const Tensor(InputType), //T1
-    y_scale: *const Tensor(InputType), //T2
-    y_zero_point: ?*const Tensor(OutputType), //T3
+    x: *Tensor(InputType), //T1
+    y_scale: *Tensor(InputType), //T2
+    y_zero_point: ?*Tensor(OutputType), //T3
     axis: i32,
     block_size: i32,
     // output_dtype: i32, only used when parsing, see IR_zant/op_union_operators/op_quantizeLinear
@@ -85,7 +85,7 @@ pub inline fn quantizeLinear_lean(
     // }
 
     const is_perTensor: bool = y_scale.shape.len == 1 and y_scale.data.len == 1;
-    const is_perAxis: bool = !is_perTensor and y_scale.data.len == x.shape[axis] and y_scale.shape.len == 1;
+    const is_perAxis: bool = !is_perTensor and y_scale.data.len == x.shape[@as(usize, @intCast(axis))] and y_scale.shape.len == 1;
     const is_perBlock: bool = false;
 
     //check if is_perBlock
@@ -95,7 +95,7 @@ pub inline fn quantizeLinear_lean(
         for (0..y_scale.shape.len) |i| { //The scale’s shape is identical to the input’s shape
             if (i == axis) { //dimension where bloking is performed
                 if (block_size <= 0) return error.Invalid_block_size;
-                if (y_scale.shape[i] != @ceil(x.shape[i] / block_size)) return error.Invalid_scale_shape;
+                if (y_scale.shape[i] != @divFloor(@as(i32, @intCast(x.shape[i])), block_size)) return error.Invalid_scale_shape;
             } else {
                 if (y_scale.shape[i] != x.shape[i]) return error.Invalid_scale_shape;
             }
