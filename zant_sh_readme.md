@@ -94,7 +94,7 @@ ln -s $(pwd)/zant /usr/local/bin/zant
 ### user_tests_gen
 **Location:** `tests/CodeGen/user_tests_gen.py`
 
-**Flags:**
+**Flags:**   
 - `--model` - Your ONNX model (required)
 - `--iterations` - Number of randomized inference runs (default: 1)
 

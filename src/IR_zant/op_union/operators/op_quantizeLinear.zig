@@ -123,7 +123,7 @@ pub const QuantizeLinear = struct {
 
         try inputs.append(self.x);
         try inputs.append(self.y_scale);
-        if (self.y_zero_point != null) try inputs.append(self.y_zero_point);
+        if (self.y_zero_point) |y_zero_point| try inputs.append(y_zero_point);
 
         return inputs.toOwnedSlice();
     }

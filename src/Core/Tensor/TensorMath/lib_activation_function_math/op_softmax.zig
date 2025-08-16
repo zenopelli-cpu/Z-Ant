@@ -50,7 +50,7 @@ pub inline fn lean_softmax_with_axis(comptime T: anytype, input: *Tensor(T), out
         @intCast(axis);
 
     // Validate axis bounds
-    if (normalized_axis >= n_dims) return TensorError.InvalidAxis;
+    if (normalized_axis > n_dims) return TensorError.InvalidAxis;
 
     // Calculate strides for efficient memory access
     var strides: [5]usize = undefined;

@@ -90,6 +90,8 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
             const sanitized_name = try tz.getNameSanitized();
             const type_str = tz.ty.toString();
             try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return;\n", .{ sanitized_name, type_str, sanitized_name });
+            //since we are using dynamic inference  we also have to free the output_tensor so to avoid leaks, seee how I return the output tensor in writeReturn()
+            try writer.print("    defer tensor_{s}.deinit();", .{sanitized_name});
         }
     }
 
@@ -289,25 +291,29 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
     if (outputs.len > 1) return error.MoreThanOneOutput;
     if (outputs.len < 1) return error.NoOutput;
 
-    _ = try writer.print(
-        \\
-        \\    result.* = tensor_{s}.data.ptr;
-        \\
-    , .{try outputs[0].getNameSanitized()});
-
+    if (codegen_options.dynamic) {
+        _ = try writer.print(
+            \\     
+            \\     const output_zant_slice = allocator.alloc(T_out, tensor_{s}.size) catch return;
+            \\     @memcpy(output_zant_slice, tensor_{s}.data[0..tensor_{s}.size]);
+            \\      
+            \\     //The Caller must handle the memory of output_zant_slice
+            \\     result.* = output_zant_slice.ptr;
+            \\
+        , .{ try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized() });
+    } else {
+        _ = try writer.print(
+            \\
+            \\    result.* = tensor_{s}.data.ptr;
+            \\
+        , .{try outputs[0].getNameSanitized()});
+    }
     // Add deallocation for dynamic tensors
     if (codegen_options.dynamic) {
         const linkers: []TensorZant = try IR_utils.getLinkers(tensorZantMap);
         for (linkers) |*tz| {
             _ = try writer.print(
                 \\    tensor_{s}.deinit();
-                \\
-            , .{try tz.getNameSanitized()});
-        }
-
-        for (outputs) |*tz| {
-            _ = try writer.print(
-                \\    // Note: tensor_{s} memory ownership transferred to caller
                 \\
             , .{try tz.getNameSanitized()});
         }
@@ -395,12 +401,12 @@ fn write_graphSerialization(writer: std.fs.File.Writer, linearizedGraph: std.Arr
         }
 
         //Before computing the OP, init link tensors when we are in dynamic allocation
-        if (codegen_options.dynamic) try allocate_output_link_tensors(writer, node);
+        if (codegen_options.dynamic) try allocate_output_link_tensors(writer, node); //ERE YOU ALLOCATE
 
         try node.write_op(writer);
 
         //After computing the OP, delete link tensors that are not useful anymore when we are in dynamic allocation
-        if (codegen_options.dynamic) try deallocate_useless_link_tensors(writer, i, linearizedGraph);
+        if (codegen_options.dynamic) try deallocate_useless_link_tensors(writer, i, linearizedGraph); //HERE YOU DEALLOCATE
     }
 }
 

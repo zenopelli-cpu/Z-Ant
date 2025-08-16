@@ -71,6 +71,10 @@ test "Static Library - Random data Prediction Test" {
         &result,
     );
 
+    if (model.is_dynamic) {
+        defer allocator.free(result[0..model.output_data_len]);
+    }
+
     std.debug.print("\nPrediction done without errors:\n", .{});
 }
 
@@ -122,6 +126,11 @@ test "Static Library - Wrong Input Shape" {
         model_input_shape.len,
         &result,
     );
+
+    // below not necessary, it fails before
+    // if (model.is_dynamic) {
+    //     defer allocator.free(result[0..model.output_data_len]);
+    // }
 }
 
 test "Static Library - Empty Input" {
@@ -140,6 +149,11 @@ test "Static Library - Empty Input" {
         0,
         &result,
     );
+
+    // below not necessary, it fails before
+    // if (model.is_dynamic) {
+    //     defer allocator.free(result[0..model.output_data_len]);
+    // }
 }
 
 test "Static Library - Wrong Number of Dimensions" {
@@ -174,6 +188,11 @@ test "Static Library - Wrong Number of Dimensions" {
         1,
         &result,
     );
+
+    // below not necessary, it fails before
+    // if (model.is_dynamic) {
+    //     defer allocator.free(result[0..model.output_data_len]);
+    // }
 }
 
 test "Static Library - User data Prediction Test" {
@@ -280,6 +299,10 @@ test "Static Library - User data Prediction Test" {
         } else {
             std.debug.print("Unsupported test type: {s}\n", .{user_test.type});
             try std.testing.expect(false);
+        }
+
+        if (model.is_dynamic) {
+            defer allocator.free(result[0..model.output_data_len]);
         }
     }
 }
