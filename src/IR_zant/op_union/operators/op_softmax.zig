@@ -27,17 +27,25 @@ const utils = IR_zant.utils;
 pub const Softmax = struct {
     input_X: *TensorZant,
     output_Y: *TensorZant,
+    axis: i64,
 
     pub fn init(nodeProto: *NodeProto) !Softmax {
         const input_X = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
         const output_Y = if (tensorZant_lib.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
+        var axis: i64 = -1;
 
+        for (nodeProto.attribute) |attr| {
+            if (std.mem.indexOf(u8, attr.name, "axis")) |_| {
+                if (attr.type == onnx.AttributeType.INT) axis = attr.i else return error.Axis_NotINT;
+            }
+        }
         //set the output type:
         if (output_Y.ty == tensorZant_lib.TensorType.undefined) output_Y.ty = input_X.ty;
 
         return Softmax{
             .input_X = input_X,
             .output_Y = output_Y,
+            .axis = axis,
         };
     }
 
@@ -92,13 +100,15 @@ pub const Softmax = struct {
             \\    tensMath.softmax_lean(
             \\        {s}, //Type
             \\        {s}, // input tensor
-            \\        &tensor_{s} // output tensor
+            \\        &tensor_{s}, // output tensor
+            \\        {},
             \\    ) catch return;
             \\
         , .{
             self.output_Y.ty.toString(),
             tensor_input_string,
             try utils.getSanitizedName(self.output_Y.name),
+            self.axis,
         });
     }
 };
