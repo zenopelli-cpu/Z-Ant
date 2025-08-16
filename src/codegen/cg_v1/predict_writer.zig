@@ -87,12 +87,14 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
 
 fn write_FBA(writer: std.fs.File.Writer) !void {
 
+    //TODO: instead of hardcoding "buf: [1024 * 10]"" compute the size form the IR Graph
+    //
     // Use fixed buffer allocator for static allocations
     try writer.writeAll(
         \\
         \\
         \\ // Static allocation: FixedBufferAllocator
-        \\ var buf: [4096 * 10]u8 = undefined;
+        \\ var buf: [1024 * 10]u8 = undefined;
         \\ var fba_state = std.heap.FixedBufferAllocator.init(&buf);
         \\ const fba = fba_state.allocator();
         \\

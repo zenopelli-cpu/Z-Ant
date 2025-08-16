@@ -204,7 +204,7 @@ pub const Conv = struct {
             \\        {s}, //dilatations
             \\        {}, //group
             \\        "{s}", //auto_pad
-            \\    ) catch return;
+            \\    ) catch return -1;
         , .{
             self.output_Y.ty.toString(),
             tensor_X_string, //Input

@@ -194,7 +194,7 @@ pub const DequantizeLinear = struct {
             \\                                 {},  // axis
             \\                                 {},  // block_size
             \\                                 &tensor_{s}, // y: output tensor
-            \\    ) catch return;
+            \\    ) catch return -1;
         , .{
             self.x.ty.toString(),
             self.y.ty.toString(),

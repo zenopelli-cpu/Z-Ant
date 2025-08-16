@@ -49,14 +49,17 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
 
     _ = try writer.print(
         \\
-        \\
-        \\
+        \\ // return codes:
+        \\ //  0 : everything good
+        \\ // -1 : something when wrong in the mathematical operations
+        \\ // -2 : something when wrong in the initialization phase
+        \\ // -3 : something when wrong in the output/return phase
         \\pub {s} fn predict(
         \\    input: [*]T_in,
         \\    input_shape: [*]u32,
         \\    shape_len: u32,
         \\    result: *[*]T_out,
-        \\) void {{
+        \\) i32 {{
     , .{if (do_export == true) "export" else ""});
 
     if (codegen_options.log) {
@@ -89,7 +92,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
             _ = try write_TensorShape(writer, tz);
             const sanitized_name = try tz.getNameSanitized();
             const type_str = tz.ty.toString();
-            try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return;\n", .{ sanitized_name, type_str, sanitized_name });
+            try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return -2;\n", .{ sanitized_name, type_str, sanitized_name });
             //since we are using dynamic inference  we also have to free the output_tensor so to avoid leaks, seee how I return the output tensor in writeReturn()
             try writer.print("    defer tensor_{s}.deinit();", .{sanitized_name});
         }
@@ -100,6 +103,8 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
     try writeReturn(writer);
 
     _ = try writer.print(
+        \\
+        \\    return 0;
         \\
         \\}}
     , .{});
@@ -146,7 +151,7 @@ fn write_TensorAllocation(writer: std.fs.File.Writer, tz: *TensorZant, size: i64
 
     if (codegen_options.dynamic) {
         // Dynamic allocation: Use fromShape
-        try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return;", .{ sanitized_name, type_str, sanitized_name });
+        try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return -2;", .{ sanitized_name, type_str, sanitized_name });
     } else {
         // Static allocation: Use fromConstBuffer to allow mutation
         try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};", .{ sanitized_name, size, type_str, type_str, size });
@@ -265,15 +270,15 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         \\    }}
         \\     
         \\    //allocating space in memory for the data
-        \\    const data = allocator.alloc(T_in, size) catch return;
+        \\    const data = allocator.alloc(T_in, size) catch return -2;
         \\    defer allocator.free(data);
         \\    for (0..size) |i| {{
         \\        data[i] = input[i]; // Copying input elements 
         \\    }}
         \\    
         \\    //converting the shape from [*]u32 to []usize
-        \\    const usized_shape: []usize = utils.u32ToUsize(allocator, input_shape, shape_len) catch return;
-        \\    var tensor_{s} = Tensor(T_in).fromShape(&allocator, @constCast(usized_shape)) catch return;
+        \\    const usized_shape: []usize = utils.u32ToUsize(allocator, input_shape, shape_len) catch return -2;
+        \\    var tensor_{s} = Tensor(T_in).fromShape(&allocator, @constCast(usized_shape)) catch return -2;
         \\    defer allocator.free(usized_shape);
         \\    defer tensor_{s}.deinit();
         \\    @memcpy(tensor_{s}.data, data);
@@ -294,7 +299,7 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
     if (codegen_options.dynamic) {
         _ = try writer.print(
             \\     
-            \\     const output_zant_slice = allocator.alloc(T_out, tensor_{s}.size) catch return;
+            \\     const output_zant_slice = allocator.alloc(T_out, tensor_{s}.size) catch return -3;
             \\     @memcpy(output_zant_slice, tensor_{s}.data[0..tensor_{s}.size]);
             \\      
             \\     //The Caller must handle the memory of output_zant_slice
@@ -372,15 +377,15 @@ fn write_checks(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\    //checks on the input parameters
-        \\    if (shape_len == 0) return ;
-        \\    if(shape_len != {}) return ;
+        \\    if (shape_len == 0) return -2;
+        \\    if(shape_len != {}) return -2;
     , .{inputs[0].getShape().len});
 
     //check on dims correspondance
     for (inputs[0].getShape(), 0..) |dim, i| {
         _ = try writer.print(
             \\
-            \\    if( input_shape[{}] != {}) return ;
+            \\    if( input_shape[{}] != {}) return -2;
         , .{ i, dim });
     }
 }
@@ -433,7 +438,7 @@ fn allocate_output_link_tensors(writer: std.fs.File.Writer, node: *NodeZant) !vo
             const type_str = output_tensor.ty.toString();
 
             // Dynamic allocation: Use fromShape to allow mutation
-            try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return;", .{ sanitized_name, type_str, sanitized_name });
+            try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return -2;", .{ sanitized_name, type_str, sanitized_name });
         }
     }
 }

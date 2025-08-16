@@ -85,7 +85,7 @@ pub const Sqrt = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.sqrt_lean({s}, {s}, &tensor_{s}) catch return;
+            \\    tensMath.sqrt_lean({s}, {s}, &tensor_{s}) catch return -1;
         , .{
             self.input_X.ty.toString(),
             input_tensor_string,

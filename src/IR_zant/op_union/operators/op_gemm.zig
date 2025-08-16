@@ -153,7 +153,7 @@ pub const Gemm = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.gemm_lean({s}, {s}, {s}, {s}, {}, {}, {s}, {s}, &tensor_{s} ) catch return;
+            \\    tensMath.gemm_lean({s}, {s}, {s}, {s}, {}, {}, {s}, {s}, &tensor_{s} ) catch return -1;
         , .{
             self.output.ty.toString(), // T
             tensor_A_string, // Input tensor A

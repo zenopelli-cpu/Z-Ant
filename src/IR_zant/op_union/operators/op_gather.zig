@@ -138,7 +138,7 @@ pub const Gather = struct {
         _ = try writer.print(
             \\    
             \\
-            \\    var tensor_usize_{s} = Tensor(usize).fromArray(&allocator, array_usize_{s}, {s}.shape) catch return;
+            \\    var tensor_usize_{s} = Tensor(usize).fromArray(&allocator, array_usize_{s}, {s}.shape) catch return -1;
             \\    defer tensor_usize_{s}.deinit();
         , .{
             try self.input_B.getNameSanitized(), //tensor_usize_{s}
@@ -159,7 +159,7 @@ pub const Gather = struct {
             \\        &tensor_usize_{s}, 
             \\        {},
             \\        &tensor_{s},
-            \\    ) catch return;
+            \\    ) catch return -1;
         , .{
             self.input_A.ty.toString(),
             tensor_A_string,

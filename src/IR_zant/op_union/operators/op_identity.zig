@@ -89,7 +89,7 @@ pub const Identity = struct {
         _ = try writer.print(
             \\
             \\
-            \\    tensMath.identity_lean({s}, {s}, &tensor_{s}) catch return;
+            \\    tensMath.identity_lean({s}, {s}, &tensor_{s}) catch return -1;
         , .{
             self.input.ty.toString(),
             input_tensor_string,

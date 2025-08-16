@@ -119,7 +119,7 @@ pub const GlobalAveragePool = struct {
 
         _ = try writer.print(
             \\
-            \\ tensMath.globalAveragePool_lean({s}, {s}, &tensor_{s}) catch return;
+            \\ tensMath.globalAveragePool_lean({s}, {s}, &tensor_{s}) catch return -1;
         , .{
             self.input_X.ty.toString(),
             input_tensor_string,

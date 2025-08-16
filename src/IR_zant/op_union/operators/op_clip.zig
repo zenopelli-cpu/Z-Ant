@@ -153,7 +153,7 @@ pub const Clip = struct {
             \\      {s},  //min tensor
             \\      {s},  //max tensor
             \\      &tensor_{s},  //output tensor
-            \\    ) catch return;
+            \\    ) catch return -1;
         , .{
             self.input.ty.toString(),
             input_tensor_string,

@@ -38,6 +38,8 @@ test "Static Library - Random data Prediction Test" {
     var prng = std.Random.DefaultPrng.init(seed);
     const rand = prng.random();
 
+    var error_counter: i32 = 0;
+
     for (0..ITERATION_COUNT) |_| {
         // Fill with random values
         for (0..input_data_size) |i| {
@@ -47,17 +49,24 @@ test "Static Library - Random data Prediction Test" {
         var result: [*]model.output_data_type = undefined;
 
         // Run prediction
-        model.lib.predict(
+        const return_code = model.lib.predict(
             input_data.ptr,
             @ptrCast(&input_shape),
             input_shape.len,
             &result,
         );
 
+        if (return_code != 0) {
+            std.debug.print("\n     - detected ERROR type: {}", .{return_code});
+            error_counter += 1;
+        }
         if (model.is_dynamic) {
             defer allocator.free(result[0..model.output_data_len]);
         }
     }
+
+    try std.testing.expectEqual(error_counter, 0);
+
     std.debug.print("\n  - Ran {} fuzzy tests on model \"{s}\", done without errors:", .{ ITERATION_COUNT, model.name });
 }
 
@@ -67,7 +76,7 @@ test "Static Library - Inputs Prediction Test" {
     std.debug.print("\n\n--- Pre-Generated results tests ---", .{});
 
     var input_shape = model.input_shape;
-
+    var error_counter: i32 = 0;
     var input_data_len: u32 = 1;
     for (input_shape) |dim| {
         input_data_len *= dim;
@@ -90,12 +99,17 @@ test "Static Library - Inputs Prediction Test" {
         var result: [*]model.output_data_type = undefined;
 
         // Run prediction
-        model.lib.predict(
+        const return_code = model.lib.predict(
             user_test.input.ptr,
             @ptrCast(&input_shape),
             input_shape.len,
             &result,
         );
+
+        if (return_code != 0) {
+            std.debug.print("\n     - detected ERROR type: {}", .{return_code});
+            error_counter += 1;
+        }
 
         if (model.is_dynamic) {
             defer allocator.free(result[0..model.output_data_len]);
@@ -128,6 +142,8 @@ test "Static Library - Inputs Prediction Test" {
         // }
         // std.debug.print(" }}", .{});
     }
+
+    try std.testing.expectEqual(error_counter, 0);
 }
 
 /// Returns `true` if `T` is any integer type (signed or unsigned).

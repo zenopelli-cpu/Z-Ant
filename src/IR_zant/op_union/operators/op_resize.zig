@@ -222,7 +222,7 @@ pub const Resize = struct {
             \\      {s}, //sizes: ?[]const usize
             \\      "{s}", //coordinate_transformation_mode: []const u8
             \\      &tensor_{s}, //output_tensor: *Tensor(T)
-            \\    ) catch return;
+            \\    ) catch return -1;
         ,
             .{
                 tensor_X_string, // input

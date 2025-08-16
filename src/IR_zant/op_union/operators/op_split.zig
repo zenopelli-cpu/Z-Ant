@@ -135,7 +135,7 @@ pub const Split = struct {
             \\        &tensor_{s}, // output Y
             \\        {d}, // axis
             \\        {d}, // num_outputs
-            \\    ) catch return; catch return;;
+            \\    ) catch return -1; catch return -1;;
         , .{
             self.input.ty.toString(),
             tensor_input_string,

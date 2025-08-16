@@ -91,7 +91,7 @@ pub const LeakyRelu = struct {
 
         _ = try writer.print(
             \\
-            \\    tensMath.leakyReLU_lean({s}, {s}, {d}, &tensor_{s}) catch return;
+            \\    tensMath.leakyReLU_lean({s}, {s}, {d}, &tensor_{s}) catch return -1;
         , .{
             self.input_X.ty.toString(),
             input_tensor_string,

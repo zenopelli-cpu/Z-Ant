@@ -102,7 +102,7 @@ pub const Shape = struct {
             \\        {s}, //start
             \\        {s}, //end
             \\        &tensor_{s}, //output shape tensor
-            \\    ) catch return;
+            \\    ) catch return -1;
         , .{
             tensor_data_string,
             if (self.start) |s| try std.fmt.allocPrint(allocator, "{}", .{s}) else "null",

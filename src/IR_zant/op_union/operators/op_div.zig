@@ -106,7 +106,7 @@ pub const Div = struct {
 
         _ = try writer.print(
             \\
-            \\    tensMath.div_lean({s}, {s}, ({s}), &tensor_{s}) catch return;
+            \\    tensMath.div_lean({s}, {s}, ({s}), &tensor_{s}) catch return -1;
         , .{
             self.input_A.ty.toString(),
             tensor_A_string, // Input tensor A

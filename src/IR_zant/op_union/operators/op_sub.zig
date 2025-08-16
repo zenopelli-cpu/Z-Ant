@@ -124,7 +124,7 @@ pub const Sub = struct {
             \\        {s}, // input A
             \\        {s}, // input B
             \\        &tensor_{s} // output Y
-            \\    ) catch return;
+            \\    ) catch return -1;
         , .{
             self.input_A.ty.toString(),
             self.output_Y.ty.toString(),

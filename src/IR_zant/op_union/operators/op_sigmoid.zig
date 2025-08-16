@@ -86,7 +86,7 @@ pub const Sigmoid = struct {
             \\      {s},
             \\      {s},
             \\      &tensor_{s},
-            \\    ) catch return;
+            \\    ) catch return -1;
         ,
             .{
                 self.input_X.ty.toString(),

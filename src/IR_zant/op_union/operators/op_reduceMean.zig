@@ -133,7 +133,7 @@ pub const ReduceMean = struct {
             \\        {s}, // axes
             \\        {s}, // keepdims
             \\        {s} // noop_with_empty_axes
-            \\    ) catch return;
+            \\    ) catch return -1;
         , .{
             input_tensor_string,
             try utils.getSanitizedName(self.reduced.name),
