@@ -50,16 +50,18 @@ test "Static Library - Random data Prediction Test" {
 
     var result: [*]model.output_data_type = undefined;
 
-    // Create a logging function
-    const LogFn = fn ([*c]u8) callconv(.C) void;
-    const logFn: LogFn = struct {
-        fn log(msg: [*c]u8) callconv(.C) void {
-            std.debug.print("{s}", .{msg});
-        }
-    }.log;
+    if (model.have_log) {
+        // Create a logging function
+        const LogFn = fn ([*c]u8) callconv(.C) void;
+        const logFn: LogFn = struct {
+            fn log(msg: [*c]u8) callconv(.C) void {
+                std.debug.print("{s}", .{msg});
+            }
+        }.log;
 
-    // Set the logging function
-    model.lib.setLogFunction(logFn);
+        // Set the logging function
+        model.lib.setLogFunction(logFn);
+    }
 
     // Run prediction
     model.lib.predict(
@@ -184,17 +186,18 @@ test "Static Library - User data Prediction Test" {
         return;
     }
 
-    // Create a logging function
-    const LogFn = fn ([*c]u8) callconv(.C) void;
-    const logFn: LogFn = struct {
-        fn log(msg: [*c]u8) callconv(.C) void {
-            std.debug.print("{s}", .{msg});
-        }
-    }.log;
+    if (model.have_log) {
+        // Create a logging function
+        const LogFn = fn ([*c]u8) callconv(.C) void;
+        const logFn: LogFn = struct {
+            fn log(msg: [*c]u8) callconv(.C) void {
+                std.debug.print("{s}", .{msg});
+            }
+        }.log;
 
-    // Set the logging function
-    model.lib.setLogFunction(logFn);
-
+        // Set the logging function
+        model.lib.setLogFunction(logFn);
+    }
     var input_shape = model.input_shape;
 
     var input_data_len: u32 = 1;

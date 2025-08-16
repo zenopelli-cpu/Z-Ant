@@ -139,11 +139,13 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run all unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
-    // ************************************************ CODEGEN IR EXECUTABLE ************************************************
+    // ************************************************ CODEGEN IR LIB_MODEL************************************************
+    //
+    // OPTIONS: see codegen_options
     //
     // Define the main executable with target architecture and optimization settings.
     const IR_codeGen_exe = b.addExecutable(.{
-        .name = "CodegenIR",
+        .name = "codegen",
         .root_source_file = b.path("src/codegen/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -152,12 +154,9 @@ pub fn build(b: *std.Build) void {
     IR_codeGen_exe.linkLibC();
 
     // Add necessary imports for the executable.
-    IR_codeGen_exe.root_module.addImport("codegen", codegen_mod);
+    IR_codeGen_exe.root_module.addImport("codegen", codegen_mod); //<<-- options are inside this module
     IR_codeGen_exe.root_module.addImport("zant", zant_mod);
-    IR_codeGen_exe.root_module.addImport("IR_zant", IR_zant_mod); //IR
-
-    // Install the executable.
-    b.installArtifact(IR_codeGen_exe);
+    IR_codeGen_exe.root_module.addImport("IR_zant", IR_zant_mod);
 
     // Define the run command for the main executable.
     const IR_codegen_cmd = b.addRunArtifact(IR_codeGen_exe);
@@ -166,8 +165,67 @@ pub fn build(b: *std.Build) void {
     }
 
     // Create a build step to run the application.
-    const IR_codegen_step = b.step("codegen", "code generation");
+    const IR_codegen_step = b.step("lib-gen", "code generation");
     IR_codegen_step.dependOn(&IR_codegen_cmd.step);
+
+    // ************************************************ LIB_MODEL EXECUTABLE ************************************************
+    //
+    // OPTIONS: see codegen_options
+    //
+
+    const generated_lib_root = std.fmt.allocPrint(b.allocator, "generated/{s}/lib_{s}.zig", .{ model_name_option, model_name_option }) catch |err| {
+        std.log.scoped(.build).warn("Error allocating generated_lib_root path: {}\n", .{err});
+        return;
+    };
+
+    const exe_name = std.fmt.allocPrint(b.allocator, "{s}_exe", .{model_name_option}) catch |err| {
+        std.log.scoped(.build).warn("Error allocating exe_name: {}\n", .{err});
+        return;
+    };
+
+    const lib_model_exe = b.addExecutable(.{
+        .name = exe_name,
+        .root_source_file = b.path(generated_lib_root),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add necessary imports for the executable.
+    lib_model_exe.root_module.addImport("codegen", codegen_mod);
+    lib_model_exe.root_module.addImport("zant", zant_mod);
+
+    const model_exe_cmd = b.addRunArtifact(lib_model_exe);
+    if (b.args) |args| {
+        model_exe_cmd.addArgs(args);
+    }
+
+    // Create a build step to run the application.
+    const model_exe_step = b.step("lib-exe", "code generation");
+    model_exe_step.dependOn(&model_exe_cmd.step);
+
+    // ************************************************ GENERATED LIBRARY TESTS ************************************************
+
+    // Add test for generated library
+    const test_model_path = std.fmt.allocPrint(b.allocator, "{s}test_{s}.zig", .{ generated_path_option, model_name_option }) catch |err| {
+        std.log.scoped(.build).warn("Error allocating test model path: {}\n", .{err});
+        return;
+    };
+
+    const test_generated_lib = b.addTest(.{
+        .name = "test_generated_lib",
+        .root_source_file = b.path(test_model_path),
+        .target = target,
+        .optimize = .Debug,
+    });
+
+    test_generated_lib.root_module.addImport("zant", zant_mod);
+    test_generated_lib.root_module.addImport("IR_zant", IR_zant_mod); //codegen
+    test_generated_lib.root_module.addImport("codegen", codegen_mod);
+    test_generated_lib.linkLibC();
+
+    const run_test_generated_lib = b.addRunArtifact(test_generated_lib);
+    const test_step_generated_lib = b.step("lib-test", "Run generated library tests");
+    test_step_generated_lib.dependOn(&run_test_generated_lib.step);
 
     //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//
     ////\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
@@ -221,30 +279,6 @@ pub fn build(b: *std.Build) void {
         move_step.step.dependOn(&install_lib_step.step);
         lib_step.dependOn(&move_step.step);
     }
-
-    // ************************************************ GENERATED LIBRARY TESTS ************************************************
-
-    // Add test for generated library
-    const test_model_path = std.fmt.allocPrint(b.allocator, "{s}test_{s}.zig", .{ generated_path_option, model_name_option }) catch |err| {
-        std.log.scoped(.build).warn("Error allocating test model path: {}\n", .{err});
-        return;
-    };
-
-    const test_generated_lib = b.addTest(.{
-        .name = "test_generated_lib",
-        .root_source_file = b.path(test_model_path),
-        .target = target,
-        .optimize = .Debug,
-    });
-
-    test_generated_lib.root_module.addImport("zant", zant_mod);
-    test_generated_lib.root_module.addImport("IR_zant", IR_zant_mod); //codegen
-    test_generated_lib.root_module.addImport("codegen", codegen_mod);
-    test_generated_lib.linkLibC();
-
-    const run_test_generated_lib = b.addRunArtifact(test_generated_lib);
-    const test_step_generated_lib = b.step("test-generated-lib", "Run generated library tests");
-    test_step_generated_lib.dependOn(&run_test_generated_lib.step);
 
     // ************************************************ ONEOP CODEGEN ************************************************
     // Setup oneOp codegen

@@ -57,6 +57,7 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
         \\pub const output_data_type = {s};
         \\pub const user_tests: bool = {};
         \\pub const user_tests_path = "{s}";
+        \\pub const have_log: bool = {};
     , .{
         model_name, //lib
         model_name, //name
@@ -67,6 +68,7 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
         outputs[0].ty.toString(), //output_data_type
         codegen_options.user_tests, //user_tests_path
         try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path}), //user_tests_path
+        codegen_options.log,
     });
 
     ////////////
