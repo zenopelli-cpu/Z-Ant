@@ -198,6 +198,7 @@ test "Static Library - User data Prediction Test" {
         // Set the logging function
         model.lib.setLogFunction(logFn);
     }
+
     var input_shape = model.input_shape;
 
     var input_data_len: u32 = 1;
@@ -266,10 +267,15 @@ test "Static Library - User data Prediction Test" {
                 std.testing.expectApproxEqAbs(expected_output_value, result_value, 0.01) catch |e| {
                     std.debug.print(" \n expected output  ->  real value      difference ", .{});
                     for (0.., user_test.output) |j, out_val| {
-                        std.debug.print(" \n {} ->  {}      {} ", .{ out_val, result[j], out_val - result[j] });
+                        std.debug.print(" \n {} ->  {}      {} ", .{ out_val, result[j], @abs(out_val - result[j]) });
                     }
                     return e;
                 };
+            }
+
+            std.debug.print(" \n expected output  ->  real value      difference ", .{});
+            for (0.., user_test.output) |j, out_val| {
+                std.debug.print(" \n {} ->  {}      {} ", .{ out_val, result[j], @abs(out_val - result[j]) });
             }
         } else {
             std.debug.print("Unsupported test type: {s}\n", .{user_test.type});

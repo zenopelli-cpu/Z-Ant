@@ -172,7 +172,6 @@ pub fn build(b: *std.Build) void {
     //
     // OPTIONS: see codegen_options
     //
-
     const generated_lib_root = std.fmt.allocPrint(b.allocator, "generated/{s}/lib_{s}.zig", .{ model_name_option, model_name_option }) catch |err| {
         std.log.scoped(.build).warn("Error allocating generated_lib_root path: {}\n", .{err});
         return;
