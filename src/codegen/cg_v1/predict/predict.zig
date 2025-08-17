@@ -313,16 +313,18 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
             \\
         , .{try outputs[0].getNameSanitized()});
     }
-    // Add deallocation for dynamic tensors
-    if (codegen_options.dynamic) {
-        const linkers: []TensorZant = try IR_utils.getLinkers(tensorZantMap);
-        for (linkers) |*tz| {
-            _ = try writer.print(
-                \\    tensor_{s}.deinit();
-                \\
-            , .{try tz.getNameSanitized()});
-        }
-    }
+
+    // Add deallocation for dynamic tensors -> OSS!! not necessary, the tensor are deallocated in deallocate_useless_link_tensors()
+    //
+    // if (codegen_options.dynamic) {
+    //     const linkers: []TensorZant = try IR_utils.getLinkers(tensorZantMap);
+    //     for (linkers) |*tz| {
+    //         _ = try writer.print(
+    //             \\    tensor_{s}.deinit();
+    //             \\
+    //         , .{try tz.getNameSanitized()});
+    //     }
+    // }
 
     if (codegen_options.log) {
         _ = try writer.print(
