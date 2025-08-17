@@ -182,10 +182,7 @@ pub const AveragePool = struct {
             \\        {s}, // pads
             \\        tensMath.op_averagePool.AutoPadType.{s}, // auto_pad
             \\        {s}, // count_include_pad
-            \\    ) catch |e| {{
-            \\        std.debug.print("<<<<ERROR IN onnx_averagepool_lean: {{any}}", .{{e}});
-            \\        return;
-            \\    }};
+            \\    ) catch return -1;
         , .{
             self.input_X.ty.toString(),
             tensor_X_string, // Input

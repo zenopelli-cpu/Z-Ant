@@ -52,31 +52,69 @@ pub inline fn dequantizeLinear_lean(
     const is_axis = x_scale.data.len > 1;
     const is_block = block_size > 0;
 
+    // Normalize axis
+    const normalized_axis: usize = if (axis < 0)
+        @intCast(@as(i32, @intCast(rank)) + axis)
+    else
+        @intCast(axis);
+
+    // Pre-compute strides for the target axis if needed
+    var axis_stride: usize = 1;
+    if (is_axis or is_block) {
+        for (normalized_axis + 1..rank) |i| {
+            axis_stride *= x.shape[i];
+        }
+    }
+
     for (0..N) |i| {
         var idx: usize = 0;
         var zp_val: i128 = 0;
 
         if (x_zero_point) |zp| {
             if (is_block) {
-                const dim = if (axis < 0) rank + axis else axis;
-                const dim_size = x.shape[dim];
-                const block_count = (dim_size + block_size - 1) / block_size;
-                const stride = block_size;
-                const pos = (i / stride) % block_count;
-                idx = pos;
+                // For blocked quantization
+                const dim_size = x.shape[normalized_axis];
+                const axis_coord = (i / axis_stride) % dim_size;
+                const block_idx = axis_coord / @as(usize, @intCast(block_size));
+
+                // Calculate the linear index in the scale/zero_point tensor
+                // by mapping the multi-dimensional coordinate
+                var linear_idx: usize = 0;
+                var temp_i = i;
+                var stride_scale: usize = 1;
+
+                for (0..rank) |dim| {
+                    const dim_idx = rank - 1 - dim;
+                    const coord = temp_i % x.shape[dim_idx];
+                    temp_i /= x.shape[dim_idx];
+
+                    if (dim_idx == normalized_axis) {
+                        // Use block index for the axis dimension
+                        linear_idx += block_idx * stride_scale;
+                    } else {
+                        linear_idx += coord * stride_scale;
+                    }
+
+                    if (dim_idx == normalized_axis) {
+                        stride_scale *= (dim_size + @as(usize, @intCast(block_size)) - 1) / @as(usize, @intCast(block_size));
+                    } else {
+                        stride_scale *= x.shape[dim_idx];
+                    }
+                }
+                idx = linear_idx;
                 zp_val = @as(i128, zp.data[idx]);
             } else if (is_axis) {
-                const dim = if (axis < 0) rank + axis else axis;
-                const dim_size = x.shape[dim];
-                const stride_per = x.size / dim_size;
-                idx = (i / stride_per) % dim_size;
+                // For per-axis quantization
+                const axis_coord = (i / axis_stride) % x.shape[normalized_axis];
+                idx = axis_coord;
                 zp_val = @as(i128, zp.data[idx]);
             } else {
+                // Per-tensor quantization
                 idx = 0;
                 zp_val = @as(i128, zp.data[0]);
             }
         } else {
-            // y_zero_point not specified → default 0
+            // No zero_point specified → default 0
             zp_val = 0;
             idx = 0;
         }

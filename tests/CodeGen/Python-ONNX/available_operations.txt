@@ -1,12 +1,12 @@
 # The operation marked with "#" has a bug or must be implemented
 # Remember to launch first of all : python3 tests/CodeGen/Python-ONNX/onnx_gen.py  to generate the models
 Add  
-# AveragePool <<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>
+AveragePool
 BatchNormalization  
 Ceil  
 Clip
 Concat
-# Constant
+# Constant <<<<<<<<<<<>>>>>>>>>>> often useless if the onnx graph is simplified
 Conv   
 DequantizeLinear
 Div  
@@ -14,13 +14,13 @@ Elu
 Flatten
 Floor
 Gather  
-#Gelu : It loops whitout never ending
+Gelu
 Gemm
 GlobalAveragePool  
 Identity  
 LeakyRelu  
 MatMul  
-# MaxPool  <<<<<<<<<<<>>>>>>>>>>>
+MaxPool 
 Mul  
 Neg
 OneHot
@@ -34,7 +34,7 @@ Relu
 #Shape: error in python3 tests/CodeGen/Python-ONNX/onnx_gen.py Error running model for Shape (ID: 0): [ONNXRuntimeError] : 1 : FAIL : Load model from datasets/oneOpModels/Shape_0.onnx failed:Type Error: Type (tensor(float)) of output arg (Shape_param_out_0) of node (Shape_node) does not match expected type (tensor(int64)).
 Sigmoid  
 #Slice: missing codegeneration inside op_slice.zig, complete all the node's methods
-#Softmax: Math is bugged, it only accept 2d tensors
+Softmax
 #Split: standardMath not respecting onnx standard and incomplete node initialization
 Sqrt 
 Sub  
