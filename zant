@@ -23,6 +23,9 @@ SCRIPT_DESCRIPTIONS[infer_shape]="Upgrade your model with all intermediate tenso
 SCRIPTS[input_setter]="src/onnx/input_setter.py"
 SCRIPT_DESCRIPTIONS[input_setter]="Set input shape and infer shapes of the ONNX model"
 
+SCRIPTS[onnx_extract]="tests/CodeGen/onnx_node_extractor.py"
+SCRIPT_DESCRIPTIONS[onnx_extract]="For a N nodes model it creates N onnx models, one for each node with respective tests."
+
 # Define flags for each script
 declare -A ONNX_GEN_FLAGS
 ONNX_GEN_FLAGS[iterations]="Number of models to generate for each operation (default: 1)"
@@ -41,6 +44,9 @@ INFER_SHAPE_FLAGS[path]="Path of your model (required)"
 declare -A INPUT_SETTER_FLAGS
 INPUT_SETTER_FLAGS[path]="Path of your model (required)"
 INPUT_SETTER_FLAGS[shape]="Input shape as comma-separated values, e.g., 1,3,34,34 (required)"
+
+declare -A ONNX_EXTRACTOR_FLAGS
+ONNX_EXTRACTOR_FLAGS[path]="Path of your model (required)"
 
 # Function to print general usage
 print_usage() {

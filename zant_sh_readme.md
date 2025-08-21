@@ -27,6 +27,7 @@ ln -s $(pwd)/zant /usr/local/bin/zant
 ### Available Scripts
 
 - **onnx_gen** - Generate fuzzed ONNX models and save execution data in JSON
+- **onnx_extract** - For a N nodes model it creates N onnx models, one for each node with respective tests.  
 - **user_tests_gen** - Run ONNX model multiple times with random inputs and save execution data  
 - **infer_shape** - Upgrade your model with all intermediate tensor's shapes
 - **input_setter** - Set input shape and infer shapes of the ONNX model
@@ -55,6 +56,12 @@ ln -s $(pwd)/zant /usr/local/bin/zant
 ./zant onnx_gen --iterations 10 --seed 123 --output-dir ./output --metadata-file ./results.json --op Add
 ```
 
+### ONNX Extraction
+For a N nodes model it creates N onnx models, one for each node with respective tests.
+```bash
+./zant onnx_extract --path path/model.onnx 
+```
+
 ### User Tests Generation
 ```bash
 # Basic usage with required model flag
@@ -73,7 +80,7 @@ ln -s $(pwd)/zant /usr/local/bin/zant
 ### Input Shape Setting
 ```bash
 # Set input shape to 1x3x224x224
-./zant input_setter --path model.onnx --shape 1,3,224,224
+./zant input_setter --path path/model.onnx --shape 1,3,224,224
 
 # Set input shape to batch size 4
 ./zant input_setter --path model.onnx --shape 4,3,256,256

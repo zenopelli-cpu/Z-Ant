@@ -362,7 +362,7 @@ class ONNXNodeExtractor:
 
 def main():
     parser = argparse.ArgumentParser(description="Extract individual nodes from ONNX neural network")
-    parser.add_argument("model_path", help="Path to the input ONNX model")
+    parser.add_argument("--path", help="Path to the input ONNX model")
     parser.add_argument("-o", "--output", help="Output directory (default: same folder as model)")
     parser.add_argument("--input-data", help="Path to numpy file with input data (optional)")
     
@@ -375,7 +375,7 @@ def main():
         logger.info(f"Loaded custom input data from {args.input_data}")
     
     # Run extraction
-    extractor = ONNXNodeExtractor(args.model_path, args.output)
+    extractor = ONNXNodeExtractor(args.path, args.output)
     extractor.run_extraction(input_data)
 
 
