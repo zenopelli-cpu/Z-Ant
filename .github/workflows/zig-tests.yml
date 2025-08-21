@@ -2,9 +2,9 @@ name: Zig Tests
 
 on:
   push:
-    branches: [ "main", "feature", "codegen" ]
+    branches: ["main", "feature", "codegen"]
   pull_request:
-    branches: [ "main", "feature", "codegen" ]
+    branches: ["main", "feature", "codegen"]
   release:
     types: [created, published]
 
@@ -12,14 +12,39 @@ jobs:
   test:
     name: Run Zig Tests
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup Zig
-      uses: goto-bus-stop/setup-zig@v2
-      with:
-        version: 0.14.0 # Current zig version supported by the library
-    
-    - name: Run Tests
-      run: zig build test --summary all
+      - uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.14.0 # Current zig version supported by the library
+
+      - name: Run Basic Unit Tests
+        run: zig build test --summary all
+
+      - name: Run Heavy Tests
+        run: zig build test -Dheavy=true --summary all
+
+      - name: Run ONNX Parser Tests
+        run: zig build onnx-parser --summary all
+
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.14.0
+
+      - name: Run Basic Benchmarks
+        run: zig build benchmark --summary all
+
+      - name: Run Full Benchmark Suite
+        run: zig build benchmark -Dfull=true --summary all
