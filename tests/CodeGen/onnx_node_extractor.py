@@ -265,7 +265,7 @@ class ONNXNodeExtractor:
                     for initializer in self.model.graph.initializer:
                         if initializer.name == node.input[0]:
                             tensor_data = onnx.numpy_helper.to_array(initializer)
-                            node_data["input"] = tensor_data[node.input[0]].flatten().tolist()
+                            node_data["input"] = tensor_data.flatten().tolist()
                             break
                 
             
