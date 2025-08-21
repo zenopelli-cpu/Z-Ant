@@ -196,8 +196,16 @@ jobs:
 
       - name: Verify generated files exist
         run: |
-          ls -la generated/mnist-8/
-          test -f generated/mnist-8/lib_mnist-8.zig
+          ls -la generated/ || echo "generated/ directory does not exist"
+          mkdir -p generated/mnist-8 || true
+          ls -la generated/mnist-8/ || echo "mnist-8 directory empty"
+          if [ -f generated/mnist-8/lib_mnist-8.zig ]; then
+            echo "lib_mnist-8.zig found"
+          else
+            echo "lib_mnist-8.zig not found - checking if generation succeeded"
+            find . -name "*mnist*" -type f 2>/dev/null || echo "No mnist files found"
+            exit 1
+          fi
 
       - name: Build library for ${{ matrix.target }} with ${{ matrix.optimize }}
         run: zig build lib -Dmodel=mnist-8 -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} --summary all
