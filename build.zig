@@ -244,7 +244,6 @@ pub fn build(b: *std.Build) void {
     });
     static_lib.linkLibC();
     static_lib.root_module.addImport("zant", zant_mod);
-    static_lib.root_module.addImport("IR_zant", IR_zant_mod);
     static_lib.root_module.addImport("codegen", codegen_mod);
 
     const install_lib_step = b.addInstallArtifact(static_lib, .{ .dest_dir = .{ .override = .{ .custom = model_name_option } } });

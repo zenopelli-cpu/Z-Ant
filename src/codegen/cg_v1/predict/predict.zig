@@ -54,13 +54,16 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
         \\ // -1 : something when wrong in the mathematical operations
         \\ // -2 : something when wrong in the initialization phase
         \\ // -3 : something when wrong in the output/return phase
-        \\pub {s} fn predict(
+        \\pub {s} fn predict (
         \\    input: [*]T_in,
         \\    input_shape: [*]u32,
         \\    shape_len: u32,
         \\    result: *[*]T_out,
-        \\) i32 {{
-    , .{if (do_export == true) "export" else ""});
+        \\) {s} i32 {{
+    , .{
+        if (do_export == true) "export" else "",
+        if (do_export == true) "callconv(.C)" else "",
+    });
 
     if (codegen_options.log) {
         _ = try writer.print(

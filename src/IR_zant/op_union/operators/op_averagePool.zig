@@ -75,6 +75,11 @@ pub const AveragePool = struct {
             }
         }
 
+        if (dilations == null) {
+            dilations = try allocator.alloc(i64, kernel_shape.?.len);
+            @memset(dilations.?, 1);
+        }
+
         //set the output type:
         if (output_Y.ty == tensorZant_lib.TensorType.undefined) output_Y.ty = input_X.ty;
 
