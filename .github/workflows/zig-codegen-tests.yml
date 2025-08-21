@@ -101,7 +101,7 @@ jobs:
         run: ./zant user_tests_gen --model ${{ matrix.model }}
 
       - name: Generate library code for ${{ matrix.model }} ${{ matrix.version }}
-        run: zig build lib-gen -Dmodel=${{ matrix.model }} -Dv=${{ matrix.version }} -Denable_user_tests=true -Dcomm=true
+        run: zig build lib-gen -Dmodel=${{ matrix.model }} -Denable_user_tests=true -Dcomm=true
 
       - name: Test generated library for ${{ matrix.model }} ${{ matrix.version }}
         run: zig build lib-test -Dmodel=${{ matrix.model }} -Denable_user_tests=true --summary all
@@ -192,18 +192,40 @@ jobs:
         run: ./zant user_tests_gen --model mnist-8
 
       - name: Generate library code for cross-platform test
-        run: zig build lib-gen -Dmodel=mnist-8 -Dv=v2 -Denable_user_tests=true
+        run: |
+          echo "Running lib-gen with verbose output..."
+          zig build lib-gen -Dmodel=mnist-8 -Denable_user_tests=true --summary all || {
+            echo "lib-gen command failed with exit code $?"
+            echo "Checking if any build steps completed..."
+            ls -la . || true
+            find . -name "generated" -type d 2>/dev/null || echo "No generated directory found"
+            exit 1
+          }
 
       - name: Verify generated files exist
         run: |
-          ls -la generated/ || echo "generated/ directory does not exist"
-          mkdir -p generated/mnist-8 || true
-          ls -la generated/mnist-8/ || echo "mnist-8 directory empty"
-          if [ -f generated/mnist-8/lib_mnist-8.zig ]; then
-            echo "lib_mnist-8.zig found"
+          echo "Checking for generated files..."
+          if [ -d "generated" ]; then
+            echo "generated/ directory exists"
+            ls -la generated/
+            if [ -d "generated/mnist-8" ]; then
+              echo "mnist-8/ subdirectory exists"
+              ls -la generated/mnist-8/
+              if [ -f "generated/mnist-8/lib_mnist-8.zig" ]; then
+                echo "✓ lib_mnist-8.zig found successfully"
+              else
+                echo "✗ lib_mnist-8.zig not found in generated/mnist-8/"
+                ls -la generated/mnist-8/ || echo "Directory is empty"
+                exit 1
+              fi
+            else
+              echo "✗ mnist-8/ subdirectory not found in generated/"
+              exit 1
+            fi
           else
-            echo "lib_mnist-8.zig not found - checking if generation succeeded"
-            find . -name "*mnist*" -type f 2>/dev/null || echo "No mnist files found"
+            echo "✗ generated/ directory does not exist"
+            echo "Build may have failed silently. Checking for any output..."
+            find . -name "*lib*" -type f 2>/dev/null | head -10 || echo "No lib files found"
             exit 1
           fi
 
