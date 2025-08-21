@@ -2,9 +2,9 @@ name: Zig Tests
 
 on:
   push:
-    branches: ["main", "feature", "codegen"]
+    branches: ["main", "feature", "codegen", "graphZant"]
   pull_request:
-    branches: ["main", "feature", "codegen"]
+    branches: ["main", "feature", "codegen", "graphZant"]
   release:
     types: [created, published]
 
