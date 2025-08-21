@@ -1,0 +1,227 @@
+#!/bin/bash
+
+# Zant Create - Model Pipeline Script
+# Usage: ./zant_create.sh <model_name> [options]
+# Example: ./zant_create.sh mnist-8
+# Example: ./zant_create.sh resnet50 --target=aarch64-linux --cpu=generic
+
+set -e  # Exit on any error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_step() {
+    echo -e "${BLUE}[STEP]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Function to show usage
+show_usage() {
+    echo "Zant Create - Model Pipeline Script"
+    echo ""
+    echo "Usage: $0 <model_name> [options]"
+    echo ""
+    echo "Arguments:"
+    echo "  model_name               Name of the model (required)"
+    echo ""
+    echo "Options:"
+    echo "  --target=TARGET          Target architecture (e.g., x86_64-linux, aarch64-linux)"
+    echo "  --cpu=CPU               Target CPU (e.g., cortex_m33, generic)"
+    echo "  --optimize=OPT          Optimization level (Debug, ReleaseFast, ReleaseSafe, ReleaseSmall)"
+    echo "  --skip-extract          Skip node extraction and testing"
+    echo "  --skip-user-tests       Skip user test generation and usage"
+    echo "  --help, -h              Show this help message"
+    echo ""
+    echo "Pipeline Steps:"
+    echo "  1. Generate user test data"
+    echo "  2. Extract individual nodes and test them"
+    echo "  3. Generate main library code"
+    echo "  4. Test generated library"
+    echo "  5. Build static library"
+    echo ""
+    echo "Examples:"
+    echo "  $0 mnist-8"
+    echo "  $0 resnet50 --target=aarch64-linux --optimize=ReleaseFast"
+    echo "  $0 embedded_model --target=thumb-freestanding --cpu=cortex_m33"
+    echo "  $0 my_model --skip-extract"
+}
+
+# Check if model name is provided
+if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    show_usage
+    exit 0
+fi
+
+# Parse arguments
+MODEL_NAME="$1"
+shift
+
+# Default values
+TARGET=""
+CPU=""
+OPTIMIZE=""
+SKIP_EXTRACT=false
+SKIP_USER_TESTS=false
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --target=*)
+            TARGET="${1#*=}"
+            shift
+            ;;
+        --cpu=*)
+            CPU="${1#*=}"
+            shift
+            ;;
+        --optimize=*)
+            OPTIMIZE="${1#*=}"
+            shift
+            ;;
+        --skip-extract)
+            SKIP_EXTRACT=true
+            shift
+            ;;
+        --skip-user-tests)
+            SKIP_USER_TESTS=true
+            shift
+            ;;
+        --help|-h)
+            show_usage
+            exit 0
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_usage
+            exit 1
+            ;;
+    esac
+done
+
+# Construct the model path
+MODEL_PATH="datasets/models/${MODEL_NAME}/${MODEL_NAME}.onnx"
+
+# Check if model file exists
+if [ ! -f "$MODEL_PATH" ]; then
+    print_error "Model file not found: $MODEL_PATH"
+    exit 1
+fi
+
+# Check if zant script exists
+if [ ! -f "./zant" ]; then
+    print_error "zant script not found in current directory"
+    print_error "Please run this script from the directory containing the zant script"
+    exit 1
+fi
+
+# Build command arguments
+BUILD_ARGS="-Dmodel=${MODEL_NAME}"
+
+if [ -n "$TARGET" ]; then
+    BUILD_ARGS="$BUILD_ARGS -Dtarget=${TARGET}"
+fi
+
+if [ -n "$CPU" ]; then
+    BUILD_ARGS="$BUILD_ARGS -Dcpu=${CPU}"
+fi
+
+if [ -n "$OPTIMIZE" ]; then
+    BUILD_ARGS="$BUILD_ARGS -Doptimize=${OPTIMIZE}"
+fi
+
+echo "======================================"
+echo "Model Pipeline for: $MODEL_NAME"
+echo "Model path: $MODEL_PATH"
+echo "Build arguments: $BUILD_ARGS"
+echo "======================================"
+
+# Step 1: Generate user test data
+if [ "$SKIP_USER_TESTS" = false ]; then
+    print_step "Generating user test data..."
+    ./zant user_tests_gen --model "$MODEL_NAME"
+    print_success "User test data generated"
+    sleep 2s 
+else
+    print_step "Skipping user test generation (--skip-user-tests specified)"
+fi
+
+# Step 2: Node extraction and testing
+if [ "$SKIP_EXTRACT" = false ]; then
+    print_step "Extracting individual nodes..."
+    
+    ./zant onnx_extract --path "$MODEL_PATH"
+    print_success "Node extraction completed"
+    
+    print_step "Generating libraries for extracted nodes..."
+    zig build extractor-gen $BUILD_ARGS
+    print_success "Extractor generation completed"
+    sleep 2s 
+    
+    print_step "Testing extracted nodes..."
+    zig build extractor-test $BUILD_ARGS
+    print_success "Extractor tests completed" 
+else
+    print_step "Skipping node extraction and testing (--skip-extract specified)"
+fi
+
+# Step 3: Generate main library
+print_step "Generating main library code..."
+
+if [ "$SKIP_USER_TESTS" = false ]; then
+    zig build lib-gen $BUILD_ARGS -Denable_user_tests=true
+else
+    zig build lib-gen $BUILD_ARGS
+fi
+
+print_success "Library code generation completed"
+sleep 2s  
+
+# Step 4: Test the generated library
+print_step "Testing generated library..."
+
+if [ "$SKIP_USER_TESTS" = false ]; then
+    zig build lib-test $BUILD_ARGS -Denable_user_tests=true
+else
+    zig build lib-test $BUILD_ARGS
+fi
+
+print_success "Library tests completed"
+
+# Step 5: Build the static library
+print_step "Building static library..."
+
+zig build lib $BUILD_ARGS
+
+print_success "Static library build completed"
+sleep 2s 
+
+# Final summary
+echo ""
+echo "======================================"
+print_success "Pipeline completed successfully!"
+echo "======================================"
+echo "Model: $MODEL_NAME"
+echo "Generated files should be in: generated/${MODEL_NAME}/"
+echo "Static library should be in: zig-out/${MODEL_NAME}/"
+echo ""
+echo "Additional commands you can run:"
+echo "  zig build lib-exe $BUILD_ARGS    # Run the generated model executable"
+echo "  zig build benchmark $BUILD_ARGS  # Run performance benchmarks"
+echo "  zig build test $BUILD_ARGS       # Run unit tests"
+echo "======================================"

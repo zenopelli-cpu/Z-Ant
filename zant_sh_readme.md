@@ -25,7 +25,7 @@ ln -s $(pwd)/zant /usr/local/bin/zant
 ```
 
 ### Available Scripts
-
+- **create** - runs all the below, to use just once all the below are tested
 - **onnx_gen** - Generate fuzzed ONNX models and save execution data in JSON
 - **onnx_extract** - For a N nodes model it creates N onnx models, one for each node with respective tests.  
 - **user_tests_gen** - Run ONNX model multiple times with random inputs and save execution data  
@@ -43,6 +43,8 @@ ln -s $(pwd)/zant /usr/local/bin/zant
 ```
 
 ## Examples
+
+See [zant_CLI](docs/ZANT_CLI.md) for more details!
 
 ### ONNX Generation
 ```bash

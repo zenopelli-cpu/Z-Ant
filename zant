@@ -26,6 +26,9 @@ SCRIPT_DESCRIPTIONS[input_setter]="Set input shape and infer shapes of the ONNX 
 SCRIPTS[onnx_extract]="tests/CodeGen/onnx_node_extractor.py"
 SCRIPT_DESCRIPTIONS[onnx_extract]="For a N nodes model it creates N onnx models, one for each node with respective tests."
 
+# Add create command
+SCRIPT_DESCRIPTIONS[create]="Run complete model processing pipeline"
+
 # Define flags for each script
 declare -A ONNX_GEN_FLAGS
 ONNX_GEN_FLAGS[iterations]="Number of models to generate for each operation (default: 1)"
@@ -48,6 +51,14 @@ INPUT_SETTER_FLAGS[shape]="Input shape as comma-separated values, e.g., 1,3,34,3
 declare -A ONNX_EXTRACTOR_FLAGS
 ONNX_EXTRACTOR_FLAGS[path]="Path of your model (required)"
 
+# Add create command flags
+declare -A CREATE_FLAGS
+CREATE_FLAGS[target]="Target architecture (e.g., x86_64-linux, aarch64-linux)"
+CREATE_FLAGS[cpu]="Target CPU (e.g., cortex_m33, generic)"
+CREATE_FLAGS[optimize]="Optimization level (Debug, ReleaseFast, ReleaseSafe, ReleaseSmall)"
+CREATE_FLAGS[skip-extract]="Skip node extraction and testing"
+CREATE_FLAGS[skip-user-tests]="Skip user test generation and usage"
+
 # Function to print general usage
 print_usage() {
     echo "zant - A shell wrapper for ONNX Python tools"
@@ -55,7 +66,7 @@ print_usage() {
     echo "Usage: ./zant <script> [flags]"
     echo ""
     echo "Available scripts:"
-    for script in "${!SCRIPTS[@]}"; do
+    for script in "${!SCRIPT_DESCRIPTIONS[@]}"; do
         printf "  %-15s - %s\n" "$script" "${SCRIPT_DESCRIPTIONS[$script]}"
     done
     echo ""
@@ -63,6 +74,7 @@ print_usage() {
     echo "  ./zant <script> --help"
     echo ""
     echo "Examples:"
+    echo "  ./zant create mnist-8"
     echo "  ./zant onnx_gen --iterations 5 --seed 42"
     echo "  ./zant user_tests_gen --model my_model --iterations 10"
     echo "  ./zant infer_shape --path model.onnx"
@@ -72,6 +84,18 @@ print_usage() {
 # Function to print script-specific usage
 print_script_usage() {
     local script="$1"
+    
+    # Special handling for create command
+    if [[ "$script" == "create" ]]; then
+        if [[ -f "./create.sh" ]]; then
+            ./create.sh --help
+        else
+            echo "Error: create.sh script not found"
+            exit 1
+        fi
+        return
+    fi
+    
     local script_upper=$(echo "$script" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
     local flags_var="${script_upper}_FLAGS[@]"
     
@@ -95,7 +119,7 @@ print_script_usage() {
 # Function to validate if script exists
 validate_script() {
     local script="$1"
-    if [[ ! -v SCRIPTS[$script] ]]; then
+    if [[ ! -v SCRIPT_DESCRIPTIONS[$script] ]]; then
         echo "Error: Unknown script '$script'"
         echo ""
         print_usage
@@ -106,6 +130,12 @@ validate_script() {
 # Function to check if Python script file exists
 check_script_file() {
     local script="$1"
+    
+    # Skip file check for create command
+    if [[ "$script" == "create" ]]; then
+        return 0
+    fi
+    
     local script_path="${SCRIPTS[$script]}"
     
     if [[ ! -f "$script_path" ]]; then
@@ -119,6 +149,18 @@ check_script_file() {
 execute_script() {
     local script="$1"
     shift  # Remove script name from arguments
+    
+    # Special handling for create command
+    if [[ "$script" == "create" ]]; then
+        if [[ ! -f "./create" ]]; then
+            echo "Error: create.sh script not found in current directory"
+            exit 1
+        fi
+        
+        chmod +x ./create
+        exec ./create "$@"
+        return
+    fi
     
     local script_path="${SCRIPTS[$script]}"
     local python_cmd="python3"
