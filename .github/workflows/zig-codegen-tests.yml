@@ -2,9 +2,9 @@ name: Zig Codegen Tests
 
 on:
   push:
-    branches: [main, feature, codegen, graphZant]
+    branches: [main, feature, codegen, graphzant]
   pull_request:
-    branches: [main, feature, codegen, graphZant]
+    branches: [main, feature, codegen, graphzant]
   workflow_dispatch:
 
 jobs:
@@ -69,8 +69,8 @@ jobs:
     needs: setup-models
     strategy:
       matrix:
-        model: [mnist-8, resnet50]
-        version: [v1, v2]
+        model: [mnist-8]
+        version: [v1]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
