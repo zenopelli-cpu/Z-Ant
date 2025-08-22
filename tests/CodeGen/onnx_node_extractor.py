@@ -399,7 +399,7 @@ class ONNXNodeExtractor:
         extracted_nodes = []
         for node_idx, node in enumerate(self.model.graph.node):
             node.name = node.name if node.name else "unnamed"
-            filename, metadata = self.extract_single_node(node_idx, node)
+            filename, metadata = self.extract_single_node(node_idx, node, input_data, intermediate_outputs)
             if metadata:
                 extracted_nodes.append(metadata)
         
