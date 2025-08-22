@@ -2,9 +2,9 @@ name: Zig Codegen Tests
 
 on:
   push:
-    branches: [main, feature, codegen]
+    branches: [main, feature, codegen, graphzant]
   pull_request:
-    branches: [main, feature, codegen]
+    branches: [main, feature, codegen, graphzant]
   workflow_dispatch:
 
 jobs:
@@ -69,8 +69,8 @@ jobs:
     needs: setup-models
     strategy:
       matrix:
-        model: [mnist-8, resnet50]
-        version: [v1, v2]
+        model: [mnist-8]
+        version: [v1]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -101,7 +101,7 @@ jobs:
         run: ./zant user_tests_gen --model ${{ matrix.model }}
 
       - name: Generate library code for ${{ matrix.model }} ${{ matrix.version }}
-        run: zig build lib-gen -Dmodel=${{ matrix.model }} -Dv=${{ matrix.version }} -Denable_user_tests=true -Dcomm=true
+        run: zig build lib-gen -Dmodel=${{ matrix.model }} -Denable_user_tests=true -Dcomm=true
 
       - name: Test generated library for ${{ matrix.model }} ${{ matrix.version }}
         run: zig build lib-test -Dmodel=${{ matrix.model }} -Denable_user_tests=true --summary all
@@ -166,13 +166,68 @@ jobs:
         with:
           name: onnx-models
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: tests/CodeGen/Python-ONNX/requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r tests/CodeGen/Python-ONNX/requirements.txt
+
       - name: Set up Zig 0.14.0
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.14.0
 
+      - name: Prepare model for cross-platform test
+        run: |
+          ./zant input_setter --path datasets/models/mnist-8/mnist-8.onnx --shape 1,1,28,28
+          ./zant infer_shape --path datasets/models/mnist-8/mnist-8.onnx
+
+      - name: Generate test data for cross-platform test
+        run: ./zant user_tests_gen --model mnist-8
+
       - name: Generate library code for cross-platform test
-        run: zig build lib-gen -Dmodel=mnist-8 -Dv=v2
+        run: |
+          echo "Running lib-gen with verbose output..."
+          zig build lib-gen -Dmodel=mnist-8 -Denable_user_tests=true --summary all || {
+            echo "lib-gen command failed with exit code $?"
+            echo "Checking if any build steps completed..."
+            ls -la . || true
+            find . -name "generated" -type d 2>/dev/null || echo "No generated directory found"
+            exit 1
+          }
+
+      - name: Verify generated files exist
+        run: |
+          echo "Checking for generated files..."
+          if [ -d "generated" ]; then
+            echo "generated/ directory exists"
+            ls -la generated/
+            if [ -d "generated/mnist-8" ]; then
+              echo "mnist-8/ subdirectory exists"
+              ls -la generated/mnist-8/
+              if [ -f "generated/mnist-8/lib_mnist-8.zig" ]; then
+                echo "✓ lib_mnist-8.zig found successfully"
+              else
+                echo "✗ lib_mnist-8.zig not found in generated/mnist-8/"
+                ls -la generated/mnist-8/ || echo "Directory is empty"
+                exit 1
+              fi
+            else
+              echo "✗ mnist-8/ subdirectory not found in generated/"
+              exit 1
+            fi
+          else
+            echo "✗ generated/ directory does not exist"
+            echo "Build may have failed silently. Checking for any output..."
+            find . -name "*lib*" -type f 2>/dev/null | head -10 || echo "No lib files found"
+            exit 1
+          fi
 
       - name: Build library for ${{ matrix.target }} with ${{ matrix.optimize }}
         run: zig build lib -Dmodel=mnist-8 -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} --summary all

@@ -231,9 +231,23 @@ class ONNXNodeExtractor:
         attributes = {}
         for attr in node.attribute:
             attr_value = onnx.helper.get_attribute_value(attr)
-            # Convert numpy arrays to lists for JSON serialization
+            # Convert non-serializable types to JSON-serializable formats
             if isinstance(attr_value, np.ndarray):
                 attr_value = attr_value.tolist()
+            elif isinstance(attr_value, bytes):
+                attr_value = attr_value.decode('utf-8', errors='ignore')
+            elif hasattr(attr_value, '__iter__') and not isinstance(attr_value, (str, bytes)):
+                # Handle lists/tuples that might contain numpy arrays or bytes
+                try:
+                    attr_value = [
+                        item.tolist() if isinstance(item, np.ndarray) 
+                        else item.decode('utf-8', errors='ignore') if isinstance(item, bytes)
+                        else item
+                        for item in attr_value
+                    ]
+                except (TypeError, AttributeError):
+                    # If conversion fails, convert to string
+                    attr_value = str(attr_value)
             attributes[attr.name] = attr_value
         return attributes
     
