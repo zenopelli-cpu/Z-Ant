@@ -26,6 +26,29 @@ test "Static Library - Random data Prediction Test" {
     std.testing.log_level = .info;
     std.debug.print("\n--- Random data Prediction Test ---", .{});
 
+    // Handle nodes with no inputs (e.g., nodes that only process initializers)
+    if (!model.has_inputs) {
+        std.debug.print("\n--- Node has no inputs, testing output generation only ---", .{});
+
+        // Allocate output array
+        var output_data: [*]model.output_data_type = undefined;
+
+        // Call predict with null inputs since this node doesn't use external inputs
+        const result_code = model.lib.predict(
+            undefined, // input: not used for no-input nodes
+            undefined, // input_shape: not used
+            0, // shape_len: 0 since no inputs
+            &output_data,
+        );
+
+        std.debug.print("\n--- Prediction result code: {} ---", .{result_code});
+        try std.testing.expect(result_code == 0);
+
+        // Basic validation that output was generated
+        std.debug.print("\n--- Output generated successfully ---", .{});
+        return;
+    }
+
     var input_shape = model.input_shape;
 
     var input_data_size: u32 = 1;

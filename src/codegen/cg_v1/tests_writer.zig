@@ -47,6 +47,12 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
         output_size *= @intCast(dim);
     }
 
+    // Handle case where there are no inputs (e.g., nodes that only have initializers)
+    const has_inputs = inputs.len > 0;
+    const input_shape_len: usize = if (has_inputs) inputs[0].getShape().len else 0;
+    const input_shape: []usize = if (has_inputs) inputs[0].getShape() else &[_]usize{};
+    const input_data_type: []const u8 = if (has_inputs) inputs[0].ty.toString() else "f32";
+
     _ = try writer.print(
         \\
         \\pub const lib = @import("lib_{s}.zig");
@@ -55,6 +61,7 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
         \\pub const output_data_len = {d};
         \\pub const input_data_type = {s};
         \\pub const output_data_type = {s};
+        \\pub const has_inputs = {};
         \\pub const user_tests: bool = {};
         \\pub const user_tests_path = "{s}";
         \\pub const have_log: bool = {};
@@ -62,11 +69,12 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
     , .{
         model_name, //lib
         model_name, //name
-        inputs[0].getShape().len, //input_shape d
-        inputs[0].getShape(), //input_shape any
+        input_shape_len, //input_shape d
+        input_shape, //input_shape any
         output_size, //output_data_len
-        inputs[0].ty.toString(), //input_data_type
+        input_data_type, //input_data_type
         outputs[0].ty.toString(), //output_data_type
+        has_inputs, //has_inputs
         codegen_options.user_tests, //user_tests_path
         try std.fmt.allocPrint(allocator, "{s}user_tests.json", .{model_path}), //user_tests_path
         codegen_options.log,

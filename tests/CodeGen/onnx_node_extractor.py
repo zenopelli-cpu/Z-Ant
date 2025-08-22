@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Any
 import logging
 import re
+from onnx import numpy_helper
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -128,7 +129,7 @@ class ONNXNodeExtractor:
         
         return intermediate_outputs
     
-    def extract_single_node(self, node_idx: int, node: onnx.NodeProto) -> Tuple[str, Dict[str, Any]]:
+    def extract_single_node(self, node_idx: int, node: onnx.NodeProto, input_data: Dict[str, np.ndarray], intermediate_outputs: Dict[str, np.ndarray]) -> Tuple[str, Dict[str, Any]]:
         """Extract a single node as an individual ONNX model"""
         logger.info(f"Extracting node {node_idx}: {node.op_type}")
         
@@ -158,15 +159,60 @@ class ONNXNodeExtractor:
                 if value_info:
                     output_value_infos.append(value_info)
         
-        # Update graph inputs and outputs
-        new_graph.input.extend(input_value_infos)
+        # Determine which input stays as runtime input: first non-initializer
+        initializer_names = {init.name for init in self.model.graph.initializer}
+        kept_input_name = None
+        for input_name in node.input:
+            if input_name and input_name not in initializer_names:
+                kept_input_name = input_name
+                break
+
+        # Update graph outputs
         new_graph.output.extend(output_value_infos)
-        
-        # Copy relevant initializers
+
+        # Copy relevant initializers that are directly referenced
         for initializer in self.model.graph.initializer:
             if initializer.name in node.input:
                 new_graph.initializer.append(initializer)
-        
+
+        # For each input: keep one as real input, convert others to constants
+        for vi in input_value_infos:
+            inp_name = vi.name
+            if kept_input_name is not None and inp_name == kept_input_name:
+                new_graph.input.append(vi)
+                continue
+
+            # If already provided as initializer above, skip
+            if any(init.name == inp_name for init in new_graph.initializer):
+                continue
+
+            # Try to materialize as constant from intermediate outputs or provided input data
+            arr = None
+            if inp_name in intermediate_outputs:
+                arr = intermediate_outputs[inp_name]
+            elif inp_name in input_data:
+                arr = input_data[inp_name]
+            else:
+                # Fallback: create zeros using value_info shape if available
+                shape = []
+                tt = vi.type.tensor_type
+                if tt.shape.dim:
+                    for dim in tt.shape.dim:
+                        if dim.dim_value:
+                            shape.append(dim.dim_value)
+                        else:
+                            shape.append(1)
+                else:
+                    shape = [1]
+                arr = np.zeros(shape, dtype=np.float32)
+
+            try:
+                tensor_proto = numpy_helper.from_array(arr.astype(np.float32, copy=False), name=inp_name)
+                new_graph.initializer.append(tensor_proto)
+            except Exception as e:
+                logger.warning(f"Failed to bake constant for input '{inp_name}' of node {node_idx}: {e}. Leaving as graph input.")
+                new_graph.input.append(vi)
+         
         # Create new model
         new_model = onnx.helper.make_model(new_graph)
         new_model.opset_import.extend(self.model.opset_import)
@@ -266,23 +312,27 @@ class ONNXNodeExtractor:
                 "expected_class": 0,
             }
             
-            # Collect input[0] data as arrays
-            if node.input[0]:
-                if node.input[0] in input_data:
-                    # Original input data
-                    node_data["input"] = input_data[node.input[0]].flatten().tolist()
-                elif node.input[0] in intermediate_outputs:
-                    # Intermediate data
-                    node_data["input"] = intermediate_outputs[node.input[0]].flatten().tolist()
+            # Determine the kept input (first non-initializer), and save its data
+            kept_input_name = None
+            initializer_names = {init.name for init in self.model.graph.initializer}
+            for input_name in node.input:
+                if input_name and input_name not in initializer_names:
+                    kept_input_name = input_name
+                    break
+
+            if kept_input_name:
+                if kept_input_name in input_data:
+                    node_data["input"] = input_data[kept_input_name].flatten().tolist()
+                elif kept_input_name in intermediate_outputs:
+                    node_data["input"] = intermediate_outputs[kept_input_name].flatten().tolist()
                 else:
-                    # Check if it's an initializer (weights/biases)
                     for initializer in self.model.graph.initializer:
-                        if initializer.name == node.input[0]:
+                        if initializer.name == kept_input_name:
                             tensor_data = onnx.numpy_helper.to_array(initializer)
                             node_data["input"] = tensor_data.flatten().tolist()
                             break
-                
-            
+             
+             
             # Collect output data as arrays
             for output_name in node.output:
                 if output_name and output_name in intermediate_outputs:

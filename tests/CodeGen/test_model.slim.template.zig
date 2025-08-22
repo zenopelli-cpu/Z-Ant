@@ -77,9 +77,12 @@ test "Static Library - Inputs Prediction Test" {
 
     var input_shape = model.input_shape;
     var error_counter: i32 = 0;
-    var input_data_len: u32 = 1;
-    for (input_shape) |dim| {
-        input_data_len *= dim;
+    var input_data_len: u32 = 0;
+    if (model.has_inputs) {
+        input_data_len = 1;
+        for (input_shape) |dim| {
+            input_data_len *= dim;
+        }
     }
 
     std.debug.print(" {s}", .{model.user_tests_path});

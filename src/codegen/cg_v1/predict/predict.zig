@@ -36,16 +36,23 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
     const outputs = try IR_utils.getOutputs(tensorZantMap);
 
     //write input type
-    _ = try writer.print(
-        \\
-        \\ const T_in : type = {s};
-    , .{inputs[0].ty.toString()});
+    if (inputs.len == 0) {
+        _ = try writer.print(
+            \\
+            \\ const T_in : type = {s};
+        , .{if (outputs.len > 0) outputs[0].ty.toString() else @as([]const u8, "f32")});
+    } else {
+        _ = try writer.print(
+            \\
+            \\ const T_in : type = {s};
+        , .{inputs[0].ty.toString()});
+    }
 
     //write output type
     _ = try writer.print(
         \\
         \\ const T_out : type = {s};
-    , .{outputs[0].ty.toString()});
+    , .{if (outputs.len > 0) outputs[0].ty.toString() else @as([]const u8, "f32")});
 
     _ = try writer.print(
         \\
@@ -81,6 +88,17 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
             \\
             \\    // Reset all linker tensors to zero before each prediction
             \\    resetOutputTensors();
+        , .{});
+    }
+
+    // Suppress unused parameter warnings for nodes with no inputs
+    if (inputs.len == 0) {
+        _ = try writer.print(
+            \\
+            \\    // Suppress unused parameter warnings for no-input nodes
+            \\    _ = input;
+            \\    _ = input_shape;
+            \\    _ = shape_len;
         , .{});
     }
 
@@ -260,9 +278,30 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
 fn write_predictInitialization(writer: std.fs.File.Writer) !void {
     const inputs: []TensorZant = try IR_utils.getInputs(tensorZantMap);
 
+    // if there are no external inputs (e.g., node extracted model with only initializers), skip input setup
+    if (inputs.len == 0) {
+        return;
+    }
+
+    // Identify the primary external input (first non-initializer)
+    var primary_index: usize = std.math.maxInt(usize);
+    for (inputs, 0..) |*tz, idx| {
+        if (tz.tc != tensorZant_lib.TensorCategory.INITIALIZER) {
+            primary_index = idx;
+            break;
+        }
+    }
+
+    if (primary_index == std.math.maxInt(usize)) {
+        // No runtime-provided inputs needed
+        return;
+    }
+
     //checks
-    if (inputs.len > 1) return error.MoreThanOneInput;
-    if (inputs.len < 1) return error.NoInput;
+    // Allow multiple inputs; only the primary is sourced from the user pointer
+    if (inputs.len > 1) {
+        // no-op: other inputs will be allocated below
+    }
 
     _ = try writer.print(
         \\  
@@ -286,10 +325,22 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         \\    defer tensor_{s}.deinit();
         \\    @memcpy(tensor_{s}.data, data);
     , .{
-        try inputs[0].getNameSanitized(),
-        try inputs[0].getNameSanitized(),
-        try inputs[0].getNameSanitized(),
+        try inputs[primary_index].getNameSanitized(),
+        try inputs[primary_index].getNameSanitized(),
+        try inputs[primary_index].getNameSanitized(),
     });
+
+    // For any additional non-initializer inputs, allocate zero-initialized tensors using their declared shapes
+    for (inputs, 0..) |*tz, idx| {
+        if (idx == primary_index) continue;
+        if (tz.tc == tensorZant_lib.TensorCategory.INITIALIZER) continue;
+        _ = try write_TensorShape(writer, tz);
+        const sanitized_name = try tz.getNameSanitized();
+        const type_str = tz.ty.toString();
+        try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return -2;\n", .{ sanitized_name, type_str, sanitized_name });
+        try writer.print("    defer tensor_{s}.deinit();\n", .{sanitized_name});
+        try writer.print("    @memset(tensor_{s}.data[0..], 0);\n", .{sanitized_name});
+    }
 }
 
 fn writeReturn(writer: std.fs.File.Writer) !void {
@@ -374,20 +425,30 @@ fn write_checks(writer: std.fs.File.Writer) !void {
 
     const inputs: []TensorZant = try IR_utils.getInputs(tensorZantMap);
 
-    //checks
-    if (inputs.len > 1) return error.MoreThanOneInput;
-    if (inputs.len < 1) return error.NoInput;
+    // if there are no external inputs, there is nothing to check
+    if (inputs.len == 0) {
+        return;
+    }
+
+    // Allow multiple inputs; only validate against the first non-initializer input
+    var check_index: usize = 0;
+    for (inputs, 0..) |*tz, idx| {
+        if (tz.tc != tensorZant_lib.TensorCategory.INITIALIZER) {
+            check_index = idx;
+            break;
+        }
+    }
 
     //check on the number of dims
     _ = try writer.print(
-        \\
+        \\ 
         \\    //checks on the input parameters
         \\    if (shape_len == 0) return -2;
         \\    if(shape_len != {}) return -2;
-    , .{inputs[0].getShape().len});
+    , .{inputs[check_index].getShape().len});
 
     //check on dims correspondance
-    for (inputs[0].getShape(), 0..) |dim, i| {
+    for (inputs[check_index].getShape(), 0..) |dim, i| {
         _ = try writer.print(
             \\
             \\    if( input_shape[{}] != {}) return -2;
