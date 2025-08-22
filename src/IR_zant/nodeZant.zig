@@ -31,7 +31,7 @@ pub const NodeZant = struct {
     /// Initializes a NodeZant instance starting from a NodeProto instance.
     pub fn init(nodeProto: *NodeProto) !NodeZant {
         return NodeZant{
-            .name = nodeProto.name.?,
+            .name = if (nodeProto.name) |n| n else "unnamed",
             .op_type = nodeProto.op_type,
             .op = try Op_union.init(nodeProto),
             .next = std.ArrayList(*NodeZant).init(allocator),

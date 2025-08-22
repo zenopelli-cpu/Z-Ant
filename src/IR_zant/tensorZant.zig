@@ -292,7 +292,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
     //adding all the nodes inputs and outputs
     for (protoGraph.nodes, 1..) |node, i| { //for each NodeProto in the GraphProto
 
-        std.debug.print("\n --- {} :  {s} - {s} ", .{ i, node.op_type, node.name.? });
+        std.debug.print("\n --- {} :  {s} - {any} ", .{ i, node.op_type, node.name });
         // node.print(null); //DEBUG
 
         //WHy CONSTANT nodes need a different initialization? because is has many different variants and is hard to generalize
