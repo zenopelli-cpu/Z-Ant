@@ -21,6 +21,16 @@ const codegen_options = @import("codegen_options");
 // Writes the computation function for predicting outputs
 pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant), do_export: bool) !void {
 
+    // Fix for weights I/O mode evaluation limits
+    if (codegen_options.weights_io_mode) {
+        _ = try writer.print(
+            \\
+            \\// Increase evaluation branch quota for lazy loading operations
+            \\comptime {{ @setEvalBranchQuota(10000); }}
+            \\
+        , .{});
+    }
+
     // Static initialization for output tensors if not using dynamic allocation
     //
     // declare all the outputs for each node, aka: linkers
@@ -105,6 +115,9 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
     try write_checks(writer);
 
     try write_predictInitialization(writer);
+    
+    // In weights I/O mode, we'll handle tensor loading differently
+    // No pre-loading needed - handled directly in operators
 
     // Allocate output tensors for dynamic mode
     if (codegen_options.dynamic) {
@@ -571,3 +584,5 @@ fn write_op_info(writer: std.fs.File.Writer, node: *NodeZant) !void {
         , .{output.name});
     }
 }
+
+

@@ -7,6 +7,11 @@ const TensorMathError = zant.utils.error_handler.TensorMathError;
 
 const pkg_allocator = zant.utils.allocator.allocator;
 
+// Increase comptime evaluation limit for complex flatten operations
+comptime {
+    @setEvalBranchQuota(10000);
+}
+
 pub fn get_flatten_output_shape(input_shape: []const usize, axis: isize) ![]usize {
     const rank = input_shape.len;
     const r = @as(isize, @intCast(rank));
@@ -38,6 +43,7 @@ pub fn get_flatten_output_shape(input_shape: []const usize, axis: isize) ![]usiz
 }
 
 pub fn flatten_lean(comptime T: anytype, input: *Tensor(T), output: *Tensor(T)) !void {
+    @setEvalBranchQuota(10000);
     @memcpy(output.data, input.data);
 }
 

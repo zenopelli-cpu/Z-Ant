@@ -131,11 +131,7 @@ pub const Conv = struct {
         defer allocator.free(tensor_X_string);
 
         if (self.input_X.tc == TensorCategory.INITIALIZER) {
-            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                "@constCast(&param_lib.tensor_",
-                try utils.getSanitizedName(self.input_X.name),
-                ")",
-            });
+            tensor_X_string = try utils.getTensorReference(try utils.getSanitizedName(self.input_X.name), self.input_X.tc, true);
         } else {
             tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(self.input_X.name), ")" });
         }
@@ -144,11 +140,7 @@ pub const Conv = struct {
         var tensor_W_string: []u8 = undefined;
         defer allocator.free(tensor_W_string);
         if (self.input_W.tc == TensorCategory.INITIALIZER) {
-            tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                "@constCast(&param_lib.tensor_",
-                try utils.getSanitizedName(self.input_W.name),
-                ")",
-            });
+            tensor_W_string = try utils.getTensorReference(try utils.getSanitizedName(self.input_W.name), self.input_W.tc, true);
         } else {
             tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(self.input_W.name), ")" });
         }
@@ -158,7 +150,7 @@ pub const Conv = struct {
         // Bias Tensor B is optional! verify the presence
         if (self.input_B) |input_B| {
             const B_name = try utils.getSanitizedName(input_B.name);
-            bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", B_name, ")" });
+            bias_string = try utils.getTensorReference(B_name, input_B.tc, true);
         } else {
             bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{"null"});
         }

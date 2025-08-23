@@ -62,6 +62,15 @@ fn write_libraries(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\ const std = @import("std");
+        \\ 
+        \\ // Standard library options for embedded targets
+        \\ pub const std_options = std.Options{{
+        \\     .page_size_min = 4096,
+        \\     .page_size_max = 4096,
+        \\     .log_level = .warn,
+        \\     .enable_segfault_handler = false,
+        \\ }};
+        \\ 
         \\ const zant = @import("zant");
         \\ const Tensor = zant.core.tensor.Tensor;
         \\ const tensMath = zant.core.tensor.math_standard;

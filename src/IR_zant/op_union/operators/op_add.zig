@@ -78,11 +78,7 @@ pub const Add = struct {
         defer allocator.free(tensor_A_string);
 
         if (self.input_A.tc == TensorCategory.INITIALIZER) {
-            tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                "@constCast(&param_lib.tensor_",
-                try IR_utils.getSanitizedName(self.input_A.name),
-                ")",
-            });
+            tensor_A_string = try IR_utils.getTensorReference(try IR_utils.getSanitizedName(self.input_A.name), self.input_A.tc, true);
         } else {
             tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try IR_utils.getSanitizedName(self.input_A.name) });
         }
@@ -91,11 +87,7 @@ pub const Add = struct {
         var tensor_B_string: []u8 = undefined;
         defer allocator.free(tensor_B_string);
         if (self.input_B.tc == TensorCategory.INITIALIZER) {
-            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                "@constCast(&param_lib.tensor_",
-                try IR_utils.getSanitizedName(self.input_B.name),
-                ")",
-            });
+            tensor_B_string = try IR_utils.getTensorReference(try IR_utils.getSanitizedName(self.input_B.name), self.input_B.tc, true);
         } else {
             tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try IR_utils.getSanitizedName(self.input_B.name) });
         }

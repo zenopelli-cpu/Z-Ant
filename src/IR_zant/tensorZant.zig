@@ -121,9 +121,12 @@ pub const TensorZant = struct {
             shape_usize = tensor.?.get_shape(); //saves the shape
             ty = utils.getAnyTensorType(tensor.?.*);
         } else if (value_info) |vi| {
-            shape_i64 = if (utils.getTensorShapeFromValueInfo(vi)) |s| s else { //search for the shape
-                std.debug.print("\n ERROR: {s} value_info shape not found ", .{name});
-                return error.shapeNotfound;
+            shape_i64 = if (utils.getTensorShapeFromValueInfo(vi)) |s| blk: {
+                break :blk s;
+            } else blk: {
+                std.debug.print("\n WARNING: {s} value_info shape not found, using empty shape ", .{name});
+                // Use empty shape for tensors without initial shape (e.g., Reshape outputs)
+                break :blk &[_]i64{};
             };
             shape_usize = try utils.i64SliceToUsizeSlice(shape_i64); //saves the shape
             ty = try utils.getTypeFromValueInfo(vi);

@@ -3,8 +3,19 @@ const Allocator = std.mem.Allocator;
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 
-//var info_allocator = infoAllocator(.activation, std.heap.raw_c_allocator);
-const base_allocator = if (builtin.is_test) std.testing.allocator else @field(std.heap, build_options.allocator);
+// Embedded allocator configuration  
+var embedded_buffer: [400 * 1024]u8 = undefined; // 400KB buffer for embedded targets (balance for Nicla Vision)
+var embedded_fba = std.heap.FixedBufferAllocator.init(&embedded_buffer);
+
+const base_allocator = if (builtin.is_test)
+    std.testing.allocator
+else if (std.mem.eql(u8, build_options.allocator, "ArenaAllocator"))
+    embedded_fba.allocator() // Use FixedBufferAllocator for embedded
+else if (std.mem.eql(u8, build_options.allocator, "raw_c_allocator"))
+    std.heap.raw_c_allocator
+else
+    @field(std.heap, build_options.allocator);
+
 pub const allocator = base_allocator;
 
 /// This allocator is used in front of another allocator and logs to `std.log`

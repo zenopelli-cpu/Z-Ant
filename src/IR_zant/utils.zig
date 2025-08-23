@@ -39,7 +39,14 @@ pub fn getShapeFromModelInfo(model: *ModelProto) ?[]i64 {
 }
 
 pub fn getTensorShapeFromValueInfo(vi: *ValueInfoProto) ?[]i64 {
-    return vi.type.?.tensor_type.?.shape.?.shape;
+    if (vi.type) |type_info| {
+        if (type_info.tensor_type) |tensor_type| {
+            if (tensor_type.shape) |shape| {
+                return shape.shape;
+            }
+        }
+    }
+    return null;
 }
 
 pub fn getTypeFromValueInfo(vi: *ValueInfoProto) !TensorType {
@@ -371,4 +378,18 @@ pub fn getAllTensors(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
         }
     }
     return inputs.toOwnedSlice();
+}
+
+/// Generates the correct tensor reference for given tensor name and category
+/// In weights_io_mode: "param_lib.tensor_name.get() catch return -2" for INITIALIZER
+/// For CONSTANT: "@constCast(&param_lib.tensor_name)" (always embedded)
+/// Otherwise: "@constCast(&param_lib.tensor_name)"
+pub fn getTensorReference(tensor_name: []const u8, tc: tensorZant_lib.TensorCategory, weights_io_mode: bool) ![]u8 {
+    if (weights_io_mode and tc == tensorZant_lib.TensorCategory.INITIALIZER) {
+        return try std.fmt.allocPrint(allocator, "param_lib.tensor_{s}.get() catch return -2", .{tensor_name});
+    } else if (tc == tensorZant_lib.TensorCategory.CONSTANT) {
+        return try std.fmt.allocPrint(allocator, "@constCast(&param_lib.tensor_{s})", .{tensor_name});
+    } else {
+        return try std.fmt.allocPrint(allocator, "@constCast(&param_lib.tensor_{s})", .{tensor_name});
+    }
 }

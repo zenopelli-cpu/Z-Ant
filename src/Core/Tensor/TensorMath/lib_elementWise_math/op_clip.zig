@@ -36,13 +36,13 @@ pub inline fn lean_clip(
     // Get default min/max values based on type
     const min_val = if (minTensor) |t| t.data[0] else switch (@typeInfo(T)) {
         .int => std.math.minInt(T),
-        .float => -std.math.floatMax(T),
+        .float => if (T == f32) @as(T, -3.4028235e38) else @as(T, -1.7976931348623157e308),
         else => @as(T, 0),
     };
 
     const max_val = if (maxTensor) |t| t.data[0] else switch (@typeInfo(T)) {
         .int => std.math.maxInt(T),
-        .float => std.math.floatMax(T),
+        .float => if (T == f32) @as(T, 3.4028235e38) else @as(T, 1.7976931348623157e308),
         else => @as(T, 0),
     };
 
@@ -58,8 +58,8 @@ pub inline fn lean_clip(
     const chunk_size = 32;
 
     while (i + chunk_size <= inputTensor.size) : (i += chunk_size) {
-        comptime var j = 0;
-        inline while (j < chunk_size) : (j += 1) {
+        var j: usize = 0;
+        while (j < chunk_size) : (j += 1) {
             outputTensor.data[i + j] = @min(@max(inputTensor.data[i + j], min_val), max_val);
         }
     }

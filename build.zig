@@ -10,7 +10,6 @@ pub fn build(b: *std.Build) void {
     // ****************************************************************************************************************
     const build_options = b.addOptions();
     build_options.addOption(bool, "trace_allocator", b.option(bool, "trace_allocator", "Use a tracing allocator") orelse true);
-    build_options.addOption([]const u8, "allocator", (b.option([]const u8, "allocator", "Allocator to use") orelse "raw_c_allocator"));
 
     // Get target and CPU options from command line or use defaults
     const target_str = b.option([]const u8, "target", "Target architecture (e.g., thumb-freestanding)") orelse "native";
@@ -26,6 +25,14 @@ pub fn build(b: *std.Build) void {
 
     const target = b.resolveTargetQuery(target_query);
     const optimize = b.standardOptimizeOption(.{});
+
+    // Choose appropriate allocator based on target
+    const default_allocator = if (target.result.os.tag == .freestanding)
+        "ArenaAllocator" // Use ArenaAllocator for freestanding targets (embedded)
+    else
+        "raw_c_allocator"; // Use raw_c_allocator for hosted targets
+
+    build_options.addOption([]const u8, "allocator", (b.option([]const u8, "allocator", "Allocator to use") orelse default_allocator));
 
     // ****************************************************************************************************************
     // ************************************************ TESTING OPTIONS ***********************************************
@@ -73,6 +80,8 @@ pub fn build(b: *std.Build) void {
     const dynamic_option = b.option(bool, "dynamic", "Dynamic allocation") orelse false;
     const export_option = b.option(bool, "do_export", "codegen Exportable ") orelse false;
     const codegen_version_option = b.option([]const u8, "v", "Version, v1 or v2") orelse "v1";
+    const xip_option = b.option(bool, "xip", "XIP mode: store weights in flash memory") orelse false;
+    const weights_io_option = b.option(bool, "weights_io_mode", "Use configurable weights I/O layer with C callback support") orelse true;
 
     //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 
@@ -90,6 +99,8 @@ pub fn build(b: *std.Build) void {
     codegen_options.addOption(bool, "comm", comm_option);
     codegen_options.addOption(bool, "dynamic", dynamic_option);
     codegen_options.addOption([]const u8, "version", codegen_version_option);
+    codegen_options.addOption(bool, "xip_mode", xip_option);
+    codegen_options.addOption(bool, "weights_io_mode", weights_io_option);
 
     // --------------------------------------------------------------
     // ---------------------- Modules creation ----------------------
@@ -100,11 +111,12 @@ pub fn build(b: *std.Build) void {
 
     const IR_zant_mod = b.createModule(.{ .root_source_file = b.path("src/IR_zant/IR_zant.zig") });
     IR_zant_mod.addImport("zant", zant_mod);
+    IR_zant_mod.addOptions("codegen_options", codegen_options);
 
     const codegen_mod = b.createModule(.{ .root_source_file = b.path("src/codegen/codegen.zig") });
     codegen_mod.addImport("zant", zant_mod);
     codegen_mod.addImport("IR_zant", IR_zant_mod);
-    codegen_mod.addOptions("codegen_options", codegen_options); //<<--OSS!! it is an option!
+    codegen_mod.addOptions("codegen_options", codegen_options);
     IR_zant_mod.addImport("codegen", codegen_mod);
 
     const Img2Tens_mod = b.createModule(.{ .root_source_file = b.path("src/ImageToTensor/imageToTensor.zig") });
@@ -132,7 +144,10 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("IR_zant", IR_zant_mod);
     unit_tests.root_module.addImport("codegen", codegen_mod);
 
-    unit_tests.linkLibC();
+    // Only link libc for non-freestanding targets
+    if (target.result.os.tag != .freestanding) {
+        unit_tests.linkLibC();
+    }
 
     // Add a build step to run all unit tests.
     const run_unit_tests = b.addRunArtifact(unit_tests);
@@ -151,7 +166,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    IR_codeGen_exe.linkLibC();
+    // Only link libc for non-freestanding targets
+    if (target.result.os.tag != .freestanding) {
+        IR_codeGen_exe.linkLibC();
+    }
 
     // Add necessary imports for the executable.
     IR_codeGen_exe.root_module.addImport("codegen", codegen_mod); //<<-- options are inside this module
@@ -244,7 +262,12 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = .ReleaseSmall,
     });
-    static_lib.linkLibC();
+
+    // Only link libc for non-freestanding targets
+    if (target.result.os.tag != .freestanding) {
+        static_lib.linkLibC();
+    }
+
     static_lib.root_module.addImport("zant", zant_mod);
     static_lib.root_module.addImport("codegen", codegen_mod);
 

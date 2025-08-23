@@ -1,6 +1,7 @@
 const std = @import("std");
 const zant = @import("zant");
 const IR_zant = @import("IR_zant");
+const codegen_options = @import("codegen_options");
 
 // --- zant IR
 const IR_utils = IR_zant.utils;
@@ -9,11 +10,16 @@ const TensorZant = IR_zant.TensorZant;
 
 const tensorZantMap: *std.StringHashMap(TensorZant) = &IR_zant.tensorZant_lib.tensorMap;
 
+// Global offset tracker for weights IO mode
+var global_offset: usize = 0;
+
 /// Writes the Zig code required to initialize all tensor initializers in the ONNX model.
 /// This function generates declarations and definitions for each tensor.
 ///
 /// - `writer`: The file writer to output generated code.
 pub inline fn write_parameters(writer: std.fs.File.Writer) !void {
+    // Reset offset for weights IO mode
+    global_offset = 0;
 
     //importing the libraries
     try write_libraries_parameters(writer);
@@ -37,6 +43,10 @@ pub inline fn write_parameters(writer: std.fs.File.Writer) !void {
     , .{});
 
     try write_constantTensors(writer);
+    
+    if (codegen_options.weights_io_mode) {
+        try write_weightsIOCallback(writer);
+    }
 }
 
 fn write_initilizers(writer: std.fs.File.Writer) !void {
@@ -55,14 +65,41 @@ fn write_initilizers(writer: std.fs.File.Writer) !void {
         // Generate the shape array for the tensor
         try wrtiteTensorShape(writer, initializer);
 
-        // Generate the data array for the tensor
-        try writeArray(writer, initializer);
+        if (codegen_options.weights_io_mode) {
+            // In weights I/O mode, generate offset info + lazy loading function
+            const current_offset = global_offset;
+            global_offset += initializer.getSize() * 4; // f32 = 4 bytes
+            
+            try writer.print(
+                \\
+                \\// Offset info for tensor_{s}
+                \\pub const offset_{s}: usize = {d};
+                \\pub const size_{s}: usize = {d};
+                \\
+                \\// On-demand tensor loader (lazy loading per operation)
+                \\pub const tensor_{s} = struct {{
+                \\    pub fn get() !*Tensor(f32) {{
+                \\        // This should return a lightweight tensor that loads data on-demand during operations
+                \\        // For now, we'll load the tensor but the real solution is to modify operations
+                \\        // to load weights only when needed and discard immediately
+                \\        const tensor_data = try loadTensorWeights(f32, offset_{s}, size_{s}, &shape_tensor_{s});
+                \\        const tensor_ptr = try allocator.create(Tensor(f32));
+                \\        tensor_ptr.* = tensor_data;
+                \\        return tensor_ptr;
+                \\    }}
+                \\}};
+                \\
+            , .{ name, name, current_offset, name, initializer.getSize(), name, name, name, name });
+        } else {
+            // Standard mode: generate the data array for the tensor
+            try writeArray(writer, initializer);
 
-        // Create the tensor instance
-        try writer.print(
-            \\
-            \\pub const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
-        , .{ name, initializer.ty.toString(), name, name });
+            // Create the tensor instance
+            try writer.print(
+                \\
+                \\pub const tensor_{s} = Tensor({s}).fromConstBuffer(&allocator, &array_{s}, &shape_tensor_{s});
+            , .{ name, initializer.ty.toString(), name, name });
+        }
     }
 }
 
@@ -91,7 +128,8 @@ fn write_constantTensors(writer: std.fs.File.Writer) !void {
         // Generate the shape array for the tensor
         try wrtiteTensorShape(writer, constant_tensors);
 
-        // Generate the data array for the tensor
+        // Constants are always embedded directly (too small for weights I/O mode)
+        // Standard mode: generate the data array for the tensor
         try writeArray(writer, constant_tensors);
 
         // Create the tensor instance
@@ -133,7 +171,7 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, tz: *TensorZant) !vo
     try writer.print(
         \\
         \\
-        \\const shape_tensor_{s} : [{}]usize = [_]usize{{
+        \\pub const shape_tensor_{s} : [{}]usize = [_]usize{{
     , .{ try tz.getNameSanitized(), tz.getShape().len });
 
     for (tz.getShape(), 0..) |dim_i, i| {
@@ -155,6 +193,53 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, tz: *TensorZant) !vo
 ///
 /// - `writer`: The file writer to output generated code.
 /// - `tz`: The tensor initializer.
+fn write_weightsIOCallback(writer: std.fs.File.Writer) !void {
+    try writer.print(
+        \\
+        \\
+        \\ // -----------------------------------------
+        \\ // +         Weights I/O Interface         +
+        \\ // -----------------------------------------
+        \\
+        \\// External callback for loading weights on demand
+        \\extern fn load_weights(offset: usize, size: usize) [*]const u8;
+        \\
+        \\// Global static buffer for QSPI compatibility (hardware accessible memory)
+        \\var global_weights_buffer: [4 * 1024]u8 align(4) = undefined;
+        \\
+        \\// Helper function to load a tensor's weights on demand (optimized for embedded)
+        \\pub fn loadTensorWeights(comptime T: type, offset: usize, size: usize, shape: []const usize) !Tensor(T) {{{{
+        \\    const byte_size = size * @sizeOf(T);
+        \\    const chunk_size = global_weights_buffer.len;
+        \\    
+        \\    // Allocate tensor data temporarily (will be used for operation then discarded)
+        \\    const tensor_data = try allocator.alloc(T, size);
+        \\    const tensor_bytes: [*]u8 = @ptrCast(tensor_data.ptr);
+        \\    
+        \\    // Load weights in chunks from Flash
+        \\    var bytes_loaded: usize = 0;
+        \\    while (bytes_loaded < byte_size) {{{{
+        \\        const remaining = byte_size - bytes_loaded;
+        \\        const this_chunk = if (remaining > chunk_size) chunk_size else remaining;
+        \\        
+        \\        // Load chunk and get pointer to read data
+        \\        const chunk_data = load_weights(offset + bytes_loaded, this_chunk);
+        \\        
+        \\        // Copy chunk to tensor data
+        \\        @memcpy(tensor_bytes[bytes_loaded..bytes_loaded + this_chunk], chunk_data[0..this_chunk]);
+        \\        
+        \\        bytes_loaded += this_chunk;
+        \\    }}}}
+        \\    
+        \\    // Create tensor using fromArray with the loaded data
+        \\    return Tensor(T).fromArray(&allocator, tensor_data, @constCast(shape));
+        \\}}}}
+        \\
+        \\pub const total_weights_size: usize = {d};
+        \\
+    , .{global_offset});
+}
+
 pub inline fn writeArray(writer: std.fs.File.Writer, tz: *TensorZant) !void {
     // std.log.info("\n[writeArray] Processing tensor: {s}, DataType: {any}", .{ name, t.data_type });
 

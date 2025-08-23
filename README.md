@@ -19,6 +19,7 @@
 - **🔧 30+ operators** - comprehensive neural network support
 - **📷 Built-in image processing** - JPEG decode + preprocessing
 - **🧠 Smart optimization** - quantization, pruning, memory efficiency
+- **💾 XIP support** - execute weights directly from flash memory
 
 ## Use Cases
 
@@ -75,6 +76,7 @@ zig build lib -Dmodel=mnist-1 -Dtarget=thumb-freestanding -Dcpu=cortex_m33
 | `-Dmodel_path=<path>` | Custom ONNX file | `-Dmodel_path=models/custom.onnx` |
 | `-Dlog=true` | Enable detailed logging | `-Dlog=true` |
 | `-Dcomm=true` | Add comments to generated code | `-Dcomm=true` |
+| `-Dxip=true` | Enable XIP mode (weights in flash) | `-Dxip=true` |
 
 ## 🔧 ONNX Tools (Python Helpers)
 
@@ -110,11 +112,11 @@ extern void setLogFunction(void (*log_function)(uint8_t *string));
 
 ## 🎯 Real-World Examples
 
-### Image Classification on Cortex-M33
+### Image Classification on Cortex-M33 with XIP
 ```bash
-# Generate optimized library for image classifier
-zig build codegen -Dmodel=mobilenet_v2 -Dmodel_path=models/mobilenet.onnx
-zig build lib -Dmodel=mobilenet_v2 -Dtarget=thumb-freestanding -Dcpu=cortex_m33 -Doutput_path=deployment/
+# Generate XIP-optimized library for image classifier
+zig build lib-gen -Dmodel=mobilenet_v2 -Dmodel_path=models/mobilenet.onnx -Dxip=true
+zig build lib -Dmodel=mobilenet_v2 -Dtarget=thumb-freestanding -Dcpu=cortex_m33 -Dxip=true -Doutput_path=deployment/
 ```
 
 ### Multi-Platform Testing

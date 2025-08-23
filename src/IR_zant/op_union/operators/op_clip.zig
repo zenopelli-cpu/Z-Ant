@@ -100,11 +100,7 @@ pub const Clip = struct {
 
         // Prepare input tensor string
         if (self.input.tc == TensorCategory.INITIALIZER) {
-            input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                "@constCast(&param_lib.tensor_",
-                try self.input.getNameSanitized(),
-                ")",
-            });
+            input_tensor_string = try utils.getTensorReference(try self.input.getNameSanitized(), self.input.tc, true);
         } else {
             input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try self.input.getNameSanitized() });
         }
@@ -112,11 +108,7 @@ pub const Clip = struct {
         // Prepare min tensor string if it exists
         if (self.min) |min_tensor| {
             if (min_tensor.tc == TensorCategory.INITIALIZER) {
-                min_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                    "@constCast(&param_lib.tensor_",
-                    try min_tensor.getNameSanitized(),
-                    ")",
-                });
+                min_tensor_string = try utils.getTensorReference(try min_tensor.getNameSanitized(), min_tensor.tc, true);
             } else {
                 min_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try min_tensor.getNameSanitized() });
             }
@@ -125,11 +117,7 @@ pub const Clip = struct {
         // Prepare max tensor string if it exists
         if (self.max) |max_tensor| {
             if (max_tensor.tc == TensorCategory.INITIALIZER) {
-                max_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
-                    "@constCast(&param_lib.tensor_",
-                    try max_tensor.getNameSanitized(),
-                    ")",
-                });
+                max_tensor_string = try utils.getTensorReference(try max_tensor.getNameSanitized(), max_tensor.tc, true);
             } else {
                 max_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try max_tensor.getNameSanitized() });
             }
