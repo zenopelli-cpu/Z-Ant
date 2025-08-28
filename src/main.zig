@@ -9,7 +9,7 @@ extern fn predict(
     input_shape: [*]const u32, // Changed to const u32
     shape_len: u32,
     result: *[*]f32, // Pointer to receive the output slice pointer
-) void;
+) i32;
 
 fn prepareInputData(allocator: std.mem.Allocator) ![]model_opts.data_type {
     const shape = model_opts.input_shape;
