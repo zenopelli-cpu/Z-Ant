@@ -40,13 +40,35 @@ Prerequisites
 # Clone and verify installation
 git clone https://github.com/ZantFoundation/Z-Ant.git
 cd Z-Ant
-zig build test --summary all
 
-# Generate code from your ONNX model
-zig build codegen -Dmodel=mnist-1
+# - put your onnx model inside /datasets/models in a folder with the same of the model to to have: /datasets/models/my_model/my_model.onnx
 
-# Build optimized library for ARM Cortex-M33
-zig build lib -Dmodel=mnist-1 -Dtarget=thumb-freestanding -Dcpu=cortex_m33
+# - simplify and prepare the model for zant inference engine
+./zant input_setter --path /datasets/models/my_model/my_model.onnx --shape "your,model,sha,pe"
+
+# - Generate test data
+./zant user_tests_gen --model my_model
+
+# --- GENERATING THE Single Node lib and test it ---
+#For a N nodes model it creates N onnx models, one for each node with respective tests.
+./zant onnx_extract --path /datasets/models/my_model/my_model.onnx
+
+#generate libs for extracted nodes
+zig build extractor-gen -Dmodel="my_model"
+
+#test extracted nodes
+zig build extractor-test -Dmodel="my_model" 
+
+# --- GENERATING THE LIBRARY and TESTS ---
+# Generate code for a specific model
+zig build lib-gen -Dmodel="my_model" -Denable_user_tests [-Ddynamic -Ddo_export -Dlog -Dcomm ... ]
+
+# Test the generated code
+zig build lib-test -Dmodel="my_model" -Denable_user_tests [-Ddynamic -Ddo_export -Dlog -Dcomm ... ]
+
+# Build the static library
+zig build lib -Dmodel="my_model" [-Dtarget=... -Dcpu=...]
+
 ```
 
 ## 📖 Essential Commands  

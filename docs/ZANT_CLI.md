@@ -178,16 +178,16 @@ zig build lib -Dtarget=aarch64-macos -Doptimize=ReleaseSafe
 ### 1. MOST IMPORTANT - Generate and Test a Model 
 ```bash
 
-./zant input_setter --path path/model.onnx --shape 1,3,224,224
+./zant input_setter --path path/my_model.onnx --shape 1,3,224,224
 # or, if the model input is already well defined you can run this:
-./zant infer_shape --path path/model.onnx #NOT recomended, input_setter is more robust
+./zant infer_shape --path path/my_model.onnx #NOT recomended, input_setter is more robust
 
 # Generate test data
-./zant user_tests_gen --model model_name
+./zant user_tests_gen --model my_model
 
 # --- GENERATING THE Single Node lib and test it ---
 #For a N nodes model it creates N onnx models, one for each node with respective tests.
-./zant onnx_extract --path path/model.onnx
+./zant onnx_extract --path path/my_model.onnx
 
 #generate libs for extracted nodes
 zig build extractor-gen -Dmodel="my_model"
