@@ -1,3 +1,8 @@
+// Increase evaluation branch quota for complex convolution operations
+comptime {
+    @setEvalBranchQuota(100000);
+}
+
 // const std = @import("std");
 // const zant = @import("../../../zant.zig");
 
