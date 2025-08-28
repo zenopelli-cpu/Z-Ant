@@ -3,26 +3,6 @@ comptime {
     @setEvalBranchQuota(100000);
 }
 
-// const std = @import("std");
-// const zant = @import("../../../zant.zig");
-
-// const Tensor = zant.core.tensor.Tensor; // Import Tensor type
-// const pkg_allocator = zant.utils.allocator.allocator;
-// const TensorMathError = zant.utils.error_handler.TensorMathError;
-
-// const op_mat_mul = @import("op_mat_mul.zig");
-// const mat_mul = op_mat_mul.mat_mul;
-// const blocked_mat_mul = op_mat_mul.blocked_mat_mul;
-// const op_padding = @import("lib_shape_math/op_padding.zig");
-// const addPaddingAndDilation = op_padding.addPaddingAndDilation;
-// const op_transpose = @import("lib_shape_math/op_transpose.zig");
-// const Uops = zant.uops;
-
-// const UOpBuilder = Uops.UOpBuilder;
-// const DType = Uops.DType;
-// const Any = Uops.Any;
-// CONVOLVE -----------------------------------------------------------------------------------------------------------------------
-
 /// Multidim Conv
 /// INPUT:
 ///     INPUT[input.shape.len - 4] -> batches
