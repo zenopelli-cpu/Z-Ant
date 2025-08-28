@@ -12,10 +12,6 @@ pub fn build(b: *std.Build) void {
     build_options.addOption(bool, "trace_allocator", b.option(bool, "trace_allocator", "Use a tracing allocator") orelse true);
     build_options.addOption([]const u8, "allocator", (b.option([]const u8, "allocator", "Allocator to use") orelse "raw_c_allocator"));
 
-    // XIP (Execute In Place) support for neural network weights
-    const xip_enabled = b.option(bool, "xip", "Enable XIP (Execute In Place) for neural network weights") orelse false;
-    build_options.addOption(bool, "xip_enabled", xip_enabled);
-
     // Get target and CPU options from command line or use defaults
     const target_str = b.option([]const u8, "target", "Target architecture (e.g., thumb-freestanding)") orelse "native";
     const cpu_str = b.option([]const u8, "cpu", "CPU model (e.g., cortex_m33)");
@@ -77,6 +73,8 @@ pub fn build(b: *std.Build) void {
     const dynamic_option = b.option(bool, "dynamic", "Dynamic allocation") orelse false;
     const export_option = b.option(bool, "do_export", "codegen Exportable ") orelse false;
     const codegen_version_option = b.option([]const u8, "v", "Version, v1 or v2") orelse "v1";
+    // XIP (Execute In Place) support for neural network weights
+    const xip_enabled = b.option(bool, "xip", "Enable XIP (Execute In Place) for neural network weights") orelse false;
 
     //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 

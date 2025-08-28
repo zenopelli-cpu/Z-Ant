@@ -28,7 +28,8 @@ Zant is a tensor computation framework with ONNX support. This document provides
 | `-Dv` | string | `"v1"` | Codegen version ("v1" or "v2") | `lib-gen`, `lib-exe` |
 | `-Dlog` | bool | `false` | Enable logging during generation | `lib-gen`, `lib-exe` |
 | `-Denable_user_tests` | bool | `false` | Generate user test code | `lib-gen`, `lib-exe` |
-
+| `-Dxip` | bool | `false` | XIP (Execute In Place) support for neural network weights | `lib-gen`, `lib-exe` |
+  
 ### Library Usage Examples
 ```bash
 # Basic library generation
@@ -196,10 +197,10 @@ zig build extractor-test -Dmodel="my_model"
 
 # --- GENERATING THE LIBRARY and TESTS ---
 # Generate code for a specific model
-zig build lib-gen -Dmodel="my_model" -Denable_user_tests 
+zig build lib-gen -Dmodel="my_model" -Denable_user_tests [-Ddynamic -Ddo_export -Dlog -Dcomm ... ]
 
 # Test the generated code
-zig build lib-test -Dmodel="my_model" -Denable_user_tests
+zig build lib-test -Dmodel="my_model" -Denable_user_tests [-Ddynamic -Ddo_export -Dlog -Dcomm ... ]
 
 # Build the static library
 zig build lib -Dmodel="my_model" [-Dtarget=... -Dcpu=...]
@@ -229,19 +230,7 @@ zig build op-codegen-test -Dop=Add
 ./zant user_tests_gen --model model.onnx --iterations 10
 ```
 
-### 4. Development and Debugging
-```bash
-# Run tests with detailed output
-zig build test -Dheavy=true
-
-# Generate code with comments for debugging
-zig build lib-gen -Dmodel=debug_model -Dcomm=true -Dlog=true
-
-# Run benchmarks to check performance
-zig build benchmark -Dfull=true
-```
-
-### 5. Production Workflow
+### 4. Production Workflow
 ```bash
 # Prepare model with proper shapes
 ./zant input_setter --path production_model.onnx --shape 1,3,224,224
@@ -256,7 +245,7 @@ zig build lib -Dtarget=aarch64-linux -Doptimize=ReleaseFast
 zig build lib -Dtarget=x86_64-windows -Doptimize=ReleaseSmall
 ```
 
-### 6. Complete Testing Workflow
+### 5. Complete Testing Workflow
 ```bash
 # Generate test models for multiple operations
 ./zant onnx_gen --iterations 10 --seed 42 --output-dir ./test_models
@@ -276,15 +265,15 @@ zig build onnx-parser
 zig build test -Dheavy=true
 ```
 
-### 7. Cross-Platform Development
+### 6. Cross-Platform Development
 ```bash
 # Prepare model
 ./zant input_setter --path embedded_model.onnx --shape 1,1,28,28
 ./zant infer_shape --path embedded_model.onnx
 
 # Generate for ARM Cortex-M
-zig build lib-gen -Dmodel=embedded_model -Dtarget=thumb-freestanding -Dcpu=cortex_m33
-zig build lib -Dmodel=embedded_model -Dtarget=thumb-freestanding -Dcpu=cortex_m33 -Doptimize=ReleaseSmall
+zig build lib-gen -Dmodel=embedded_model -Ddo_export -Dtarget=thumb-freestanding -Dcpu=cortex_m33 [-Dxip]
+zig build lib -Dmodel=embedded_model -Ddo_export  -Dtarget=thumb-freestanding -Dcpu=cortex_m33 -Doptimize=ReleaseSmall [-Dxip]
 
 # Test on native platform first
 zig build lib-test -Dmodel=embedded_model
