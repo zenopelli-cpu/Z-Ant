@@ -1,6 +1,8 @@
 import argparse
 import onnx
 from onnx import shape_inference
+from onnxsim import simplify
+
 
 def main():
     print(f"\n __main__")
@@ -12,7 +14,15 @@ def main():
 
     inferred_model = shape_inference.infer_shapes(model)
 
-    onnx.save(inferred_model, args.path)
+    model_simp, check = simplify(inferred_model)
+
+    if check:
+        print("Simplified model is valid!")
+    else:
+        raise RuntimeError("Something went wrong in the onnx simplifier()")
+
+    onnx.save(model_simp, args.path)
+
     
 if __name__ == "__main__":
     main()

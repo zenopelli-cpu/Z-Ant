@@ -31,10 +31,6 @@ pub fn main() !void {
     var model = try onnx.parseFromFile(gpa_allocator, model_path);
     defer model.deinit(gpa_allocator);
 
-    // model.print(); // << ---------- USEFUL FOR DEBUG
-
-    try onnx.printModelDetails(&model); // << ---------- USEFUL FOR DEBUG
-
     if (std.mem.eql(u8, codegen_options.version, "v1")) {
         try codegen.codegen_v1_exe.main_v1(model);
     }
@@ -42,4 +38,8 @@ pub fn main() !void {
     // if (std.mem.eql(u8, codegen_options.version, "v2")) {
     //     try codegen.codegen_v2_exe.main_v2(&model);
     // }
+
+    // model.print(); // << ---------- USEFUL FOR DEBUG
+    try onnx.printModelDetails(&model); // << ---------- USEFUL FOR DEBUG
+
 }

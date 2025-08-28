@@ -179,7 +179,7 @@ zig build lib -Dtarget=aarch64-macos -Doptimize=ReleaseSafe
 
 ./zant input_setter --path path/model.onnx --shape 1,3,224,224
 # or, if the model input is already well defined you can run this:
-./zant infer_shape --path path/model.onnx
+./zant infer_shape --path path/model.onnx #NOT recomended, input_setter is more robust
 
 # Generate test data
 ./zant user_tests_gen --model model_name
@@ -189,20 +189,20 @@ zig build lib -Dtarget=aarch64-macos -Doptimize=ReleaseSafe
 ./zant onnx_extract --path path/model.onnx
 
 #generate libs for extracted nodes
-zig build extractor-gen -Dmodel=my_model 
+zig build extractor-gen -Dmodel="my_model"
 
 #test extracted nodes
-zig build extractor-test -Dmodel=my_model 
+zig build extractor-test -Dmodel="my_model" 
 
 # --- GENERATING THE LIBRARY and TESTS ---
 # Generate code for a specific model
-zig build lib-gen -Dmodel=my_model -Denable_user_tests 
+zig build lib-gen -Dmodel="my_model" -Denable_user_tests 
 
 # Test the generated code
-zig build lib-test -Dmodel=my_model -Denable_user_tests
+zig build lib-test -Dmodel="my_model" -Denable_user_tests
 
 # Build the static library
-zig build lib -Dmodel=my_model [-Dtarget=... -Dcpu=...]
+zig build lib -Dmodel="my_model" [-Dtarget=... -Dcpu=...]
 ```
 
 ### 2. Test Single Operations

@@ -1,143 +1,196 @@
 import onnx
 from onnx import shape_inference
-from onnx import TensorShapeProto
 import argparse
+from onnxsim import simplify
 
-def fix_symbolic_dimensions(model, input_shape):
+def create_dummy_input_for_initializers(model):
     """
-    Replace symbolic dimensions (like 'batch_size') with concrete values.
-    This forces all tensors to have concrete shapes based on the input.
+    Create dummy graph inputs for initializers to satisfy ONNX validation.
+    This fixes the 'initializer but not in graph input' error.
     """
-    # Create mapping from symbolic names to concrete values
-    # Assuming first dimension is batch size
-    batch_size = input_shape[0]
+    # Get names of existing graph inputs
+    existing_input_names = set([inp.name for inp in model.graph.input])
     
-    # Fix output tensor shapes
-    for output_tensor in model.graph.output:
-        for i, dim in enumerate(output_tensor.type.tensor_type.shape.dim):
-            if dim.dim_param == "batch_size" or (dim.dim_param and i == 0):
-                dim.dim_value = batch_size
-                dim.ClearField('dim_param')
+    # Get all initializer names
+    initializer_names = set([init.name for init in model.graph.initializer])
     
-    # Fix intermediate tensor shapes
-    for value_info in model.graph.value_info:
-        for i, dim in enumerate(value_info.type.tensor_type.shape.dim):
-            if dim.dim_param == "batch_size" or (dim.dim_param and i == 0):
-                dim.dim_value = batch_size
-                dim.ClearField('dim_param')
+    # Find initializers that need dummy inputs
+    missing_inputs = initializer_names - existing_input_names
+    
+    if missing_inputs:
+        print(f"Creating dummy inputs for {len(missing_inputs)} initializers...")
+        
+        # Create dummy inputs for each missing initializer
+        for init in model.graph.initializer:
+            if init.name in missing_inputs:
+                # Create corresponding input tensor
+                input_tensor = model.graph.input.add()
+                input_tensor.name = init.name
+                input_tensor.type.tensor_type.elem_type = init.data_type
+                
+                # Set shape from initializer dimensions
+                for dim_size in init.dims:
+                    dim = input_tensor.type.tensor_type.shape.dim.add()
+                    dim.dim_value = dim_size
+        
+        print(f"Added {len(missing_inputs)} dummy inputs for initializers")
     
     return model
 
-def set_input_shape(model, input_shape):
+def set_input_shape(model, input_shape, input_name="data"):
     """
-    Set the input tensor shape for the first input of an ONNX model.
-    Can handle changing the number of dimensions.
-    
-    Parameters:
-    model (onnx.ModelProto): The loaded ONNX model object.
-    input_shape (list[int]): A list of integers specifying the new input shape.
-    
-    Returns:
-    onnx.ModelProto: The model with the updated input shape.
+    Set the input tensor shape for a specific input by name.
     """
-    # Get the first input tensor
-    input_tensor = model.graph.input[0]
+    target_input = None
+    
+    # Find the target input tensor by name
+    for input_tensor in model.graph.input:
+        if input_tensor.name == input_name:
+            target_input = input_tensor
+            break
+    
+    if target_input is None:
+        print(f"Warning: Input '{input_name}' not found. Available inputs:")
+        for inp in model.graph.input:
+            print(f"  - {inp.name}")
+        # Use first input as fallback
+        if len(model.graph.input) > 0:
+            target_input = model.graph.input[0]
+            print(f"Using first input: {target_input.name}")
+        else:
+            raise ValueError("No inputs found in model")
     
     # Clear existing dimensions
-    input_tensor.type.tensor_type.shape.ClearField('dim')
+    target_input.type.tensor_type.shape.ClearField('dim')
     
     # Add new dimensions
     for dim_value in input_shape:
-        new_dim = input_tensor.type.tensor_type.shape.dim.add()
+        new_dim = target_input.type.tensor_type.shape.dim.add()
         new_dim.dim_value = dim_value
     
-    print(f"Updated input '{input_tensor.name}' shape to: {input_shape}")
+    print(f"Updated input '{target_input.name}' shape to: {input_shape}")
     return model
 
-def print_model_info(model):
-    """Print information about the model inputs and outputs"""
-    print("\n=== Model Information ===")
+def safe_simplify(model):
+    """
+    Attempt to simplify the model with multiple fallback strategies.
+    """
+    print("Attempting model simplification...")
     
-    print("\nInputs:")
-    for i, input_tensor in enumerate(model.graph.input):
-        name = input_tensor.name
-        shape = [dim.dim_value if dim.dim_value > 0 else dim.dim_param 
-                for dim in input_tensor.type.tensor_type.shape.dim]
-        print(f"  {i}: {name} -> {shape}")
+    # Strategy 1: Standard simplification
+    try:
+        model_simp, check = simplify(model)
+        if check:
+            print("✅ Standard simplification successful!")
+            return model_simp
+        print("Standard simplification completed but validation uncertain")
+        return model_simp
+    except Exception as e:
+        print(f"Standard simplification failed: {e}")
     
-    print("\nOutputs:")
-    for i, output_tensor in enumerate(model.graph.output):
-        name = output_tensor.name
-        shape = [dim.dim_value if dim.dim_value > 0 else dim.dim_param 
-                for dim in output_tensor.type.tensor_type.shape.dim]
-        print(f"  {i}: {name} -> {shape}")
+    # Strategy 2: Skip optimization
+    try:
+        print("Trying with skip_optimization=True...")
+        model_simp, check = simplify(model, skip_optimization=True)
+        print("✅ Simplification with skip_optimization successful!")
+        return model_simp
+    except Exception as e:
+        print(f"Skip optimization also failed: {e}")
+    
+    # Strategy 3: Skip shape inference
+    try:
+        print("Trying with skip_shape_inference=True...")
+        model_simp, check = simplify(model, skip_shape_inference=True)
+        print("✅ Simplification with skip_shape_inference successful!")
+        return model_simp
+    except Exception as e:
+        print(f"Skip shape inference also failed: {e}")
+    
+    print("⚠️ All simplification strategies failed, keeping original model")
+    return model
+
+def clean_model(model_path, input_shape, output_path=None):
+    """
+    Clean and process ONNX model with comprehensive error handling.
+    """
+    if output_path is None:
+        output_path = model_path
+    
+    print(f"Processing: {model_path}")
+    print(f"Target shape: {input_shape}")
+    
+    # Load model
+    try:
+        model = onnx.load(model_path)
+        print("✅ Model loaded successfully")
+    except Exception as e:
+        print(f"❌ Failed to load model: {e}")
+        return False
+    
+    print(f"Original model: {len(model.graph.node)} nodes, {len(model.graph.initializer)} initializers")
+    
+    # Fix the validation issue
+    print("\n1. Fixing initializer validation issues...")
+    model = create_dummy_input_for_initializers(model)
+    
+    # Set input shape
+    print("\n2. Setting input shape...")
+    try:
+        model = set_input_shape(model, input_shape)
+    except Exception as e:
+        print(f"❌ Failed to set input shape: {e}")
+        return False
+    
+    # Run shape inference
+    print("\n3. Running shape inference...")
+    try:
+        model = shape_inference.infer_shapes(model)
+        print("✅ Shape inference successful")
+    except Exception as e:
+        print(f"⚠️ Shape inference failed: {e}")
+        print("Continuing without shape inference...")
+    
+    # Simplify model
+    print("\n4. Simplifying model...")
+    model = safe_simplify(model)
+    
+    # Save model
+    print(f"\n5. Saving model to: {output_path}")
+    try:
+        onnx.save(model, output_path)
+        print("✅ Model saved successfully!")
+        
+        # Final stats
+        print(f"\nFinal model: {len(model.graph.node)} nodes, {len(model.graph.initializer)} initializers")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Failed to save model: {e}")
+        return False
 
 def main():
-    """
-    Command-line utility to update the input shape of an ONNX model and
-    run ONNX's shape inference to deduce shapes of all intermediate tensors.
-    
-    Workflow:
-    1. Parse command-line arguments: path to ONNX model and desired input shape.
-    2. Load the ONNX model from the provided path.
-    3. Set the model's input shape to the specified values.
-    4. Run ONNX shape inference to automatically compute shapes of all tensors.
-    5. Print out the names and shapes of all inferred tensors.
-    6. Save the updated model back to the original file path.
-    """
-    parser = argparse.ArgumentParser(description="Set input shape and infer shapes of the ONNX model")
-    parser.add_argument("--path", type=str, required=True, help="Path of your model.")
+    parser = argparse.ArgumentParser(description="Fix and simplify ResNet ONNX models")
+    parser.add_argument("--path", type=str, required=True, help="Path to ONNX model")
     parser.add_argument("--shape", type=str, required=True, 
-                       help="Input shape as comma-separated values, e.g., 1,3,34,34 or 1,1,1,5")
+                       help="Input shape as comma-separated values (e.g., 1,3,224,224)")
+    parser.add_argument("--output", type=str, help="Output path (optional)")
     
     args = parser.parse_args()
     
-    # Parse the shape argument
-    input_shape = list(map(int, args.shape.split(",")))
-    print(f"Target input shape: {input_shape}")
-    
-    # Load the ONNX model from the given file path
-    print(f"Loading model from: {args.path}")
-    model = onnx.load(args.path)
-    
-    # Print current model info
-    print("\n=== BEFORE MODIFICATION ===")
-    print_model_info(model)
-    
-    # Update the model's first input tensor with the specified shape
-    model = set_input_shape(model, input_shape)
-    
+    # Parse shape
     try:
-        # Perform shape inference to fill in tensor shapes for all intermediate nodes
-        print("\nRunning shape inference...")
-        inferred_model = shape_inference.infer_shapes(model)
-        
-        # Fix symbolic dimensions to concrete values
-        print("Fixing symbolic dimensions to concrete values...")
-        inferred_model = fix_symbolic_dimensions(inferred_model, input_shape)
-        
-        # Print updated model info
-        print("\n=== AFTER MODIFICATION ===")
-        print_model_info(inferred_model)
-        
-        # Print out the names and shapes of all inferred tensors for verification
-        print("\n=== All Inferred Tensor Shapes ===")
-        for value_info in inferred_model.graph.value_info:
-            name = value_info.name
-            shape = [dim.dim_value if dim.dim_value > 0 else str(dim.dim_param) 
-                    for dim in value_info.type.tensor_type.shape.dim]
-            print(f"  {name}: {shape}")
-        
-        # Save the updated model (with inferred shapes) back to the original path
-        print(f"\nSaving updated model to: {args.path}")
-        onnx.save(inferred_model, args.path)
-        print("✅ Model updated successfully!")
-        
-    except Exception as e:
-        print(f"⚠️  Shape inference failed: {e}")
-        print("Saving model without shape inference...")
-        onnx.save(model, args.path)
-        print("✅ Model saved (without complete shape inference)")
+        input_shape = [int(x) for x in args.shape.split(",")]
+    except ValueError:
+        print("❌ Invalid shape format. Use: 1,3,224,224")
+        return
+    
+    # Process model
+    success = clean_model(args.path, input_shape, args.output)
+    
+    if success:
+        print("\n🎉 Model processing completed successfully!")
+    else:
+        print("\n💥 Model processing failed!")
 
 if __name__ == "__main__":
     main()

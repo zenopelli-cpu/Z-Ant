@@ -87,10 +87,10 @@ print_script_usage() {
     
     # Special handling for create command
     if [[ "$script" == "create" ]]; then
-        if [[ -f "./create.sh" ]]; then
-            ./create.sh --help
+        if [[ -f "./create" ]]; then
+            ./create --help
         else
-            echo "Error: create.sh script not found"
+            echo "Error: create script not found"
             exit 1
         fi
         return
