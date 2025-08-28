@@ -384,6 +384,11 @@ pub fn Tensor(comptime T: type) type {
             return self.data[idx];
         }
 
+        // Convenience: return pointer to self for static parameter access
+        pub fn getSelf(self: *const @This()) *@This() {
+            return @constCast(self);
+        }
+
         ///Set to value the data at self.data[idx].
         /// Errors:
         ///     - error.IndexOutOfBounds;

@@ -192,7 +192,7 @@ pub const Conv = struct {
         // pub fn OnnxConvLean(comptime T: type, input: *Tensor(T), kernel: *Tensor(T), output: *Tensor(T), bias: ?*const Tensor(T), stride: []const usize, pads: ?[]const usize, dilations: ?[]const usize, group: ?usize, auto_pad: ?[]const u8) !void
         _ = try writer.print(
             \\    
-            \\
+            \\    @setEvalBranchQuota(100000);
             \\    tensMath.conv_lean(
             \\        {s}, //type
             \\        {s}, //input

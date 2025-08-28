@@ -1,6 +1,7 @@
 const std = @import("std");
 const zant = @import("zant");
 const IR_zant = @import("IR_zant");
+const codegen_options = @import("codegen_options");
 
 // --- zant IR
 const IR_utils = IR_zant.utils;
@@ -8,6 +9,28 @@ const GraphZant = IR_zant.GraphZant;
 const TensorZant = IR_zant.TensorZant;
 
 const tensorZantMap: *std.StringHashMap(TensorZant) = &IR_zant.tensorZant_lib.tensorMap;
+
+/// XIP Configuration for weight storage
+pub const XIPConfig = struct {
+    enabled: bool = true,
+    section_name: []const u8 = ".flash_weights",
+    validate_pointers: bool = true,
+
+    /// Get the linksection attribute for weight arrays
+    pub fn getLinkSection(self: *const XIPConfig) []const u8 {
+        return if (self.enabled) self.section_name else ".rodata";
+    }
+};
+
+/// Global XIP configuration - initialized from codegen options
+var global_xip_config = XIPConfig{
+    .enabled = codegen_options.xip,
+};
+
+/// Set XIP configuration
+pub fn setXIPConfig(config: XIPConfig) void {
+    global_xip_config = config;
+}
 
 /// Writes the Zig code required to initialize all tensor initializers in the ONNX model.
 /// This function generates declarations and definitions for each tensor.
@@ -18,6 +41,14 @@ pub inline fn write_parameters(writer: std.fs.File.Writer) !void {
     //importing the libraries
     try write_libraries_parameters(writer);
 
+    // Add XIP verification imports if enabled
+    if (global_xip_config.enabled) {
+        try writer.print(
+            \\const xip = @import("../utils/xip_support.zig");
+            \\
+        , .{});
+    }
+
     try writer.print(
         \\
         \\
@@ -26,6 +57,7 @@ pub inline fn write_parameters(writer: std.fs.File.Writer) !void {
         \\ // ---------------------------------------------------
     , .{});
 
+    const initializers = try IR_utils.getInitializers(tensorZantMap);
     try write_initilizers(writer);
 
     try writer.print(
@@ -37,6 +69,11 @@ pub inline fn write_parameters(writer: std.fs.File.Writer) !void {
     , .{});
 
     try write_constantTensors(writer);
+
+    // Add XIP validation function if enabled
+    if (global_xip_config.enabled and global_xip_config.validate_pointers) {
+        try writeXIPValidationFunction(writer, initializers);
+    }
 }
 
 fn write_initilizers(writer: std.fs.File.Writer) !void {
@@ -102,6 +139,33 @@ fn write_constantTensors(writer: std.fs.File.Writer) !void {
     }
 }
 
+/// Write XIP validation function for all weight arrays
+fn writeXIPValidationFunction(writer: std.fs.File.Writer, initializers: []TensorZant) !void {
+    try writer.print(
+        \\
+        \\
+        \\/// Validate all weight arrays are properly located in XIP flash
+        \\pub fn validateXIPWeights() !void {{
+        \\    try xip.verifyXIPConfiguration();
+        \\
+    , .{});
+
+    for (initializers) |*tensor| {
+        const name = try tensor.getNameSanitized();
+
+        try writer.print(
+            \\    try xip.validateWeightPointer({s}, @ptrCast(&array_{s}));
+            \\
+        , .{ tensor.ty.toString(), name });
+    }
+
+    try writer.print(
+        \\    std.log.info("All XIP weight validations passed successfully");
+        \\}}
+        \\
+    , .{});
+}
+
 /// Writes the required library imports to the generated Zig file for input tensor.
 ///
 /// This function ensures that the necessary standard and package libraries are
@@ -136,14 +200,10 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, tz: *TensorZant) !vo
         \\const shape_tensor_{s} : [{}]usize = [_]usize{{
     , .{ try tz.getNameSanitized(), tz.getShape().len });
 
-    for (tz.getShape(), 0..) |dim_i, i| {
-        if (i > 0) try writer.print(
-            \\,
-        , .{});
-
-        try writer.print(
-            \\ {}
-        , .{dim_i});
+    const shape = tz.getShape();
+    for (shape, 0..) |dim, i| {
+        if (i > 0) try writer.print(",", .{});
+        try writer.print(" {}", .{dim});
     }
 
     try writer.print(
@@ -158,10 +218,11 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, tz: *TensorZant) !vo
 pub inline fn writeArray(writer: std.fs.File.Writer, tz: *TensorZant) !void {
     // std.log.info("\n[writeArray] Processing tensor: {s}, DataType: {any}", .{ name, t.data_type });
 
+    const section = global_xip_config.getLinkSection();
     try writer.print(
         \\
-        \\const array_{s} : [{d}]{s} linksection(".rodata") = [_]{s}{{
-    , .{ try tz.getNameSanitized(), tz.getSize(), tz.ty.toString(), tz.ty.toString() });
+        \\const array_{s} : [{d}]{s} linksection("{s}") = [_]{s}{{
+    , .{ try tz.getNameSanitized(), tz.getSize(), tz.ty.toString(), section, tz.ty.toString() });
 
     switch (tz.ty) {
         .f16 => writeArrayData(writer, f16, tz.ptr.?.get_data_as(f16)) catch return error.f14DataUnavailable,
@@ -178,9 +239,7 @@ pub inline fn writeArray(writer: std.fs.File.Writer, tz: *TensorZant) !void {
         .u32 => writeArrayData(writer, u32, tz.ptr.?.get_data_as(u32)) catch return error.u32DataUnavailable,
         .u64 => writeArrayData(writer, u64, tz.ptr.?.get_data_as(u64)) catch return error.u64DataUnavailable,
         .bool => writeArrayData(writer, bool, tz.ptr.?.get_data_as(bool)) catch return error.boolDataUnavailable,
-        .undefined => try writer.print(
-            \\ undefined
-        , .{}),
+        .undefined => return error.UndefinedTensorType,
     }
 
     try writer.print(
@@ -188,18 +247,14 @@ pub inline fn writeArray(writer: std.fs.File.Writer, tz: *TensorZant) !void {
     , .{});
 }
 
-/// Writes an array of tensor data.
+/// Writes the array data for a given type and data slice.
 ///
 /// - `writer`: The file writer to output generated code.
-/// - `T`: The type of data in the tensor.
-/// - `data`: The data array.
+/// - `T`: The data type of the array elements.
+/// - `data`: The slice of data to write.
 pub inline fn writeArrayData(writer: std.fs.File.Writer, comptime T: type, data: []const T) !void {
-    for (0..data.len) |i| {
-        if (i > 0) try writer.print(
-            \\,
-        , .{});
-        try writer.print(
-            \\ {}
-        , .{data[i]});
+    for (data, 0..) |value, i| {
+        if (i > 0) try writer.print(",", .{});
+        try writer.print(" {}", .{value});
     }
 }

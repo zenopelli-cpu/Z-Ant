@@ -11,10 +11,23 @@ const IR_graph = zant.IR_graph;
 const TensorLib = IR_graph.tensorZant_lib;
 const IR_graph_utils = IR_graph.utils;
 const TensorZant = IR_graph.TensorZant;
+const codegen_options = @import("codegen_options");
 
 const allocator = zant.utils.allocator.allocator;
 
 const Writer = std.fs.File.Writer;
+
+/// XIP Configuration for weight storage
+pub const XIPConfig = struct {
+    enabled: bool = true,
+    section_name: []const u8 = ".flash_weights",
+    validate_pointers: bool = true,
+
+    /// Get the linksection attribute for weight arrays
+    pub fn getLinkSection(self: *const XIPConfig) []const u8 {
+        return if (self.enabled) self.section_name else ".rodata";
+    }
+};
 
 /// Configuration for tensor code generation
 const TensorConfig = struct {
@@ -27,16 +40,49 @@ const TensorConfig = struct {
     const tensor_comment = "// ----------- Initializing tensor_{s};";
     const shape_template = "const shape_tensor_{s} : [{}]usize = [_]usize{{ ";
     const stride_template = "const stride_tensor_{s} : [{}]usize = [_]usize{{ ";
-    const array_template = "const array_{s} : [{d}]{s} linksection(\".rodata\") = [_]{s}{{";
+
+    /// Get array template with configurable linksection
+    pub fn getArrayTemplate(xip_config: *const XIPConfig) []const u8 {
+        const section = xip_config.getLinkSection();
+        // Pre-allocate format string for performance
+        return if (std.mem.eql(u8, section, ".flash_weights"))
+            "const array_{s} : [{d}]{s} linksection(\".flash_weights\") = [_]{s}{{"
+        else
+            "const array_{s} : [{d}]{s} linksection(\".rodata\") = [_]{s}{{";
+    }
 };
+
+/// Global XIP configuration - initialized from codegen options
+var global_xip_config = XIPConfig{
+    .enabled = codegen_options.xip,
+};
+
+/// Set XIP configuration
+pub fn setXIPConfig(config: XIPConfig) void {
+    global_xip_config = config;
+}
 
 /// Writes the Zig code required to initialize all tensor initializers in the ONNX model.
 pub fn write_parameters(writer: Writer) !void {
     try writer.print(TensorConfig.header, .{});
 
+    // Add XIP verification imports if enabled
+    if (global_xip_config.enabled) {
+        try writer.print(
+            \\
+            \\const xip = @import("../utils/xip_support.zig");
+            \\
+        , .{});
+    }
+
     const initializers = try IR_graph_utils.getInitializers(&TensorLib.tensorMap);
     for (initializers) |*tensor| {
         try writeTensorInitializer(writer, tensor);
+    }
+
+    // Add XIP validation function if enabled
+    if (global_xip_config.enabled and global_xip_config.validate_pointers) {
+        try writeXIPValidationFunction(writer, initializers);
     }
 }
 
@@ -73,14 +119,45 @@ fn writeTensorData(writer: Writer, tensor: *TensorZant, name: []const u8) !void 
 
     const data_type = tensor.ty.toString();
     const size = calculateTensorSize(tensor.shape);
+    const array_template = TensorConfig.getArrayTemplate(&global_xip_config);
 
-    try writer.print("\n" ++ TensorConfig.array_template, .{ name, size, data_type, data_type });
+    try writer.print("\n" ++ array_template, .{ name, size, data_type, data_type });
 
     if (tensor.ptr) |tensor_data| {
         try writeTensorBytes(writer, tensor_data.get_data_bytes());
+    } else {
+        return error.TensorDataNotAvailable;
     }
 
-    try writer.print(" }};", .{});
+    try writer.print("}} ;", .{});
+}
+
+/// Write XIP validation function for all weight arrays
+fn writeXIPValidationFunction(writer: Writer, initializers: []TensorZant) !void {
+    try writer.print(
+        \\
+        \\
+        \\/// Validate all weight arrays are properly located in XIP flash
+        \\pub fn validateXIPWeights() !void {{
+        \\    try xip.verifyXIPConfiguration();
+        \\
+    , .{});
+
+    for (initializers) |*tensor| {
+        const name = try utils.getSanitizedName(tensor.name);
+        defer allocator.free(name);
+
+        try writer.print(
+            \\    try xip.validateWeightPointer({s}, @ptrCast(&array_{s}));
+            \\
+        , .{ tensor.ty.toString(), name });
+    }
+
+    try writer.print(
+        \\    std.log.info("All XIP weight validations passed successfully");
+        \\}}
+        \\
+    , .{});
 }
 
 /// Calculates the total size of a tensor from its shape.
