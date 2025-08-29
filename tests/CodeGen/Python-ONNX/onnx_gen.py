@@ -596,7 +596,8 @@ def generate_fuzz_model(op_name):
             return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "Reshape":
-        # Primo input: dati; secondo input: nuovo shape (initializer)
+        
+        # First input: data; second input: new shape (initializer)
         shape = [random.randint(1,4) for _ in range(4)]
         data = np.random.randn(*shape).astype(np.float32)
         init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
@@ -610,16 +611,16 @@ def generate_fuzz_model(op_name):
         shape_tensor = helper.make_tensor(input_names[1], TensorProto.INT64, [len(new_shape)], new_shape)
         initializers.append(shape_tensor)
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, new_shape)
+        
+        # Remove the 'shape' attribute - it's not valid for ONNX Reshape
         node = helper.make_node(op_name, 
                                 inputs=[input_names[0], input_names[1]], 
                                 outputs=[output_names[0]],
-                                name=f"{op_name}_node",
-                                shape = new_shape,
-                                )
+                                name=f"{op_name}_node")
         
-        metadata = {"input_shapes": [shape, new_shape], "output_shapes": [new_shape], "shape": shape}
+        metadata = {"input_shapes": [shape, new_shape], "output_shapes": [new_shape]}
         return [input_info], output_info, [node], initializers, metadata
-
+    
     elif op_name == "Resize":
 
         # Generate a random input tensor shape: (N=1, C=random, H=random, W=random)

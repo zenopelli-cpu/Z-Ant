@@ -357,6 +357,7 @@ pub fn build(b: *std.Build) void {
     step_node_extractor_generator.dependOn(&run_node_extractor_generator.step);
 
     // ************************************************ NODE EXTRACTOR TEST ************************************************
+
     const test_extractor_path = std.fmt.allocPrint(b.allocator, "generated/{s}/extracted/test_extracted_models.zig", .{model_name_option}) catch |err| {
         std.log.scoped(.build).warn("Error allocating test model path: {}\n", .{err});
         return;
@@ -444,4 +445,34 @@ pub fn build(b: *std.Build) void {
 
     const build_main_step = b.step("build-main", "Build the main executable for profiling");
     build_main_step.dependOn(&install_main_exe_step.step);
+
+    // ************************************************ NATIVE GUI ************************************************
+
+    const dvui_dep = b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .sdl, .sdl3 = true });
+
+    const gui_exe = b.addExecutable(.{
+        .name = "gui",
+        .root_source_file = b.path("gui/sdl/sdl-standalone.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Can either link the backend ourselves:
+    // const dvui_mod = dvui_dep.module("dvui");
+    // const sdl = dvui_dep.module("sdl");
+    // @import("dvui").linkBackend(dvui_mod, sdl);
+    // exe.root_module.addImport("dvui", dvui_mod);
+
+    // Or use a prelinked one:
+    gui_exe.root_module.addImport("dvui", dvui_dep.module("dvui_sdl"));
+
+    const compile_step = b.step("compile-gui", "Compile gui");
+    compile_step.dependOn(&b.addInstallArtifact(gui_exe, .{}).step);
+    b.getInstallStep().dependOn(compile_step);
+
+    const run_cmd = b.addRunArtifact(gui_exe);
+    run_cmd.step.dependOn(compile_step);
+
+    const run_step = b.step("gui", "Run gui");
+    run_step.dependOn(&run_cmd.step);
 }

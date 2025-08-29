@@ -233,7 +233,7 @@ fn runCodeGen() !void {
     const model_name = getModelName(model_options);
     const model_flag = try std.fmt.allocPrint(gpa, "-Dmodel={s}", .{model_name});
     defer gpa.free(model_flag);
-    var argv = [_][]const u8{ "zig", "build", "codegen", model_flag };
+    var argv = [_][]const u8{ "zig", "build", "lib", model_flag };
     var child = std.process.Child.init(&argv, gpa);
 
     try child.spawn();
