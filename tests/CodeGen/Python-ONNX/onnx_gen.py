@@ -167,55 +167,76 @@ def generate_fuzz_model(op_name):
         return [input_info], output_info, [node], initializers, metadata
     
     elif op_name == "ReduceMean":
-        # Generate input with predictable shape and values
-        shape = [2, 3, 4, 5]  # Fixed shape for better debugging
-        
-        # Use a deterministic seed for this operation to ensure reproducibility
-        local_rng = np.random.RandomState(42)  
-        data = local_rng.randn(*shape).astype(np.float32)
-        
+        # Generate input tensor with 4D shape for typical use case
+        shape = [random.randint(2, 6) for _ in range(4)]  # Ensure shape has values > 1 for meaningful reduction
+        data = np.random.randn(*shape).astype(np.float32)
         init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
         initializers.append(init_tensor)
         
-        # Use fixed axis instead of random
-        axis = 1  # Reduce along the second dimension (channel dimension in NCHW)
-        
-        # Create output shape based on reduction
-        out_shape = shape.copy()
-        out_shape[axis] = 1  # Reduced dimension becomes 1
-        
-        keepdims = 1
-        
-        # Calculate the expected output manually to verify
-        expected_output = np.mean(data, axis=axis, keepdims=True)
-        
-        # Debug info
-        print(f"ReduceMean Test Case:")
-        print(f"Input shape: {shape}")
-        print(f"Output shape: {out_shape}")
-        print(f"Reduction axis: {axis}")
-        print(f"First few input values: {data.flatten()[:5]}")
-        print(f"First few expected output values: {expected_output.flatten()[:5]}")
-        
-        # Define input_info before using it
+        # Define input_info
         input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
         
+        # Choose random axes to reduce along (optional input)
+        # Can be empty (reduce all), single axis, or multiple axes
+        axes_options = [
+            [],  # reduce all axes
+            [random.randint(0, len(shape)-1)],  # reduce single random axis
+            sorted(random.sample(range(len(shape)), k=random.randint(1, min(2, len(shape)))))  # reduce multiple axes
+        ]
+        axes = random.choice(axes_options)
+        
+        # ReduceMean attributes
+        keepdims = random.choice([0, 1])  # whether to keep dimensions
+        noop_with_empty_axes = random.choice([0, 1])  # behavior when axes is empty
+        
+        # Calculate output shape
+        if len(axes) == 0 and noop_with_empty_axes == 1:
+            # No reduction when axes is empty and noop_with_empty_axes is True
+            out_shape = shape.copy()
+        elif len(axes) == 0:
+            # Reduce all axes
+            out_shape = [1] * len(shape) if keepdims else []
+        else:
+            # Reduce specified axes
+            out_shape = []
+            for i, dim in enumerate(shape):
+                if i in axes:
+                    if keepdims:
+                        out_shape.append(1)
+                    # else: dimension is removed
+                else:
+                    out_shape.append(dim)
+        
+        # Create axes tensor as initializer if axes is not empty
+        node_inputs = [input_names[0]]
+        if len(axes) > 0:
+            axes_tensor = helper.make_tensor(input_names[1], TensorProto.INT64, [len(axes)], axes)
+            initializers.append(axes_tensor)
+            node_inputs.append(input_names[1])
+        
+        # Create output info
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
         
-        node = helper.make_node(op_name, inputs=[input_names[0]], outputs=[output_names[0]],
-                               axes=[axis], keepdims=keepdims,
-                               name=f"{op_name}node_axis{axis}")
+        # Create the ReduceMean node
+        node = helper.make_node(
+            op_name,
+            inputs=node_inputs,
+            outputs=[output_names[0]],
+            keepdims=keepdims,
+            noop_with_empty_axes=noop_with_empty_axes,
+            name=f"{op_name}_node"
+        )
         
-        # Add test metadata
         metadata = {
-            "input_shapes": [shape], 
-            "output_shapes": [out_shape], 
-            "axes": [axis], 
+            "input_shapes": [shape],
+            "output_shapes": [out_shape],
+            "axes": axes,
             "keepdims": keepdims,
-            "expected_output_first_values": expected_output.flatten()[:5].tolist()
+            "noop_with_empty_axes": noop_with_empty_axes
         }
+        
         return [input_info], output_info, [node], initializers, metadata
-
+    
     elif op_name == "Concat":
         # Due input con forma identica eccetto per la dimensione lungo l'asse di concatenazione
         shape = [1, random.randint(2,5), random.randint(10,50), random.randint(10,50)]

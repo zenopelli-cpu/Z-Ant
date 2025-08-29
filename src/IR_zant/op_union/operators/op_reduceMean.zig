@@ -121,13 +121,29 @@ pub const ReduceMean = struct {
                 axes_str = try std.fmt.allocPrint(allocator, "(@ptrCast([*]const i64, tensor_{s}.data.ptr))[0..tensor_{s}.size]", .{ axes_name, axes_name });
             }
             needs_free = true;
+
+            if (axes.tc == TensorCategory.INITIALIZER) {
+                axes_str = try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "param_lib.tensor_",
+                    axes_name,
+                    ".data",
+                });
+            } else {
+                axes_str = try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "tensor_",
+                    axes_name,
+                    ".data",
+                });
+            }
+
+            needs_free = true;
         }
         defer if (needs_free) allocator.free(axes_str);
 
         _ = try writer.print(
             \\
             \\    tensMath.reduce_mean_lean(
-            \\        T, // type
+            \\        {s}, // type
             \\        {s}, // input tensor
             \\        &tensor_{s}, // output tensor
             \\        {s}, // axes
@@ -135,11 +151,12 @@ pub const ReduceMean = struct {
             \\        {s} // noop_with_empty_axes
             \\    ) catch return -1;
         , .{
-            input_tensor_string,
-            try utils.getSanitizedName(self.reduced.name),
-            axes_str,
-            if (self.keepdims) "true" else "false",
-            if (self.noop_with_empty_axes) "true" else "false",
+            self.data.ty.toString(), // type
+            input_tensor_string, // input tensor
+            try utils.getSanitizedName(self.reduced.name), // output tensor
+            axes_str, // axes
+            if (self.keepdims) "true" else "false", // keepdims
+            if (self.noop_with_empty_axes) "true" else "false", // noop_with_empty_axes
         });
     }
 
