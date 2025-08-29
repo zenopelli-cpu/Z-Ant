@@ -811,21 +811,29 @@ def generate_fuzz_model(op_name):
         return [input_info], output_info, [node], initializers, metadata
 
     elif op_name == "Unsqueeze":
-        # Inserisce una dimensione in un asse casuale
+        # Insert a dimension at a random axis
         shape = [random.randint(1,4) for _ in range(4)]
         data = np.random.randn(*shape).astype(np.float32)
         init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, shape, data.flatten().tolist())
         initializers.append(init_tensor)
+        
         rank = len(shape)
-        axis = random.randint(0, rank)
+        # Axis can be in range [-rank-1, rank] for Unsqueeze
+        axis = random.randint(-rank-1, rank)
         axes = [axis]
         axes_tensor = helper.make_tensor(input_names[1], TensorProto.INT64, [len(axes)], axes)
         initializers.append(axes_tensor)
+        
+        # Convert negative axis to positive for output shape calculation
+        actual_axis = axis if axis >= 0 else rank + 1 + axis
         out_shape = shape.copy()
-        out_shape.insert(axis, 1)
+        out_shape.insert(actual_axis, 1)
+        
         output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)
-        node = helper.make_node(op_name, inputs=[input_names[0], input_names[1]], outputs=[output_names[0]],
-                                name=f"{op_name}node_axis{axis}")
+        node = helper.make_node(op_name, 
+                            inputs=[input_names[0], input_names[1]], 
+                            outputs=[output_names[0]],
+                            name=f"{op_name}node_axis{axis}")
         
         input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
         metadata = {"input_shapes": [shape], "output_shapes": [out_shape], "axes": axes}

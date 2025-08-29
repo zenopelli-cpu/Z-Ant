@@ -35,7 +35,7 @@ Reshape
 Sigmoid  
 #Slice: missing codegeneration inside op_slice.zig, complete all the node's methods
 Softmax
-#Split: stancleadardMath not respecting onnx standard and incomplete node initialization
+#Split: standardMath not respecting onnx standard and incomplete node initialization
 Sqrt 
 Sub  
 Tanh

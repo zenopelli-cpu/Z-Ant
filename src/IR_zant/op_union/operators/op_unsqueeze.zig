@@ -115,12 +115,13 @@ pub const Unsqueeze = struct {
         // Print the unsqueeze operation
         _ = try writer.print(
             \\    tensMath.unsqueeze_lean(
-            \\        T,
+            \\        {s},
             \\        {s}, // Input tensor
             \\        {s}, // Axes tensor
             \\        &tensor_{s} // Output tensor
-            \\    ) catch return -1; catch return -1;;
+            \\    ) catch return -1;
         , .{
+            self.input_X.ty.toString(),
             tensor_X_string,
             axes_string,
             try utils.getSanitizedName(self.output_Y.name),
