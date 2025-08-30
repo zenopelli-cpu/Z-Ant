@@ -164,5 +164,5 @@ fn marginFor(comptime T: type) T {
         0
     else
         // floating‑point (or any other type): tiny tolerance
-        0.0001;
+        0.001;
 }

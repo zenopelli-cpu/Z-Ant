@@ -131,6 +131,20 @@ pub fn i64SliceToUsizeArrayString(values: []const i64) ![]const u8 {
     return try list.toOwnedSlice(); // Caller must free this!
 }
 
+pub fn i64SliceToi64ArrayString(values: []const i64) ![]const u8 {
+    var list = std.ArrayList(u8).init(allocator);
+    defer list.deinit(); // Frees all memory
+
+    try list.appendSlice("&[_]i64{");
+    for (values, 0..) |val, i| {
+        if (i > 0) try list.append(',');
+        try list.writer().print("{}", .{val});
+    }
+    try list.append('}');
+
+    return try list.toOwnedSlice(); // Caller must free this!
+}
+
 pub fn usizeSliceToI64Slice(input: []usize) ![]const i64 {
     var output = try allocator.alloc(i64, input.len);
 

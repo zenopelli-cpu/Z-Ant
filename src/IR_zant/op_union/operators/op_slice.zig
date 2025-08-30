@@ -82,9 +82,91 @@ pub const Slice = struct {
     }
 
     pub fn write_op(self: Slice, writer: std.fs.File.Writer) !void {
-        _ = writer;
-        _ = self;
-    } //TODO manuel
+
+        //----create tensor_input_string
+        var tensor_input_string: []u8 = undefined;
+        defer allocator.free(tensor_input_string);
+
+        if (self.input.tc == TensorCategory.INITIALIZER) {
+            tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.input.name),
+                ")",
+            });
+        } else {
+            tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try self.input.getNameSanitized(), ")" });
+        }
+
+        //----create tensor_starts_string
+        var tensor_starts_string: []u8 = undefined;
+        defer allocator.free(tensor_starts_string);
+
+        if (self.starts.tc == TensorCategory.INITIALIZER) {
+            tensor_starts_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try self.starts.getNameSanitized(),
+                ")",
+            });
+        } else {
+            tensor_starts_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try self.starts.getNameSanitized(), ")" });
+        }
+
+        //----create tensor_ends_string
+        var tensor_ends_string: []u8 = undefined;
+        defer allocator.free(tensor_ends_string);
+
+        if (self.ends.tc == TensorCategory.INITIALIZER) {
+            tensor_ends_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try self.ends.getNameSanitized(),
+                ")",
+            });
+        } else {
+            tensor_ends_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try self.ends.getNameSanitized(), ")" });
+        }
+
+        //----create ?axes string
+        var tensor_axes_string: []u8 = undefined;
+        // Bias Tensor B is optional! verify the presence
+        if (self.axes) |axes| {
+            tensor_axes_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", try axes.getNameSanitized(), ")" });
+        } else {
+            tensor_axes_string = try std.mem.concat(allocator, u8, &[_][]const u8{"null"});
+        }
+
+        //----create ?axes string
+        var tensor_steps_string: []u8 = undefined;
+        // Bias Tensor B is optional! verify the presence
+        if (self.axes) |steps| {
+            tensor_steps_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", try steps.getNameSanitized(), ")" });
+        } else {
+            tensor_steps_string = try std.mem.concat(allocator, u8, &[_][]const u8{"null"});
+        }
+
+        _ = try writer.print(
+            \\    
+            \\    @setEvalBranchQuota(10000);
+            \\    tensMath.slice_onnx_lean(
+            \\        {s}, //type
+            \\        {s}, //type 1
+            \\        {s}, //input
+            \\        {s}, //starts
+            \\        {s}, //ends
+            \\        {s}, //axes
+            \\        {s}, //steps
+            \\        &tensor_{s}, //output
+            \\    ) catch return -1;
+        , .{
+            self.input.ty.toString(), //type
+            self.starts.ty.toString(), //type 1
+            tensor_input_string, //input
+            tensor_starts_string, //starts
+            tensor_ends_string, //ends
+            tensor_axes_string, //axes
+            tensor_steps_string, //steps
+            try self.output.getNameSanitized(),
+        });
+    }
 
     pub fn compute_output_shape(self: Slice) []usize {
         var output_shape: []usize = undefined;

@@ -82,6 +82,7 @@ zig build extractor-test -Dmodel=mnist-8
 | `-Dop` | string | `"all"` | Specific operation name to test | Both oneop commands |
 
 ### OneOp Usage Examples
+Remember to fist generate the onnx with the onnx_generator.py see [here](#2-test-single-operations)
 ```bash
 # Generate tests for all operations listed in available_operations.txt
 zig build op-codegen-gen
