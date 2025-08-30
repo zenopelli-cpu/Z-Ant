@@ -39,8 +39,8 @@ massif*.*
 **/*.onnx
 
 # Datasets
-/datasets/*
-/datasets/oneOpModels/results.json
+/datasets/models/*
+/datasets/oneOpModels/*
 
 
 /benchmarks/output
