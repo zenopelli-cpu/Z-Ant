@@ -11,25 +11,25 @@ extern fn predict(
     result: *[*]f32, // Pointer to receive the output slice pointer
 ) i32;
 
-fn prepareInputData(allocator: std.mem.Allocator) ![]model_opts.data_type {
+fn prepareInputData(allocator: std.mem.Allocator) ![]model_opts.input_data_type {
     const shape = model_opts.input_shape;
     var total_size: usize = 1;
     for (shape) |dim| {
         total_size *= dim;
     }
 
-    const data = try allocator.alloc(model_opts.data_type, total_size);
+    const data = try allocator.alloc(model_opts.input_data_type, total_size);
     errdefer allocator.free(data);
 
     for (data, 0..) |*val, i| {
-        val.* = @as(model_opts.data_type, @floatFromInt(i));
+        val.* = @as(model_opts.input_data_type, @floatFromInt(i));
     }
 
     return data;
 }
 
 fn getPredictOutputSize() usize {
-    return 1 * 84 * 1344;
+    return 1 * 4;
 }
 
 pub fn main() !void {
@@ -41,17 +41,20 @@ pub fn main() !void {
     const input_data = try prepareInputData(allocator);
     const input_shape = model_opts.input_shape;
 
-    var output_ptr: [*]model_opts.data_type = undefined;
+    var output_ptr: [*]model_opts.output_data_type = undefined;
 
     main_log.info("Calling predict (via model_opts.lib)...\\n", .{});
 
-    model_opts.lib.predict(
+    const res = model_opts.lib.predict(
         input_data.ptr,
         @constCast(@ptrCast(&input_shape)),
         @intCast(input_shape.len),
         &output_ptr,
     );
 
+    if (res == 0) {
+        main_log.info("\n !!!! ERRORR!!! \n\n something went wrong", .{});
+    }
     main_log.info("Predict call finished.\n", .{});
 
     const output_size = getPredictOutputSize();
@@ -64,7 +67,7 @@ pub fn main() !void {
         return;
     }
 
-    const output_slice = @as([*]model_opts.data_type, @ptrCast(output_ptr))[0..output_size];
+    const output_slice = @as([*]model_opts.output_data_type, @ptrCast(output_ptr))[0..output_size];
 
     //print the output
     main_log.info("Output (first 10 elements):\n", .{});

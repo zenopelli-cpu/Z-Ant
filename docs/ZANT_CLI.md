@@ -307,6 +307,16 @@ The workflows above use the `zant` wrapper script for ONNX model preparation. He
 ./zant user_tests_gen --model model.onnx --iterations 10
 ```
 
+
+### Model Profiling
+```bash
+zig build build-main -Dmodel="my_model"
+
+valgrind --tool=massif --heap=yes --stacks=yes ./zig-out/bin/main_profiling_target 
+
+ms_print massif.out.* > out_profiling.txt
+```
+
 ### Zant Script Locations
 - **onnx_gen**: `tests/CodeGen/Python-ONNX/onnx_gen.py`
 - **user_tests_gen**: `tests/CodeGen/user_tests_gen.py`  

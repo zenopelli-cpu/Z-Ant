@@ -439,6 +439,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path(model_options_path),
     });
     model_opts_mod.addImport("zant", zant_mod);
+    model_opts_mod.addImport("codegen", codegen_mod);
     model_opts_mod.addImport("IR_zant", IR_zant_mod);
     main_executable.root_module.addImport("model_opts", model_opts_mod);
     const install_main_exe_step = b.addInstallArtifact(main_executable, .{}); // Installa l'eseguibile
