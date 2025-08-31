@@ -1,5 +1,9 @@
 //! Stop whatever you are doing and read this before proceding!
 //! https://github.com/onnx/onnx/blob/main/onnx/onnx.proto
+//!
+//!
+//!
+//!  At the moment Zant supports IR_VERSION_2024_3_25 !!!  date: 31/08/2025
 const std = @import("std");
 const protobuf = @import("protobuf.zig");
 
@@ -32,7 +36,7 @@ pub const Version = enum(i64) {
     IR_VERSION_2023_5_5 = 0x0000000000000009,
     IR_VERSION_2024_3_25 = 0x000000000000000A,
     IR_VERSION_2025_05_12 = 0x000000000000000B,
-    IR_VERSION = 0x000000000000000B,
+    IR_VERSION = 0x000000000000000C,
 };
 
 pub const DataType = enum(i32) {
