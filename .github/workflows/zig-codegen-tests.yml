@@ -137,15 +137,19 @@ jobs:
           pip install -r tests/CodeGen/Python-ONNX/requirements.txt
 
       - name: Set up Zig 0.14.0
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v1
         with:
           version: 0.14.0
 
       - name: Extract nodes from ${{ matrix.model }}
-        run: ./zant onnx_extract --path datasets/models/${{ matrix.model }}/${{ matrix.model }}.onnx
+        run: |
+          sleep 5
+          ./zant onnx_extract --path datasets/models/${{ matrix.model }}/${{ matrix.model }}.onnx
 
       - name: Generate extractor tests for ${{ matrix.model }}
-        run: zig build extractor-gen -Dmodel=${{ matrix.model }}
+        run: |
+          sleep 5
+          zig build extractor-gen -Dmodel=${{ matrix.model }}
 
       - name: Run extractor tests for ${{ matrix.model }}
         run: zig build extractor-test -Dmodel=${{ matrix.model }} --summary all
