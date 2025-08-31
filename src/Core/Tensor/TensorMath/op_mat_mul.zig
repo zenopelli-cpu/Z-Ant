@@ -135,12 +135,34 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
             return TensorMathError.OutputTensorWrongShape;
         }
 
-        var sum: T = 0;
+        // Use wider type for computation to prevent overflow
+        const ComputeType1D = switch (@typeInfo(T)) {
+            .int => |int_info| switch (int_info.bits) {
+                8 => if (int_info.signedness == .signed) i32 else u32,
+                16 => if (int_info.signedness == .signed) i64 else u64,
+                32 => if (int_info.signedness == .signed) i64 else u64,
+                else => T,
+            },
+            .float => T,
+            else => T,
+        };
+
+        var sum: ComputeType1D = 0;
         for (0..K) |k| {
-            sum += A.data[k] * B.data[k];
+            const a_val = @as(ComputeType1D, A.data[k]);
+            const b_val = @as(ComputeType1D, B.data[k]);
+            sum += a_val * b_val;
         }
 
-        Y.data[0] = sum;
+        if (@typeInfo(T) == .int) {
+            // Clamp to valid range for integer types
+            const max_val = std.math.maxInt(T);
+            const min_val = std.math.minInt(T);
+            const clamped = std.math.clamp(sum, min_val, max_val);
+            Y.data[0] = @as(T, @intCast(clamped));
+        } else {
+            Y.data[0] = @as(T, sum);
+        }
         return;
     }
 
@@ -179,9 +201,20 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
         std.log.debug("\n", .{});
     }
 
-    // SIMD vector type
+    // SIMD vector type - use wider type for integer computations to prevent overflow
+    const ComputeType = switch (@typeInfo(T)) {
+        .int => |int_info| switch (int_info.bits) {
+            8 => if (int_info.signedness == .signed) i32 else u32,
+            16 => if (int_info.signedness == .signed) i64 else u64,
+            32 => if (int_info.signedness == .signed) i64 else u64,
+            else => T,
+        },
+        .float => T,
+        else => T,
+    };
+
     const Vec = @Vector(DEFAULT_VECTOR_WIDTH, T);
-    const VecOut = @Vector(DEFAULT_VECTOR_WIDTH, T);
+    const VecOut = @Vector(DEFAULT_VECTOR_WIDTH, ComputeType);
 
     // Get pointers for faster access
     const A_ptr = A.data.ptr;
@@ -213,30 +246,55 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
                     b_vec[v] = B_ptr[b_offset + v];
                 }
 
-                // Convert and multiply
-                const a_vec: VecOut = @splat(@as(T, a_val));
-                const b_vec_out: VecOut = @as(VecOut, b_vec);
+                // Convert and multiply with overflow protection
+                const a_vec: VecOut = @splat(@as(ComputeType, a_val));
+                const b_vec_out: VecOut = blk: {
+                    var result: VecOut = undefined;
+                    comptime var idx: usize = 0;
+                    inline while (idx < DEFAULT_VECTOR_WIDTH) : (idx += 1) {
+                        result[idx] = @as(ComputeType, b_vec[idx]);
+                    }
+                    break :blk result;
+                };
                 sum_vec += a_vec * b_vec_out;
             }
 
-            // Store result
+            // Store result with type conversion
             comptime var v: usize = 0;
             inline while (v < DEFAULT_VECTOR_WIDTH) : (v += 1) {
-                Y_ptr[out_idx + v] = sum_vec[v];
+                if (@typeInfo(T) == .int) {
+                    // Clamp to valid range for integer types
+                    const max_val = std.math.maxInt(T);
+                    const min_val = std.math.minInt(T);
+                    const clamped = std.math.clamp(sum_vec[v], min_val, max_val);
+                    Y_ptr[out_idx + v] = @as(T, @intCast(clamped));
+                } else {
+                    Y_ptr[out_idx + v] = @as(T, sum_vec[v]);
+                }
             }
         }
 
         // Handle remaining columns
         while (j < N) : (j += 1) {
-            var sum: T = 0;
+            var sum: ComputeType = 0;
             const out_idx = out_offset + j;
 
             var k: usize = 0;
             while (k < K) : (k += 1) {
-                sum += @as(T, A_ptr[row_offset + k]) *
-                    @as(T, B_ptr[k * N + j]);
+                const a_val = @as(ComputeType, A_ptr[row_offset + k]);
+                const b_val = @as(ComputeType, B_ptr[k * N + j]);
+                sum += a_val * b_val;
             }
-            Y_ptr[out_idx] = sum;
+
+            if (@typeInfo(T) == .int) {
+                // Clamp to valid range for integer types
+                const max_val = std.math.maxInt(T);
+                const min_val = std.math.minInt(T);
+                const clamped = std.math.clamp(sum, min_val, max_val);
+                Y_ptr[out_idx] = @as(T, @intCast(clamped));
+            } else {
+                Y_ptr[out_idx] = @as(T, sum);
+            }
         }
     }
 

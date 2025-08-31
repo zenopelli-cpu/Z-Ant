@@ -20,7 +20,34 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     for (0..c_rows) |row| {
         for (0..c_cols) |col| {
             for (0..a_cols) |idx| {
-                C_ptr[row * c_cols + col] += A_ptr[row * a_cols + idx] * B_ptr[idx * c_cols + col];
+                const c_index = @as(u64, row) * @as(u64, c_cols) + @as(u64, col);
+                const a_index = @as(u64, row) * @as(u64, a_cols) + @as(u64, idx);
+                const b_index = @as(u64, idx) * @as(u64, c_cols) + @as(u64, col);
+
+                // For integer types, use saturated arithmetic to prevent overflow
+                if (@typeInfo(T) == .int) {
+                    const a_val = A_ptr[a_index];
+                    const b_val = B_ptr[b_index];
+                    const c_val = C_ptr[c_index];
+
+                    var result = @mulWithOverflow(a_val, b_val);
+                    if (result[1] != 0) {
+                        // Overflow in multiplication, saturate to max value
+                        C_ptr[c_index] = std.math.maxInt(T);
+                        continue;
+                    }
+
+                    result = @addWithOverflow(c_val, result[0]);
+                    if (result[1] != 0) {
+                        // Overflow in addition, saturate to max value
+                        C_ptr[c_index] = std.math.maxInt(T);
+                    } else {
+                        C_ptr[c_index] = result[0];
+                    }
+                } else {
+                    // For floating point, normal arithmetic
+                    C_ptr[c_index] += A_ptr[a_index] * B_ptr[b_index];
+                }
             }
         }
     }
