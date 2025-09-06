@@ -142,7 +142,7 @@ test "Static Library - Wrong Input Shape" {
         input_data[i] = 1;
     }
 
-    var result: [*]f32 = undefined;
+    var result: [*]model.output_data_type = undefined;
 
     const return_code = model.lib.predict(
         @ptrCast(&input_data),
