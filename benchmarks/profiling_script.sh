@@ -1,6 +1,15 @@
 #!/bin/bash
 
-## IMPORTANT!! Moove me int the root before ./profiling_script
+#################################
+# IMPORTANT!! Moove me int the root before ./profiling_script
+# HOW TO USE:
+# - add in models=() what you want to profile, ensure they are "well defined models", see docs/ZANT_CLI.md cahpter "1. MOST IMPORTANT - Generate and Test a Model "
+# - run : chmod +x profiling_script.sh
+# - run : ./profiling_script.sh
+#
+# It will create a /profiling folder where you can find everything ordered by model (static/dynamic)
+
+
 
 # Array of models to profile
 models=( "add_model" "gemm_model" "conv_model" "minimodel1" "qdq_model" "mnist-8") # "add_model" "gemm_model" "conv_model" "minimodel1" "qdq_model" "mnist-8"
