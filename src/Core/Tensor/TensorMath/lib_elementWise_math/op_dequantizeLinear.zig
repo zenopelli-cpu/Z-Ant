@@ -68,7 +68,7 @@ pub inline fn dequantizeLinear_lean(
 
     for (0..N) |i| {
         var idx: usize = 0;
-        var zp_val: i128 = 0;
+        var zp_val: i32 = 0;
 
         if (x_zero_point) |zp| {
             if (is_block) {
@@ -102,16 +102,16 @@ pub inline fn dequantizeLinear_lean(
                     }
                 }
                 idx = linear_idx;
-                zp_val = @as(i128, zp.data[idx]);
+                zp_val = @as(i32, zp.data[idx]);
             } else if (is_axis) {
                 // For per-axis quantization
                 const axis_coord = (i / axis_stride) % x.shape[normalized_axis];
                 idx = axis_coord;
-                zp_val = @as(i128, zp.data[idx]);
+                zp_val = @as(i32, zp.data[idx]);
             } else {
                 // Per-tensor quantization
                 idx = 0;
-                zp_val = @as(i128, zp.data[0]);
+                zp_val = @as(i32, zp.data[0]);
             }
         } else {
             // No zero_point specified → default 0
@@ -121,7 +121,7 @@ pub inline fn dequantizeLinear_lean(
 
         const scale: OutputType = x_scale.data[idx];
         const xval: InputType = x.data[i];
-        const deq = @as(OutputType, @floatFromInt(@as(i128, xval) - zp_val)) * scale;
+        const deq = @as(OutputType, @floatFromInt(@as(i32, xval) - zp_val)) * scale;
         y.data[i] = deq;
     }
 }

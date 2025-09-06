@@ -112,7 +112,7 @@ pub const DequantizeLinear = struct {
 
         try inputs.append(self.x);
         try inputs.append(self.x_scale);
-        if (self.x_zero_point != null) try inputs.append(self.x_zero_point);
+        if (self.x_zero_point) |zp| try inputs.append(zp);
 
         return inputs.toOwnedSlice();
     }
