@@ -43,7 +43,32 @@ test "Static Library - Random data Prediction Test" {
     for (0..ITERATION_COUNT) |_| {
         // Fill with random values
         for (0..input_data_size) |i| {
-            input_data[i] = rand.float(model.input_data_type) * 100;
+            switch (@typeInfo(model.input_data_type)) {
+                .float => {
+                    input_data[i] = rand.float(model.input_data_type) * 100;
+                },
+                .int => {
+                    if (model.input_data_type == u8) {
+                        input_data[i] = rand.int(u8);
+                    } else if (model.input_data_type == i8) {
+                        input_data[i] = rand.int(i8);
+                    } else if (model.input_data_type == u16) {
+                        input_data[i] = rand.int(u16);
+                    } else if (model.input_data_type == i16) {
+                        input_data[i] = rand.int(i16);
+                    } else if (model.input_data_type == u32) {
+                        input_data[i] = rand.int(u32);
+                    } else if (model.input_data_type == i32) {
+                        input_data[i] = rand.int(i32);
+                    } else {
+                        input_data[i] = @intCast(rand.int(u32));
+                    }
+                },
+                else => {
+                    // Fallback for other types
+                    input_data[i] = 128; // Middle value for UINT8
+                },
+            }
         }
 
         var result: [*]model.output_data_type = undefined;
