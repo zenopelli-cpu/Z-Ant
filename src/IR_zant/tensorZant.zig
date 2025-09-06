@@ -108,7 +108,7 @@ pub const TensorZant = struct {
     stride: []usize,
 
     pub fn init(name: []const u8, tensorProto: ?*TensorProto, value_info: ?*ValueInfoProto, shape: ?[]usize, tensorCategory: TensorCategory) !TensorZant {
-        std.debug.print("\n ----------- init({s}, {s}, {s}, {s}, {s}) ", .{ name, if (tensorProto) |_| "tp" else "null", if (value_info) |_| "vi" else "null", if (shape) |_| "shape" else "null", tensorCategory.toString() });
+        // DEBUG std.debug.print("\n ----------- init({s}, {s}, {s}, {s}, {s}) ", .{ name, if (tensorProto) |_| "tp" else "null", if (value_info) |_| "vi" else "null", if (shape) |_| "shape" else "null", tensorCategory.toString() });
 
         var tensor: ?*AnyTensor = null;
         var shape_i64: []i64 = undefined;
@@ -134,8 +134,9 @@ pub const TensorZant = struct {
             return error.shapeNotfound;
         }
 
-        std.debug.print("\n                shape:{any} ", .{shape_usize});
-        std.debug.print("\n                type:{s} ", .{ty.toString()});
+        // FOR DEBUG
+        // std.debug.print("\n                shape:{any} ", .{shape_usize});
+        // std.debug.print("\n                type:{s} ", .{ty.toString()});
 
         return TensorZant{
             .name = name,
@@ -233,12 +234,12 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
     tensorMap.deinit();
     tensorMap = std.StringHashMap(TensorZant).init(allocator);
 
-    std.debug.print("\n ---- initialize_tensorZantMap ---- ", .{});
+    // std.debug.print("\n ---- initialize_tensorZantMap ---- ", .{});
 
     const protoGraph = try if (modelProto.graph) |graph| graph else error.GraphNotAvailable;
 
     //adding initializers to the hash map
-    std.debug.print("\n -------- initializers ", .{});
+    // std.debug.print("\n -------- initializers ", .{});
 
     //initializer : *TensorProto,
     for (protoGraph.initializers) |init_ptr| {
@@ -255,7 +256,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
     }
 
     //adding inputs to the hash map
-    std.debug.print("\n -------- inputs: {d} ", .{protoGraph.inputs.len});
+    // std.debug.print("\n -------- inputs: {d} ", .{protoGraph.inputs.len});
 
     for (protoGraph.inputs) |inputs_ptr| { //inputs : *ValueInfoProto,
         if (tensorMap.getPtr(inputs_ptr.name.?) != null) continue;
@@ -272,7 +273,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
     }
 
     //adding outputs to the hash map
-    std.debug.print("\n -------- outputs: {d}", .{protoGraph.outputs.len});
+    // std.debug.print("\n -------- outputs: {d}", .{protoGraph.outputs.len});
 
     for (protoGraph.outputs) |outputs_ptr| { //outputs : *ValueInfoProto,
         if (tensorMap.getPtr(outputs_ptr.name.?) != null) continue;
@@ -288,11 +289,11 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
         try tensorMap.put(tensorZant.name, tensorZant);
     }
 
-    std.debug.print("\n -------- nodes: {d}", .{protoGraph.nodes.len});
+    // std.debug.print("\n -------- nodes: {d}", .{protoGraph.nodes.len});
     //adding all the nodes inputs and outputs
     for (protoGraph.nodes, 1..) |node, i| { //for each NodeProto in the GraphProto
-
-        std.debug.print("\n --- {} :  {s} - {any} ", .{ i, node.op_type, node.name });
+        _ = i;
+        // std.debug.print("\n --- {} :  {s} - {any} ", .{ i, node.op_type, node.name });
         // node.print(null); //DEBUG
 
         //WHy CONSTANT nodes need a different initialization? because is has many different variants and is hard to generalize
@@ -308,7 +309,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
             try tensorMap.put(tensorZant.name, tensorZant);
         } else {
             for (node.input) |input_name| {
-                std.debug.print("\n    inputs >>> {s}", .{input_name});
+                // std.debug.print("\n    inputs >>> {s}", .{input_name});
                 if (tensorMap.getPtr(input_name) != null) continue;
 
                 //if the tensor is null is represented by an empty string in the onnx, so It must not be initialized in the hashMap
@@ -328,7 +329,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                 try tensorMap.put(tensorZant.name, tensorZant);
             }
             for (node.output) |output_name| {
-                std.debug.print("\n    >>> outputs {s}", .{output_name});
+                // std.debug.print("\n    >>> outputs {s}", .{output_name});
                 if (tensorMap.getPtr(output_name) != null) continue;
 
                 //WHy RESHAPE nodes need a different output initialization? Because the output shape is sometime specified in the attributes, sometime is passed as an initializer and sometimes is a ValueInfoProto
@@ -356,7 +357,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
 
                     return error.Reshape_outputShape_NotFound;
                 } else {
-                    std.debug.print("\n  +++", .{});
+                    // std.debug.print("\n  +++", .{});
 
                     //if the tensor is null is represented by an empty string in the onnx, so It must not be initialized in the hashMap
                     if (std.mem.eql(u8, output_name, "")) continue;
