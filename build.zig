@@ -245,7 +245,7 @@ pub fn build(b: *std.Build) void {
         .name = "zant",
         .root_source_file = b.path(lib_model_path),
         .target = target,
-        .optimize = .ReleaseSmall,
+        .optimize = optimize,
     });
     static_lib.linkLibC();
     static_lib.root_module.addImport("zant", zant_mod);
@@ -264,14 +264,11 @@ pub fn build(b: *std.Build) void {
                 return;
             };
         }
-        const old_path = std.fmt.allocPrint(b.allocator, "zig-out/{s}/", .{model_name_option}) catch |err| {
+        const old_path = std.fmt.allocPrint(b.allocator, "zig-out/{s}/libzant.a", .{model_name_option}) catch |err| {
             std.log.scoped(.build).warn("Error allocating old path: {}\n", .{err});
             return;
         };
-        output_path_option = std.fmt.allocPrint(b.allocator, "{s}{s}/", .{ output_path_option, model_name_option }) catch |err| {
-            std.log.scoped(.build).warn("Error allocating output path: {}\n", .{err});
-            return;
-        };
+
         const move_step = b.addSystemCommand(&[_][]const u8{
             "mv",
             old_path,

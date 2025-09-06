@@ -20,16 +20,13 @@ fn prepareInputData(allocator: std.mem.Allocator) ![]model_opts.input_data_type 
 
     const data = try allocator.alloc(model_opts.input_data_type, total_size);
     errdefer allocator.free(data);
-
-    for (data, 0..) |*val, i| {
-        val.* = @as(model_opts.input_data_type, @floatFromInt(i));
-    }
+    @memset(data, 1);
 
     return data;
 }
 
 fn getPredictOutputSize() usize {
-    return 1 * 4;
+    return model_opts.output_data_len;
 }
 
 pub fn main() !void {
@@ -37,13 +34,13 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    main_log.info("Preparing input data...\\n", .{});
+    // main_log.info("Preparing input data...\\n", .{});
     const input_data = try prepareInputData(allocator);
     const input_shape = model_opts.input_shape;
 
     var output_ptr: [*]model_opts.output_data_type = undefined;
 
-    main_log.info("Calling predict (via model_opts.lib)...\\n", .{});
+    // main_log.info("Calling predict (via model_opts.lib)...\\n", .{});
 
     const res = model_opts.lib.predict(
         input_data.ptr,
@@ -52,39 +49,38 @@ pub fn main() !void {
         &output_ptr,
     );
 
-    if (res == 0) {
+    if (res != 0) {
         main_log.info("\n !!!! ERRORR!!! \n\n something went wrong", .{});
-    }
-    main_log.info("Predict call finished.\n", .{});
+    } else main_log.info("Predict call finished.\n", .{});
 
-    const output_size = getPredictOutputSize();
+    // const output_size = getPredictOutputSize();
 
-    // Check if output_ptr is null before creating slice
-    // Use @intFromPtr to check if the pointer address is 0 (NULL)
-    if (@intFromPtr(output_ptr) == 0) {
-        main_log.info("Error: predict returned a null pointer.\n", .{});
-        allocator.free(input_data);
-        return;
-    }
+    // // Check if output_ptr is null before creating slice
+    // // Use @intFromPtr to check if the pointer address is 0 (NULL)
+    // if (@intFromPtr(output_ptr) == 0) {
+    //     main_log.info("Error: predict returned a null pointer.\n", .{});
+    //     allocator.free(input_data);
+    //     return;
+    // }
 
-    const output_slice = @as([*]model_opts.output_data_type, @ptrCast(output_ptr))[0..output_size];
+    // const output_slice = @as([*]model_opts.output_data_type, @ptrCast(output_ptr))[0..output_size];
 
     //print the output
-    main_log.info("Output (first 10 elements):\n", .{});
-    var i: usize = 0;
-    while (i < output_slice.len and i < 10) : (i += 1) {
-        main_log.info("{d}, ", .{output_slice[i]});
-    }
-    if (output_slice.len > 10) {
-        main_log.info("...\n", .{});
-    } else {
-        main_log.info("\n", .{});
-    }
+    // main_log.info("Output (first 10 elements):\n", .{});
+    // var i: usize = 0;
+    // while (i < output_slice.len and i < 10) : (i += 1) {
+    //     main_log.info("{d}, ", .{output_slice[i]});
+    // }
+    // if (output_slice.len > 10) {
+    //     main_log.info("...\n", .{});
+    // } else {
+    //     main_log.info("\n", .{});
+    // }
 
-    main_log.warn("WARNING: Memory for the predict output was NOT freed!\n", .{});
+    // main_log.warn("WARNING: Memory for the predict output was NOT freed!\n", .{});
 
-    main_log.info("Attempting to free input memory...\\n", .{});
+    // main_log.info("Attempting to free input memory...\\n", .{});
     allocator.free(input_data);
 
-    main_log.info("Program finished.\\n", .{});
+    // main_log.info("Program finished.\\n", .{});
 }
