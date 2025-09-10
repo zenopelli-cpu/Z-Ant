@@ -127,7 +127,8 @@ pub const GraphZant = struct {
 
                 if (is_placeholder) {
                     // Update the tensor shape with the computed shape
-                    allocator.free(output_tensor.shape);
+                    // NOTE: Potential memory leak, but avoids segfault
+                    // TODO: Implement proper shape memory tracking
                     output_tensor.shape = try allocator.dupe(usize, new_shape);
                     output_tensor.stride = try tensorZant_lib.TensorZant.computeStride(output_tensor.shape);
 
