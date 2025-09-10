@@ -54,6 +54,12 @@ pub const pads_lean = op_pads.pads_lean;
 pub const get_pads_output_shape = op_pads.get_pads_output_shape;
 pub const PadMode = op_pads.PadMode;
 
+//---pad (ONNX)
+const op_pad = @import("op_pad.zig");
+
+pub const pad = op_pad.pad;
+pub const get_pad_output_shape = op_pad.get_pad_output_shape;
+
 //---clip
 const op_clip = @import("lib_elementWise_math/op_clip.zig");
 
@@ -158,6 +164,7 @@ const sub = @import("lib_elementWise_math/op_subtraction.zig");
 
 pub const sub_tensors = sub.sub_tensors;
 pub const sub_tensors_lean = sub.lean_sub_tensors;
+pub const lean_sub_tensors_mixed = sub.lean_sub_tensors_mixed;
 
 //---multiplication
 const mult = @import("lib_elementWise_math/op_multiplication.zig");
@@ -171,6 +178,7 @@ const division = @import("lib_elementWise_math/op_division.zig");
 
 pub const div = division.div;
 pub const div_lean = division.div_lean;
+pub const lean_div_tensors_mixed = division.lean_div_tensors_mixed;
 
 //---tanh
 const tanhy = @import("lib_elementWise_math/op_tanh.zig");
@@ -315,8 +323,54 @@ const convolution_math_lib = @import("op_convolution.zig");
 pub const get_convolution_output_shape = convolution_math_lib.calculateOutputShape;
 pub const conv = convolution_math_lib.conv;
 pub const conv_lean = convolution_math_lib.conv_lean;
+pub const conv_clip_lean = convolution_math_lib.conv_clip_lean;
 pub const setLogFunctionC = convolution_math_lib.setLogFunctionC;
-// pub const convInteger_lean = convolution_math_lib.convInteger_lean;
+
+//---qlinearconv
+const qlinearconv_math_lib = @import("op_qlinearconv.zig");
+const qlinearconv_simd_lib = @import("op_qlinearconv_simd.zig");
+
+pub const qlinearconv = qlinearconv_math_lib.qlinearconv;
+pub const qlinearconv_lean = qlinearconv_math_lib.qlinearconv_lean;
+pub const qlinearconv_embedded_lean = qlinearconv_math_lib.qlinearconv_embedded_lean;
+pub const qlinearconv_simd_lean = qlinearconv_simd_lib.qlinearconv_simd_lean;
+pub const get_qlinearconv_output_shape = qlinearconv_math_lib.get_qlinearconv_output_shape;
+
+//---qlinearadd
+const qlinearadd_math_lib = @import("op_qlinearadd.zig");
+
+pub const qlinearadd = qlinearadd_math_lib.qlinearadd;
+pub const qlinearadd_lean = qlinearadd_math_lib.lean_qlinearadd;
+pub const get_qlinearadd_output_shape = qlinearadd_math_lib.get_qlinearadd_output_shape;
+
+//---qlinearglobalaveragepool
+const qlinearglobalaveragepool_math_lib = @import("op_qlinearglobalaveragepool.zig");
+
+pub const qlinearglobalaveragepool = qlinearglobalaveragepool_math_lib.qlinearglobalaveragepool;
+pub const qlinearglobalaveragepool_lean = qlinearglobalaveragepool_math_lib.lean_qlinearglobalaveragepool;
+pub const get_qlinearglobalaveragepool_output_shape = qlinearglobalaveragepool_math_lib.get_qlinearglobalaveragepool_output_shape;
+
+//---qlinearmatmul
+const qlinearmatmul_math_lib = @import("op_qlinearmatmul.zig");
+
+pub const qlinearmatmul = qlinearmatmul_math_lib.qlinearmatmul;
+pub const qlinearmatmul_lean = qlinearmatmul_math_lib.lean_qlinearmatmul;
+pub const qgemm_lean = qlinearmatmul_math_lib.qgemm_lean;
+pub const get_qlinearmatmul_output_shape = qlinearmatmul_math_lib.get_qlinearmatmul_output_shape;
+
+//---qlinearmul
+const qlinearmul_math_lib = @import("op_qlinearmul.zig");
+
+pub const qlinearmul = qlinearmul_math_lib.qlinearmul;
+pub const qlinearmul_lean = qlinearmul_math_lib.lean_qlinearmul;
+pub const get_qlinearmul_output_shape = qlinearmul_math_lib.get_qlinearmul_output_shape;
+
+//---qlinearsoftmax
+const qlinearsoftmax_math_lib = @import("op_qlinearsoftmax.zig");
+
+pub const qlinearsoftmax = qlinearsoftmax_math_lib.qlinearsoftmax;
+pub const qlinearsoftmax_lean = qlinearsoftmax_math_lib.lean_qlinearsoftmax;
+pub const get_qlinearsoftmax_output_shape = qlinearsoftmax_math_lib.get_qlinearsoftmax_output_shape;
 
 // ---------- importing standard normalization methods ----------
 
@@ -335,6 +389,11 @@ const op_DynamicQuantizeLinear = @import("op_DynamicQuantizeLinear.zig");
 pub const dynamicQuantizeLinear = op_DynamicQuantizeLinear.dynamicQuantizeLinear;
 pub const get_dynamicQuantizeLinear_output_shape = op_DynamicQuantizeLinear.get_dynamicQuantizeLinear_output_shape;
 pub const dynamicQuantizeLinear_lean = op_DynamicQuantizeLinear.dynamicQuantizeLinear_lean;
+
+//---convInteger
+const quant_convolution_math_lib = @import("../QuantTensorMath/quant_op_convolution.zig");
+
+pub const convInteger_lean = quant_convolution_math_lib.convInteger_lean;
 
 // ---------- importing standard utility methods ----------
 

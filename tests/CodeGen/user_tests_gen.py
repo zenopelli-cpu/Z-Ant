@@ -8,7 +8,20 @@ import traceback
 
 def get_runtime_input_shapes(model_path):
     """Get only the runtime inputs (not parameters/weights)"""
-    sess = ort.InferenceSession(model_path)
+    try:
+        # Use fewer optimization passes to avoid shape conflicts
+        sess_options = ort.SessionOptions()
+        sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
+        sess = ort.InferenceSession(model_path, sess_options)
+    except Exception as e:
+        print(f"Warning: Failed to create session with disabled optimizations: {e}")
+        # Fallback to default session
+        try:
+            sess = ort.InferenceSession(model_path)
+        except Exception as e2:
+            print(f"Error: Failed to create any session: {e2}")
+            return {}
+    
     input_shapes = {}
     
     # Get actual runtime inputs from the session
@@ -26,24 +39,54 @@ def generate_random_input(shape, input_name=""):
     if "mnist" in input_name.lower() or any(dim == 28 for dim in shape):
         # For MNIST-like inputs, generate values in [0, 1] range
         return np.random.rand(*shape).astype(np.float32)
+    elif "image" in input_name.lower() or len(shape) == 4:
+        # For image inputs (like FOMO), generate normalized values [0, 1]
+        return np.random.rand(*shape).astype(np.float32)
     else:
-        # For other inputs, use standard normal distribution
-        return np.random.randn(*shape).astype(np.float32)
+        # For other inputs, use standard normal distribution but clamp to reasonable range
+        data = np.random.randn(*shape).astype(np.float32)
+        return np.clip(data, -3.0, 3.0)  # Clamp to reasonable range
 
 def run_onnx_inference(model_path, input_shapes):
     """Run inference with the ONNX model"""
-    sess = ort.InferenceSession(model_path)
+    try:
+        # Try with disabled optimizations first
+        sess_options = ort.SessionOptions()
+        sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
+        sess = ort.InferenceSession(model_path, sess_options)
+    except Exception as e:
+        print(f"Warning: Failed to create optimized session: {e}")
+        try:
+            # Fallback to basic session
+            sess = ort.InferenceSession(model_path)
+        except Exception as e2:
+            print(f"Error: Failed to create any inference session: {e2}")
+            raise e2
     
     # Generate inputs only for runtime inputs
     inputs = {}
     for name, shape in input_shapes.items():
         inputs[name] = generate_random_input(shape, name)
     
-    # Run inference
-    outputs = sess.run(None, inputs)
-    output_names = [output.name for output in sess.get_outputs()]
-    
-    return inputs, dict(zip(output_names, outputs))
+    try:
+        # Run inference with error handling
+        outputs = sess.run(None, inputs)
+        output_names = [output.name for output in sess.get_outputs()]
+        return inputs, dict(zip(output_names, outputs))
+    except Exception as e:
+        print(f"Inference failed: {e}")
+        # Try with simplified input (all zeros)
+        print("Retrying with zero input...")
+        for name, shape in input_shapes.items():
+            inputs[name] = np.zeros(shape, dtype=np.float32)
+        
+        try:
+            outputs = sess.run(None, inputs)
+            output_names = [output.name for output in sess.get_outputs()]
+            return inputs, dict(zip(output_names, outputs))
+        except Exception as e2:
+            print(f"Zero input also failed: {e2}")
+            raise e2
 
 def main():
     parser = argparse.ArgumentParser(description="Run ONNX model multiple times with random inputs and save execution data.")

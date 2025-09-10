@@ -144,6 +144,82 @@ pub const Clip = struct {
         // outputTensor: *Tensor(T),
         // ) !void {
 
+        // Check if we need cast operations for mixed precision
+        const target_type = self.output.ty.toString();
+        const need_min_cast = if (self.min) |min| !std.mem.eql(u8, min.ty.toString(), target_type) else false;
+        const need_max_cast = if (self.max) |max| !std.mem.eql(u8, max.ty.toString(), target_type) else false;
+
+        var final_min_string: []const u8 = undefined;
+        var final_max_string: []const u8 = undefined;
+        var need_free_min = false;
+        var need_free_max = false;
+        defer if (need_free_min) allocator.free(@constCast(final_min_string));
+        defer if (need_free_max) allocator.free(@constCast(final_max_string));
+
+        if (need_min_cast and self.min != null) {
+            // Generate cast for min tensor
+            const min_name = try self.min.?.getNameSanitized();
+            const output_name = try self.output.getNameSanitized();
+            _ = try writer.print(
+                \\
+                \\    // Cast min tensor from {s} to {s}
+                \\    var tensor_{s}_min_casted_{s} = Tensor({s}).fromShape(&allocator, @constCast(param_lib.tensor_{s}.shape)) catch return -2;
+                \\    defer tensor_{s}_min_casted_{s}.deinit();
+                \\    tensMath.cast_lean({s}, {s}, @constCast(&param_lib.tensor_{s}), &tensor_{s}_min_casted_{s}, zant.onnx.DataType.FLOAT) catch return -1;
+                \\
+            , .{
+                self.min.?.ty.toString(),
+                target_type,
+                min_name,
+                output_name,
+                target_type,
+                min_name,
+                min_name,
+                output_name,
+                self.min.?.ty.toString(),
+                target_type,
+                min_name,
+                min_name,
+                output_name,
+            });
+            final_min_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", min_name, "_min_casted_", output_name, ")" });
+            need_free_min = true;
+        } else {
+            final_min_string = if (self.min != null) min_tensor_string else "null";
+        }
+
+        if (need_max_cast and self.max != null) {
+            // Generate cast for max tensor
+            const max_name = try self.max.?.getNameSanitized();
+            const output_name = try self.output.getNameSanitized();
+            _ = try writer.print(
+                \\
+                \\    // Cast max tensor from {s} to {s}
+                \\    var tensor_{s}_max_casted_{s} = Tensor({s}).fromShape(&allocator, @constCast(param_lib.tensor_{s}.shape)) catch return -2;
+                \\    defer tensor_{s}_max_casted_{s}.deinit();
+                \\    tensMath.cast_lean({s}, {s}, @constCast(&param_lib.tensor_{s}), &tensor_{s}_max_casted_{s}, zant.onnx.DataType.FLOAT) catch return -1;
+                \\
+            , .{
+                self.max.?.ty.toString(),
+                target_type,
+                max_name,
+                output_name,
+                target_type,
+                max_name,
+                max_name,
+                output_name,
+                self.max.?.ty.toString(),
+                target_type,
+                max_name,
+                max_name,
+                output_name,
+            });
+            final_max_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", max_name, "_max_casted_", output_name, ")" });
+            need_free_max = true;
+        } else {
+            final_max_string = if (self.max != null) max_tensor_string else "null";
+        }
+
         _ = try writer.print(
             \\
             \\
@@ -155,19 +231,19 @@ pub const Clip = struct {
             \\      &tensor_{s},  //output tensor
             \\    ) catch return -1;
         , .{
-            self.input.ty.toString(),
+            target_type,
             input_tensor_string,
-            if (self.min != null) min_tensor_string else "null",
-            if (self.max != null) max_tensor_string else "null",
+            final_min_string,
+            final_max_string,
             try self.output.getNameSanitized(),
         });
     }
 
     pub fn compute_output_shape(self: Clip) []usize {
-        var output_shape: []usize = undefined;
-        output_shape = try tensorMath.get_clip_output_shape(self.input.get_shape());
-        self.output.shape = output_shape;
-        return output_shape;
+        // Clip preserves the input shape
+        const input_shape = self.input.getShape();
+        self.output.shape = input_shape;
+        return input_shape;
     }
 
     pub fn print(self: Clip) void {

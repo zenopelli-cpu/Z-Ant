@@ -39,30 +39,42 @@ pub fn getShapeFromModelInfo(model: *ModelProto) ?[]i64 {
 }
 
 pub fn getTensorShapeFromValueInfo(vi: *ValueInfoProto) ?[]i64 {
-    return vi.type.?.tensor_type.?.shape.?.shape;
+    if (vi.type) |type_info| {
+        if (type_info.tensor_type) |tensor_type| {
+            if (tensor_type.shape) |shape| {
+                return shape.shape;
+            }
+        }
+    }
+    return null;
 }
 
 pub fn getTypeFromValueInfo(vi: *ValueInfoProto) !TensorType {
 
     // Derive and store the input element type string (e.g., "f32", "u8")
-    const raw_et: u32 = vi.type.?.tensor_type.?.elem_type;
-    const int_val = @as(i32, @intCast(raw_et));
-    const input_dt = @as(DataType, @enumFromInt(int_val));
-    // Store the calculated DataType globally
-    return switch (input_dt) {
-        .INT64 => TensorType.i64,
-        .DOUBLE => TensorType.f64,
-        .UINT64 => TensorType.u64,
-        .FLOAT => TensorType.f32,
-        .INT32 => TensorType.i32,
-        .UINT32 => TensorType.u32,
-        .FLOAT16 => TensorType.f16,
-        .INT16 => TensorType.i16,
-        .UINT16 => TensorType.u16,
-        .INT8 => TensorType.i8,
-        .UINT8 => TensorType.u8,
-        else => error.DataTypeNotAvailable,
-    };
+    if (vi.type) |type_info| {
+        if (type_info.tensor_type) |tensor_type| {
+            const raw_et: u32 = tensor_type.elem_type;
+            const int_val = @as(i32, @intCast(raw_et));
+            const input_dt = @as(DataType, @enumFromInt(int_val));
+            // Store the calculated DataType globally
+            return switch (input_dt) {
+                .INT64 => TensorType.i64,
+                .DOUBLE => TensorType.f64,
+                .UINT64 => TensorType.u64,
+                .FLOAT => TensorType.f32,
+                .INT32 => TensorType.i32,
+                .UINT32 => TensorType.u32,
+                .FLOAT16 => TensorType.f16,
+                .INT16 => TensorType.i16,
+                .UINT16 => TensorType.u16,
+                .INT8 => TensorType.i8,
+                .UINT8 => TensorType.u8,
+                else => error.DataTypeNotAvailable,
+            };
+        }
+    }
+    return error.DataTypeNotAvailable;
 }
 
 pub fn getAnyTensorType(anyTensor: AnyTensor) TensorType {
@@ -189,7 +201,11 @@ pub fn protoTensor2AnyTensor(proto: *TensorProto) !AnyTensor {
     }
     defer allocator.free(shape);
 
-    if (proto.float_data) |float_data| {
+    if (proto.float16_data) |float16_data| {
+        const tensor = try allocator.create(Tensor(f16));
+        tensor.* = try Tensor(f16).fromArray(&allocator, float16_data, shape);
+        return AnyTensor{ .f16 = tensor };
+    } else if (proto.float_data) |float_data| {
         const tensor = try allocator.create(Tensor(f32));
         tensor.* = try Tensor(f32).fromArray(&allocator, float_data, shape);
         return AnyTensor{ .f32 = tensor };
@@ -202,6 +218,14 @@ pub fn protoTensor2AnyTensor(proto: *TensorProto) !AnyTensor {
         const tensor = try allocator.create(Tensor(i64));
         tensor.* = try Tensor(i64).fromArray(&allocator, int64_data, shape);
         return AnyTensor{ .i64 = tensor };
+    } else if (proto.int8_data) |int8_data| {
+        const tensor = try allocator.create(Tensor(i8));
+        tensor.* = try Tensor(i8).fromArray(&allocator, int8_data, shape);
+        return AnyTensor{ .i8 = tensor };
+    } else if (proto.uint8_data) |uint8_data| {
+        const tensor = try allocator.create(Tensor(u8));
+        tensor.* = try Tensor(u8).fromArray(&allocator, uint8_data, shape);
+        return AnyTensor{ .u8 = tensor };
     } else if (proto.double_data) |double_data| {
         const tensor = try allocator.create(Tensor(f64));
         tensor.* = try Tensor(f64).fromArray(&allocator, double_data, shape);

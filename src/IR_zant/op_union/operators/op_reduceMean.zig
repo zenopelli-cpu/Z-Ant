@@ -65,7 +65,7 @@ pub const ReduceMean = struct {
     }
 
     pub fn get_output_shape(self: ReduceMean) []usize {
-        return self.output_Y.getShape();
+        return self.reduced.getShape();
     }
 
     pub fn get_input_tensors(self: ReduceMean) ![]*TensorZant {

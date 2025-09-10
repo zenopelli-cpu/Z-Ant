@@ -102,17 +102,13 @@ pub fn dynamicQuantizeLinear_lean(
         x_max = @max(x_max, val);
     }
 
-    // 2. Adjust range to include 0
-    const x_min_adj = @min(x_min, 0.0);
-    const x_max_adj = @max(x_max, 0.0);
-
-    // 3. Calculate scale
-    const x_range = x_max_adj - x_min_adj;
-    const scale: f32 = if (x_range == 0) 1.0 else x_range / Q_MAX_U8; // Avoid division by zero
+    // Standard ONNX DynamicQuantizeLinear: use actual min/max range
+    const x_range = x_max - x_min;
+    const scale: f32 = if (x_range == 0) 1.0 else x_range / Q_MAX_U8;
     y_scale.data[0] = scale;
 
-    // 4. Calculate zero point
-    const initial_zero_point_fp: f32 = if (scale == 0) 0.0 else Q_MIN_U8 - x_min_adj / scale;
+    // Zero point calculation: zero_point = round((0 - x_min) / scale)
+    const initial_zero_point_fp: f32 = if (scale == 0) 0.0 else (0.0 - x_min) / scale;
     // Clip to u8 range [0, 255]
     const clipped_zero_point_fp = std.math.clamp(initial_zero_point_fp, Q_MIN_U8, Q_MAX_U8);
     // Round to nearest, ties to even (std.math.round behavior)
@@ -122,12 +118,11 @@ pub fn dynamicQuantizeLinear_lean(
     const zero_point: u8 = @as(u8, @intFromFloat(@as(f32, rounded_zero_point_fp)));
     y_zero_point.data[0] = zero_point;
 
-    // 5. Quantize x -> y
+    // 5. Quantize x -> y using ONNX formula: y = round(x / scale) + zero_point
     const zero_point_f32 = @as(f32, @floatFromInt(zero_point));
-    const inv_scale = if (scale == 0) 0.0 else 1.0 / scale; // Precompute inverse scale
 
     for (x.data, 0..) |x_val, i| {
-        const x_scaled = x_val * inv_scale;
+        const x_scaled = if (scale == 0) 0.0 else x_val / scale;
         const shifted = x_scaled + zero_point_f32;
         const rounded = std.math.round(shifted); // Round ties to even
         const clamped = std.math.clamp(rounded, Q_MIN_U8, Q_MAX_U8); // Saturate

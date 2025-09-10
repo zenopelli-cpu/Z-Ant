@@ -190,11 +190,6 @@ pub fn lean_slice_onnx(comptime T: type, comptime T1: type, input: *Tensor(T), s
 
             // Bounds check - this should never happen with correct ONNX logic but let's verify
             if (input_coord < 0 or input_coord >= @as(i64, @intCast(input.shape[dim]))) {
-                std.log.err("\n[ERROR] Out of bounds coordinate calculation:", .{});
-                std.log.err("\n  dim: {d}, output_coord: {d}, input_coord: {d}", .{ dim, output_coord, input_coord });
-                std.log.err("\n  effective_start: {d}, effective_step: {d}", .{ effective_starts[dim], effective_steps[dim] });
-                std.log.err("\n  input.shape[{d}]: {d}", .{ dim, input.shape[dim] });
-                std.log.err("\n  output_coords: {any}", .{output_coords});
                 return TensorError.InvalidSliceIndices;
             }
 
@@ -204,8 +199,6 @@ pub fn lean_slice_onnx(comptime T: type, comptime T1: type, input: *Tensor(T), s
         // Copy the data
         const input_idx = try input.flatten_index(input_coords);
         if (input_idx >= input.size) {
-            std.log.err("\n[ERROR] Input index out of bounds: {d} >= {d}", .{ input_idx, input.size });
-            std.log.err("\n  input_coords: {any}", .{input_coords});
             return TensorError.InvalidSliceIndices;
         }
 

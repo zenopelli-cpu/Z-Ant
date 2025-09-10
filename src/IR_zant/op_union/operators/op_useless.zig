@@ -45,4 +45,10 @@ pub const Useless = struct {
         var outputs = std.ArrayList(*TensorZant).init(allocator);
         return outputs.toOwnedSlice();
     }
+
+    pub fn write_op(self: Useless, writer: std.fs.File.Writer) !void {
+        _ = self;
+        _ = writer;
+        // Useless operator does nothing - no code generation needed
+    }
 };

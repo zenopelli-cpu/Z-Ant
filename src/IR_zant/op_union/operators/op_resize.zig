@@ -215,7 +215,7 @@ pub const Resize = struct {
         _ = try writer.print(
             \\
             \\    tensMath.resize_lean(
-            \\      T, 
+            \\      {s}, 
             \\      {s}, //*Tensor(T)
             \\      "{s}", //mode
             \\      {s}, //scales: ?[]const f32
@@ -225,6 +225,7 @@ pub const Resize = struct {
             \\    ) catch return -1;
         ,
             .{
+                self.input_X.ty.toString(), // type
                 tensor_X_string, // input
                 self.mode,
                 data_scales_string,

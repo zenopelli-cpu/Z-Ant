@@ -16,13 +16,18 @@ pub const Op_union = union(enum) {
     add: operators.Add,
     averagePool: operators.AveragePool,
     batchNormalization: operators.BatchNormalization,
+    cast: operators.Cast,
     ceil: operators.Ceil,
     clip: operators.Clip,
     concat: operators.Concat,
     constant: operators.Constant,
     conv: operators.Conv,
+    convClip: operators.ConvClip,
+    convInteger: operators.ConvInteger,
+
     dequantizeLinear: operators.DequantizeLinear,
     div: operators.Div,
+    dynamicQuantizeLinear: operators.DynamicQuantizeLinear,
     elu: operators.Elu,
     flatten: operators.Flatten,
     floor: operators.Floor,
@@ -37,6 +42,14 @@ pub const Op_union = union(enum) {
     mul: operators.Mul,
     neg: operators.Neg,
     oneHot: operators.OneHot,
+    pad: operators.Pad,
+    qgemm: operators.QGemm,
+    qlinearadd: operators.QLinearAdd,
+    qlinearconv: operators.QLinearConv,
+    qlinearglobalaveragepool: operators.QLinearGlobalAveragePool,
+    qlinearmatmul: operators.QLinearMatMul,
+    qlinearmul: operators.QLinearMul,
+    qlinearsoftmax: operators.QLinearSoftmax,
     quantizeLinear: operators.QuantizeLinear,
     reduceMean: operators.ReduceMean,
     relu: operators.Relu,
@@ -63,6 +76,8 @@ pub const Op_union = union(enum) {
             return Op_union{ .averagePool = try operators.AveragePool.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "BatchNormalization")) {
             return Op_union{ .batchNormalization = try operators.BatchNormalization.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Cast")) {
+            return Op_union{ .cast = try operators.Cast.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Ceil")) {
             return Op_union{ .ceil = try operators.Ceil.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Clip")) {
@@ -73,10 +88,14 @@ pub const Op_union = union(enum) {
             return Op_union{ .constant = try operators.Constant.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Conv")) {
             return Op_union{ .conv = try operators.Conv.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "ConvInteger")) {
+            return Op_union{ .convInteger = try operators.ConvInteger.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "DequantizeLinear")) {
             return Op_union{ .dequantizeLinear = try operators.DequantizeLinear.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Div")) {
             return Op_union{ .div = try operators.Div.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "DynamicQuantizeLinear")) {
+            return Op_union{ .dynamicQuantizeLinear = try operators.DynamicQuantizeLinear.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Elu")) {
             return Op_union{ .elu = try operators.Elu.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Flatten")) {
@@ -105,6 +124,22 @@ pub const Op_union = union(enum) {
             return Op_union{ .neg = try operators.Neg.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "OneHot")) {
             return Op_union{ .oneHot = try operators.OneHot.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Pad")) {
+            return Op_union{ .pad = try operators.Pad.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "QGemm")) {
+            return Op_union{ .qgemm = try operators.QGemm.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "QLinearAdd")) {
+            return Op_union{ .qlinearadd = try operators.QLinearAdd.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "QLinearConv")) {
+            return Op_union{ .qlinearconv = try operators.QLinearConv.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "QLinearGlobalAveragePool")) {
+            return Op_union{ .qlinearglobalaveragepool = try operators.QLinearGlobalAveragePool.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "QLinearMatMul")) {
+            return Op_union{ .qlinearmatmul = try operators.QLinearMatMul.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "QLinearMul")) {
+            return Op_union{ .qlinearmul = try operators.QLinearMul.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "QLinearSoftmax")) {
+            return Op_union{ .qlinearsoftmax = try operators.QLinearSoftmax.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "QuantizeLinear")) {
             return Op_union{ .quantizeLinear = try operators.QuantizeLinear.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "ReduceMean")) {
@@ -141,21 +176,26 @@ pub const Op_union = union(enum) {
         }
     }
 
-    pub fn get_output_shape(self: Op_union) []usize {
+    pub fn get_output_shape(self: Op_union) ![]usize {
         switch (self) {
             .add => |ptr| return ptr.get_output_shape(),
             .averagePool => |ptr| return ptr.get_output_shape(),
             .batchNormalization => |ptr| return ptr.get_output_shape(),
+            .cast => |ptr| return ptr.get_output_shape(),
             .ceil => |ptr| return ptr.get_output_shape(),
             .clip => |ptr| return ptr.compute_output_shape(),
             .concat => |ptr| return ptr.get_output_shape(),
             .constant => |ptr| return ptr.get_output_shape(),
             .conv => |ptr| return ptr.get_output_shape(),
+            .convClip => |ptr| return ptr.get_output_shape(),
+            .convInteger => |ptr| return ptr.get_output_shape(),
+
             .dequantizeLinear => |ptr| return ptr.get_output_shape(),
             .div => |ptr| return ptr.get_output_shape(),
+            .dynamicQuantizeLinear => |ptr| return ptr.get_output_shape(),
             .elu => |ptr| return ptr.get_output_shape(),
             .flatten => |ptr| return ptr.get_output_shape(),
-            .floor => |ptr| ptr.get_output_shape(),
+            .floor => |ptr| return ptr.get_output_shape(),
             .gather => |ptr| return ptr.get_output_shape(),
             .gemm => |ptr| return ptr.get_output_shape(),
             .gelu => |ptr| return ptr.get_output_shape(),
@@ -167,6 +207,14 @@ pub const Op_union = union(enum) {
             .mul => |ptr| return ptr.get_output_shape(),
             .neg => |ptr| return ptr.get_output_shape(),
             .oneHot => |ptr| return ptr.get_output_shape(),
+            .pad => |ptr| return ptr.get_output_shape(),
+            .qgemm => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
+            .qlinearadd => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
+            .qlinearconv => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
+            .qlinearglobalaveragepool => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
+            .qlinearmatmul => |ptr| return ptr.get_output_shape(),
+            .qlinearmul => |ptr| return ptr.get_output_shape(),
+            .qlinearsoftmax => |ptr| return ptr.compute_output_shape(),
             .quantizeLinear => |ptr| return ptr.get_output_shape(),
             .reduceMean => |ptr| return ptr.get_output_shape(),
             .relu => |ptr| return ptr.get_output_shape(),
@@ -194,13 +242,18 @@ pub const Op_union = union(enum) {
             .add => |ptr| try ptr.get_output_tensors(),
             .averagePool => |ptr| try ptr.get_output_tensors(),
             .batchNormalization => |ptr| try ptr.get_output_tensors(),
+            .cast => |ptr| try ptr.get_output_tensors(),
             .ceil => |ptr| try ptr.get_output_tensors(),
             .clip => |ptr| try ptr.get_output_tensors(),
             .concat => |ptr| try ptr.get_output_tensors(),
             .constant => |ptr| try ptr.get_output_tensors(),
             .conv => |ptr| try ptr.get_output_tensors(),
+            .convClip => |ptr| try ptr.get_output_tensors(),
+            .convInteger => |ptr| try ptr.get_output_tensors(),
+
             .dequantizeLinear => |ptr| return ptr.get_output_tensors(),
             .div => |ptr| try ptr.get_output_tensors(),
+            .dynamicQuantizeLinear => |ptr| try ptr.get_output_tensors(),
             .elu => |ptr| try ptr.get_output_tensors(),
             .flatten => |ptr| try ptr.get_output_tensors(),
             .floor => |ptr| try ptr.get_output_tensors(),
@@ -215,6 +268,14 @@ pub const Op_union = union(enum) {
             .mul => |ptr| try ptr.get_output_tensors(),
             .neg => |ptr| try ptr.get_output_tensors(),
             .oneHot => |ptr| try ptr.get_output_tensors(),
+            .pad => |ptr| try ptr.get_output_tensors(),
+            .qgemm => |ptr| try ptr.get_output_tensors(),
+            .qlinearadd => |ptr| try ptr.get_output_tensors(),
+            .qlinearconv => |ptr| try ptr.get_output_tensors(),
+            .qlinearglobalaveragepool => |ptr| try ptr.get_output_tensors(),
+            .qlinearmatmul => |ptr| try ptr.get_output_tensors(),
+            .qlinearmul => |ptr| try ptr.get_output_tensors(),
+            .qlinearsoftmax => |ptr| try ptr.get_output_tensors(),
             .quantizeLinear => |ptr| try ptr.get_output_tensors(),
             .reduceMean => |ptr| try ptr.get_output_tensors(),
             .relu => |ptr| try ptr.get_output_tensors(),
@@ -230,10 +291,7 @@ pub const Op_union = union(enum) {
             .tanh => |ptr| try ptr.get_output_tensors(),
             .transpose => |ptr| try ptr.get_output_tensors(),
             .unsqueeze => |ptr| try ptr.get_output_tensors(),
-            else => {
-                std.debug.print("\n\nERROR: get_output_tensors() is not available for {any}!! \n\n", .{self});
-                return error.get_output_tensors_op_notAvailable;
-            },
+            .useless => |ptr| try ptr.get_output_tensors(),
         };
     }
 
@@ -242,13 +300,18 @@ pub const Op_union = union(enum) {
             .add => |ptr| try ptr.get_input_tensors(),
             .averagePool => |ptr| try ptr.get_input_tensors(),
             .batchNormalization => |ptr| try ptr.get_input_tensors(),
+            .cast => |ptr| try ptr.get_input_tensors(),
             .ceil => |ptr| try ptr.get_input_tensors(),
             .clip => |ptr| try ptr.get_input_tensors(),
             .concat => |ptr| try ptr.get_input_tensors(),
             .constant => |ptr| try ptr.get_input_tensors(),
             .conv => |ptr| try ptr.get_input_tensors(),
+            .convClip => |ptr| try ptr.get_input_tensors(),
+            .convInteger => |ptr| try ptr.get_input_tensors(),
+
             .dequantizeLinear => |ptr| return ptr.get_input_tensors(),
             .div => |ptr| try ptr.get_input_tensors(),
+            .dynamicQuantizeLinear => |ptr| try ptr.get_input_tensors(),
             .elu => |ptr| try ptr.get_input_tensors(),
             .flatten => |ptr| try ptr.get_input_tensors(),
             .floor => |ptr| try ptr.get_input_tensors(),
@@ -263,6 +326,14 @@ pub const Op_union = union(enum) {
             .mul => |ptr| try ptr.get_input_tensors(),
             .neg => |ptr| try ptr.get_input_tensors(),
             .oneHot => |ptr| try ptr.get_input_tensors(),
+            .pad => |ptr| try ptr.get_input_tensors(),
+            .qgemm => |ptr| try ptr.get_input_tensors(),
+            .qlinearadd => |ptr| try ptr.get_input_tensors(),
+            .qlinearconv => |ptr| try ptr.get_input_tensors(),
+            .qlinearglobalaveragepool => |ptr| try ptr.get_input_tensors(),
+            .qlinearmatmul => |ptr| try ptr.get_input_tensors(),
+            .qlinearmul => |ptr| try ptr.get_input_tensors(),
+            .qlinearsoftmax => |ptr| try ptr.get_input_tensors(),
             .quantizeLinear => |ptr| try ptr.get_input_tensors(),
             .reduceMean => |ptr| try ptr.get_input_tensors(),
             .relu => |ptr| try ptr.get_input_tensors(),
@@ -278,10 +349,7 @@ pub const Op_union = union(enum) {
             .tanh => |ptr| try ptr.get_input_tensors(),
             .transpose => |ptr| try ptr.get_input_tensors(),
             .unsqueeze => |ptr| try ptr.get_input_tensors(),
-            else => {
-                std.debug.print("\n\nERROR: get_input_tensors() is not available for {any} \n\n", .{self});
-                return error.get_input_tensors_op_notAvailable;
-            },
+            .useless => |ptr| try ptr.get_input_tensors(),
         };
     }
 
@@ -306,13 +374,18 @@ pub const Op_union = union(enum) {
             .add => |ptr| try ptr.write_op(writer),
             .averagePool => |ptr| try ptr.write_op(writer),
             .batchNormalization => |ptr| try ptr.write_op(writer),
+            .cast => |ptr| try ptr.write_op(writer),
             .ceil => |ptr| try ptr.write_op(writer),
             .clip => |ptr| try ptr.write_op(writer),
             .concat => |ptr| try ptr.write_op(writer),
             .constant => |ptr| try ptr.write_op(writer),
             .conv => |ptr| try ptr.write_op(writer),
+            .convClip => |ptr| try ptr.write_op(writer),
+            .convInteger => |ptr| try ptr.write_op(writer),
+
             .dequantizeLinear => |ptr| try ptr.write_op(writer),
             .div => |ptr| try ptr.write_op(writer),
+            .dynamicQuantizeLinear => |ptr| try ptr.write_op(writer),
             .elu => |ptr| try ptr.write_op(writer),
             .flatten => |ptr| try ptr.write_op(writer),
             .floor => |ptr| try ptr.write_op(writer),
@@ -327,6 +400,14 @@ pub const Op_union = union(enum) {
             .mul => |ptr| try ptr.write_op(writer),
             .neg => |ptr| try ptr.write_op(writer),
             .oneHot => |ptr| try ptr.write_op(writer),
+            .pad => |ptr| try ptr.write_op(writer),
+            .qgemm => |ptr| try ptr.write_op(writer),
+            .qlinearadd => |ptr| try ptr.write_op(writer),
+            .qlinearconv => |ptr| try ptr.write_op(writer),
+            .qlinearglobalaveragepool => |ptr| try ptr.write_op(writer),
+            .qlinearmatmul => |ptr| try ptr.write_op(writer),
+            .qlinearmul => |ptr| try ptr.write_op(writer),
+            .qlinearsoftmax => |ptr| try ptr.write_op(writer),
             .quantizeLinear => |ptr| try ptr.write_op(writer),
             .reduceMean => |ptr| try ptr.write_op(writer),
             .relu => |ptr| try ptr.write_op(writer),
@@ -342,10 +423,7 @@ pub const Op_union = union(enum) {
             .tanh => |ptr| try ptr.write_op(writer),
             .transpose => |ptr| try ptr.write_op(writer),
             .unsqueeze => |ptr| try ptr.write_op(writer),
-            else => {
-                std.debug.print("\n\nERROR: write_op() is not available!! \n\n", .{});
-                return error.write_op_notAvailable;
-            },
+            .useless => |ptr| try ptr.write_op(writer),
         }
     }
 
@@ -354,13 +432,17 @@ pub const Op_union = union(enum) {
             .add => |ptr| ptr.print(),
             .averagePool => |ptr| ptr.print(),
             .batchNormalization => |ptr| ptr.print(),
+            .cast => |ptr| ptr.print(),
             .ceil => |ptr| ptr.print(),
             .clip => |ptr| ptr.print(),
             .concat => |ptr| ptr.print(),
             .constant => |ptr| ptr.print(),
             .conv => |ptr| ptr.print(),
+            .convClip => |ptr| ptr.print(),
+            .convInteger => |ptr| ptr.print(),
             .dequantizeLinear => |ptr| try ptr.print(),
             .div => |ptr| ptr.print(),
+            .dynamicQuantizeLinear => |ptr| ptr.print(),
             .elu => |ptr| ptr.print(),
             .flatten => |ptr| ptr.print(),
             .floor => |ptr| ptr.print(),
@@ -375,8 +457,15 @@ pub const Op_union = union(enum) {
             .mul => |ptr| ptr.print(),
             .neg => |ptr| ptr.print(),
             .oneHot => |ptr| ptr.print(),
+            .pad => |ptr| ptr.print(),
+            .qgemm => |ptr| ptr.print(),
+            .qlinearadd => |ptr| ptr.print(),
+            .qlinearconv => |ptr| try ptr.print(),
+            .qlinearglobalaveragepool => |ptr| ptr.print(),
+            .qlinearmatmul => |ptr| ptr.print(),
+            .qlinearmul => |ptr| ptr.print(),
+            .qlinearsoftmax => |ptr| ptr.print(),
             .quantizeLinear => |ptr| try ptr.print(),
-            .quatizeLinear => |ptr| ptr.print(),
             .reduceMean => |ptr| ptr.print(),
             .relu => |ptr| ptr.print(),
             .reshape => |ptr| ptr.print(),

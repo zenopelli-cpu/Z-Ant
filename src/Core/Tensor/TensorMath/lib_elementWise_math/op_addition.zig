@@ -33,7 +33,7 @@ pub fn add_bias(comptime T: anytype, tensor: *Tensor(T), bias: *Tensor(T)) !void
 }
 
 // Helper function to calculate the broadcasted shape
-fn calculate_broadcasted_shape(alloc: *const std.mem.Allocator, shape1_in: []const usize, shape2_in: []const usize) ![]usize {
+pub fn calculate_broadcasted_shape(alloc: *const std.mem.Allocator, shape1_in: []const usize, shape2_in: []const usize) ![]usize {
     const rank1 = shape1_in.len;
     const rank2 = shape2_in.len;
     const max_rank = @max(rank1, rank2);
@@ -150,7 +150,7 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
         const chunk_size = vector_len * 4;
         const chunks = t1.size / chunk_size;
         var i: usize = 0;
-
+        @setEvalBranchQuota(10000);
         while (i < chunks * chunk_size) : (i += chunk_size) {
             inline for (0..4) |offset| {
                 const v1: Vec = t1.data[i + offset * vector_len ..][0..vector_len].*;
