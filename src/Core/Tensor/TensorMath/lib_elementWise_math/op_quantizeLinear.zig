@@ -63,7 +63,7 @@ pub inline fn quantizeLinear_lean(
     comptime OutputType: anytype,
     comptime _: anytype, // ZeroPointType unused due to anytype y_zero_point
     x: *Tensor(InputType), //T1
-    y_scale: *Tensor(InputType), //T2
+    y_scale: *Tensor(f32), //T2 - Scale is always f32
     y_zero_point: anytype, //T3 - Accept any tensor type for zero_point (can be null)
     axis: i32,
     block_size: i32,
@@ -257,15 +257,16 @@ inline fn quantize(
     comptime InputType: anytype,
     comptime OutputType: anytype,
     inputData: InputType,
-    scale: InputType,
+    scale: f32, // Scale is always f32
     zp: OutputType,
 ) !OutputType {
-    const scaled: InputType = inputData / scale;
+    const input_f32 = if (InputType == f32) inputData else @as(f32, @floatFromInt(inputData));
+    const scaled: f32 = input_f32 / scale;
     // Use standard rounding (round half to even) - Zig's @round is ONNX-compliant
     const rounded = @round(scaled);
-    const quantized = rounded + @as(InputType, @floatFromInt(zp));
+    const quantized = rounded + @as(f32, @floatFromInt(zp));
 
-    return saturate(InputType, OutputType, quantized);
+    return saturate(f32, OutputType, quantized);
 }
 
 // Helper function to saturate values according to output type
