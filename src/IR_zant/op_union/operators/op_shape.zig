@@ -96,7 +96,7 @@ pub const Shape = struct {
         _ = try writer.print(
             \\
             \\    tensMath.shape_onnx_lean(
-            \\        T,
+            \\        {s},
             \\        i64, //output type constraint
             \\        {s}, //input data tensor
             \\        {s}, //start
@@ -104,6 +104,7 @@ pub const Shape = struct {
             \\        &tensor_{s}, //output shape tensor
             \\    ) catch return -1;
         , .{
+            self.data.ty.toString(),
             tensor_data_string,
             if (self.start) |s| try std.fmt.allocPrint(allocator, "{}", .{s}) else "null",
             if (self.end) |e| try std.fmt.allocPrint(allocator, "{}", .{e}) else "null",

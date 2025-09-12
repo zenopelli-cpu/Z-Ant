@@ -29,9 +29,11 @@ pub const Op_union = union(enum) {
     div: operators.Div,
     dynamicQuantizeLinear: operators.DynamicQuantizeLinear,
     elu: operators.Elu,
+    exp: operators.Exp,
     flatten: operators.Flatten,
     floor: operators.Floor,
     gather: operators.Gather,
+    gatherND: operators.GatherND,
     gemm: operators.Gemm,
     gelu: operators.Gelu,
     globalAveragePool: operators.GlobalAveragePool,
@@ -39,8 +41,10 @@ pub const Op_union = union(enum) {
     leakyRelu: operators.LeakyRelu,
     matMul: operators.MatMul,
     maxPool: operators.MaxPool,
+    min: operators.Min,
     mul: operators.Mul,
     neg: operators.Neg,
+    nonMaxSuppression: operators.NonMaxSuppression,
     oneHot: operators.OneHot,
     pad: operators.Pad,
     qgemm: operators.QGemm,
@@ -62,8 +66,10 @@ pub const Op_union = union(enum) {
     slice: operators.Slice,
     softmax: operators.Softmax,
     split: operators.Split,
+    squeeze: operators.Squeeze,
     sqrt: operators.Sqrt,
     sub: operators.Sub,
+    topK: operators.TopK,
     tanh: operators.Tanh,
     transpose: operators.Transpose,
     unsqueeze: operators.Unsqueeze,
@@ -100,12 +106,16 @@ pub const Op_union = union(enum) {
             return Op_union{ .dynamicQuantizeLinear = try operators.DynamicQuantizeLinear.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Elu")) {
             return Op_union{ .elu = try operators.Elu.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Exp")) {
+            return Op_union{ .exp = try operators.Exp.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Flatten")) {
             return Op_union{ .flatten = try operators.Flatten.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Floor")) {
             return Op_union{ .floor = try operators.Floor.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Gather")) {
             return Op_union{ .gather = try operators.Gather.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "GatherND")) {
+            return Op_union{ .gatherND = try operators.GatherND.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Gelu")) {
             return Op_union{ .gelu = try operators.Gelu.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Gemm")) {
@@ -120,10 +130,14 @@ pub const Op_union = union(enum) {
             return Op_union{ .matMul = try operators.MatMul.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "MaxPool")) {
             return Op_union{ .maxPool = try operators.MaxPool.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Min")) {
+            return Op_union{ .min = try operators.Min.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Mul")) {
             return Op_union{ .mul = try operators.Mul.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Neg")) {
             return Op_union{ .neg = try operators.Neg.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "NonMaxSuppression")) {
+            return Op_union{ .nonMaxSuppression = try operators.NonMaxSuppression.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "OneHot")) {
             return Op_union{ .oneHot = try operators.OneHot.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Pad")) {
@@ -166,10 +180,14 @@ pub const Op_union = union(enum) {
             return Op_union{ .softmax = try operators.Softmax.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Split")) {
             return Op_union{ .split = try operators.Split.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Squeeze")) {
+            return Op_union{ .squeeze = try operators.Squeeze.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Sqrt")) {
             return Op_union{ .sqrt = try operators.Sqrt.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Sub")) {
             return Op_union{ .sub = try operators.Sub.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "TopK")) {
+            return Op_union{ .topK = try operators.TopK.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Tanh")) {
             return Op_union{ .tanh = try operators.Tanh.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Transpose")) {
@@ -200,9 +218,11 @@ pub const Op_union = union(enum) {
             .div => |ptr| return ptr.get_output_shape(),
             .dynamicQuantizeLinear => |ptr| return ptr.get_output_shape(),
             .elu => |ptr| return ptr.get_output_shape(),
+            .exp => |ptr| return ptr.get_output_shape(),
             .flatten => |ptr| return ptr.get_output_shape(),
             .floor => |ptr| return ptr.get_output_shape(),
             .gather => |ptr| return ptr.get_output_shape(),
+            .gatherND => |ptr| return ptr.get_output_shape(),
             .gemm => |ptr| return ptr.get_output_shape(),
             .gelu => |ptr| return ptr.get_output_shape(),
             .globalAveragePool => |ptr| return ptr.get_output_shape(),
@@ -210,10 +230,12 @@ pub const Op_union = union(enum) {
             .leakyRelu => |ptr| return ptr.get_output_shape(),
             .matMul => |ptr| return ptr.get_output_shape(),
             .maxPool => |ptr| return ptr.get_output_shape(),
+            .min => |ptr| return ptr.get_output_shape(),
             .mul => |ptr| return ptr.get_output_shape(),
             .neg => |ptr| return ptr.get_output_shape(),
+            .nonMaxSuppression => |ptr| return ptr.get_output_shape(),
             .oneHot => |ptr| return ptr.get_output_shape(),
-            .pad => |ptr| return ptr.get_output_shape(),
+            .pad => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
             .qgemm => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
             .qlinearadd => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
             .qlinearaveragepool => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
@@ -233,8 +255,10 @@ pub const Op_union = union(enum) {
             .slice => |ptr| return ptr.get_output_shape(),
             .softmax => |ptr| return ptr.get_output_shape(),
             .split => |ptr| return ptr.get_output_shape(),
+            .squeeze => |ptr| return ptr.get_output_shape(),
             .sqrt => |ptr| return ptr.get_output_shape(),
             .sub => |ptr| return ptr.get_output_shape(),
+            .topK => |ptr| return ptr.get_output_shape(),
             .tanh => |ptr| return ptr.get_output_shape(),
             .transpose => |ptr| return ptr.get_output_shape(),
             .unsqueeze => |ptr| return ptr.get_output_shape(),
@@ -263,9 +287,11 @@ pub const Op_union = union(enum) {
             .div => |ptr| try ptr.get_output_tensors(),
             .dynamicQuantizeLinear => |ptr| try ptr.get_output_tensors(),
             .elu => |ptr| try ptr.get_output_tensors(),
+            .exp => |ptr| try ptr.get_output_tensors(),
             .flatten => |ptr| try ptr.get_output_tensors(),
             .floor => |ptr| try ptr.get_output_tensors(),
             .gather => |ptr| try ptr.get_output_tensors(),
+            .gatherND => |ptr| try ptr.get_output_tensors(),
             .gemm => |ptr| try ptr.get_output_tensors(),
             .gelu => |ptr| try ptr.get_output_tensors(),
             .globalAveragePool => |ptr| try ptr.get_output_tensors(),
@@ -273,8 +299,10 @@ pub const Op_union = union(enum) {
             .leakyRelu => |ptr| try ptr.get_output_tensors(),
             .matMul => |ptr| try ptr.get_output_tensors(),
             .maxPool => |ptr| try ptr.get_output_tensors(),
+            .min => |ptr| try ptr.get_output_tensors(),
             .mul => |ptr| try ptr.get_output_tensors(),
             .neg => |ptr| try ptr.get_output_tensors(),
+            .nonMaxSuppression => |ptr| try ptr.get_output_tensors(),
             .oneHot => |ptr| try ptr.get_output_tensors(),
             .pad => |ptr| try ptr.get_output_tensors(),
             .qgemm => |ptr| try ptr.get_output_tensors(),
@@ -296,8 +324,10 @@ pub const Op_union = union(enum) {
             .slice => |ptr| try ptr.get_output_tensors(),
             .softmax => |ptr| try ptr.get_output_tensors(),
             .split => |ptr| try ptr.get_output_tensors(),
+            .squeeze => |ptr| try ptr.get_output_tensors(),
             .sqrt => |ptr| try ptr.get_output_tensors(),
             .sub => |ptr| try ptr.get_output_tensors(),
+            .topK => |ptr| try ptr.get_output_tensors(),
             .tanh => |ptr| try ptr.get_output_tensors(),
             .transpose => |ptr| try ptr.get_output_tensors(),
             .unsqueeze => |ptr| try ptr.get_output_tensors(),
@@ -323,9 +353,11 @@ pub const Op_union = union(enum) {
             .div => |ptr| try ptr.get_input_tensors(),
             .dynamicQuantizeLinear => |ptr| try ptr.get_input_tensors(),
             .elu => |ptr| try ptr.get_input_tensors(),
+            .exp => |ptr| try ptr.get_input_tensors(),
             .flatten => |ptr| try ptr.get_input_tensors(),
             .floor => |ptr| try ptr.get_input_tensors(),
             .gather => |ptr| try ptr.get_input_tensors(),
+            .gatherND => |ptr| try ptr.get_input_tensors(),
             .gemm => |ptr| try ptr.get_input_tensors(),
             .gelu => |ptr| try ptr.get_input_tensors(),
             .globalAveragePool => |ptr| try ptr.get_input_tensors(),
@@ -333,8 +365,10 @@ pub const Op_union = union(enum) {
             .leakyRelu => |ptr| try ptr.get_input_tensors(),
             .matMul => |ptr| try ptr.get_input_tensors(),
             .maxPool => |ptr| try ptr.get_input_tensors(),
+            .min => |ptr| try ptr.get_input_tensors(),
             .mul => |ptr| try ptr.get_input_tensors(),
             .neg => |ptr| try ptr.get_input_tensors(),
+            .nonMaxSuppression => |ptr| try ptr.get_input_tensors(),
             .oneHot => |ptr| try ptr.get_input_tensors(),
             .pad => |ptr| try ptr.get_input_tensors(),
             .qgemm => |ptr| try ptr.get_input_tensors(),
@@ -356,8 +390,10 @@ pub const Op_union = union(enum) {
             .slice => |ptr| try ptr.get_input_tensors(),
             .softmax => |ptr| try ptr.get_input_tensors(),
             .split => |ptr| try ptr.get_input_tensors(),
+            .squeeze => |ptr| try ptr.get_input_tensors(),
             .sqrt => |ptr| try ptr.get_input_tensors(),
             .sub => |ptr| try ptr.get_input_tensors(),
+            .topK => |ptr| try ptr.get_input_tensors(),
             .tanh => |ptr| try ptr.get_input_tensors(),
             .transpose => |ptr| try ptr.get_input_tensors(),
             .unsqueeze => |ptr| try ptr.get_input_tensors(),
@@ -399,9 +435,11 @@ pub const Op_union = union(enum) {
             .div => |ptr| try ptr.write_op(writer),
             .dynamicQuantizeLinear => |ptr| try ptr.write_op(writer),
             .elu => |ptr| try ptr.write_op(writer),
+            .exp => |ptr| try ptr.write_op(writer),
             .flatten => |ptr| try ptr.write_op(writer),
             .floor => |ptr| try ptr.write_op(writer),
             .gather => |ptr| try ptr.write_op(writer),
+            .gatherND => |ptr| try ptr.write_op(writer),
             .gemm => |ptr| try ptr.write_op(writer),
             .gelu => |ptr| try ptr.write_op(writer),
             .globalAveragePool => |ptr| try ptr.write_op(writer),
@@ -409,8 +447,10 @@ pub const Op_union = union(enum) {
             .leakyRelu => |ptr| try ptr.write_op(writer),
             .matMul => |ptr| try ptr.write_op(writer),
             .maxPool => |ptr| try ptr.write_op(writer),
+            .min => |ptr| try ptr.write_op(writer),
             .mul => |ptr| try ptr.write_op(writer),
             .neg => |ptr| try ptr.write_op(writer),
+            .nonMaxSuppression => |ptr| try ptr.write_op(writer),
             .oneHot => |ptr| try ptr.write_op(writer),
             .pad => |ptr| try ptr.write_op(writer),
             .qgemm => |ptr| try ptr.write_op(writer),
@@ -432,8 +472,10 @@ pub const Op_union = union(enum) {
             .slice => |ptr| try ptr.write_op(writer),
             .softmax => |ptr| try ptr.write_op(writer),
             .split => |ptr| try ptr.write_op(writer), //not working! error: .FAULT => unreachable,
+            .squeeze => |ptr| try ptr.write_op(writer),
             .sqrt => |ptr| try ptr.write_op(writer),
             .sub => |ptr| try ptr.write_op(writer),
+            .topK => |ptr| try ptr.write_op(writer),
             .tanh => |ptr| try ptr.write_op(writer),
             .transpose => |ptr| try ptr.write_op(writer),
             .unsqueeze => |ptr| try ptr.write_op(writer),
@@ -458,9 +500,11 @@ pub const Op_union = union(enum) {
             .div => |ptr| ptr.print(),
             .dynamicQuantizeLinear => |ptr| ptr.print(),
             .elu => |ptr| ptr.print(),
+            .exp => |ptr| ptr.print(),
             .flatten => |ptr| ptr.print(),
             .floor => |ptr| ptr.print(),
             .gather => |ptr| ptr.print(),
+            .gatherND => |ptr| ptr.print(),
             .gemm => |ptr| ptr.print(),
             .gelu => |ptr| ptr.print(),
             .globalAveragePool => |ptr| ptr.print(),
@@ -468,8 +512,10 @@ pub const Op_union = union(enum) {
             .leakyRelu => |ptr| ptr.print(),
             .matMul => |ptr| ptr.print(),
             .maxPool => |ptr| ptr.print(),
+            .min => |ptr| ptr.print(),
             .mul => |ptr| ptr.print(),
             .neg => |ptr| ptr.print(),
+            .nonMaxSuppression => |ptr| ptr.print(),
             .oneHot => |ptr| ptr.print(),
             .pad => |ptr| ptr.print(),
             .qgemm => |ptr| ptr.print(),
@@ -491,8 +537,10 @@ pub const Op_union = union(enum) {
             .slice => |ptr| ptr.print(),
             .softmax => |ptr| ptr.print(),
             .split => |ptr| ptr.print(),
+            .squeeze => |ptr| ptr.print(),
             .sqrt => |ptr| ptr.print(),
             .sub => |ptr| ptr.print(),
+            .topK => |ptr| ptr.print(),
             .tanh => |ptr| ptr.print(),
             .transpose => |ptr| ptr.print(),
             .unsqueeze => |ptr| ptr.print(),

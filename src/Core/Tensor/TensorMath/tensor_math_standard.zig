@@ -46,6 +46,13 @@ pub const gather = op_gather.gather;
 pub const gather_lean = op_gather.lean_gather;
 pub const get_gather_output_shape = op_gather.get_gather_output_shape;
 
+//---gathernd
+const op_gathernd = @import("op_gathernd.zig");
+
+pub const gathernd = op_gathernd.gathernd;
+pub const gathernd_lean = op_gathernd.gathernd_lean;
+pub const get_gathernd_output_shape = op_gathernd.get_gathernd_output_shape;
+
 //---pads
 const op_pads = @import("lib_shape_math/op_pads.zig");
 
@@ -427,6 +434,38 @@ pub const oneHot_lean = op_oneHot.onehot_lean;
 pub const get_oneHot_output_shape = op_oneHot.get_onehot_output_shape;
 
 // ---------- importing standard logical methods ----------
+
+//---exp
+const op_exp = @import("op_exp.zig");
+
+pub const exp = op_exp.exp;
+pub const exp_lean = op_exp.exp_lean;
+pub const get_exp_output_shape = op_exp.get_exp_output_shape;
+
+//---nonmaxsuppression
+const op_nonmaxsuppression = @import("op_nonmaxsuppression.zig");
+
+pub const nonmaxsuppression = op_nonmaxsuppression.nonmaxsuppression;
+pub const nonmaxsuppression_lean = op_nonmaxsuppression.nonmaxsuppression_lean;
+pub const get_nonmaxsuppression_output_shape = op_nonmaxsuppression.get_nonmaxsuppression_output_shape;
+
+//---topk
+const op_topk = @import("op_topk.zig");
+
+pub const topk = op_topk.topk;
+pub const topk_lean = op_topk.topk_lean;
+pub const get_topk_output_shape = op_topk.get_topk_output_shape;
+
+//---min
+const op_min = @import("op_min.zig");
+
+pub const min = op_min.min;
+pub const min_lean = op_min.min_lean;
+pub const min_two = op_min.min_two;
+pub const min_two_lean = op_min.min_two_lean;
+pub const reduce_min = op_min.reduce_min;
+pub const reduce_min_lean = op_min.reduce_min_lean;
+pub const get_min_output_shape = op_min.get_min_output_shape;
 
 //---logical
 const logical_math_lib = @import("lib_logical_math.zig");

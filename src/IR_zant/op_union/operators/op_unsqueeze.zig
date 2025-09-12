@@ -45,7 +45,13 @@ pub const Unsqueeze = struct {
         };
     }
     pub fn get_output_shape(self: Unsqueeze) []usize {
-        return self.output_Y.getShape();
+        return self.compute_output_shape() catch {
+            // Fallback to a default shape in case of error
+            std.log.warn("[UNSQUEEZE DEBUG] Failed to compute output shape, using fallback", .{});
+            const fallback_shape = allocator.alloc(usize, 1) catch unreachable;
+            fallback_shape[0] = 1;
+            return fallback_shape;
+        };
     }
 
     pub fn get_input_tensors(self: Unsqueeze) ![]*TensorZant {
@@ -63,7 +69,7 @@ pub const Unsqueeze = struct {
         return outputs.toOwnedSlice();
     }
 
-    pub fn compute_output_shape(self: Unsqueeze) []usize {
+    pub fn compute_output_shape(self: Unsqueeze) ![]usize {
         var output_shape: []usize = undefined;
         output_shape = try tensorMath.get_unsqueeze_output_shape(
             self.input_X.shape,

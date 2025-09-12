@@ -158,7 +158,8 @@ pub fn lean_slice_onnx(comptime T: type, comptime T1: type, input: *Tensor(T), s
 
     // Now perform the actual slicing using numpy-like semantics
     // We iterate through the output tensor and calculate the corresponding input coordinates
-    const ndim = input.shape.len;
+    const output_ndim = output.shape.len;
+    const input_ndim = input.shape.len;
 
     std.log.debug("\n[DEBUG] Starting slice copy operation:", .{});
     std.log.debug("\n  input.shape: {any}", .{input.shape});
@@ -168,23 +169,23 @@ pub fn lean_slice_onnx(comptime T: type, comptime T1: type, input: *Tensor(T), s
     std.log.debug("\n  effective_ends: {any}", .{effective_ends});
     std.log.debug("\n  effective_steps: {any}", .{effective_steps});
 
-    var output_coords = try pkg_allocator.alloc(usize, ndim);
+    var output_coords = try pkg_allocator.alloc(usize, output_ndim);
     defer pkg_allocator.free(output_coords);
-    var input_coords = try pkg_allocator.alloc(usize, ndim);
+    var input_coords = try pkg_allocator.alloc(usize, input_ndim);
     defer pkg_allocator.free(input_coords);
 
     // Iterate through each element in the output tensor
     for (0..output.size) |output_idx| {
         // Convert flat output index to multi-dimensional coordinates
         var temp_idx = output_idx;
-        for (0..ndim) |i| {
-            const dim_idx = ndim - 1 - i;
+        for (0..output_ndim) |i| {
+            const dim_idx = output_ndim - 1 - i;
             output_coords[dim_idx] = temp_idx % output.shape[dim_idx];
             temp_idx /= output.shape[dim_idx];
         }
 
         // Map output coordinates to input coordinates using the slice parameters
-        for (0..ndim) |dim| {
+        for (0..output_ndim) |dim| {
             const output_coord = @as(i64, @intCast(output_coords[dim]));
             const input_coord = effective_starts[dim] + output_coord * effective_steps[dim];
 
@@ -333,9 +334,10 @@ pub fn get_slice_output_shape(input_shape: []const usize, starts: []const i64, e
         }
 
         output_shape[i] = dim_size;
+        std.log.warn("\n[SLICE DEBUG] Dim {d}: start={d}, end={d}, step={d} -> size={d}", .{ i, start, end, step, dim_size });
     }
 
-    std.log.debug("\n[DEBUG] Final output_shape: {any}\n", .{output_shape});
+    std.log.warn("\n[SLICE DEBUG] Final computed output_shape: {any}\n", .{output_shape});
     return output_shape;
 }
 

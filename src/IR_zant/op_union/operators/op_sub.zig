@@ -92,6 +92,12 @@ pub const Sub = struct {
                 try utils.getSanitizedName(self.input_A.name),
                 ")",
             });
+        } else if (self.input_A.tc == TensorCategory.INPUT) {
+            tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&tensor_",
+                try utils.getSanitizedName(self.input_A.name),
+                ")",
+            });
         } else {
             tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "&tensor_",
@@ -107,6 +113,12 @@ pub const Sub = struct {
                 "@constCast(&",
                 if (self.input_B.tc == TensorCategory.CONSTANT) "" else "param_lib.",
                 "tensor_",
+                try utils.getSanitizedName(self.input_B.name),
+                ")",
+            });
+        } else if (self.input_B.tc == TensorCategory.INPUT) {
+            tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&tensor_",
                 try utils.getSanitizedName(self.input_B.name),
                 ")",
             });
