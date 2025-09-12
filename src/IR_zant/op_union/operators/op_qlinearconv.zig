@@ -231,13 +231,13 @@ pub const QLinearConv = struct {
         // Determine the bias type
         const bias_type = if (self.input_B) |bias_tensor| bias_tensor.ty.toString() else "f32";
 
-        // Generate the function call - use SIMD-optimized version for maximum performance
+        // Generate the function call - use SIMD optimized version for maximum performance
         try writer.print(
             \\    tensMath.qlinearconv_simd_lean(
             \\        {s}, // InputType
             \\        {s}, // WeightType
             \\        {s}, // ScaleType
-            \\        {s}, // ZeroPointType
+            \\        {s}, // OutputType
             \\        {s}, // BiasType
             \\        {s}, // input x
             \\        @constCast(&param_lib.tensor_{s}), // x_scale
@@ -259,7 +259,7 @@ pub const QLinearConv = struct {
             target_type, // InputType
             self.input_w.ty.toString(), // WeightType (use actual weight type)
             "f32", // ScaleType (scales are always f32)
-            self.input_x_zero_point.ty.toString(), // ZeroPointType (use actual zero_point type)
+            self.output_y.ty.toString(), // OutputType (use actual output type)
             bias_type, // BiasType (use actual bias type or f32 default)
             tensor_x_string, // input x
             x_scale_name, // x_scale
@@ -283,7 +283,6 @@ pub const QLinearConv = struct {
         var output_shape: []usize = undefined;
         const input_shape = self.input_x.getShape();
         const kernel_shape = self.input_w.getShape();
-
 
         // Check if input shape is placeholder (common for intermediate tensors)
         if (input_shape.len == 1 and input_shape[0] == 1) {

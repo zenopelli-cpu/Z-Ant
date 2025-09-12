@@ -119,12 +119,12 @@ test "Static Library - Random data Prediction Test" {
         &result,
     );
 
-    if (model.is_dynamic) {
+    if (model.is_dynamic and return_code == 0) {
         defer allocator.free(result[0..model.output_data_len]);
     }
 
-    std.debug.print("\nPrediction done without errors:\n", .{});
-    try std.testing.expectEqual(return_code, 0);
+    std.debug.print("\nPrediction Result:\n", .{});
+    try std.testing.expectEqual(0, return_code);
 }
 
 test "Static Library - Wrong Input Shape" {

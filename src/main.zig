@@ -44,58 +44,65 @@ pub fn main() !void {
     main_log.info("Model expects input shape: {any}\n", .{input_shape});
     main_log.info("Prepared input data length: {}\n", .{input_data.len});
 
-    var output_ptr: [*]model_opts.output_data_type = undefined;
-
-    main_log.info("Calling predict (via model_opts.lib)...\\n", .{});
-
-    const res = model_opts.lib.predict(
-        input_data.ptr,
-        @constCast(@ptrCast(&input_shape)),
-        @intCast(input_shape.len),
-        &output_ptr,
-    );
-
-    main_log.info("Predict returned: {}\n", .{res});
-    if (res != 0) {
-        main_log.info("\n !!!! ERROR!!! Predict failed with code: {}\n", .{res});
-        main_log.info("Error codes: 0=success, -1=math ops failed, -2=init failed, -3=output failed\n", .{});
-        allocator.free(input_data);
-        return;
-    }
-    main_log.info("Predict call finished.\n", .{});
-
     const output_size = getPredictOutputSize();
     main_log.info("Expected output size: {}\n", .{output_size});
-    main_log.info("Output pointer address: 0x{x}\n", .{@intFromPtr(output_ptr)});
 
-    // Check if output_ptr is null before creating slice
-    // Use @intFromPtr to check if the pointer address is 0 (NULL)
-    if (@intFromPtr(output_ptr) == 0) {
-        main_log.info("Error: predict returned a null pointer.\n", .{});
-        allocator.free(input_data);
-        return;
+    // Esegui 3 passate di predict
+    var pass: u8 = 1;
+    while (pass <= 3) : (pass += 1) {
+        main_log.info("\n=== PASSATA {} ===\n", .{pass});
+
+        var output_ptr: [*]model_opts.output_data_type = undefined;
+
+        main_log.info("Calling predict (via model_opts.lib)...\\n", .{});
+
+        const res = model_opts.lib.predict(
+            input_data.ptr,
+            @constCast(@ptrCast(&input_shape)),
+            @intCast(input_shape.len),
+            &output_ptr,
+        );
+
+        main_log.info("Predict returned: {}\n", .{res});
+        if (res != 0) {
+            main_log.info("\n !!!! ERROR!!! Predict failed with code: {}\n", .{res});
+            main_log.info("Error codes: 0=success, -1=math ops failed, -2=init failed, -3=output failed\n", .{});
+            allocator.free(input_data);
+            return;
+        }
+        main_log.info("Predict call finished.\n", .{});
+
+        main_log.info("Output pointer address: 0x{x}\n", .{@intFromPtr(output_ptr)});
+
+        // Check if output_ptr is null before creating slice
+        if (@intFromPtr(output_ptr) == 0) {
+            main_log.info("Error: predict returned a null pointer.\n", .{});
+            allocator.free(input_data);
+            return;
+        }
+
+        // Test access to first element before creating full slice
+        main_log.info("Testing first element access...\n", .{});
+        const first_val = output_ptr[0];
+        main_log.info("First element: {d}\n", .{first_val});
+
+        const output_slice = @as([*]model_opts.output_data_type, @ptrCast(output_ptr))[0..output_size];
+
+        //print the output
+        main_log.info("Output (first {} elements):\n", .{@min(output_size, 10)});
+        var i: usize = 0;
+        while (i < output_slice.len and i < 10) : (i += 1) {
+            main_log.info("{d}, ", .{output_slice[i]});
+        }
+        if (output_slice.len > 10) {
+            main_log.info("...\n", .{});
+        } else {
+            main_log.info("\n", .{});
+        }
+
+        main_log.warn("WARNING: Memory for the predict output was NOT freed!\n", .{});
+        main_log.info("Passata {} completata.\n", .{pass});
     }
-
-    // Test access to first element before creating full slice
-    main_log.info("Testing first element access...\n", .{});
-    const first_val = output_ptr[0];
-    main_log.info("First element: {d}\n", .{first_val});
-
-    const output_slice = @as([*]model_opts.output_data_type, @ptrCast(output_ptr))[0..output_size];
-
-    //print the output
-    main_log.info("Output (first {} elements):\n", .{@min(output_size, 10)});
-    var i: usize = 0;
-    while (i < output_slice.len and i < 10) : (i += 1) {
-        main_log.info("{d}, ", .{output_slice[i]});
-    }
-    if (output_slice.len > 10) {
-        main_log.info("...\n", .{});
-    } else {
-        main_log.info("\n", .{});
-    }
-
-    main_log.warn("WARNING: Memory for the predict output was NOT freed!\n", .{});
 
     main_log.info("Attempting to free input memory...\\n", .{});
     allocator.free(input_data);

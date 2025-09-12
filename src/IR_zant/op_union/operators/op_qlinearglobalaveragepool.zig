@@ -150,30 +150,24 @@ pub const QLinearGlobalAveragePool = struct {
     }
 
     pub fn compute_output_shape(self: QLinearGlobalAveragePool) ![]usize {
-        // QLinearGlobalAveragePool: Input [N, C, H, W] -> Output [N, C]
-        // Global average pooling reduces spatial dimensions (H, W) to scalars
-
+        // Input [N, C, H, W] (or more dims) -> Output [N, C, 1, 1, ...] with same rank
         const input_shape = self.input_X.getShape();
-        std.debug.print("QLinearGlobalAveragePool: Computing output shape - input={any}\n", .{input_shape});
+        if (input_shape.len < 2) return error.InvalidDimensions;
 
-        if (input_shape.len < 2) {
-            std.debug.print("QLinearGlobalAveragePool: Input shape too small, keeping placeholder\n", .{});
-            return self.output_Y.getShape();
+        const output_shape = try allocator.alloc(usize, if (input_shape.len < 4) 4 else input_shape.len);
+        // Force at least 4D with last 2 dims = 1
+        const n = input_shape[0];
+        const c = input_shape[1];
+        output_shape[0] = n;
+        output_shape[1] = c;
+        if (output_shape.len >= 3) output_shape[2] = 1;
+        if (output_shape.len >= 4) output_shape[3] = 1;
+        // If rank > 4, set remaining spatial dims to 1
+        if (output_shape.len > 4) {
+            for (4..output_shape.len) |i| output_shape[i] = 1;
         }
 
-        // Output shape: [batch_size, channels]
-        const batch_size = input_shape[0];
-        const channels = input_shape[1];
-
-        const output_shape = try allocator.alloc(usize, 2);
-        output_shape[0] = batch_size; // batch dimension
-        output_shape[1] = channels; // channel dimension (spatial dims removed)
-
-        std.debug.print("QLinearGlobalAveragePool: Calculated output shape = [{}, {}]\n", .{ batch_size, channels });
-
-        // Update the tensor's shape
         self.output_Y.shape = output_shape;
-
         return output_shape;
     }
 };

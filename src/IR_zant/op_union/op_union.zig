@@ -45,6 +45,8 @@ pub const Op_union = union(enum) {
     pad: operators.Pad,
     qgemm: operators.QGemm,
     qlinearadd: operators.QLinearAdd,
+    qlinearaveragepool: operators.QLinearAveragePool,
+    qlinearconcat: operators.QLinearConcat,
     qlinearconv: operators.QLinearConv,
     qlinearglobalaveragepool: operators.QLinearGlobalAveragePool,
     qlinearmatmul: operators.QLinearMatMul,
@@ -130,6 +132,10 @@ pub const Op_union = union(enum) {
             return Op_union{ .qgemm = try operators.QGemm.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "QLinearAdd")) {
             return Op_union{ .qlinearadd = try operators.QLinearAdd.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "QLinearAveragePool")) {
+            return Op_union{ .qlinearaveragepool = try operators.QLinearAveragePool.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "QLinearConcat")) {
+            return Op_union{ .qlinearconcat = try operators.QLinearConcat.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "QLinearConv")) {
             return Op_union{ .qlinearconv = try operators.QLinearConv.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "QLinearGlobalAveragePool")) {
@@ -210,6 +216,8 @@ pub const Op_union = union(enum) {
             .pad => |ptr| return ptr.get_output_shape(),
             .qgemm => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
             .qlinearadd => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
+            .qlinearaveragepool => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
+            .qlinearconcat => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
             .qlinearconv => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
             .qlinearglobalaveragepool => |ptr| return ptr.compute_output_shape() catch ptr.get_output_shape(),
             .qlinearmatmul => |ptr| return ptr.get_output_shape(),
@@ -271,6 +279,8 @@ pub const Op_union = union(enum) {
             .pad => |ptr| try ptr.get_output_tensors(),
             .qgemm => |ptr| try ptr.get_output_tensors(),
             .qlinearadd => |ptr| try ptr.get_output_tensors(),
+            .qlinearaveragepool => |ptr| try ptr.get_output_tensors(),
+            .qlinearconcat => |ptr| try ptr.get_output_tensors(),
             .qlinearconv => |ptr| try ptr.get_output_tensors(),
             .qlinearglobalaveragepool => |ptr| try ptr.get_output_tensors(),
             .qlinearmatmul => |ptr| try ptr.get_output_tensors(),
@@ -329,6 +339,8 @@ pub const Op_union = union(enum) {
             .pad => |ptr| try ptr.get_input_tensors(),
             .qgemm => |ptr| try ptr.get_input_tensors(),
             .qlinearadd => |ptr| try ptr.get_input_tensors(),
+            .qlinearaveragepool => |ptr| try ptr.get_input_tensors(),
+            .qlinearconcat => |ptr| try ptr.get_input_tensors(),
             .qlinearconv => |ptr| try ptr.get_input_tensors(),
             .qlinearglobalaveragepool => |ptr| try ptr.get_input_tensors(),
             .qlinearmatmul => |ptr| try ptr.get_input_tensors(),
@@ -403,6 +415,8 @@ pub const Op_union = union(enum) {
             .pad => |ptr| try ptr.write_op(writer),
             .qgemm => |ptr| try ptr.write_op(writer),
             .qlinearadd => |ptr| try ptr.write_op(writer),
+            .qlinearaveragepool => |ptr| try ptr.write_op(writer),
+            .qlinearconcat => |ptr| try ptr.write_op(writer),
             .qlinearconv => |ptr| try ptr.write_op(writer),
             .qlinearglobalaveragepool => |ptr| try ptr.write_op(writer),
             .qlinearmatmul => |ptr| try ptr.write_op(writer),
@@ -460,6 +474,8 @@ pub const Op_union = union(enum) {
             .pad => |ptr| ptr.print(),
             .qgemm => |ptr| ptr.print(),
             .qlinearadd => |ptr| ptr.print(),
+            .qlinearaveragepool => |ptr| ptr.print(),
+            .qlinearconcat => |ptr| ptr.print(),
             .qlinearconv => |ptr| try ptr.print(),
             .qlinearglobalaveragepool => |ptr| ptr.print(),
             .qlinearmatmul => |ptr| ptr.print(),

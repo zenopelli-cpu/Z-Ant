@@ -1674,7 +1674,6 @@ pub fn convInteger_lean(
         return error.InvalidDataType; // T2 must be an integer type
     }
 
-
     if (x.shape.len != 4 or w.shape.len != 4) {
         return TensorMathError.InvalidDimensions; // Expect 4D input and weight
     }
@@ -1690,7 +1689,6 @@ pub fn convInteger_lean(
     const kernel_height = w.shape[2]; // kH
     const kernel_width = w.shape[3]; // kW
 
-
     // --- Group Validations ---
     const actual_group = group orelse 1;
 
@@ -1705,7 +1703,6 @@ pub fn convInteger_lean(
     }
     const channels_per_group = in_channels / actual_group; // C/g
     const filters_per_group = num_filters / actual_group; // M/g
-
 
     // --- Zero Point Handling ---
     var x_zp: T1 = 0; // Default zero point is 0
@@ -1730,7 +1727,6 @@ pub fn convInteger_lean(
         }
     }
 
-
     // --- Stride and Dilation ---
     const stride_h: isize = if (stride.len > 0) @intCast(stride[0]) else 1;
     const stride_w: isize = if (stride.len > 1) @intCast(stride[1]) else stride_h;
@@ -1738,7 +1734,6 @@ pub fn convInteger_lean(
     const dilation_w = if (dilations) |d| if (d.len > 1) d[1] else d[0] else 1;
     const dilated_kernel_h = (kernel_height - 1) * dilation_h + 1;
     const dilated_kernel_w = (kernel_width - 1) * dilation_w + 1;
-
 
     // --- Padding Calculation ---
     var pad_h_begin: usize = 0;
@@ -1784,8 +1779,7 @@ pub fn convInteger_lean(
                     pad_w_begin = p[1];
                     pad_w_end = p[1];
                 } // else default zero padding
-            } else {
-            } // else default zero padding
+            } else {} // else default zero padding
             // Calculate output size with determined padding
             const height_calc = @as(isize, @intCast(in_height + pad_h_begin + pad_h_end)) - @as(isize, @intCast(dilated_kernel_h));
             const width_calc = @as(isize, @intCast(in_width + pad_w_begin + pad_w_end)) - @as(isize, @intCast(dilated_kernel_w));
@@ -1816,7 +1810,6 @@ pub fn convInteger_lean(
         expected_out_width = @as(usize, @intCast(@divFloor(width_calc2, @as(isize, @intCast(stride_w))) + 1));
     }
 
-
     // --- Validate Output Tensor Shape ---
 
     if (output.shape.len != 4 or
@@ -1827,7 +1820,6 @@ pub fn convInteger_lean(
     {
         return TensorMathError.OutputShapeMismatch;
     }
-
 
     // --- Pre-calculate Strides for Direct Pointer Access ---
     const in_h_stride = in_width;

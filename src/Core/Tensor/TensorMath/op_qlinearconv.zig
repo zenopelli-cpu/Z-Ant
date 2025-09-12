@@ -9,6 +9,51 @@ const TensorError = zant.utils.error_handler.TensorError;
 // Import existing conv operation to reuse shape calculation and structure
 const conv = @import("op_convolution.zig");
 
+// HELPER FUNCTIONS FOR CORRECT QUANTIZATION
+inline fn readScalarZP(comptime T: type, zp_any: anytype) i32 {
+    _ = T;
+
+    // Simple approach: check if it's a pointer first
+    const ZPType = @TypeOf(zp_any);
+    if (@typeInfo(ZPType) == .pointer) {
+        // Dereference and try to access .data[0]
+        return @as(i32, @intCast(zp_any.data[0]));
+    } else {
+        // It's already a scalar or struct, use directly
+        return @as(i32, @intCast(zp_any));
+    }
+}
+
+inline fn readPerChannelScale(comptime T: type, s: *const Tensor(T), m: usize, M: usize) f32 {
+    if (s.shape.len == 1 and s.shape[0] == M) return @as(f32, @floatCast(s.data[m]));
+    return @as(f32, @floatCast(s.data[0])); // broadcast
+}
+
+inline fn readPerChannelZP(comptime T: type, zp_any: anytype, m: usize, M: usize) i32 {
+    return switch (@TypeOf(zp_any)) {
+        *const Tensor(T) => {
+            if (zp_any.shape.len == 1 and zp_any.shape[0] == M) return @as(i32, @intCast(zp_any.data[m]));
+            return @as(i32, @intCast(zp_any.data[0]));
+        },
+        Tensor(T) => {
+            if (zp_any.shape.len == 1 and zp_any.shape[0] == M) return @as(i32, @intCast(zp_any.data[0]));
+            return @as(i32, @intCast(zp_any.data[0]));
+        },
+        T => @as(i32, @intCast(zp_any)),
+        else => @compileError("zp per-channel expected"),
+    };
+}
+
+const SHIFT: u5 = 16;
+inline fn q16(x: f32) i32 {
+    return @as(i32, @intFromFloat(x * @as(f32, @floatFromInt(@as(u32, 1) << SHIFT))));
+}
+
+inline fn rshift_round_s64(x: i64, comptime shift_bits: u5) i64 {
+    const bias: i64 = if (x >= 0) (1 << (shift_bits - 1)) else -(1 << (shift_bits - 1));
+    return (x + bias) >> shift_bits;
+}
+
 /// QLinearConv operation following ONNX specification
 /// Performs quantized convolution using linear quantization scheme
 ///
@@ -89,7 +134,7 @@ pub fn qlinearconv(
     return output;
 }
 
-/// Lean version of QLinearConv that writes to pre-allocated output tensor
+/// OTTIMIZZATO: Lean version of QLinearConv with pre-computation and cache optimizations
 pub fn qlinearconv_lean(
     comptime InputType: anytype,
     comptime WeightType: anytype,
@@ -116,6 +161,7 @@ pub fn qlinearconv_lean(
 
     // Check tensor shapes
     if (x.shape.len != 4 or w.shape.len != 4 or output.shape.len != 4) {
+        // std.log.err("QLinearConv: InvalidDimensions x.shape={any} w.shape={any} y.shape={any}", .{ x.shape, w.shape, output.shape });
         return TensorMathError.InvalidDimensions;
     }
 
@@ -137,13 +183,12 @@ pub fn qlinearconv_lean(
             };
         }
     }.call;
+
     // Handle scalar tensors (shape [1])
     if (x.shape.len == 1 and x.shape[0] == 1 and output.shape.len == 1 and output.shape[0] == 1) {
         output.data[0] = if (isInt(InputType)) @as(InputType, 0) else @as(InputType, 0.0);
         return;
     }
-
-    // Validazioni base
 
     // Estrai dimensioni
     const batch_size = x.shape[0]; // N
@@ -166,7 +211,7 @@ pub fn qlinearconv_lean(
     const dilation_h = if (dilations) |d| (if (d.len > 0) d[0] else 1) else 1;
     const dilation_w = if (dilations) |d| (if (d.len > 1) d[1] else dilation_h) else dilation_h;
 
-    // Gruppi
+    // Gruppi validation
     if (in_channels % actual_group != 0) {
         return TensorMathError.InvalidGroupParameter;
     }
@@ -185,16 +230,159 @@ pub fn qlinearconv_lean(
             pad_h_begin = p[0];
             pad_w_begin = p[1];
         }
-        // p[2], p[3] (pad end) non necessari per l'indicizzazione esplicita
     }
 
-    // Scale e zero-point input/output (come f32)
+    // ===== OTTIMIZZAZIONE 1: Pre-calcolo scale e bias =====
     const x_scale_val: f32 = asF32(ScaleType, x_scale.data[0]);
     const y_scale_val: f32 = asF32(ScaleType, y_scale.data[0]);
     const x_zp_f: f32 = if (x_zero_point.data.len > 0) asF32(@TypeOf(x_zero_point.data[0]), x_zero_point.data[0]) else 0.0;
     const y_zp_f: f32 = if (y_zero_point.data.len > 0) asF32(@TypeOf(y_zero_point.data[0]), y_zero_point.data[0]) else 0.0;
 
-    // Loop di convoluzione
+    // Pre-calcola scale e bias per tutti i canali output (evita calcoli ridondanti)
+    var channel_scales = std.ArrayList(f32).init(pkg_allocator);
+    defer channel_scales.deinit();
+    var channel_zps = std.ArrayList(f32).init(pkg_allocator);
+    defer channel_zps.deinit();
+    var channel_bias = std.ArrayList(f32).init(pkg_allocator);
+    defer channel_bias.deinit();
+
+    try channel_scales.ensureTotalCapacity(out_channels);
+    try channel_zps.ensureTotalCapacity(out_channels);
+    try channel_bias.ensureTotalCapacity(out_channels);
+
+    for (0..out_channels) |m| {
+        const w_scale_val: f32 = if (w_scale.data.len == out_channels)
+            asF32(ScaleType, w_scale.data[m])
+        else
+            asF32(ScaleType, w_scale.data[0]);
+
+        const w_zp_f: f32 = if (w_zero_point.data.len == out_channels)
+            asF32(@TypeOf(w_zero_point.data[0]), w_zero_point.data[m])
+        else if (w_zero_point.data.len > 0)
+            asF32(@TypeOf(w_zero_point.data[0]), w_zero_point.data[0])
+        else
+            0.0;
+
+        const bias_f: f32 = if (bias) |b| blk: {
+            const b_raw = if (b.data.len == 1) b.data[0] else b.data[m];
+            const b_val: f32 = if (isInt(BiasType))
+                asF32(BiasType, b_raw) * x_scale_val * w_scale_val
+            else
+                asF32(BiasType, b_raw);
+            break :blk b_val;
+        } else 0.0;
+
+        channel_scales.appendAssumeCapacity(w_scale_val);
+        channel_zps.appendAssumeCapacity(w_zp_f);
+        channel_bias.appendAssumeCapacity(bias_f);
+    }
+
+    // Pre-calcola i limiti di quantizzazione
+    const q_min: f32 = asF32(InputType, std.math.minInt(InputType));
+    const q_max: f32 = asF32(InputType, std.math.maxInt(InputType));
+
+    // ===== OTTIMIZZAZIONE 2: Specialized paths per kernel comuni =====
+    if (kernel_height == 3 and kernel_width == 3 and dilation_h == 1 and dilation_w == 1) {
+        // Ottimizzato per 3x3 (MobileNet style)
+        try conv3x3Optimized(x, w, output, batch_size, actual_group, in_channels, out_channels, weight_in_channels, in_height, in_width, out_height, out_width, stride_h, stride_w, pad_h_begin, pad_w_begin, x_scale_val, x_zp_f, channel_scales.items, channel_zps.items, channel_bias.items, y_scale_val, y_zp_f, q_min, q_max, InputType, WeightType);
+    } else if (kernel_height == 1 and kernel_width == 1) {
+        // Ottimizzato per 1x1 (pointwise)
+        try conv1x1Optimized(x, w, output, batch_size, actual_group, in_channels, out_channels, weight_in_channels, in_height, in_width, out_height, out_width, x_scale_val, x_zp_f, channel_scales.items, channel_zps.items, channel_bias.items, y_scale_val, y_zp_f, q_min, q_max, InputType, WeightType);
+    } else {
+        // ===== OTTIMIZZAZIONE 3: Loop originale con pre-calcoli =====
+        for (0..batch_size) |n| {
+            for (0..actual_group) |g| {
+                const in_c_start = g * (in_channels / actual_group);
+                const in_c_end = (g + 1) * (in_channels / actual_group);
+                const out_c_start = g * (out_channels / actual_group);
+                const out_c_end = (g + 1) * (out_channels / actual_group);
+
+                // Process output channels in blocks for better cache locality
+                const block_size = 4;
+                var m_block = out_c_start;
+                while (m_block < out_c_end) {
+                    const m_end = @min(m_block + block_size, out_c_end);
+
+                    for (m_block..m_end) |m| {
+                        const w_scale_val = channel_scales.items[m];
+                        const w_zp_f = channel_zps.items[m];
+                        const bias_f = channel_bias.items[m];
+
+                        for (0..out_height) |oh| {
+                            const in_h_start = @as(isize, @intCast(oh * stride_h)) - @as(isize, @intCast(pad_h_begin));
+
+                            for (0..out_width) |ow| {
+                                const in_w_start = @as(isize, @intCast(ow * stride_w)) - @as(isize, @intCast(pad_w_begin));
+                                var acc: f32 = bias_f;
+
+                                for (0..kernel_height) |kh| {
+                                    const in_h = in_h_start + @as(isize, @intCast(kh * dilation_h));
+                                    if (in_h < 0 or in_h >= @as(isize, @intCast(in_height))) continue;
+
+                                    for (0..kernel_width) |kw| {
+                                        const in_w = in_w_start + @as(isize, @intCast(kw * dilation_w));
+                                        if (in_w < 0 or in_w >= @as(isize, @intCast(in_width))) continue;
+
+                                        const ih = @as(usize, @intCast(in_h));
+                                        const iw = @as(usize, @intCast(in_w));
+
+                                        for (in_c_start..in_c_end) |c| {
+                                            const k_c = c - in_c_start;
+                                            const input_idx = ((n * in_channels + c) * in_height + ih) * in_width + iw;
+                                            const weight_idx = ((m * weight_in_channels + k_c) * kernel_height + kh) * kernel_width + kw;
+
+                                            const x_real: f32 = if (isInt(InputType)) blk: {
+                                                const qx = asF32(InputType, x.data[input_idx]);
+                                                break :blk x_scale_val * (qx - x_zp_f);
+                                            } else asF32(InputType, x.data[input_idx]);
+
+                                            const w_real: f32 = if (isInt(WeightType)) blk: {
+                                                const qw = asF32(WeightType, w.data[weight_idx]);
+                                                break :blk w_scale_val * (qw - w_zp_f);
+                                            } else asF32(WeightType, w.data[weight_idx]);
+
+                                            acc += x_real * w_real;
+                                        }
+                                    }
+                                }
+
+                                const output_idx = ((n * out_channels + m) * out_height + oh) * out_width + ow;
+                                const q_unrounded: f32 = acc / y_scale_val + y_zp_f;
+                                const q_clamped = std.math.clamp(@round(q_unrounded), q_min, q_max);
+                                output.data[output_idx] = @as(InputType, @intFromFloat(q_clamped));
+                            }
+                        }
+                    }
+                    m_block += block_size;
+                }
+            }
+        }
+    }
+}
+
+// ===== SPECIALIZZAZIONI OTTIMIZZATE =====
+
+/// Optimized 3x3 convolution with loop unrolling and cache blocking
+fn conv3x3Optimized(x: anytype, w: anytype, output: anytype, batch_size: usize, actual_group: usize, in_channels: usize, out_channels: usize, weight_in_channels: usize, in_height: usize, in_width: usize, out_height: usize, out_width: usize, stride_h: usize, stride_w: usize, pad_h_begin: usize, pad_w_begin: usize, x_scale_val: f32, x_zp_f: f32, channel_scales: []const f32, channel_zps: []const f32, channel_bias: []const f32, y_scale_val: f32, y_zp_f: f32, q_min: f32, q_max: f32, comptime InputType: type, comptime WeightType: type) !void {
+    const isInt = struct {
+        fn call(comptime T: type) bool {
+            return switch (@typeInfo(T)) {
+                .int, .comptime_int => true,
+                else => false,
+            };
+        }
+    }.call;
+
+    const asF32 = struct {
+        fn call(comptime T: type, v: T) f32 {
+            return switch (@typeInfo(T)) {
+                .float => @as(f32, @floatCast(v)),
+                .int, .comptime_int => @as(f32, @floatFromInt(v)),
+                else => @compileError("Unsupported type for float cast"),
+            };
+        }
+    }.call;
+
     for (0..batch_size) |n| {
         for (0..actual_group) |g| {
             const in_c_start = g * (in_channels / actual_group);
@@ -203,86 +391,145 @@ pub fn qlinearconv_lean(
             const out_c_end = (g + 1) * (out_channels / actual_group);
 
             for (out_c_start..out_c_end) |m| {
-                // Supporta per-canale su pesi/zero-point
-                const w_scale_val: f32 = blk: {
-                    if (w_scale.data.len == out_channels) break :blk asF32(ScaleType, w_scale.data[m]);
-                    break :blk asF32(ScaleType, w_scale.data[0]);
-                };
-                const w_zp_f: f32 = blk: {
-                    if (w_zero_point.data.len == out_channels) break :blk asF32(@TypeOf(w_zero_point.data[0]), w_zero_point.data[m]);
-                    if (w_zero_point.data.len > 0) break :blk asF32(@TypeOf(w_zero_point.data[0]), w_zero_point.data[0]);
-                    break :blk 0.0;
-                };
+                const w_scale_val = channel_scales[m];
+                const w_zp_f = channel_zps[m];
+                const bias_f = channel_bias[m];
 
                 for (0..out_height) |oh| {
-                    // indice di partenza H sull'input
                     const in_h_start = @as(isize, @intCast(oh * stride_h)) - @as(isize, @intCast(pad_h_begin));
 
                     for (0..out_width) |ow| {
-                        // indice di partenza W sull'input
                         const in_w_start = @as(isize, @intCast(ow * stride_w)) - @as(isize, @intCast(pad_w_begin));
+                        var acc: f32 = bias_f;
 
-                        var acc: f32 = 0.0;
+                        // Unroll 3x3 kernel manually per migliori performance
+                        for (in_c_start..in_c_end) |c| {
+                            const k_c = c - in_c_start;
 
-                        // Somma su kernel e canali
-                        for (0..kernel_height) |kh| {
-                            const in_h = in_h_start + @as(isize, @intCast(kh * dilation_h));
-                            if (in_h < 0 or in_h >= @as(isize, @intCast(in_height))) continue;
+                            // kh=0, kw=0
+                            const in_h_0 = in_h_start;
+                            const in_w_0 = in_w_start;
+                            if (in_h_0 >= 0 and in_h_0 < in_height and in_w_0 >= 0 and in_w_0 < in_width) {
+                                const ih_0 = @as(usize, @intCast(in_h_0));
+                                const iw_0 = @as(usize, @intCast(in_w_0));
+                                const input_idx = ((n * in_channels + c) * in_height + ih_0) * in_width + iw_0;
+                                const weight_idx = ((m * weight_in_channels + k_c) * 3 + 0) * 3 + 0;
 
-                            for (0..kernel_width) |kw| {
-                                const in_w = in_w_start + @as(isize, @intCast(kw * dilation_w));
-                                if (in_w < 0 or in_w >= @as(isize, @intCast(in_width))) continue;
+                                const x_real: f32 = if (isInt(InputType)) blk: {
+                                    const qx = asF32(InputType, x.data[input_idx]);
+                                    break :blk x_scale_val * (qx - x_zp_f);
+                                } else asF32(InputType, x.data[input_idx]);
 
-                                const ih = @as(usize, @intCast(in_h));
-                                const iw = @as(usize, @intCast(in_w));
+                                const w_real: f32 = if (isInt(WeightType)) blk: {
+                                    const qw = asF32(WeightType, w.data[weight_idx]);
+                                    break :blk w_scale_val * (qw - w_zp_f);
+                                } else asF32(WeightType, w.data[weight_idx]);
 
-                                for (in_c_start..in_c_end) |c| {
-                                    const k_c = c - in_c_start;
+                                acc += x_real * w_real;
+                            }
 
-                                    const input_idx = ((n * in_channels + c) * in_height + ih) * in_width + iw;
-                                    const weight_idx = ((m * weight_in_channels + k_c) * kernel_height + kh) * kernel_width + kw;
+                            // Continue unrolling for all 9 positions (kh=0,1,2 x kw=0,1,2)
+                            // Unroll rimanenti per brevità...
+                            inline for (0..3) |kh| {
+                                inline for (0..3) |kw| {
+                                    if (kh == 0 and kw == 0) continue; // già fatto sopra
 
-                                    // Dequantizzazione input
-                                    const x_real: f32 = if (isInt(InputType)) blk: {
-                                        const qx = asF32(InputType, x.data[input_idx]);
-                                        break :blk x_scale_val * (qx - x_zp_f);
-                                    } else blk: {
-                                        break :blk asF32(InputType, x.data[input_idx]);
-                                    };
+                                    const in_h = in_h_start + @as(isize, @intCast(kh));
+                                    const in_w = in_w_start + @as(isize, @intCast(kw));
 
-                                    // Dequantizzazione peso (per-canale)
-                                    const w_real: f32 = if (isInt(WeightType)) blk: {
-                                        const qw = asF32(WeightType, w.data[weight_idx]);
-                                        break :blk w_scale_val * (qw - w_zp_f);
-                                    } else blk: {
-                                        break :blk asF32(WeightType, w.data[weight_idx]);
-                                    };
+                                    if (in_h >= 0 and in_h < in_height and in_w >= 0 and in_w < in_width) {
+                                        const ih = @as(usize, @intCast(in_h));
+                                        const iw = @as(usize, @intCast(in_w));
+                                        const input_idx = ((n * in_channels + c) * in_height + ih) * in_width + iw;
+                                        const weight_idx = ((m * weight_in_channels + k_c) * 3 + kh) * 3 + kw;
 
-                                    acc += x_real * w_real;
+                                        const x_real: f32 = if (isInt(InputType)) blk: {
+                                            const qx = asF32(InputType, x.data[input_idx]);
+                                            break :blk x_scale_val * (qx - x_zp_f);
+                                        } else asF32(InputType, x.data[input_idx]);
+
+                                        const w_real: f32 = if (isInt(WeightType)) blk: {
+                                            const qw = asF32(WeightType, w.data[weight_idx]);
+                                            break :blk w_scale_val * (qw - w_zp_f);
+                                        } else asF32(WeightType, w.data[weight_idx]);
+
+                                        acc += x_real * w_real;
+                                    }
                                 }
                             }
                         }
 
-                        // Bias (in float) — se int32 va scalato da x_scale * w_scale[m]
-                        if (bias) |b| {
-                            const b_raw = if (b.data.len == 1) b.data[0] else b.data[m];
-                            const b_f: f32 = if (isInt(BiasType))
-                                asF32(BiasType, b_raw) * x_scale_val * w_scale_val
-                            else
-                                asF32(BiasType, b_raw);
-                            acc += b_f;
+                        const output_idx = ((n * out_channels + m) * out_height + oh) * out_width + ow;
+                        const q_unrounded: f32 = acc / y_scale_val + y_zp_f;
+                        const q_clamped = std.math.clamp(@round(q_unrounded), q_min, q_max);
+                        output.data[output_idx] = @as(InputType, @intFromFloat(q_clamped));
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Optimized 1x1 convolution (pointwise - essentially matrix multiplication)
+fn conv1x1Optimized(x: anytype, w: anytype, output: anytype, batch_size: usize, actual_group: usize, in_channels: usize, out_channels: usize, weight_in_channels: usize, in_height: usize, in_width: usize, out_height: usize, out_width: usize, x_scale_val: f32, x_zp_f: f32, channel_scales: []const f32, channel_zps: []const f32, channel_bias: []const f32, y_scale_val: f32, y_zp_f: f32, q_min: f32, q_max: f32, comptime InputType: type, comptime WeightType: type) !void {
+    const isInt = struct {
+        fn call(comptime T: type) bool {
+            return switch (@typeInfo(T)) {
+                .int, .comptime_int => true,
+                else => false,
+            };
+        }
+    }.call;
+
+    const asF32 = struct {
+        fn call(comptime T: type, v: T) f32 {
+            return switch (@typeInfo(T)) {
+                .float => @as(f32, @floatCast(v)),
+                .int, .comptime_int => @as(f32, @floatFromInt(v)),
+                else => @compileError("Unsupported type for float cast"),
+            };
+        }
+    }.call;
+
+    for (0..batch_size) |n| {
+        for (0..actual_group) |g| {
+            const in_c_start = g * (in_channels / actual_group);
+            const in_c_end = (g + 1) * (in_channels / actual_group);
+            const out_c_start = g * (out_channels / actual_group);
+            const out_c_end = (g + 1) * (out_channels / actual_group);
+
+            for (out_c_start..out_c_end) |m| {
+                const w_scale_val = channel_scales[m];
+                const w_zp_f = channel_zps[m];
+                const bias_f = channel_bias[m];
+
+                // 1x1 conv è matrix multiplication - ottimizzato di conseguenza
+                for (0..out_height) |oh| {
+                    for (0..out_width) |ow| {
+                        var acc: f32 = bias_f;
+
+                        // Nessun kernel spaziale, solo channel mixing
+                        for (in_c_start..in_c_end) |c| {
+                            const k_c = c - in_c_start;
+                            const input_idx = ((n * in_channels + c) * in_height + oh) * in_width + ow;
+                            const weight_idx = m * weight_in_channels + k_c;
+
+                            const x_real: f32 = if (isInt(InputType)) blk: {
+                                const qx = asF32(InputType, x.data[input_idx]);
+                                break :blk x_scale_val * (qx - x_zp_f);
+                            } else asF32(InputType, x.data[input_idx]);
+
+                            const w_real: f32 = if (isInt(WeightType)) blk: {
+                                const qw = asF32(WeightType, w.data[weight_idx]);
+                                break :blk w_scale_val * (qw - w_zp_f);
+                            } else asF32(WeightType, w.data[weight_idx]);
+
+                            acc += x_real * w_real;
                         }
 
                         const output_idx = ((n * out_channels + m) * out_height + oh) * out_width + ow;
-
-                        // Re-quantizzazione verso tipo intero dell'output (QLinearConv output è sempre quantizzato)
                         const q_unrounded: f32 = acc / y_scale_val + y_zp_f;
-                        const q_rounded: f32 = @round(q_unrounded);
-
-                        const q_min: f32 = asF32(InputType, std.math.minInt(InputType));
-                        const q_max: f32 = asF32(InputType, std.math.maxInt(InputType));
-                        const q_clamped = std.math.clamp(q_rounded, q_min, q_max);
-
+                        const q_clamped = std.math.clamp(@round(q_unrounded), q_min, q_max);
                         output.data[output_idx] = @as(InputType, @intFromFloat(q_clamped));
                     }
                 }
@@ -316,6 +563,8 @@ pub fn qlinearconv_embedded_lean(
     auto_pad: []const u8,
 ) !void {
     _ = auto_pad;
+
+    // Debug: basic shapes
 
     // Check tensor shapes
     if (x.shape.len != 4 or w.shape.len != 4 or output.shape.len != 4) {
@@ -374,21 +623,54 @@ pub fn qlinearconv_embedded_lean(
 
     const actual_group = group orelse 1;
 
+    // Debug: parameters
+
+    // Validate groups and channel divisibility
+    if (in_channels % actual_group != 0 or out_channels % actual_group != 0) {
+        return TensorMathError.InvalidDimensions;
+    }
+    if (weight_in_channels * actual_group != in_channels) {
+        return TensorMathError.InvalidDimensions;
+    }
+
     // Pre-compute common values once
     const x_scale_val: f32 = asF32(ScaleType, x_scale.data[0]);
     const x_zp_f: f32 = if (x_zero_point.data.len > 0) asF32(@TypeOf(x_zero_point.data[0]), x_zero_point.data[0]) else 0.0;
     const y_scale_val: f32 = asF32(ScaleType, y_scale.data[0]);
     const y_zp_f: f32 = if (y_zero_point.data.len > 0) asF32(@TypeOf(y_zero_point.data[0]), y_zero_point.data[0]) else 0.0;
 
-    // Fixed-point scale factors (Q15.16 format)
+    // DEBUG: Print scale factors for first call
+    const debug_first_call = (batch_size == 1 and in_channels == 3 and in_height == 96);
+    if (debug_first_call) {
+        // std.debug.print("[CONV_DEBUG] Scale factors:\n", .{});
+        // std.debug.print("  x_scale_val = {d}\n", .{x_scale_val});
+        // std.debug.print("  x_zp_f = {d}\n", .{x_zp_f});
+        // std.debug.print("  y_scale_val = {d}\n", .{y_scale_val});
+        // std.debug.print("  y_zp_f = {d}\n", .{y_zp_f});
+        // std.debug.print("  y_scale_inv = {d}\n", .{1.0 / y_scale_val});
+    }
+
+    // Fixed-point scale factors (Q15.16 format - correct for proper precision)
     const SCALE_SHIFT: u5 = 16;
     const x_scale_fixed: i32 = @as(i32, @intFromFloat(x_scale_val * @as(f32, @floatFromInt(@as(u32, 1) << SCALE_SHIFT))));
     const x_zp_fixed: i32 = @as(i32, @intFromFloat(x_zp_f * @as(f32, @floatFromInt(@as(u32, 1) << SCALE_SHIFT))));
     const y_scale_inv_fixed: i32 = @as(i32, @intFromFloat((1.0 / y_scale_val) * @as(f32, @floatFromInt(@as(u32, 1) << SCALE_SHIFT))));
     const y_zp_fixed: i32 = @as(i32, @intFromFloat(y_zp_f * @as(f32, @floatFromInt(@as(u32, 1) << SCALE_SHIFT))));
 
+    if (debug_first_call) {
+        // std.debug.print("[CONV_DEBUG] Fixed-point factors:\n", .{});
+        // std.debug.print("  x_scale_fixed = {d}\n", .{x_scale_fixed});
+        // std.debug.print("  x_zp_fixed = {d}\n", .{x_zp_fixed});
+        // std.debug.print("  y_scale_inv_fixed = {d}\n", .{y_scale_inv_fixed});
+        // std.debug.print("  y_zp_fixed = {d}\n", .{y_zp_fixed});
+        // std.debug.print("  SCALE_SHIFT = {d}\n", .{SCALE_SHIFT});
+    }
+
     const q_min: i32 = std.math.minInt(InputType);
     const q_max: i32 = std.math.maxInt(InputType);
+
+    const expected_output_len = batch_size * out_channels * out_height * out_width;
+    if (expected_output_len != output.data.len) {}
 
     // Main computation loops - optimized for cache efficiency
     for (0..batch_size) |n| {
@@ -415,35 +697,130 @@ pub fn qlinearconv_embedded_lean(
                 const w_scale_fixed: i32 = @as(i32, @intFromFloat(w_scale_val * @as(f32, @floatFromInt(@as(u32, 1) << SCALE_SHIFT))));
                 const w_zp_fixed: i32 = @as(i32, @intFromFloat(w_zp_f * @as(f32, @floatFromInt(@as(u32, 1) << SCALE_SHIFT))));
 
-                // Pre-compute bias contribution
+                // FIX: bias nella stessa scala dell'accumulatore (Q16)
                 const bias_contribution: i64 = if (bias) |b| blk: {
                     const b_raw = if (b.data.len == 1) b.data[0] else b.data[m];
-                    const b_f: f32 = if (isInt(BiasType))
-                        asF32(BiasType, b_raw) * x_scale_val * w_scale_val
-                    else
-                        asF32(BiasType, b_raw);
-                    break :blk @as(i64, @intFromFloat(b_f * @as(f32, @floatFromInt(@as(u32, 1) << SCALE_SHIFT))));
+                    var b_real: f32 = 0.0;
+                    switch (@typeInfo(BiasType)) {
+                        .int => { // bias i32 quantizzato ONNX: è nel dominio accumulatore (int), lo porto in reale
+                            b_real = asF32(BiasType, b_raw) * (x_scale_val * w_scale_val);
+                        },
+                        .float => { // bias float: è già reale
+                            b_real = asF32(BiasType, b_raw);
+                        },
+                        else => {
+                            b_real = asF32(BiasType, b_raw); // prudente
+                        },
+                    }
+                    // b_real è float nel dominio reale, ora portalo in Q16
+                    const bias_q16: i64 = @as(i64, @intFromFloat(@round(b_real * (@as(f32, @floatFromInt(@as(u32, 1) << SCALE_SHIFT))))));
+                    break :blk bias_q16;
                 } else 0;
+
+                // Debug per-channel
+                if (m == 0 and n == 0) {}
 
                 // Specialized paths for common kernel sizes (embedded optimization)
                 if (kernel_height == 3 and kernel_width == 3 and dilation_h == 1 and dilation_w == 1) {
+                    // Debug for 3x3 conv (DISABLED)
                     // Optimized 3x3 convolution with loop unrolling
-                    conv3x3Optimized(x, w, output, n, m, in_c_start, in_c_end, in_channels, weight_in_channels, in_height, in_width, out_height, out_width, stride_h, stride_w, pad_h_begin, pad_w_begin, x_scale_fixed, x_zp_fixed, w_scale_fixed, w_zp_fixed, y_scale_inv_fixed, y_zp_fixed, bias_contribution, q_min, q_max, SCALE_SHIFT, InputType, WeightType);
+                    conv3x3EmbeddedOptimized(x, w, output, n, m, in_c_start, in_c_end, in_channels, weight_in_channels, in_height, in_width, out_height, out_width, stride_h, stride_w, pad_h_begin, pad_w_begin, x_scale_fixed, x_zp_fixed, w_scale_fixed, w_zp_fixed, y_scale_inv_fixed, y_zp_fixed, bias_contribution, q_min, q_max, SCALE_SHIFT, InputType, WeightType, debug_first_call, x_scale_val, w_scale_val, y_scale_val, x_zero_point, w_zero_point);
                 } else if (kernel_height == 1 and kernel_width == 1) {
                     // Optimized 1x1 convolution (pointwise)
-                    conv1x1Optimized(x, w, output, n, m, in_c_start, in_c_end, in_channels, weight_in_channels, in_height, in_width, out_height, out_width, x_scale_fixed, x_zp_fixed, w_scale_fixed, w_zp_fixed, y_scale_inv_fixed, y_zp_fixed, bias_contribution, q_min, q_max, SCALE_SHIFT, InputType, WeightType);
+                    conv1x1EmbeddedOptimized(x, w, output, n, m, in_c_start, in_c_end, in_channels, weight_in_channels, in_height, in_width, out_height, out_width, stride_h, stride_w, pad_h_begin, pad_w_begin, x_scale_fixed, x_zp_fixed, w_scale_fixed, w_zp_fixed, y_scale_inv_fixed, y_zp_fixed, bias_contribution, q_min, q_max, SCALE_SHIFT, InputType, WeightType, x_zero_point, w_zero_point);
                 } else {
-                    // Generic case with fixed-point optimizations
-                    convGenericOptimized(x, w, output, n, m, in_c_start, in_c_end, in_channels, weight_in_channels, in_height, in_width, out_height, out_width, kernel_height, kernel_width, stride_h, stride_w, pad_h_begin, pad_w_begin, dilation_h, dilation_w, x_scale_fixed, x_zp_fixed, w_scale_fixed, w_zp_fixed, y_scale_inv_fixed, y_zp_fixed, bias_contribution, q_min, q_max, SCALE_SHIFT, InputType, WeightType);
+                    // Generic case with fixed-point optimizations (inline to avoid comptime issues)
+                    for (0..out_height) |oh| {
+                        const in_h_start = @as(isize, @intCast(oh * stride_h)) - @as(isize, @intCast(pad_h_begin));
+
+                        for (0..out_width) |ow| {
+                            const in_w_start = @as(isize, @intCast(ow * stride_w)) - @as(isize, @intCast(pad_w_begin));
+
+                            var acc: i64 = bias_contribution; // acc è ora in Q16
+
+                            for (0..kernel_height) |kh| {
+                                const in_h = in_h_start + @as(isize, @intCast(kh * dilation_h));
+                                if (in_h < 0 or in_h >= @as(isize, @intCast(in_height))) continue;
+
+                                for (0..kernel_width) |kw| {
+                                    const in_w = in_w_start + @as(isize, @intCast(kw * dilation_w));
+                                    if (in_w < 0 or in_w >= @as(isize, @intCast(in_width))) continue;
+
+                                    const ih = @as(usize, @intCast(in_h));
+                                    const iw = @as(usize, @intCast(in_w));
+
+                                    for (in_c_start..in_c_end) |c| {
+                                        const k_c = c - in_c_start;
+                                        const input_idx = ((n * in_channels + c) * in_height + ih) * in_width + iw;
+                                        const weight_idx = ((m * weight_in_channels + k_c) * kernel_height + kh) * kernel_width + kw;
+
+                                        const x_q = @as(i32, @intCast(x.data[input_idx]));
+                                        const w_q = @as(i32, @intCast(w.data[weight_idx]));
+
+                                        // FIXED: Schema Q16 coerente con gli altri path
+                                        const Zx = readScalarZP(InputType, x_zero_point);
+                                        const Zw = readScalarZP(WeightType, w_zero_point);
+                                        const x_q16 = @as(i64, x_q - Zx) * @as(i64, x_scale_fixed);
+                                        const w_q16 = @as(i64, w_q - Zw) * @as(i64, w_scale_fixed);
+                                        const product_q16 = (x_q16 * w_q16) >> SCALE_SHIFT; // Q16
+
+                                        // DEBUG: First few calculations only
+                                        if (debug_first_call and n == 0 and m == 0 and oh == 0 and ow == 0 and kh == 0 and kw == 0 and c < 3) {
+                                            // std.debug.print("[CONV_DEBUG] Calc[c={d}]: x_q={d}, w_q={d}\n", .{ c, x_q, w_q });
+                                            // std.debug.print("  x_q16={d}, w_q16={d}\n", .{ x_q16, w_q16 });
+                                            // std.debug.print("  product_q16={d}, acc_before={d}\n", .{ product_q16, acc });
+                                        }
+
+                                        acc += product_q16; // acc resta Q16
+
+                                        if (debug_first_call and n == 0 and m == 0 and oh == 0 and ow == 0 and kh == 0 and kw == 0 and c < 3) {
+                                            // std.debug.print("  acc_after={d}\n", .{acc});
+                                        }
+                                    }
+                                }
+                            }
+
+                            // acc è in Q16
+                            const t_q16: i64 = (acc * @as(i64, y_scale_inv_fixed)) >> SCALE_SHIFT; // ancora Q16
+                            const with_zp_q16: i64 = t_q16 + @as(i64, y_zp_fixed); // ancora Q16
+
+                            // round-to-nearest e ritorno a Q0
+                            const rounding: i64 = @as(i64, 1) << (SCALE_SHIFT - 1);
+                            const q_q0: i32 = @as(i32, @intCast((with_zp_q16 + rounding) >> SCALE_SHIFT));
+
+                            // clamp nel range del tipo di uscita
+                            const q_clamped = std.math.clamp(q_q0, q_min, q_max);
+
+                            // DEBUG: Final quantization step for first few outputs
+                            if (debug_first_call and n == 0 and m == 0 and oh == 0 and ow < 3) {
+                                // std.debug.print("[CONV_DEBUG] Final[oh={d},ow={d}]: acc={d} (Q16)\n", .{ oh, ow, acc });
+                                // std.debug.print("  t_q16={d}, with_zp_q16={d}, q_q0={d}\n", .{ t_q16, with_zp_q16, q_q0 });
+                                // std.debug.print("  q_min={d}, q_max={d}, q_clamped={d}\n", .{ q_min, q_max, q_clamped });
+                                if (q_q0 != q_clamped) {
+                                    // std.debug.print("  *** CLAMPING OCCURRED! ***\n", .{});
+                                }
+                            }
+
+                            const output_idx = ((n * output.shape[1] + m) * out_height + oh) * out_width + ow;
+                            if (output_idx >= output.data.len) {
+                                return TensorError.IndexOutOfBounds;
+                            }
+                            output.data[output_idx] = @as(InputType, @intCast(q_clamped));
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-// Optimized 3x3 convolution with manual loop unrolling
-inline fn conv3x3Optimized(x: anytype, w: anytype, output: anytype, n: usize, m: usize, in_c_start: usize, in_c_end: usize, in_channels: usize, weight_in_channels: usize, in_height: usize, in_width: usize, out_height: usize, out_width: usize, stride_h: usize, stride_w: usize, pad_h_begin: usize, pad_w_begin: usize, x_scale_fixed: i32, x_zp_fixed: i32, w_scale_fixed: i32, w_zp_fixed: i32, y_scale_inv_fixed: i32, y_zp_fixed: i32, bias_contribution: i64, q_min: i32, q_max: i32, scale_shift: u5, comptime InputType: type, comptime WeightType: type) void {
-    _ = WeightType;
+// Optimized 3x3 convolution with manual loop unrolling (embedded version)
+inline fn conv3x3EmbeddedOptimized(x: anytype, w: anytype, output: anytype, n: usize, m: usize, in_c_start: usize, in_c_end: usize, in_channels: usize, weight_in_channels: usize, in_height: usize, in_width: usize, out_height: usize, out_width: usize, stride_h: usize, stride_w: usize, pad_h_begin: usize, pad_w_begin: usize, x_scale_fixed: i32, x_zp_fixed: i32, w_scale_fixed: i32, w_zp_fixed: i32, y_scale_inv_fixed: i32, y_zp_fixed: i32, bias_contribution: i64, q_min: i32, q_max: i32, scale_shift: u5, comptime InputType: type, comptime WeightType: type, debug: bool, x_scale_val: f32, w_scale_val: f32, y_scale_val: f32, x_zero_point: anytype, w_zero_point: anytype) void {
+    _ = x_scale_val;
+    _ = w_scale_val;
+    _ = y_scale_val;
+    _ = x_zp_fixed;
+    _ = w_zp_fixed;
     for (0..out_height) |oh| {
         const in_h_start = @as(isize, @intCast(oh * stride_h)) - @as(isize, @intCast(pad_h_begin));
 
@@ -451,6 +828,14 @@ inline fn conv3x3Optimized(x: anytype, w: anytype, output: anytype, n: usize, m:
             const in_w_start = @as(isize, @intCast(ow * stride_w)) - @as(isize, @intCast(pad_w_begin));
 
             var acc: i64 = bias_contribution;
+
+            // DEBUG: For first few pixels
+            if (debug and n == 0 and m == 0 and oh < 2 and ow < 3) {
+                // std.debug.print("[CONV_DEBUG] 3x3 FULL KERNEL convolution at pixel [{d},{d}]:\n", .{ oh, ow });
+                // std.debug.print("  bias_contribution = {d} (Q16)\n", .{bias_contribution});
+                // std.debug.print("  in_h_start = {d}, in_w_start = {d}\n", .{ in_h_start, in_w_start });
+                // std.debug.print("  Using ALL 9 TAPS of 3x3 kernel!\n", .{});
+            }
 
             // Unrolled 3x3 kernel - manual unrolling for embedded performance
             // kh = 0
@@ -470,21 +855,147 @@ inline fn conv3x3Optimized(x: anytype, w: anytype, output: anytype, n: usize, m:
                         const x_q = @as(i32, @intCast(x.data[input_idx]));
                         const w_q = @as(i32, @intCast(w.data[weight_idx]));
 
-                        const x_dequant = (x_q * x_scale_fixed - x_zp_fixed * x_scale_fixed) >> scale_shift;
-                        const w_dequant = (w_q * w_scale_fixed - w_zp_fixed * w_scale_fixed) >> scale_shift;
+                        // FIX: Formula corretta - zero-point NON è già scalato
+                        const Zx_i32 = readScalarZP(InputType, x_zero_point);
+                        const Zw_i32 = readScalarZP(WeightType, w_zero_point);
+                        const x_diff = x_q - Zx_i32;
+                        const w_diff = w_q - Zw_i32;
 
-                        acc += @as(i64, x_dequant) * @as(i64, w_dequant);
+                        // FIXED: Mantieni Q16 fino al termine del pixel
+                        const x_q16 = @as(i64, x_diff) * @as(i64, x_scale_fixed); // Q16
+                        const w_q16 = @as(i64, w_diff) * @as(i64, w_scale_fixed); // Q16
+
+                        // prodotto in Q16 (Q16*Q16 = Q32, >>16 -> Q16)
+                        const product_q16 = (x_q16 * w_q16) >> scale_shift; // Q16
+
+                        // DEBUG for first few calculations when inside bounds
+                        if (debug and n == 0 and m == 0 and oh < 2 and ow < 3 and c < 2) {
+                            // std.debug.print("[CONV_DEBUG] [{d},{d}] kh=0,kw=0,c={d}: x_q={d}, w_q={d}\n", .{ oh, ow, c, x_q, w_q });
+                            // std.debug.print("  x_q16={d}, w_q16={d}, product_q16={d}\n", .{ x_q16, w_q16, product_q16 });
+                            // std.debug.print("  acc_before={d}\n", .{acc});
+                        }
+
+                        acc += product_q16; // acc è ora in Q16
+
+                        if (debug and n == 0 and m == 0 and oh < 2 and ow < 3 and c < 2 and product_q16 != 0) {
+                            // std.debug.print("  NON-ZERO contribution! acc_after={d}\n", .{acc});
+                        }
                     }
                 }
 
-                // Similar unrolling for kw = 1, 2...
-                // (Shortened for brevity - in practice, unroll all 9 positions)
+                // FIXED: Implementiamo tutti i 9 tap del kernel 3x3!
+                // kw = 1
+                const in_w_1 = in_w_start + 1;
+                if (in_w_1 >= 0 and in_w_1 < @as(isize, @intCast(in_width))) {
+                    const iw_1 = @as(usize, @intCast(in_w_1));
+                    for (in_c_start..in_c_end) |c| {
+                        const k_c = c - in_c_start;
+                        const input_idx = ((n * in_channels + c) * in_height + ih_0) * in_width + iw_1;
+                        const weight_idx = ((m * weight_in_channels + k_c) * 3 + 0) * 3 + 1;
+
+                        const x_q = @as(i32, @intCast(x.data[input_idx]));
+                        const w_q = @as(i32, @intCast(w.data[weight_idx]));
+
+                        const Zx_i32 = readScalarZP(InputType, x_zero_point);
+                        const Zw_i32 = readScalarZP(WeightType, w_zero_point);
+                        const x_q16 = @as(i64, x_q - Zx_i32) * @as(i64, x_scale_fixed);
+                        const w_q16 = @as(i64, w_q - Zw_i32) * @as(i64, w_scale_fixed);
+                        acc += (x_q16 * w_q16) >> scale_shift;
+                    }
+                }
+
+                // kw = 2
+                const in_w_2 = in_w_start + 2;
+                if (in_w_2 >= 0 and in_w_2 < @as(isize, @intCast(in_width))) {
+                    const iw_2 = @as(usize, @intCast(in_w_2));
+                    for (in_c_start..in_c_end) |c| {
+                        const k_c = c - in_c_start;
+                        const input_idx = ((n * in_channels + c) * in_height + ih_0) * in_width + iw_2;
+                        const weight_idx = ((m * weight_in_channels + k_c) * 3 + 0) * 3 + 2;
+
+                        const x_q = @as(i32, @intCast(x.data[input_idx]));
+                        const w_q = @as(i32, @intCast(w.data[weight_idx]));
+
+                        const Zx_i32 = readScalarZP(InputType, x_zero_point);
+                        const Zw_i32 = readScalarZP(WeightType, w_zero_point);
+                        const x_q16 = @as(i64, x_q - Zx_i32) * @as(i64, x_scale_fixed);
+                        const w_q16 = @as(i64, w_q - Zw_i32) * @as(i64, w_scale_fixed);
+                        acc += (x_q16 * w_q16) >> scale_shift;
+                    }
+                }
             }
 
-            // Fast requantization using fixed-point
-            const acc_scaled = (acc * @as(i64, y_scale_inv_fixed)) >> scale_shift;
-            const q_result = @as(i32, @intCast(acc_scaled)) + (y_zp_fixed >> scale_shift);
-            const q_clamped = std.math.clamp(q_result, q_min, q_max);
+            // kh = 1 (tutte le kw)
+            const in_h_1 = in_h_start + 1;
+            if (in_h_1 >= 0 and in_h_1 < @as(isize, @intCast(in_height))) {
+                const ih_1 = @as(usize, @intCast(in_h_1));
+                for (0..3) |kw| {
+                    const in_w = in_w_start + @as(isize, @intCast(kw));
+                    if (in_w >= 0 and in_w < @as(isize, @intCast(in_width))) {
+                        const iw = @as(usize, @intCast(in_w));
+                        for (in_c_start..in_c_end) |c| {
+                            const k_c = c - in_c_start;
+                            const input_idx = ((n * in_channels + c) * in_height + ih_1) * in_width + iw;
+                            const weight_idx = ((m * weight_in_channels + k_c) * 3 + 1) * 3 + kw;
+
+                            const x_q = @as(i32, @intCast(x.data[input_idx]));
+                            const w_q = @as(i32, @intCast(w.data[weight_idx]));
+
+                            const Zx_i32 = readScalarZP(InputType, x_zero_point);
+                            const Zw_i32 = readScalarZP(WeightType, w_zero_point);
+                            const x_q16 = @as(i64, x_q - Zx_i32) * @as(i64, x_scale_fixed);
+                            const w_q16 = @as(i64, w_q - Zw_i32) * @as(i64, w_scale_fixed);
+                            acc += (x_q16 * w_q16) >> scale_shift;
+                        }
+                    }
+                }
+            }
+
+            // kh = 2 (tutte le kw)
+            const in_h_2 = in_h_start + 2;
+            if (in_h_2 >= 0 and in_h_2 < @as(isize, @intCast(in_height))) {
+                const ih_2 = @as(usize, @intCast(in_h_2));
+                for (0..3) |kw| {
+                    const in_w = in_w_start + @as(isize, @intCast(kw));
+                    if (in_w >= 0 and in_w < @as(isize, @intCast(in_width))) {
+                        const iw = @as(usize, @intCast(in_w));
+                        for (in_c_start..in_c_end) |c| {
+                            const k_c = c - in_c_start;
+                            const input_idx = ((n * in_channels + c) * in_height + ih_2) * in_width + iw;
+                            const weight_idx = ((m * weight_in_channels + k_c) * 3 + 2) * 3 + kw;
+
+                            const x_q = @as(i32, @intCast(x.data[input_idx]));
+                            const w_q = @as(i32, @intCast(w.data[weight_idx]));
+
+                            const Zx_i32 = readScalarZP(InputType, x_zero_point);
+                            const Zw_i32 = readScalarZP(WeightType, w_zero_point);
+                            const x_q16 = @as(i64, x_q - Zx_i32) * @as(i64, x_scale_fixed);
+                            const w_q16 = @as(i64, w_q - Zw_i32) * @as(i64, w_scale_fixed);
+                            acc += (x_q16 * w_q16) >> scale_shift;
+                        }
+                    }
+                }
+            }
+
+            // acc è in Q16
+            const t_q16: i64 = (acc * @as(i64, y_scale_inv_fixed)) >> scale_shift; // ancora Q16
+            const with_zp_q16: i64 = t_q16 + @as(i64, y_zp_fixed); // ancora Q16
+
+            // round-to-nearest e ritorno a Q0
+            const rounding: i64 = @as(i64, 1) << (scale_shift - 1);
+            const q_q0: i32 = @as(i32, @intCast((with_zp_q16 + rounding) >> scale_shift));
+
+            // clamp nel range del tipo di uscita
+            const q_clamped = std.math.clamp(q_q0, q_min, q_max);
+
+            // DEBUG: Final quantization for first few pixels
+            if (debug and n == 0 and m == 0 and oh == 0 and ow < 3) {
+                // std.debug.print("[CONV_DEBUG] 3x3 FULL KERNEL Final[oh={d},ow={d}]: final_acc={d} (Q16)\n", .{ oh, ow, acc });
+                // std.debug.print("  t_q16={d}, with_zp={d}, q_q0={d}, q_clamped={d}\n", .{ t_q16, with_zp_q16, q_q0, q_clamped });
+                if (q_q0 != q_clamped) {
+                    // std.debug.print("  *** CLAMPING OCCURRED! ***\n", .{});
+                }
+            }
 
             const output_idx = ((n * output.shape[1] + m) * out_height + oh) * out_width + ow;
             output.data[output_idx] = @as(InputType, @intCast(q_clamped));
@@ -492,32 +1003,58 @@ inline fn conv3x3Optimized(x: anytype, w: anytype, output: anytype, n: usize, m:
     }
 }
 
-// Optimized 1x1 convolution (pointwise)
-inline fn conv1x1Optimized(x: anytype, w: anytype, output: anytype, n: usize, m: usize, in_c_start: usize, in_c_end: usize, in_channels: usize, weight_in_channels: usize, in_height: usize, in_width: usize, out_height: usize, out_width: usize, x_scale_fixed: i32, x_zp_fixed: i32, w_scale_fixed: i32, w_zp_fixed: i32, y_scale_inv_fixed: i32, y_zp_fixed: i32, bias_contribution: i64, q_min: i32, q_max: i32, scale_shift: u5, comptime InputType: type, comptime WeightType: type) void {
-    _ = WeightType;
-    // 1x1 conv is essentially matrix multiplication - optimized accordingly
+// Optimized 1x1 convolution (pointwise) (embedded version)
+inline fn conv1x1EmbeddedOptimized(x: anytype, w: anytype, output: anytype, n: usize, m: usize, in_c_start: usize, in_c_end: usize, in_channels: usize, weight_in_channels: usize, in_height: usize, in_width: usize, out_height: usize, out_width: usize, stride_h: usize, stride_w: usize, pad_h_begin: usize, pad_w_begin: usize, x_scale_fixed: i32, x_zp_fixed: i32, w_scale_fixed: i32, w_zp_fixed: i32, y_scale_inv_fixed: i32, y_zp_fixed: i32, bias_contribution: i64, q_min: i32, q_max: i32, scale_shift: u5, comptime InputType: type, comptime WeightType: type, x_zero_point: anytype, w_zero_point: anytype) void {
+    _ = x_zp_fixed;
+    _ = w_zp_fixed;
+    // FIXED: 1x1 conv with proper stride/padding handling
     for (0..out_height) |oh| {
+        const in_h_start = @as(isize, @intCast(oh * stride_h)) - @as(isize, @intCast(pad_h_begin));
         for (0..out_width) |ow| {
+            const in_w_start = @as(isize, @intCast(ow * stride_w)) - @as(isize, @intCast(pad_w_begin));
             var acc: i64 = bias_contribution;
 
-            // No spatial kernel, just channel mixing
-            for (in_c_start..in_c_end) |c| {
-                const k_c = c - in_c_start;
-                const input_idx = ((n * in_channels + c) * in_height + oh) * in_width + ow;
-                const weight_idx = m * weight_in_channels + k_c;
+            // Check bounds for 1x1 kernel
+            if (in_h_start >= 0 and in_h_start < @as(isize, @intCast(in_height)) and
+                in_w_start >= 0 and in_w_start < @as(isize, @intCast(in_width)))
+            {
+                const ih = @as(usize, @intCast(in_h_start));
+                const iw = @as(usize, @intCast(in_w_start));
 
-                const x_q = @as(i32, @intCast(x.data[input_idx]));
-                const w_q = @as(i32, @intCast(w.data[weight_idx]));
+                for (in_c_start..in_c_end) |c| {
+                    const k_c = c - in_c_start;
+                    const input_idx = ((n * in_channels + c) * in_height + ih) * in_width + iw;
+                    const weight_idx = m * weight_in_channels + k_c;
 
-                const x_dequant = (x_q * x_scale_fixed - x_zp_fixed * x_scale_fixed) >> scale_shift;
-                const w_dequant = (w_q * w_scale_fixed - w_zp_fixed * w_scale_fixed) >> scale_shift;
+                    const x_q = @as(i32, @intCast(x.data[input_idx]));
+                    const w_q = @as(i32, @intCast(w.data[weight_idx]));
 
-                acc += @as(i64, x_dequant) * @as(i64, w_dequant);
+                    // FIX: Formula corretta - zero-point NON è già scalato
+                    const Zx_i32 = readScalarZP(InputType, x_zero_point);
+                    const Zw_i32 = readScalarZP(WeightType, w_zero_point);
+                    const x_diff = x_q - Zx_i32;
+                    const w_diff = w_q - Zw_i32;
+
+                    // FIXED: Mantieni Q16 fino al termine del pixel
+                    const x_q16 = @as(i64, x_diff) * @as(i64, x_scale_fixed); // Q16
+                    const w_q16 = @as(i64, w_diff) * @as(i64, w_scale_fixed); // Q16
+
+                    // prodotto in Q16 (Q16*Q16 = Q32, >>16 -> Q16)
+                    const product_q16 = (x_q16 * w_q16) >> scale_shift; // Q16
+                    acc += product_q16; // acc è ora in Q16
+                }
             }
 
-            const acc_scaled = (acc * @as(i64, y_scale_inv_fixed)) >> scale_shift;
-            const q_result = @as(i32, @intCast(acc_scaled)) + (y_zp_fixed >> scale_shift);
-            const q_clamped = std.math.clamp(q_result, q_min, q_max);
+            // acc è in Q16
+            const t_q16: i64 = (acc * @as(i64, y_scale_inv_fixed)) >> scale_shift; // ancora Q16
+            const with_zp_q16: i64 = t_q16 + @as(i64, y_zp_fixed); // ancora Q16
+
+            // round-to-nearest e ritorno a Q0
+            const rounding: i64 = @as(i64, 1) << (scale_shift - 1);
+            const q_q0: i32 = @as(i32, @intCast((with_zp_q16 + rounding) >> scale_shift));
+
+            // clamp nel range del tipo di uscita
+            const q_clamped = std.math.clamp(q_q0, q_min, q_max);
 
             const output_idx = ((n * output.shape[1] + m) * out_height + oh) * out_width + ow;
             output.data[output_idx] = @as(InputType, @intCast(q_clamped));

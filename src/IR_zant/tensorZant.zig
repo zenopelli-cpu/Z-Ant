@@ -364,6 +364,117 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                     //TODO
 
                     return error.Reshape_outputShape_NotFound;
+                } else if (std.mem.eql(u8, node.op_type, "QLinearAveragePool")) {
+                    // Special handling for QLinearAveragePool when value_info is missing
+                    if (utils.getValueInfoTensorFromGraphInfo(output_name, protoGraph)) |vip_tensor| {
+                        const tensorZant: TensorZant = try TensorZant.init(
+                            output_name,
+                            null,
+                            vip_tensor,
+                            null,
+                            TensorCategory.LINK,
+                        );
+                        try tensorMap.put(tensorZant.name, tensorZant);
+                        continue;
+                    } else {
+                        // Calculate shape for QLinearAveragePool manually
+                        if (utils.calculateQLinearAveragePoolShape(node, tensorMap)) |calculated_shape| {
+                            const tensorZant: TensorZant = try TensorZant.init(
+                                output_name,
+                                null,
+                                null,
+                                calculated_shape,
+                                TensorCategory.LINK,
+                            );
+                            try tensorMap.put(tensorZant.name, tensorZant);
+                            continue;
+                        } else {
+                            std.debug.print("\n ERROR: Could not calculate shape for QLinearAveragePool {s}", .{output_name});
+                            return error.QLinearAveragePool_shapeCalculationFailed;
+                        }
+                    }
+                } else if (std.mem.eql(u8, node.op_type, "QLinearConcat")) {
+                    // Special handling for QLinearConcat when value_info is missing
+                    if (utils.getValueInfoTensorFromGraphInfo(output_name, protoGraph)) |vip_tensor| {
+                        const tensorZant: TensorZant = try TensorZant.init(
+                            output_name,
+                            null,
+                            vip_tensor,
+                            null,
+                            TensorCategory.LINK,
+                        );
+                        try tensorMap.put(tensorZant.name, tensorZant);
+                        continue;
+                    } else {
+                        // Calculate shape for QLinearConcat manually
+                        if (utils.calculateQLinearConcatShape(node, tensorMap)) |calculated_shape| {
+                            const tensorZant: TensorZant = try TensorZant.init(
+                                output_name,
+                                null,
+                                null,
+                                calculated_shape,
+                                TensorCategory.LINK,
+                            );
+                            try tensorMap.put(tensorZant.name, tensorZant);
+                            continue;
+                        } else {
+                            std.debug.print("\n ERROR: Could not calculate shape for QLinearConcat {s}", .{output_name});
+                            return error.QLinearConcat_shapeCalculationFailed;
+                        }
+                    }
+                } else if (std.mem.startsWith(u8, node.op_type, "QLinear")) {
+                    // Generic handling for any QLinear operation when value_info is missing
+                    if (utils.getValueInfoTensorFromGraphInfo(output_name, protoGraph)) |vip_tensor| {
+                        const tensorZant: TensorZant = try TensorZant.init(
+                            output_name,
+                            null,
+                            vip_tensor,
+                            null,
+                            TensorCategory.LINK,
+                        );
+                        try tensorMap.put(tensorZant.name, tensorZant);
+                        continue;
+                    } else {
+                        // For QLinear ops without value_info, create with undefined type and let the op handle shape inference
+                        std.debug.print("\n  +++ (QLinear without value_info)", .{});
+                        // Set default shape based on first input
+                        var default_shape: ?[]usize = null;
+                        if (node.input.len > 0) {
+                            // For most QLinear ops, first input is the data tensor
+                            const first_input_name = node.input[0];
+                            if (tensorMap.getPtr(first_input_name)) |first_tensor| {
+                                const input_shape = first_tensor.getShape();
+                                default_shape = allocator.alloc(usize, input_shape.len) catch null;
+                                if (default_shape) |shape| {
+                                    // Special case for QLinearGlobalAveragePool
+                                    if (std.mem.eql(u8, node.op_type, "QLinearGlobalAveragePool")) {
+                                        // Global average pool reduces spatial dimensions to 1x1
+                                        for (input_shape, 0..) |dim, idx| {
+                                            if (idx < 2) {
+                                                shape[idx] = dim; // Keep batch and channel dimensions
+                                            } else {
+                                                shape[idx] = 1; // Reduce spatial dimensions to 1
+                                            }
+                                        }
+                                    } else {
+                                        for (input_shape, 0..) |dim, idx| {
+                                            shape[idx] = dim;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        const tensorZant: TensorZant = try TensorZant.init(
+                            output_name,
+                            null,
+                            null,
+                            default_shape,
+                            TensorCategory.LINK,
+                        );
+                        try tensorMap.put(tensorZant.name, tensorZant);
+                        continue;
+                    }
                 } else {
                     std.debug.print("\n  +++", .{});
 

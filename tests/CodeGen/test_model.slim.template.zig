@@ -85,7 +85,7 @@ test "Static Library - Random data Prediction Test" {
             std.debug.print("\n     - detected ERROR type: {}", .{return_code});
             error_counter += 1;
         }
-        if (model.is_dynamic) {
+        if (model.is_dynamic and return_code == 0) {
             defer allocator.free(result[0..model.output_data_len]);
         }
     }
@@ -139,7 +139,7 @@ test "Static Library - Inputs Prediction Test" {
             error_counter += 1;
         }
 
-        if (model.is_dynamic) {
+        if (model.is_dynamic and return_code == 0) {
             defer allocator.free(result[0..model.output_data_len]);
         }
 

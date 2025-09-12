@@ -12,6 +12,9 @@ const TensorZant = IR_zant.TensorZant;
 const tensorZant_lib = IR_zant.tensorZant_lib;
 const NodeZant = IR_zant.NodeZant;
 
+// For pattern detection
+const Clip = IR_zant.operators.Clip;
+
 const tensorZantMap: *std.StringHashMap(TensorZant) = &IR_zant.tensorZant_lib.tensorMap;
 
 const allocator = std.heap.page_allocator;
@@ -26,16 +29,15 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
     // Pre-pass: for DequantizeLinear nodes, align input x LINK shape to y shape if placeholder
     try align_dequant_input_shapes(linearizedGraph);
 
-    // Static initialization for output tensors if not using dynamic allocation
-    //
+    // REMOVED: Static initialization for output tensors - now using just-in-time allocation
     // declare all the outputs for each node, aka: linkers
-    if (!codegen_options.dynamic) try write_linkersInitialization(writer);
+    // if (!codegen_options.dynamic) try write_linkersInitialization(writer);
 
     // declare all the outputs of  the network
     try write_outputsInitialization(writer);
 
-    // method to reset the tensors values
-    if (!codegen_options.dynamic) try write_linkersResetMethod(writer);
+    // REMOVED: method to reset the tensors values - no longer needed with JIT allocation
+    // if (!codegen_options.dynamic) try write_linkersResetMethod(writer);
 
     const inputs = try IR_utils.getInputs(tensorZantMap);
     const outputs = try IR_utils.getOutputs(tensorZantMap);
@@ -87,15 +89,6 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
         , .{});
     }
 
-    //if I'm using statical allocation I'll reset all the Link tensors to zero
-    if (!codegen_options.dynamic) {
-        _ = try writer.print(
-            \\
-            \\    // Reset all linker tensors to zero before each prediction
-            \\    resetOutputTensors();
-        , .{});
-    }
-
     // Suppress unused parameter warnings for nodes with no inputs
     if (inputs.len == 0) {
         _ = try writer.print(
@@ -111,20 +104,66 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
 
     try write_predictInitialization(writer);
 
-    // Allocate output tensors for dynamic mode
-    if (codegen_options.dynamic) {
-        const output_tensors: []TensorZant = try IR_utils.getOutputs(tensorZantMap);
-        for (output_tensors) |*tz| {
+    // Allocate output tensors for dynamic/static mode
+    const output_tensors: []TensorZant = try IR_utils.getOutputs(tensorZantMap);
+
+    // Declare output_active_is_a once for static mode
+    if (!codegen_options.dynamic and output_tensors.len > 0) {
+        try writer.print("    const output_active_is_a = fba_live_a <= fba_live_b;\n", .{});
+    }
+
+    for (output_tensors) |*tz| {
+        const sanitized_name = try tz.getNameSanitized();
+        const type_str = tz.ty.toString();
+
+        if (codegen_options.dynamic) {
             _ = try write_TensorShape(writer, tz);
-            const sanitized_name = try tz.getNameSanitized();
-            const type_str = tz.ty.toString();
             try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return -2;\n", .{ sanitized_name, type_str, sanitized_name });
             //since we are using dynamic inference  we also have to free the output_tensor so to avoid leaks, seee how I return the output tensor in writeReturn()
             try writer.print("    defer tensor_{s}.deinit();", .{sanitized_name});
+        } else {
+            // Static mode: Create tensor from pre-allocated array using dual FBA pools
+            try writer.print("    var tensor_{s} = Tensor({s}).fromConstBuffer(\n", .{ sanitized_name, type_str });
+            try writer.print("        if (output_active_is_a) &fba_a else &fba_b,\n", .{});
+            try writer.print("        &array_{s},\n", .{sanitized_name});
+            try writer.print("        &shape_tensor_{s}\n", .{sanitized_name});
+            try writer.print("    );\n", .{});
         }
     }
 
-    try write_graphSerialization(writer, linearizedGraph);
+    // Build alias map and reference counts for smart deallocation (both dynamic and static)
+    if (codegen_options.dynamic or !codegen_options.dynamic) {
+        var alias_map = try buildAliasMap(allocator, linearizedGraph);
+        defer {
+            var alias_iter = alias_map.iterator();
+            while (alias_iter.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+                allocator.free(entry.value_ptr.*);
+            }
+            alias_map.deinit();
+        }
+
+        var use_counts = try buildUseCounts(allocator, linearizedGraph, &alias_map);
+        defer {
+            var count_iter = use_counts.iterator();
+            while (count_iter.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+            }
+            use_counts.deinit();
+        }
+
+        // set dei contatori già emessi (solo chi decrementiamo)
+        var rc_declared = std.StringHashMap(u8).init(allocator);
+        defer {
+            var it = rc_declared.iterator();
+            while (it.next()) |e| allocator.free(e.key_ptr.*);
+            rc_declared.deinit();
+        }
+
+        try write_graphSerialization(writer, linearizedGraph, &alias_map, &use_counts, &rc_declared, allocator);
+    } else {
+        try write_graphSerialization(writer, linearizedGraph, null, null, null, allocator);
+    }
 
     try writeReturn(writer);
 
@@ -177,11 +216,16 @@ fn write_TensorAllocation(writer: std.fs.File.Writer, tz: *TensorZant, size: i64
 
     if (codegen_options.dynamic) {
         // Dynamic allocation: Use fromShape
-        try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return -2;", .{ sanitized_name, type_str, sanitized_name });
+        try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return -2;\n", .{ sanitized_name, type_str, sanitized_name });
+        // Add defer for intermediate tensors (not for final outputs which are handled by reference counting)
+        try writer.print("    defer tensor_{s}.deinit();\n", .{sanitized_name});
     } else {
-        // Static allocation: Use fromConstBuffer to allow mutation
-        try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};", .{ sanitized_name, size, type_str, type_str, size });
-        try writer.print("    var tensor_{s} = Tensor({s}).fromConstBuffer(&fba, &array_{s}, &shape_tensor_{s});", .{ sanitized_name, type_str, sanitized_name, sanitized_name });
+        // Static allocation: Use fromConstBuffer to allow mutation with ping-pong pools
+        // Static allocation: zero-init esplicito con tipo
+        try writer.print("var array_{s}: [{d}]{s} = std.mem.zeroes([{d}]{s});\n", .{ sanitized_name, size, type_str, size, type_str });
+
+        // Scope per costruire il Tensor sull’array pre-allocato
+
     }
 }
 
@@ -308,30 +352,38 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         // no-op: other inputs will be allocated below
     }
 
+    // Calculate input size and generate zero-copy tensor initialization
+    const input_shape = inputs[primary_index].getShape();
+    var input_size: u64 = 1;
+    for (input_shape) |dim| {
+        input_size *= dim;
+    }
+
     _ = try writer.print(
-        \\  
-        \\    //computing the size of the input tensor
-        \\    var size: u32 = 1;
-        \\    for(0..shape_len) |dim_i| {{
-        \\        size *= input_shape[dim_i];
-        \\    }}
-        \\     
-        \\    //allocating space in memory for the data
-        \\    const data = allocator.alloc(T_in, size) catch return -2;
-        \\    defer allocator.free(data);
-        \\    for (0..size) |i| {{
-        \\        data[i] = input[i]; // Copying input elements 
-        \\    }}
         \\    
-        \\    //converting the shape from [*]u32 to []usize
-        \\    const usized_shape: []usize = utils.u32ToUsize(allocator, input_shape, shape_len) catch return -2;
-        \\    var tensor_{s} = Tensor(T_in).fromShape(&allocator, @constCast(usized_shape)) catch return -2;
-        \\    defer allocator.free(usized_shape);
-        \\    defer tensor_{s}.deinit();
-        \\    @memcpy(tensor_{s}.data, data);
+        \\    // Fixed input shape (zero-copy optimization)
+        \\    var input_shape_fixed: [{}]usize = .{{ 
+    , .{input_shape.len});
+
+    for (input_shape, 0..) |dim, i| {
+        if (i > 0) try writer.print(", ", .{});
+        try writer.print("{}", .{dim});
+    }
+
+    _ = try writer.print(
+        \\ }};
+        \\    const input_size: usize = {};
+        \\    
+        \\    // Zero-copy tensor pointing directly to input data
+        \\    var tensor_{s} = Tensor(T_in){{
+        \\        .data = input[0..input_size],
+        \\        .shape = input_shape_fixed[0..],
+        \\        .size = input_size,
+        \\        .allocator = &allocator, // doesn't manage memory
+        \\    }};
+        \\
     , .{
-        try inputs[primary_index].getNameSanitized(),
-        try inputs[primary_index].getNameSanitized(),
+        input_size,
         try inputs[primary_index].getNameSanitized(),
     });
 
@@ -363,15 +415,19 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
             \\     
             \\     const output_zant_slice = allocator.alloc(T_out, tensor_{s}.size) catch return -3;
             \\     @memcpy(output_zant_slice, tensor_{s}.data[0..tensor_{s}.size]);
+            \\     
+            \\     // Track allocation size for safe deallocation
+            \\     last_result_size = tensor_{s}.size;
             \\      
             \\     //The Caller must handle the memory of output_zant_slice
             \\     result.* = output_zant_slice.ptr;
             \\
-        , .{ try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized() });
+        , .{ try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized() });
     } else {
         _ = try writer.print(
             \\
             \\    result.* = tensor_{s}.data.ptr;
+            \\    last_result_size = 0; // Static allocation, no deallocation needed
             \\
         , .{try outputs[0].getNameSanitized()});
     }
@@ -423,6 +479,7 @@ fn write_TensorShape(writer: std.fs.File.Writer, tz: *TensorZant) !i64 {
 
     try writer.print(
         \\}} ;
+        \\
     , .{});
 
     return size;
@@ -464,8 +521,34 @@ fn write_checks(writer: std.fs.File.Writer) !void {
     }
 }
 
-fn write_graphSerialization(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
-    for (linearizedGraph.items, 0..) |node, i| {
+fn write_graphSerialization(
+    writer: std.fs.File.Writer,
+    linearizedGraph: std.ArrayList(*NodeZant),
+    alias_map: ?*const std.StringHashMap([]const u8),
+    use_counts: ?*const std.StringHashMap(u32),
+    rc_declared: ?*std.StringHashMap(u8),
+    alloc: std.mem.Allocator,
+) !void {
+    var i: usize = 0;
+    while (i < linearizedGraph.items.len) {
+        const node = linearizedGraph.items[i];
+
+        // Pattern detection: DequantizeLinear -> Clip -> QuantizeLinear
+        if (i + 2 < linearizedGraph.items.len) {
+            const pattern_result = try detect_quantized_clip_pattern(linearizedGraph.items[i .. i + 3]);
+            if (pattern_result.detected) {
+                // Note: Output tensor allocation is handled by write_quantized_clip_pattern
+
+                // Write the optimized pattern
+                try write_quantized_clip_pattern(writer, pattern_result);
+
+                // NIENTE RC qui: decrementeremo quando il prossimo "vero" consumatore userà il buffer
+                i += 3; // Skip the 3 operations we just optimized
+                continue;
+            }
+        }
+
+        // Normal operation writing
         if (codegen_options.comm) {
             try write_op_info(writer, node);
         }
@@ -480,12 +563,30 @@ fn write_graphSerialization(writer: std.fs.File.Writer, linearizedGraph: std.Arr
         }
 
         //Before computing the OP, init link tensors when we are in dynamic allocation
-        if (codegen_options.dynamic) try allocate_output_link_tensors(writer, node); //ERE YOU ALLOCATE
+        if (codegen_options.dynamic) {
+            try allocate_output_link_tensors(writer, node); //DYNAMIC ALLOCATION
+        } else {
+            try allocate_output_link_tensors_static(writer, node); //STATIC JIT ALLOCATION
+        }
 
         try node.write_op(writer);
+        try writer.print("\n", .{}); // Ensure newline after operation
 
-        //After computing the OP, delete link tensors that are not useful anymore when we are in dynamic allocation
-        if (codegen_options.dynamic) try deallocate_useless_link_tensors(writer, i, linearizedGraph); //HERE YOU DEALLOCATE
+        // RC decrement "lazy" solo per nodi realmente emessi
+        if (codegen_options.dynamic and alias_map != null and use_counts != null and rc_declared != null) {
+            try emitRcDecForNode(writer, linearizedGraph.items[i], alias_map.?, use_counts.?, rc_declared.?, alloc); //REFERENCE COUNTING DEALLOCATION
+        } else if (codegen_options.dynamic) {
+            try deallocate_useless_link_tensors(writer, i, linearizedGraph); //FALLBACK DYNAMIC DEALLOCATION
+        } else {
+            // STATIC MODE: Apply reference counting mechanism like dynamic but with FBA tracking
+            if (alias_map != null and use_counts != null and rc_declared != null) {
+                try emitRcDecForNodeStatic(writer, linearizedGraph.items[i], alias_map.?, use_counts.?, rc_declared.?, alloc); //REFERENCE COUNTING FOR STATIC
+            } else {
+                try reset_fba_after_unused_tensors(writer, i, linearizedGraph); //FALLBACK STATIC FBA RESET
+            }
+        }
+
+        i += 1;
     }
 }
 
@@ -526,9 +627,283 @@ fn allocate_output_link_tensors(writer: std.fs.File.Writer, node: *NodeZant) !vo
 
             const type_str = output_tensor.ty.toString();
 
+            // PRE-DEALLOCATION DISABLED: Too dangerous, causes use-after-free bugs
+            // The aggressive deallocation after operations is much safer
+            // Example bug: tensor_relu__37_0_quantized.deinit() before it's used in QLinearConv
+
             // Dynamic allocation: Use fromShape to allow mutation
-            try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return -2;", .{ sanitized_name, type_str, sanitized_name });
+            try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return -2;\n", .{ sanitized_name, type_str, sanitized_name });
+            // Add defer for intermediate tensors - reference counting will handle proper cleanup
+            try writer.print("    defer tensor_{s}.deinit();\n", .{sanitized_name});
         }
+    }
+}
+
+//statically allocate a linker tensor using FBA (just-in-time)
+fn allocate_output_link_tensors_static(writer: std.fs.File.Writer, node: *NodeZant) !void {
+    // Attempt to infer output shape(s) from the operator before allocating LINK tensors
+    var inferred_shape: ?[]usize = null;
+    inferred_shape = node.op.get_output_shape() catch null;
+
+    if (inferred_shape) |_| {} else {}
+
+    //if not used anymore in the rest of the graph
+    for (try node.get_output_tensors()) |output_tensor| {
+        if (output_tensor.tc == tensorZant_lib.TensorCategory.LINK) {
+            // If the current shape is a placeholder like [1], and we inferred a better shape, apply it
+            if (inferred_shape) |shape_out| {
+                if (output_tensor.shape.len == 1 and output_tensor.shape[0] == 1) {
+                    output_tensor.shape = shape_out;
+                    output_tensor.stride = try tensorZant_lib.TensorZant.computeStride(shape_out);
+                } else {}
+            } else {}
+
+            const tensor_size = try write_TensorShape(
+                writer,
+                output_tensor,
+            );
+            _ = tensor_size;
+
+            const sanitized_name = try output_tensor.getNameSanitized();
+
+            // --- ADD CHECK FOR UNDEFINED TYPE ---
+            if (output_tensor.ty == .undefined) {
+                std.log.warn("\n\nCODEGEN ERROR: Attempted to generate output tensor '{s}' but its data type is UNDEFINED. Check ONNX graph.\n\n", .{sanitized_name});
+                return error.DataTypeNotAvailable;
+            }
+            // --- END CHECK ---
+
+            const type_str = output_tensor.ty.toString();
+
+            // Static allocation using FBA: Use fromShape for heap allocation in FBA
+            try writer.print("    // choose active pool\n", .{});
+            try writer.print("    const link_active_is_a_{s} = fba_live_a <= fba_live_b;\n", .{sanitized_name});
+            try writer.print("    const tensor_{s}_pool_is_a = link_active_is_a_{s}; // Track which pool this tensor uses\n", .{ sanitized_name, sanitized_name });
+            // FIXME: Debug logging removed due to emoji/escaping issues
+            // if (codegen_options.log) {
+            //     try writer.print("    if (log_function) |log| {{ log(@constCast(@ptrCast(\\\"DEBUG: Choosing FBA pool\\\\n\\\"))); }}\n", .{});
+            // }
+            try writer.print("    var tensor_{s} = Tensor({s}).fromShape(if (link_active_is_a_{s}) &fba_a else &fba_b, &shape_tensor_{s}) catch return -2;\n", .{ sanitized_name, type_str, sanitized_name, sanitized_name });
+            // Record live FBA tensor per pool
+            try writer.print("    if (link_active_is_a_{s}) {{ fba_live_a += 1; }} else {{ fba_live_b += 1; }} // +1 live: {s}\n", .{ sanitized_name, sanitized_name });
+
+            // Memory Analytics disabilitato per ora (nomi troppo lunghi)
+            _ = codegen_options;
+        }
+    }
+}
+
+//reset FBA when tensors are no longer needed (static allocation optimization)
+fn reset_fba_after_unused_tensors(writer: std.fs.File.Writer, starting_node: usize, linearizedGraph: std.ArrayList(*NodeZant)) !void {
+    if (starting_node >= linearizedGraph.items.len) return;
+
+    const node = linearizedGraph.items[starting_node];
+
+    var any_dead: bool = false;
+    for (try node.get_input_tensors()) |input_tensor| {
+        if (input_tensor.tc != tensorZant_lib.TensorCategory.LINK) continue;
+
+        var used_later = false;
+        // STRATEGIA 1: Lifetime più aggressivo - controlla solo le prossime 3-5 operazioni invece di tutto il grafo
+        const lookahead_limit = @min(starting_node + 5, linearizedGraph.items.len);
+
+        // OTTIMIZZAZIONE FUTURA: Multi-Pool Strategy (3+ pools)
+        // Invece di 2 pool da 512KB, usare 4 pool da 128KB:
+        // - Pool specializzati per tensor size (small/medium/large)
+        // - Pool temporanei per operazioni brevi (clip, relu)
+        // - Pool persistenti per tensori long-lived (add, residual connections)
+        // Vantaggi: Memory footprint 4×128KB = 512KB vs attuale 2×512KB = 1024KB
+        for (starting_node + 1..lookahead_limit) |j| {
+            const fut = linearizedGraph.items[j];
+            for (try fut.get_input_tensors()) |fut_in| {
+                if (std.mem.eql(u8, input_tensor.name, fut_in.name)) {
+                    used_later = true;
+                    break;
+                }
+            }
+            if (used_later) break;
+        }
+
+        if (!used_later) {
+            // STRATEGIA 2: Log più dettagliato per debugging
+            // FIXME: Temporarily disabled due to long tensor names causing newline issues
+            // if (codegen_options.log) {
+            //     try writer.print("    if (log_function) |log| {{ log(@constCast(@ptrCast(\"💀 Tensor dead: {s}\\n\"))); }}\n", .{input_tensor.name});
+            // }
+            // We don't know which pool the tensor belongs to; assume it was taken from the pool with greater live count
+            try writer.print("    if (fba_live_a >= fba_live_b and fba_live_a > 0) {{ fba_live_a -= 1; }} else if (fba_live_b > 0) {{ fba_live_b -= 1; }}\n", .{});
+            any_dead = true;
+        }
+    }
+
+    if (!any_dead) return;
+
+    // STRATEGIA 3: Reset più aggressivo - anche con soglia bassa invece di aspettare 0
+    try writer.print("    if (fba_live_a == 0) {{\n", .{});
+    if (codegen_options.log) {
+        try writer.print("        if (log_function) |log| {{ log(@constCast(@ptrCast(\"🗑️  FBA Reset(A): pool A empty, reclaiming buffer\\n\"))); }}\n", .{});
+    }
+    try writer.print("        fba_state_a.reset();\n", .{});
+    try writer.print("        fba_live_a = 0;\n", .{});
+    try writer.print("    }}\n", .{});
+
+    try writer.print("    if (fba_live_b == 0) {{\n", .{});
+    if (codegen_options.log) {
+        try writer.print("        if (log_function) |log| {{ log(@constCast(@ptrCast(\"🗑️  FBA Reset(B): pool B empty, reclaiming buffer\\n\"))); }}\n", .{});
+    }
+    try writer.print("        fba_state_b.reset();\n", .{});
+    try writer.print("        fba_live_b = 0;\n", .{});
+    try writer.print("    }}\n", .{});
+}
+
+// Build alias map: alias_name -> canonical_name for in-place clip operations
+fn buildAliasMap(temp_allocator: std.mem.Allocator, graph: std.ArrayList(*NodeZant)) !std.StringHashMap([]const u8) {
+    var alias_map = std.StringHashMap([]const u8).init(temp_allocator);
+
+    // Look for optimized quantized clip patterns
+    var i: usize = 0;
+    while (i + 2 < graph.items.len) : (i += 1) {
+        const nodes_slice = graph.items[i .. i + 3];
+        const pattern = try detect_quantized_clip_pattern(nodes_slice);
+        if (pattern.detected and pattern.output_quantized_tensor != null and pattern.input_quantized_tensor != null) {
+            // Map the clip alias to its canonical input tensor
+            const alias_name = try pattern.output_quantized_tensor.?.getNameSanitized();
+            const canonical_name = try pattern.input_quantized_tensor.?.getNameSanitized();
+
+            const alias_key = try temp_allocator.dupe(u8, alias_name);
+            const canonical_value = try temp_allocator.dupe(u8, canonical_name);
+            try alias_map.put(alias_key, canonical_value);
+
+            // Skip the pattern nodes since we've processed them
+            i += 2;
+        }
+    }
+
+    return alias_map;
+}
+
+// Get canonical tensor name (resolves aliases to their real buffer)
+fn canonical(alias_map: *const std.StringHashMap([]const u8), tensor_name: []const u8) []const u8 {
+    if (alias_map.get(tensor_name)) |canonical_name| {
+        return canonical_name;
+    }
+    return tensor_name;
+}
+
+// Build reference count map for canonical tensors only, skipping optimized patterns
+fn buildUseCounts(
+    temp_allocator: std.mem.Allocator,
+    graph: std.ArrayList(*NodeZant),
+    alias_map: *const std.StringHashMap([]const u8),
+) !std.StringHashMap(u32) {
+    var counts = std.StringHashMap(u32).init(temp_allocator);
+
+    var i: usize = 0;
+    while (i < graph.items.len) : (i += 1) {
+        // Salta interamente i tripletti ottimizzati
+        if (i + 2 < graph.items.len) {
+            const pat = try detect_quantized_clip_pattern(graph.items[i .. i + 3]);
+            if (pat.detected) {
+                i += 2;
+                continue;
+            }
+        }
+
+        const node = graph.items[i];
+        for (try node.get_input_tensors()) |tensor| {
+            if (tensor.tc != tensorZant_lib.TensorCategory.LINK) continue;
+
+            const name = try tensor.getNameSanitized();
+            const canon = canonical(alias_map, name);
+
+            const key = try temp_allocator.dupe(u8, canon);
+            const entry = try counts.getOrPut(key);
+            if (!entry.found_existing) entry.value_ptr.* = 0;
+            entry.value_ptr.* += 1;
+        }
+    }
+    return counts;
+}
+
+// Emit reference count decrement for a node's inputs with lazy declaration
+fn emitRcDecForNode(
+    writer: std.fs.File.Writer,
+    node: *NodeZant,
+    alias_map: *const std.StringHashMap([]const u8),
+    use_counts: *const std.StringHashMap(u32),
+    rc_declared: *std.StringHashMap(u8),
+    alloc: std.mem.Allocator,
+) !void {
+    for (try node.get_input_tensors()) |tensor| {
+        if (tensor.tc != tensorZant_lib.TensorCategory.LINK) continue;
+
+        const name = try tensor.getNameSanitized();
+        const canon = canonical(alias_map, name);
+
+        // Dichiara il contatore solo la prima volta che serve
+        if (!rc_declared.contains(canon)) {
+            const init = use_counts.get(canon) orelse 0;
+            _ = try writer.print("    var _use_count_{s}: u32 = {d};\n", .{ canon, init });
+            const key = try alloc.dupe(u8, canon);
+            try rc_declared.put(key, 1);
+        }
+
+        _ = try writer.print("    // RC dec for {s} (canonical: {s})\n", .{ name, canon });
+        _ = try writer.print("    _use_count_{s} -= 1;\n", .{canon});
+        _ = try writer.print("    if (_use_count_{s} == 0) tensor_{s}.deinit();\n", .{ canon, canon });
+    }
+}
+
+// Emit reference count decrement for static mode with FBA pool tracking
+fn emitRcDecForNodeStatic(
+    writer: std.fs.File.Writer,
+    node: *NodeZant,
+    alias_map: *const std.StringHashMap([]const u8),
+    use_counts: *const std.StringHashMap(u32),
+    rc_declared: *std.StringHashMap(u8),
+    alloc: std.mem.Allocator,
+) !void {
+    for (try node.get_input_tensors()) |tensor| {
+        if (tensor.tc != tensorZant_lib.TensorCategory.LINK) continue;
+
+        const name = try tensor.getNameSanitized();
+        const canon = canonical(alias_map, name);
+
+        // CRITICAL: Don't deallocate clip aliases - they're just pointers to existing tensors
+        const is_clip_alias = std.mem.startsWith(u8, name, "relu6__") and std.mem.endsWith(u8, name, "_0_quantized");
+        if (is_clip_alias) continue;
+
+        // Dichiara il contatore solo la prima volta che serve
+        if (!rc_declared.contains(canon)) {
+            const init = use_counts.get(canon) orelse 0;
+            _ = try writer.print("    var _use_count_{s}: u32 = {d};\n", .{ canon, init });
+            const key = try alloc.dupe(u8, canon);
+            try rc_declared.put(key, 1);
+        }
+
+        _ = try writer.print("    // RC dec for {s} (canonical: {s})\n", .{ name, canon });
+        _ = try writer.print("    _use_count_{s} -= 1;\n", .{canon});
+        _ = try writer.print("    if (_use_count_{s} == 0) {{\n", .{canon});
+        _ = try writer.print("        // Static tensor deallocation: decrement FBA pool counter\n", .{});
+        _ = try writer.print("        if (tensor_{s}_pool_is_a) {{\n", .{canon});
+        _ = try writer.print("            if (fba_live_a > 0) fba_live_a -= 1;\n", .{});
+        _ = try writer.print("        }} else {{\n", .{});
+        _ = try writer.print("            if (fba_live_b > 0) fba_live_b -= 1;\n", .{});
+        _ = try writer.print("        }}\n", .{});
+        _ = try writer.print("        // Check if pool is empty and reset if needed\n", .{});
+        _ = try writer.print("        if (fba_live_a == 0) {{\n", .{});
+        if (codegen_options.log) {
+            _ = try writer.print("            if (log_function) |log| {{ log(@constCast(@ptrCast(\"🗑️  FBA Reset(A): pool A empty, reclaiming buffer\\n\"))); }}\n", .{});
+        }
+        _ = try writer.print("            fba_state_a.reset();\n", .{});
+        _ = try writer.print("        }}\n", .{});
+        _ = try writer.print("        if (fba_live_b == 0) {{\n", .{});
+        if (codegen_options.log) {
+            _ = try writer.print("            if (log_function) |log| {{ log(@constCast(@ptrCast(\"🗑️  FBA Reset(B): pool B empty, reclaiming buffer\\n\"))); }}\n", .{});
+        }
+        _ = try writer.print("            fba_state_b.reset();\n", .{});
+        _ = try writer.print("        }}\n", .{});
+        _ = try writer.print("    }}\n", .{});
     }
 }
 
@@ -541,8 +916,13 @@ fn deallocate_useless_link_tensors(writer: std.fs.File.Writer, starting_node: us
     var used: bool = false;
     for (try node.get_input_tensors()) |my_input_tensor| { //for each input tensor of my node
         used = false;
-        //if not used anymore in the rest of the graph
-        for (starting_node + 1..linearizedGraph.items.len) |j| {
+
+        // AGGRESSIVE DEALLOCATION: Look ahead only 1-2 operations instead of entire graph
+        // This reduces peak memory by deallocating tensors sooner
+        const lookahead_limit = @min(starting_node + 2, linearizedGraph.items.len);
+
+        //if not used anymore in the next few operations
+        for (starting_node + 1..lookahead_limit) |j| {
             for (try linearizedGraph.items[j].get_input_tensors()) |other_input_tens| {
                 if (std.mem.eql(u8, my_input_tensor.name, other_input_tens.name)) {
                     used = true;
@@ -552,9 +932,19 @@ fn deallocate_useless_link_tensors(writer: std.fs.File.Writer, starting_node: us
             if (used) break;
         }
 
-        //if it is not used anymore in the graph and it is an initializer I can deinit it
-        if (!used and my_input_tensor.tc == tensorZant_lib.TensorCategory.LINK) {
-            _ = try writer.print("    tensor_{s}.deinit();\n", .{try my_input_tensor.getNameSanitized()});
+        // Use reference counting based deallocation
+        if (my_input_tensor.tc == tensorZant_lib.TensorCategory.LINK) {
+            const tensor_name = try my_input_tensor.getNameSanitized();
+
+            // CRITICAL: Don't deallocate clip aliases - they're just pointers to existing tensors
+            const is_clip_alias = std.mem.startsWith(u8, tensor_name, "relu6__") and std.mem.endsWith(u8, tensor_name, "_0_quantized");
+
+            if (!is_clip_alias) {
+                // Decrement reference count and deallocate if last use
+                _ = try writer.print("    // Reference counting deallocation for {s}\n", .{tensor_name});
+                _ = try writer.print("    _use_count_{s} -= 1;\n", .{tensor_name});
+                _ = try writer.print("    if (_use_count_{s} == 0) tensor_{s}.deinit();\n", .{ tensor_name, tensor_name });
+            }
         }
     }
 
@@ -700,4 +1090,161 @@ fn align_dequant_input_shapes(linearizedGraph: std.ArrayList(*NodeZant)) !void {
             }
         }
     }
+}
+
+// Structure to hold pattern detection results
+const QuantizedClipPatternResult = struct {
+    detected: bool,
+    dequant_node: ?*NodeZant = null,
+    clip_node: ?*NodeZant = null,
+    quant_node: ?*NodeZant = null,
+    input_quantized_tensor: ?*TensorZant = null,
+    input_scale_tensor: ?*TensorZant = null,
+    input_zero_point_tensor: ?*TensorZant = null,
+    output_quantized_tensor: ?*TensorZant = null,
+    output_scale_tensor: ?*TensorZant = null,
+    output_zero_point_tensor: ?*TensorZant = null,
+    min_val: f32 = 0.0,
+    max_val: f32 = 6.0,
+};
+
+// Detects the pattern: DequantizeLinear -> Clip -> QuantizeLinear
+fn detect_quantized_clip_pattern(nodes: []*NodeZant) !QuantizedClipPatternResult {
+    if (nodes.len < 3) return QuantizedClipPatternResult{ .detected = false };
+
+    const node1 = nodes[0];
+    const node2 = nodes[1];
+    const node3 = nodes[2];
+
+    // Check if we have the right sequence of operations
+    const is_dequant = std.mem.eql(u8, node1.op_type, "DequantizeLinear");
+    const is_clip = std.mem.eql(u8, node2.op_type, "Clip");
+    const is_quant = std.mem.eql(u8, node3.op_type, "QuantizeLinear");
+
+    if (!is_dequant or !is_clip or !is_quant) {
+        return QuantizedClipPatternResult{ .detected = false };
+    }
+
+    // Extract operations
+    const dequant_op = switch (node1.op) {
+        .dequantizeLinear => |op| op,
+        else => return QuantizedClipPatternResult{ .detected = false },
+    };
+
+    const clip_op = switch (node2.op) {
+        .clip => |op| op,
+        else => return QuantizedClipPatternResult{ .detected = false },
+    };
+
+    const quant_op = switch (node3.op) {
+        .quantizeLinear => |op| op,
+        else => return QuantizedClipPatternResult{ .detected = false },
+    };
+
+    // Verify tensor connectivity: dequant output -> clip input -> quant input
+    const dequant_outputs = try dequant_op.get_output_tensors();
+    const clip_inputs = try clip_op.get_input_tensors();
+    const clip_outputs = try clip_op.get_output_tensors();
+    const quant_inputs = try quant_op.get_input_tensors();
+
+    // Check if dequant output connects to clip input
+    if (dequant_outputs.len == 0 or clip_inputs.len == 0) return QuantizedClipPatternResult{ .detected = false };
+    if (!std.mem.eql(u8, dequant_outputs[0].name, clip_inputs[0].name)) {
+        return QuantizedClipPatternResult{ .detected = false };
+    }
+
+    // Check if clip output connects to quant input
+    if (clip_outputs.len == 0 or quant_inputs.len == 0) return QuantizedClipPatternResult{ .detected = false };
+    if (!std.mem.eql(u8, clip_outputs[0].name, quant_inputs[0].name)) {
+        return QuantizedClipPatternResult{ .detected = false };
+    }
+
+    // Extract clip bounds (for ReLU6: min=0, max=6)
+    var min_val: f32 = 0.0;
+    var max_val: f32 = 6.0;
+
+    if (clip_op.min) |min_tensor| {
+        if (min_tensor.ptr) |tensor_ptr| {
+            min_val = tensor_ptr.f32.data[0];
+        }
+    }
+
+    if (clip_op.max) |max_tensor| {
+        if (max_tensor.ptr) |tensor_ptr| {
+            max_val = tensor_ptr.f32.data[0];
+        }
+    }
+
+    // Get tensors for the optimized operation
+    const dequant_inputs = try dequant_op.get_input_tensors();
+    const quant_outputs = try quant_op.get_output_tensors();
+
+    if (dequant_inputs.len < 3 or quant_outputs.len < 1) return QuantizedClipPatternResult{ .detected = false };
+
+    const quant_inputs_full = try quant_op.get_input_tensors();
+    if (quant_inputs_full.len < 3) return QuantizedClipPatternResult{ .detected = false };
+
+    return QuantizedClipPatternResult{
+        .detected = true,
+        .dequant_node = node1,
+        .clip_node = node2,
+        .quant_node = node3,
+        .input_quantized_tensor = dequant_inputs[0], // x
+        .input_scale_tensor = dequant_inputs[1], // x_scale
+        .input_zero_point_tensor = dequant_inputs[2], // x_zero_point
+        .output_quantized_tensor = quant_outputs[0], // y
+        .output_scale_tensor = quant_inputs_full[1], // y_scale
+        .output_zero_point_tensor = quant_inputs_full[2], // y_zero_point
+        .min_val = min_val,
+        .max_val = max_val,
+    };
+}
+
+// Writes the optimized quantized clip pattern using clip_quantized_lean
+fn write_quantized_clip_pattern(writer: std.fs.File.Writer, pattern: QuantizedClipPatternResult) !void {
+    if (!pattern.detected) return;
+
+    if (codegen_options.comm) {
+        try writer.print(
+            \\
+            \\    // OPTIMIZED PATTERN: DequantizeLinear -> Clip -> QuantizeLinear
+            \\    // Replaced with direct quantized clip to save memory and computation
+            \\
+        , .{});
+    }
+
+    if (codegen_options.log) {
+        try writer.print(
+            \\
+            \\    if (log_function) |log| {{
+            \\        log(@constCast(@ptrCast("Running optimized QuantizedClip (ReLU6) operation...\n")));
+            \\    }}
+            \\
+        , .{});
+    }
+
+    // Note: We don't allocate intermediate tensors (dequant and clip outputs)
+    // because the optimization bypasses them entirely using clip_quantized_lean
+    // We also don't allocate the output tensor since we're doing in-place clipping
+
+    // Call the optimized clip_quantized_lean function
+    try Clip.write_op_quantized_pattern(
+        pattern.input_quantized_tensor.?,
+        pattern.input_scale_tensor.?,
+        pattern.input_zero_point_tensor.?,
+        pattern.output_quantized_tensor.?,
+        pattern.output_scale_tensor.?,
+        pattern.output_zero_point_tensor.?,
+        pattern.min_val,
+        pattern.max_val,
+        writer,
+    );
+
+    // Create an alias so subsequent operations can reference the output tensor
+    const sanitized_input_name = try pattern.input_quantized_tensor.?.getNameSanitized();
+    const sanitized_output_name = try pattern.output_quantized_tensor.?.getNameSanitized();
+    try writer.print("    var tensor_{s} = tensor_{s}; // Alias for in-place clip result\n", .{ sanitized_output_name, sanitized_input_name });
+
+    // Note: We don't call deinit() on the input tensor since it's still in use via the alias
+    // The alias will be deinit()'ed later when it's no longer needed
 }

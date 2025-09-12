@@ -65,6 +65,7 @@ const op_clip = @import("lib_elementWise_math/op_clip.zig");
 
 pub const clip = op_clip.clip;
 pub const clip_lean = op_clip.lean_clip;
+pub const clip_quantized_lean = op_clip.clip_quantized_lean;
 pub const lowerClip = op_clip.lowerClip;
 
 //---floor
@@ -308,6 +309,7 @@ pub const op_averagePool = @import("op_averagePool.zig");
 pub const onnx_averagepool = op_averagePool.onnx_averagepool;
 pub const onnx_averagepool_lean = op_averagePool.lean_onnx_averagepool;
 pub const get_onnx_averagepool_output_shape = op_averagePool.get_onnx_averagepool_output_shape;
+pub const AutoPadType = op_averagePool.AutoPadType;
 
 //---global average pooling
 pub const op_globalAveragePool = @import("op_globalAveragePool.zig");
@@ -334,6 +336,7 @@ pub const qlinearconv = qlinearconv_math_lib.qlinearconv;
 pub const qlinearconv_lean = qlinearconv_math_lib.qlinearconv_lean;
 pub const qlinearconv_embedded_lean = qlinearconv_math_lib.qlinearconv_embedded_lean;
 pub const qlinearconv_simd_lean = qlinearconv_simd_lib.qlinearconv_simd_lean;
+pub const qlinearconv_onnx_v10 = qlinearconv_simd_lib.qlinearconv_onnx_v10;
 pub const get_qlinearconv_output_shape = qlinearconv_math_lib.get_qlinearconv_output_shape;
 
 //---qlinearadd
@@ -371,6 +374,20 @@ const qlinearsoftmax_math_lib = @import("op_qlinearsoftmax.zig");
 pub const qlinearsoftmax = qlinearsoftmax_math_lib.qlinearsoftmax;
 pub const qlinearsoftmax_lean = qlinearsoftmax_math_lib.lean_qlinearsoftmax;
 pub const get_qlinearsoftmax_output_shape = qlinearsoftmax_math_lib.get_qlinearsoftmax_output_shape;
+
+//---qlinearconcat
+const qlinearconcat_math_lib = @import("op_qlinearconcat.zig");
+
+pub const qlinearconcat = qlinearconcat_math_lib.qlinearconcat;
+pub const lean_qlinearconcat = qlinearconcat_math_lib.lean_qlinearconcat;
+pub const get_qlinearconcat_output_shape = qlinearconcat_math_lib.get_qlinearconcat_output_shape;
+
+//---qlinearaveragepool
+const qlinearaveragepool_math_lib = @import("op_qlinearaveragepool.zig");
+
+pub const qlinearaveragepool = qlinearaveragepool_math_lib.qlinearaveragepool;
+pub const lean_qlinearaveragepool = qlinearaveragepool_math_lib.lean_qlinearaveragepool;
+pub const get_qlinearaveragepool_output_shape = qlinearaveragepool_math_lib.get_qlinearaveragepool_output_shape;
 
 // ---------- importing standard normalization methods ----------
 
