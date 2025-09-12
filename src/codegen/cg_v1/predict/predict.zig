@@ -224,7 +224,7 @@ fn write_TensorAllocation(writer: std.fs.File.Writer, tz: *TensorZant, size: i64
         // Static allocation: zero-init esplicito con tipo
         try writer.print("var array_{s}: [{d}]{s} = std.mem.zeroes([{d}]{s});\n", .{ sanitized_name, size, type_str, size, type_str });
 
-        // Scope per costruire il Tensor sull’array pre-allocato
+        // Scope per costruire il Tensor sull'array pre-allocato
 
     }
 }
@@ -375,7 +375,7 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         \\    const input_size: usize = {};
         \\    
         \\    // Zero-copy tensor pointing directly to input data
-        \\    var tensor_{s} = Tensor(T_in){{
+        \\    const tensor_{s} = Tensor(T_in){{
         \\        .data = input[0..input_size],
         \\        .shape = input_shape_fixed[0..],
         \\        .size = input_size,
@@ -529,9 +529,260 @@ fn write_graphSerialization(
     rc_declared: ?*std.StringHashMap(u8),
     alloc: std.mem.Allocator,
 ) !void {
+    // Track nodes to skip (e.g., QuantizeLinear consumed by a fused op earlier)
+    var skip_nodes = std.AutoHashMap(*NodeZant, void).init(alloc);
+    defer skip_nodes.deinit();
+
+    // Pre-plan QAdd fusions: map Add nodes to fusion pattern
+    var qadd_plan = std.AutoHashMap(*NodeZant, QAddPatternResult).init(alloc);
+    defer qadd_plan.deinit();
+    {
+        var k: usize = 0;
+        while (k < linearizedGraph.items.len) : (k += 1) {
+            const nd = linearizedGraph.items[k];
+            if (!std.mem.eql(u8, nd.op_type, "Add")) continue;
+            const add_in = nd.get_input_tensors() catch &[_]*TensorZant{};
+            const add_out = nd.get_output_tensors() catch &[_]*TensorZant{};
+            if (add_in.len < 2 or add_out.len < 1) continue;
+            // Backward: find dequant producers for both inputs
+            const deq_a = resolve_dequant_producer(linearizedGraph, k, add_in[0].name);
+            const deq_b = resolve_dequant_producer(linearizedGraph, k, add_in[1].name);
+            if (deq_a == null or deq_b == null) continue;
+            // Forward: find unique QuantizeLinear consumer for Add output (through pass-throughs)
+            const qfind = find_quantize_consumer(linearizedGraph, k, add_out[0].name);
+            if (qfind == null) continue;
+            // Safety: ensure no other future consumers of the Add output after the found quantize
+            var unique_use = true;
+            var jcheck: usize = qfind.?.index + 1;
+            while (jcheck < linearizedGraph.items.len) : (jcheck += 1) {
+                const fut = linearizedGraph.items[jcheck];
+                const fut_inputs = fut.get_input_tensors() catch &[_]*TensorZant{};
+                for (fut_inputs) |tin| {
+                    if (std.mem.eql(u8, tin.name, add_out[0].name)) {
+                        unique_use = false;
+                        break;
+                    }
+                }
+                if (!unique_use) break;
+            }
+            if (!unique_use) continue;
+            // Build pattern
+            const deq_a_in = deq_a.?.get_input_tensors() catch &[_]*TensorZant{};
+            const deq_b_in = deq_b.?.get_input_tensors() catch &[_]*TensorZant{};
+            if (deq_a_in.len < 3 or deq_b_in.len < 3) continue;
+            const q_in = qfind.?.node.get_input_tensors() catch &[_]*TensorZant{};
+            const q_out = qfind.?.node.get_output_tensors() catch &[_]*TensorZant{};
+            if (q_in.len < 3 or q_out.len < 1) continue;
+            var pat = QAddPatternResult{ .detected = true };
+            pat.deq_a_node = deq_a.?;
+            pat.deq_b_node = deq_b.?;
+            pat.add_node = nd;
+            pat.quant_node = qfind.?.node;
+            pat.a_q = deq_a_in[0];
+            pat.a_scale = deq_a_in[1];
+            pat.a_zp = deq_a_in[2];
+            pat.b_q = deq_b_in[0];
+            pat.b_scale = deq_b_in[1];
+            pat.b_zp = deq_b_in[2];
+            pat.c_q = q_out[0];
+            pat.c_scale = q_in[1];
+            pat.c_zp = q_in[2];
+            // Record and mark nodes to skip later
+            _ = try qadd_plan.put(nd, pat);
+            _ = try skip_nodes.put(deq_a.?, {});
+            _ = try skip_nodes.put(deq_b.?, {});
+            _ = try skip_nodes.put(qfind.?.node, {});
+        }
+    }
+
     var i: usize = 0;
     while (i < linearizedGraph.items.len) {
         const node = linearizedGraph.items[i];
+
+        // Skip nodes marked as handled by previous fusions
+        if (skip_nodes.contains(node)) {
+            i += 1;
+            continue;
+        }
+
+        // Pattern detection: Fused NHWC f32 -> NCHW u8 (Transpose -> QuantizeLinear) at graph head
+        if (i + 1 < linearizedGraph.items.len) {
+            const tq_pat = try detect_transpose_quantize_pattern(linearizedGraph.items[i .. i + 2]);
+            if (tq_pat.detected) {
+                // Allocate output buffer for quantized tensor (node2 output)
+                if (codegen_options.dynamic) {
+                    try allocate_output_link_tensors(writer, tq_pat.quant_node.?);
+                } else {
+                    try allocate_output_link_tensors_static(writer, tq_pat.quant_node.?, linearizedGraph, i + 1, alias_map, use_counts);
+                }
+
+                // Emit fused quantizing transpose
+                try write_transpose_quantize_fused(writer, tq_pat);
+
+                // Skip the 2 operations we just optimized
+                i += 2;
+                continue;
+            }
+        }
+
+        // Pattern detection: DequantizeLinear -> DequantizeLinear -> Add -> QuantizeLinear (QAdd fusion)
+        if (i + 3 < linearizedGraph.items.len) {
+            const qadd_pat = try detect_qadd_pattern(linearizedGraph.items[i .. i + 4]);
+            if (qadd_pat.detected) {
+                // Safety: ensure Add output is only consumed by this QuantizeLinear
+                var add_out_safe = true;
+                const add_out_tensors = try qadd_pat.add_node.?.get_output_tensors();
+                if (add_out_tensors.len > 0) {
+                    const add_out_name = add_out_tensors[0].name;
+                    // scan future nodes beyond the quantize (i + 3)
+                    var j: usize = i + 4;
+                    while (j < linearizedGraph.items.len) : (j += 1) {
+                        const fut = linearizedGraph.items[j];
+                        const fut_inputs = fut.get_input_tensors() catch &[_]*TensorZant{};
+                        for (fut_inputs) |tin| {
+                            if (std.mem.eql(u8, tin.name, add_out_name)) {
+                                add_out_safe = false;
+                                break;
+                            }
+                        }
+                        if (!add_out_safe) break;
+                    }
+                }
+
+                if (add_out_safe) {
+                    // Allocate only the final quantized output buffer
+                    if (codegen_options.dynamic) {
+                        try allocate_output_link_tensors(writer, qadd_pat.quant_node.?);
+                    } else {
+                        try allocate_output_link_tensors_static(writer, qadd_pat.quant_node.?, linearizedGraph, i + 3, alias_map, use_counts);
+                    }
+                    try write_qadd_fused(writer, qadd_pat);
+                    i += 4;
+                    continue;
+                }
+            }
+        }
+
+        // Add-anchored QAdd fusion: Add -> QuantizeLinear, with inputs from two DequantizeLinear producers anywhere before
+        if (std.mem.eql(u8, node.op_type, "Add")) {
+            const add_node = linearizedGraph.items[i];
+            const add_in = try add_node.get_input_tensors();
+            const add_out = try add_node.get_output_tensors();
+            if (add_in.len >= 2 and add_out.len >= 1) {
+                // Find the QuantizeLinear that consumes this Add output, traversing pass-through ops
+                var quant_idx: ?usize = null;
+                var quant_node_ptr: ?*NodeZant = null;
+                var jfind: usize = i + 1;
+                var current_name = add_out[0].name;
+                outer: while (jfind < linearizedGraph.items.len) : (jfind += 1) {
+                    const cand = linearizedGraph.items[jfind];
+                    // If another non-pass-through op consumes current_name, abort fusion
+                    const cand_inputs = cand.get_input_tensors() catch &[_]*TensorZant{};
+                    var consumes_current = false;
+                    for (cand_inputs) |cin| {
+                        if (std.mem.eql(u8, cin.name, current_name)) {
+                            consumes_current = true;
+                            break;
+                        }
+                    }
+                    if (consumes_current) {
+                        if (std.mem.eql(u8, cand.op_type, "QuantizeLinear")) {
+                            const q_in = try cand.get_input_tensors();
+                            if (q_in.len >= 1 and std.mem.eql(u8, q_in[0].name, current_name)) {
+                                quant_idx = jfind;
+                                quant_node_ptr = cand;
+                                break :outer;
+                            }
+                        } else if (std.mem.eql(u8, cand.op_type, "Identity") or std.mem.eql(u8, cand.op_type, "Reshape") or std.mem.eql(u8, cand.op_type, "Squeeze") or std.mem.eql(u8, cand.op_type, "Unsqueeze") or std.mem.eql(u8, cand.op_type, "Transpose")) {
+                            const cand_outs = cand.get_output_tensors() catch &[_]*TensorZant{};
+                            if (cand_outs.len == 0) break :outer;
+                            current_name = cand_outs[0].name;
+                            continue;
+                        } else {
+                            // A different op consumes the Add output; can't fuse safely
+                            break :outer;
+                        }
+                    }
+                }
+
+                if (quant_idx) |q_idx| {
+                    const quant_node = quant_node_ptr.?;
+                    const q_in = try quant_node.get_input_tensors();
+                    const q_out = try quant_node.get_output_tensors();
+
+                    // Safety: ensure no other future consumer besides this Quantize
+                    var add_out_unique = true;
+                    var jcheck: usize = q_idx + 1;
+                    while (jcheck < linearizedGraph.items.len) : (jcheck += 1) {
+                        const fut = linearizedGraph.items[jcheck];
+                        const fut_inputs = fut.get_input_tensors() catch &[_]*TensorZant{};
+                        for (fut_inputs) |tin| {
+                            if (std.mem.eql(u8, tin.name, add_out[0].name)) {
+                                add_out_unique = false;
+                                break;
+                            }
+                        }
+                        if (!add_out_unique) break;
+                    }
+
+                    if (add_out_unique and q_in.len >= 3 and q_out.len >= 1) {
+                        // scan backwards to find DequantizeLinear producers for add inputs
+                        var cand = QAddPatternResult{ .detected = false };
+                        var found_a: bool = false;
+                        var found_b: bool = false;
+                        var j: isize = @intCast(i);
+                        while (j >= 0 and !(found_a and found_b)) : (j -= 1) {
+                            const prev = linearizedGraph.items[@intCast(j)];
+                            if (!std.mem.eql(u8, prev.op_type, "DequantizeLinear")) continue;
+                            const prev_out = try prev.get_output_tensors();
+                            if (prev_out.len == 0) continue;
+                            const out_name = prev_out[0].name;
+                            if (!found_a and std.mem.eql(u8, out_name, add_in[0].name)) {
+                                const deq_in = try prev.get_input_tensors();
+                                if (deq_in.len >= 3) {
+                                    cand.deq_a_node = prev;
+                                    cand.a_q = deq_in[0];
+                                    cand.a_scale = deq_in[1];
+                                    cand.a_zp = deq_in[2];
+                                    found_a = true;
+                                }
+                                continue;
+                            }
+                            if (!found_b and std.mem.eql(u8, out_name, add_in[1].name)) {
+                                const deq_in = try prev.get_input_tensors();
+                                if (deq_in.len >= 3) {
+                                    cand.deq_b_node = prev;
+                                    cand.b_q = deq_in[0];
+                                    cand.b_scale = deq_in[1];
+                                    cand.b_zp = deq_in[2];
+                                    found_b = true;
+                                }
+                                continue;
+                            }
+                        }
+
+                        if (found_a and found_b) {
+                            cand.detected = true;
+                            cand.add_node = add_node;
+                            cand.quant_node = quant_node;
+                            cand.c_q = q_out[0];
+                            cand.c_scale = q_in[1];
+                            cand.c_zp = q_in[2];
+
+                            if (codegen_options.dynamic) {
+                                try allocate_output_link_tensors(writer, cand.quant_node.?);
+                            } else {
+                                try allocate_output_link_tensors_static(writer, cand.quant_node.?, linearizedGraph, q_idx, alias_map, use_counts);
+                            }
+                            try write_qadd_fused(writer, cand);
+                            _ = try skip_nodes.put(quant_node, {});
+                            i += 1;
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
 
         // Pattern detection: DequantizeLinear -> Clip -> QuantizeLinear
         if (i + 2 < linearizedGraph.items.len) {
@@ -566,7 +817,7 @@ fn write_graphSerialization(
         if (codegen_options.dynamic) {
             try allocate_output_link_tensors(writer, node); //DYNAMIC ALLOCATION
         } else {
-            try allocate_output_link_tensors_static(writer, node); //STATIC JIT ALLOCATION
+            try allocate_output_link_tensors_static(writer, node, linearizedGraph, i, alias_map, use_counts); //STATIC JIT ALLOCATION
         }
 
         try node.write_op(writer);
@@ -588,6 +839,61 @@ fn write_graphSerialization(
 
         i += 1;
     }
+}
+
+// Resolve the DequantizeLinear producer for a given tensor name by scanning backwards and skipping pass-through ops
+fn resolve_dequant_producer(graph: std.ArrayList(*NodeZant), start_index: usize, target_name: []const u8) ?*NodeZant {
+    var name = target_name;
+    var j: isize = @intCast(start_index);
+    while (j >= 0) : (j -= 1) {
+        const n = graph.items[@intCast(j)];
+        const outs = n.get_output_tensors() catch &[_]*TensorZant{};
+        if (outs.len == 0) continue;
+        if (!std.mem.eql(u8, outs[0].name, name)) continue;
+        if (std.mem.eql(u8, n.op_type, "DequantizeLinear")) return n;
+        if (std.mem.eql(u8, n.op_type, "Identity") or
+            std.mem.eql(u8, n.op_type, "Reshape") or
+            std.mem.eql(u8, n.op_type, "Squeeze") or
+            std.mem.eql(u8, n.op_type, "Unsqueeze") or
+            std.mem.eql(u8, n.op_type, "Transpose"))
+        {
+            const ins = n.get_input_tensors() catch &[_]*TensorZant{};
+            if (ins.len == 0) return null;
+            name = ins[0].name;
+            continue;
+        }
+        return null;
+    }
+    return null;
+}
+
+const QuantConsume = struct { index: usize, node: *NodeZant };
+fn find_quantize_consumer(graph: std.ArrayList(*NodeZant), start_index: usize, start_name: []const u8) ?QuantConsume {
+    var name = start_name;
+    var j: usize = start_index + 1;
+    while (j < graph.items.len) : (j += 1) {
+        const n = graph.items[j];
+        const ins = n.get_input_tensors() catch &[_]*TensorZant{};
+        var consumes = false;
+        for (ins) |tin| {
+            if (std.mem.eql(u8, tin.name, name)) {
+                consumes = true;
+                break;
+            }
+        }
+        if (!consumes) continue;
+        if (std.mem.eql(u8, n.op_type, "QuantizeLinear")) {
+            return QuantConsume{ .index = j, .node = n };
+        }
+        if (std.mem.eql(u8, n.op_type, "Identity") or std.mem.eql(u8, n.op_type, "Reshape") or std.mem.eql(u8, n.op_type, "Squeeze") or std.mem.eql(u8, n.op_type, "Unsqueeze") or std.mem.eql(u8, n.op_type, "Transpose")) {
+            const outs = n.get_output_tensors() catch &[_]*TensorZant{};
+            if (outs.len == 0) return null;
+            name = outs[0].name;
+            continue;
+        }
+        return null;
+    }
+    return null;
 }
 
 //dynamically allocate a linker tensor
@@ -640,7 +946,14 @@ fn allocate_output_link_tensors(writer: std.fs.File.Writer, node: *NodeZant) !vo
 }
 
 //statically allocate a linker tensor using FBA (just-in-time)
-fn allocate_output_link_tensors_static(writer: std.fs.File.Writer, node: *NodeZant) !void {
+fn allocate_output_link_tensors_static(
+    writer: std.fs.File.Writer,
+    node: *NodeZant,
+    linearizedGraph: std.ArrayList(*NodeZant),
+    current_index: usize,
+    alias_map_opt: ?*const std.StringHashMap([]const u8),
+    use_counts_opt: ?*const std.StringHashMap(u32),
+) !void {
     // Attempt to infer output shape(s) from the operator before allocating LINK tensors
     var inferred_shape: ?[]usize = null;
     inferred_shape = node.op.get_output_shape() catch null;
@@ -675,17 +988,43 @@ fn allocate_output_link_tensors_static(writer: std.fs.File.Writer, node: *NodeZa
 
             const type_str = output_tensor.ty.toString();
 
+            // Decide if RC machinery will ever reference this tensor (to avoid unused constants)
+            var will_be_tracked: bool = false;
+            if (use_counts_opt) |use_counts_ptr| {
+                const canon_name = if (alias_map_opt) |am|
+                    canonical(am, sanitized_name)
+                else
+                    sanitized_name;
+                const cnt = use_counts_ptr.*.get(canon_name) orelse 0;
+                will_be_tracked = (cnt > 0);
+            } else {
+                // Fallback: scan only future nodes
+                for (current_index + 1..linearizedGraph.items.len) |j| {
+                    const future_node = linearizedGraph.items[j];
+                    for (try future_node.get_input_tensors()) |fut_in| {
+                        if (std.mem.eql(u8, fut_in.name, output_tensor.name)) {
+                            will_be_tracked = true;
+                            break;
+                        }
+                    }
+                    if (will_be_tracked) break;
+                }
+            }
+
             // Static allocation using FBA: Use fromShape for heap allocation in FBA
             try writer.print("    // choose active pool\n", .{});
             try writer.print("    const link_active_is_a_{s} = fba_live_a <= fba_live_b;\n", .{sanitized_name});
-            try writer.print("    const tensor_{s}_pool_is_a = link_active_is_a_{s}; // Track which pool this tensor uses\n", .{ sanitized_name, sanitized_name });
+
             // FIXME: Debug logging removed due to emoji/escaping issues
             // if (codegen_options.log) {
             //     try writer.print("    if (log_function) |log| {{ log(@constCast(@ptrCast(\\\"DEBUG: Choosing FBA pool\\\\n\\\"))); }}\n", .{});
             // }
             try writer.print("    var tensor_{s} = Tensor({s}).fromShape(if (link_active_is_a_{s}) &fba_a else &fba_b, &shape_tensor_{s}) catch return -2;\n", .{ sanitized_name, type_str, sanitized_name, sanitized_name });
-            // Record live FBA tensor per pool
-            try writer.print("    if (link_active_is_a_{s}) {{ fba_live_a += 1; }} else {{ fba_live_b += 1; }} // +1 live: {s}\n", .{ sanitized_name, sanitized_name });
+
+            // Record live FBA tensor per pool only if RC will track and later decrement it
+            if (will_be_tracked) {
+                try writer.print("    if (tensor_{s}.allocator == &fba_a) {{ fba_live_a += 1; }} else {{ fba_live_b += 1; }} // +1 live: {s}\n", .{ sanitized_name, sanitized_name });
+            }
 
             // Memory Analytics disabilitato per ora (nomi troppo lunghi)
             _ = codegen_options;
@@ -728,7 +1067,7 @@ fn reset_fba_after_unused_tensors(writer: std.fs.File.Writer, starting_node: usi
             // STRATEGIA 2: Log più dettagliato per debugging
             // FIXME: Temporarily disabled due to long tensor names causing newline issues
             // if (codegen_options.log) {
-            //     try writer.print("    if (log_function) |log| {{ log(@constCast(@ptrCast(\"💀 Tensor dead: {s}\\n\"))); }}\n", .{input_tensor.name});
+            //     try writer.print("    if (log_function) |log| {{ log(@constCast(@ptrCast(\"�� Tensor dead: {s}\\n\"))); }}\n", .{input_tensor.name});
             // }
             // We don't know which pool the tensor belongs to; assume it was taken from the pool with greater live count
             try writer.print("    if (fba_live_a >= fba_live_b and fba_live_a > 0) {{ fba_live_a -= 1; }} else if (fba_live_b > 0) {{ fba_live_b -= 1; }}\n", .{});
@@ -870,7 +1209,7 @@ fn emitRcDecForNodeStatic(
         const canon = canonical(alias_map, name);
 
         // CRITICAL: Don't deallocate clip aliases - they're just pointers to existing tensors
-        const is_clip_alias = std.mem.startsWith(u8, name, "relu6__") and std.mem.endsWith(u8, name, "_0_quantized");
+        const is_clip_alias = ((std.mem.startsWith(u8, name, "relu__") or std.mem.startsWith(u8, name, "relu6__")) and std.mem.endsWith(u8, name, "_0_quantized"));
         if (is_clip_alias) continue;
 
         // Dichiara il contatore solo la prima volta che serve
@@ -885,7 +1224,7 @@ fn emitRcDecForNodeStatic(
         _ = try writer.print("    _use_count_{s} -= 1;\n", .{canon});
         _ = try writer.print("    if (_use_count_{s} == 0) {{\n", .{canon});
         _ = try writer.print("        // Static tensor deallocation: decrement FBA pool counter\n", .{});
-        _ = try writer.print("        if (tensor_{s}_pool_is_a) {{\n", .{canon});
+        _ = try writer.print("        if (tensor_{s}.allocator == &fba_a) {{\n", .{canon});
         _ = try writer.print("            if (fba_live_a > 0) fba_live_a -= 1;\n", .{});
         _ = try writer.print("        }} else {{\n", .{});
         _ = try writer.print("            if (fba_live_b > 0) fba_live_b -= 1;\n", .{});
@@ -937,7 +1276,7 @@ fn deallocate_useless_link_tensors(writer: std.fs.File.Writer, starting_node: us
             const tensor_name = try my_input_tensor.getNameSanitized();
 
             // CRITICAL: Don't deallocate clip aliases - they're just pointers to existing tensors
-            const is_clip_alias = std.mem.startsWith(u8, tensor_name, "relu6__") and std.mem.endsWith(u8, tensor_name, "_0_quantized");
+            const is_clip_alias = ((std.mem.startsWith(u8, tensor_name, "relu__") or std.mem.startsWith(u8, tensor_name, "relu6__")) and std.mem.endsWith(u8, tensor_name, "_0_quantized"));
 
             if (!is_clip_alias) {
                 // Decrement reference count and deallocate if last use
@@ -1116,72 +1455,62 @@ fn detect_quantized_clip_pattern(nodes: []*NodeZant) !QuantizedClipPatternResult
     const node2 = nodes[1];
     const node3 = nodes[2];
 
-    // Check if we have the right sequence of operations
+    // Support both Clip and Relu as the middle op
     const is_dequant = std.mem.eql(u8, node1.op_type, "DequantizeLinear");
-    const is_clip = std.mem.eql(u8, node2.op_type, "Clip");
     const is_quant = std.mem.eql(u8, node3.op_type, "QuantizeLinear");
+    const is_clip = std.mem.eql(u8, node2.op_type, "Clip");
+    const is_relu = std.mem.eql(u8, node2.op_type, "Relu");
 
-    if (!is_dequant or !is_clip or !is_quant) {
+    if (!is_dequant or !is_quant or !(is_clip or is_relu)) {
         return QuantizedClipPatternResult{ .detected = false };
     }
 
-    // Extract operations
-    const dequant_op = switch (node1.op) {
-        .dequantizeLinear => |op| op,
-        else => return QuantizedClipPatternResult{ .detected = false },
-    };
+    // Verify tensor connectivity using node-level tensors
+    const dequant_outputs = try node1.get_output_tensors();
+    const mid_inputs = try node2.get_input_tensors();
+    const mid_outputs = try node2.get_output_tensors();
+    const quant_inputs = try node3.get_input_tensors();
 
-    const clip_op = switch (node2.op) {
-        .clip => |op| op,
-        else => return QuantizedClipPatternResult{ .detected = false },
-    };
-
-    const quant_op = switch (node3.op) {
-        .quantizeLinear => |op| op,
-        else => return QuantizedClipPatternResult{ .detected = false },
-    };
-
-    // Verify tensor connectivity: dequant output -> clip input -> quant input
-    const dequant_outputs = try dequant_op.get_output_tensors();
-    const clip_inputs = try clip_op.get_input_tensors();
-    const clip_outputs = try clip_op.get_output_tensors();
-    const quant_inputs = try quant_op.get_input_tensors();
-
-    // Check if dequant output connects to clip input
-    if (dequant_outputs.len == 0 or clip_inputs.len == 0) return QuantizedClipPatternResult{ .detected = false };
-    if (!std.mem.eql(u8, dequant_outputs[0].name, clip_inputs[0].name)) {
+    if (dequant_outputs.len == 0 or mid_inputs.len == 0) return QuantizedClipPatternResult{ .detected = false };
+    if (!std.mem.eql(u8, dequant_outputs[0].name, mid_inputs[0].name)) {
         return QuantizedClipPatternResult{ .detected = false };
     }
 
-    // Check if clip output connects to quant input
-    if (clip_outputs.len == 0 or quant_inputs.len == 0) return QuantizedClipPatternResult{ .detected = false };
-    if (!std.mem.eql(u8, clip_outputs[0].name, quant_inputs[0].name)) {
+    if (mid_outputs.len == 0 or quant_inputs.len == 0) return QuantizedClipPatternResult{ .detected = false };
+    if (!std.mem.eql(u8, mid_outputs[0].name, quant_inputs[0].name)) {
         return QuantizedClipPatternResult{ .detected = false };
     }
 
-    // Extract clip bounds (for ReLU6: min=0, max=6)
-    var min_val: f32 = 0.0;
-    var max_val: f32 = 6.0;
+    // Extract bounds (Clip: read min/max; Relu: [0, +inf))
+    var min_val: f32 = 0;
+    var max_val: f32 = std.math.floatMax(f32);
 
-    if (clip_op.min) |min_tensor| {
-        if (min_tensor.ptr) |tensor_ptr| {
-            min_val = tensor_ptr.f32.data[0];
+    if (is_clip) {
+        const clip_op = switch (node2.op) {
+            .clip => |op| op,
+            else => return QuantizedClipPatternResult{ .detected = false },
+        };
+
+        // Force lower bound to 0.0 for quantized in-place optimization semantics
+        min_val = 0.0;
+
+        if (clip_op.max) |max_tensor| {
+            if (max_tensor.ptr) |tensor_ptr| {
+                max_val = tensor_ptr.f32.data[0];
+            }
         }
+    } else {
+        // Relu: lower bound at 0, effectively no upper bound
+        min_val = 0.0;
+        max_val = std.math.floatMax(f32);
     }
 
-    if (clip_op.max) |max_tensor| {
-        if (max_tensor.ptr) |tensor_ptr| {
-            max_val = tensor_ptr.f32.data[0];
-        }
-    }
-
-    // Get tensors for the optimized operation
-    const dequant_inputs = try dequant_op.get_input_tensors();
-    const quant_outputs = try quant_op.get_output_tensors();
+    // Get tensors for the optimized operation (using node-level APIs)
+    const dequant_inputs = try node1.get_input_tensors();
+    const quant_outputs = try node3.get_output_tensors();
+    const quant_inputs_full = try node3.get_input_tensors();
 
     if (dequant_inputs.len < 3 or quant_outputs.len < 1) return QuantizedClipPatternResult{ .detected = false };
-
-    const quant_inputs_full = try quant_op.get_input_tensors();
     if (quant_inputs_full.len < 3) return QuantizedClipPatternResult{ .detected = false };
 
     return QuantizedClipPatternResult{
@@ -1209,7 +1538,7 @@ fn write_quantized_clip_pattern(writer: std.fs.File.Writer, pattern: QuantizedCl
             \\
             \\    // OPTIMIZED PATTERN: DequantizeLinear -> Clip -> QuantizeLinear
             \\    // Replaced with direct quantized clip to save memory and computation
-            \\
+            \\    
         , .{});
     }
 
@@ -1217,9 +1546,9 @@ fn write_quantized_clip_pattern(writer: std.fs.File.Writer, pattern: QuantizedCl
         try writer.print(
             \\
             \\    if (log_function) |log| {{
-            \\        log(@constCast(@ptrCast("Running optimized QuantizedClip (ReLU6) operation...\n")));
+            \\        log(@constCast(@ptrCast("Running optimized QuantizedClip (ReLU/Clip) operation...\n")));
             \\    }}
-            \\
+            \\    
         , .{});
     }
 
@@ -1247,4 +1576,297 @@ fn write_quantized_clip_pattern(writer: std.fs.File.Writer, pattern: QuantizedCl
 
     // Note: We don't call deinit() on the input tensor since it's still in use via the alias
     // The alias will be deinit()'ed later when it's no longer needed
+}
+
+// Fused Transpose (NHWC f32) -> QuantizeLinear (NCHW u8) pattern
+const TransposeQuantizePatternResult = struct {
+    detected: bool,
+    transpose_node: ?*NodeZant = null,
+    quant_node: ?*NodeZant = null,
+    input_tensor: ?*TensorZant = null, // NHWC f32 input
+    scale_tensor: ?*TensorZant = null,
+    zero_point_tensor: ?*TensorZant = null,
+    output_tensor: ?*TensorZant = null, // NCHW u8 output
+    n: usize = 1,
+    h: usize = 0,
+    w: usize = 0,
+    c: usize = 0,
+};
+
+fn is_nhwc_to_nchw(input_shape: []const usize, output_shape: []const usize) bool {
+    if (input_shape.len != 4 or output_shape.len != 4) return false;
+    const n = input_shape[0];
+    const h = input_shape[1];
+    const w = input_shape[2];
+    const c = input_shape[3];
+    return (output_shape[0] == n and output_shape[1] == c and output_shape[2] == h and output_shape[3] == w);
+}
+
+fn detect_transpose_quantize_pattern(nodes: []*NodeZant) !TransposeQuantizePatternResult {
+    if (nodes.len < 2) return TransposeQuantizePatternResult{ .detected = false };
+    const n1 = nodes[0];
+    const n2 = nodes[1];
+
+    if (!std.mem.eql(u8, n1.op_type, "Transpose")) return TransposeQuantizePatternResult{ .detected = false };
+    if (!std.mem.eql(u8, n2.op_type, "QuantizeLinear")) return TransposeQuantizePatternResult{ .detected = false };
+
+    const t_in = try n1.get_input_tensors();
+    const t_out = try n1.get_output_tensors();
+    const q_in = try n2.get_input_tensors();
+    const q_out = try n2.get_output_tensors();
+
+    if (t_in.len == 0 or t_out.len == 0 or q_in.len < 3 or q_out.len == 0) return TransposeQuantizePatternResult{ .detected = false };
+
+    // Connectivity: transpose output feeds quantize input x
+    if (!std.mem.eql(u8, t_out[0].name, q_in[0].name)) return TransposeQuantizePatternResult{ .detected = false };
+
+    // Only fuse when transpose input is external INPUT and is f32, and quantize output is u8
+    if (t_in[0].tc != tensorZant_lib.TensorCategory.INPUT) return TransposeQuantizePatternResult{ .detected = false };
+    if (t_in[0].ty != tensorZant_lib.TensorType.f32) return TransposeQuantizePatternResult{ .detected = false };
+    if (q_out[0].ty != tensorZant_lib.TensorType.u8) return TransposeQuantizePatternResult{ .detected = false };
+
+    // Shape check: NHWC -> NCHW
+    const in_shape = t_in[0].getShape();
+    const out_shape = q_out[0].getShape();
+    if (!is_nhwc_to_nchw(in_shape, out_shape)) return TransposeQuantizePatternResult{ .detected = false };
+
+    return TransposeQuantizePatternResult{
+        .detected = true,
+        .transpose_node = n1,
+        .quant_node = n2,
+        .input_tensor = t_in[0],
+        .scale_tensor = q_in[1],
+        .zero_point_tensor = q_in[2],
+        .output_tensor = q_out[0],
+        .n = in_shape[0],
+        .h = in_shape[1],
+        .w = in_shape[2],
+        .c = in_shape[3],
+    };
+}
+
+fn write_transpose_quantize_fused(writer: std.fs.File.Writer, pat: TransposeQuantizePatternResult) !void {
+    if (!pat.detected) return;
+
+    const in_name = try pat.input_tensor.?.getNameSanitized();
+    const out_name = try pat.output_tensor.?.getNameSanitized();
+
+    // Resolve scale and zero-point expressions
+    const scale_is_param = pat.scale_tensor.?.tc == tensorZant_lib.TensorCategory.INITIALIZER;
+    const zp_is_param = pat.zero_point_tensor.?.tc == tensorZant_lib.TensorCategory.INITIALIZER;
+
+    const scale_name = try pat.scale_tensor.?.getNameSanitized();
+    const zp_name = try pat.zero_point_tensor.?.getNameSanitized();
+
+    // Comment and logging
+    if (codegen_options.comm) {
+        try writer.print(
+            \\
+            \\    // OPTIMIZED PATTERN: Transpose (NHWC f32) -> QuantizeLinear (NCHW u8)
+            \\    // Fused quantizing transpose to eliminate intermediate f32 buffer
+            \\    
+        , .{});
+    }
+    if (codegen_options.log) {
+        try writer.print(
+            \\
+            \\    if (log_function) |log| {{
+            \\        log(@constCast(@ptrCast("Running fused Transpose+Quantize operation...\n")));
+            \\    }}
+            \\    
+        , .{});
+    }
+
+    // Constants for dimensions
+    try writer.print("    const N: usize = {d};\n", .{pat.n});
+    try writer.print("    const H: usize = {d};\n", .{pat.h});
+    try writer.print("    const W: usize = {d};\n", .{pat.w});
+    try writer.print("    const C: usize = {d};\n", .{pat.c});
+
+    // Bind input/output data pointers
+    try writer.print("    const x = tensor_{s}.data; // NHWC f32\n", .{in_name});
+    try writer.print("    const y = tensor_{s}.data; // NCHW u8\n", .{out_name});
+
+    // Load scale and zero point
+    if (scale_is_param) {
+        try writer.print("    const y_scale: f32 = @constCast(&param_lib.tensor_{s}).data[0];\n", .{scale_name});
+    } else {
+        try writer.print("    const y_scale: f32 = tensor_{s}.data[0];\n", .{scale_name});
+    }
+    if (zp_is_param) {
+        try writer.print("    const y_zp: {s} = @constCast(&param_lib.tensor_{s}).data[0];\n", .{ pat.zero_point_tensor.?.ty.toString(), zp_name });
+    } else {
+        try writer.print("    const y_zp: {s} = tensor_{s}.data[0];\n", .{ pat.zero_point_tensor.?.ty.toString(), zp_name });
+    }
+
+    // Emit fused loops: iterate N,C,H,W and index NHWC input
+    try writer.print(
+        \\    var idx: usize = 0;
+        \\    var n: usize = 0;
+        \\    while (n < N) : (n += 1) {{
+        \\        var c: usize = 0;
+        \\        while (c < C) : (c += 1) {{
+        \\            var h: usize = 0;
+        \\            while (h < H) : (h += 1) {{
+        \\                var w: usize = 0;
+        \\                while (w < W) : (w += 1) {{
+        \\                    const nhwc_index = (((n * H) + h) * W + w) * C + c;
+        \\                    const v: f32 = x[nhwc_index];
+        \\                    const q_i32: i32 = @as(i32, @intFromFloat(@round(v / y_scale))) + @as(i32, y_zp);
+        \\                    const q_clamped: i32 = @max(0, @min(255, q_i32));
+        \\                    y[idx] = @intCast(q_clamped);
+        \\                    idx += 1;
+        \\                }}
+        \\            }}
+        \\        }}
+        \\    }}
+    , .{});
+}
+
+// QAdd fusion pattern: two dequantized inputs added then re-quantized
+const QAddPatternResult = struct {
+    detected: bool,
+    deq_a_node: ?*NodeZant = null,
+    deq_b_node: ?*NodeZant = null,
+    add_node: ?*NodeZant = null,
+    quant_node: ?*NodeZant = null,
+    a_q: ?*TensorZant = null,
+    a_scale: ?*TensorZant = null,
+    a_zp: ?*TensorZant = null,
+    b_q: ?*TensorZant = null,
+    b_scale: ?*TensorZant = null,
+    b_zp: ?*TensorZant = null,
+    c_q: ?*TensorZant = null,
+    c_scale: ?*TensorZant = null,
+    c_zp: ?*TensorZant = null,
+};
+
+fn detect_qadd_pattern(nodes: []*NodeZant) !QAddPatternResult {
+    if (nodes.len < 4) return QAddPatternResult{ .detected = false };
+    const n0 = nodes[0];
+    const n1 = nodes[1];
+    const n2 = nodes[2];
+    const n3 = nodes[3];
+
+    if (!std.mem.eql(u8, n0.op_type, "DequantizeLinear")) return QAddPatternResult{ .detected = false };
+    if (!std.mem.eql(u8, n1.op_type, "DequantizeLinear")) return QAddPatternResult{ .detected = false };
+    if (!std.mem.eql(u8, n2.op_type, "Add")) return QAddPatternResult{ .detected = false };
+    if (!std.mem.eql(u8, n3.op_type, "QuantizeLinear")) return QAddPatternResult{ .detected = false };
+
+    const deq0_out = try n0.get_output_tensors();
+    const deq1_out = try n1.get_output_tensors();
+    const add_in = try n2.get_input_tensors();
+    const add_out = try n2.get_output_tensors();
+    const q_in = try n3.get_input_tensors();
+    const q_out = try n3.get_output_tensors();
+
+    if (deq0_out.len == 0 or deq1_out.len == 0 or add_in.len < 2 or add_out.len == 0 or q_in.len < 3 or q_out.len == 0) {
+        return QAddPatternResult{ .detected = false };
+    }
+
+    // Check that add inputs are the dequant outputs (order-free)
+    const d0 = deq0_out[0].name;
+    const d1 = deq1_out[0].name;
+    const a0 = add_in[0].name;
+    const a1 = add_in[1].name;
+    const add_inputs_match = (std.mem.eql(u8, d0, a0) and std.mem.eql(u8, d1, a1)) or (std.mem.eql(u8, d0, a1) and std.mem.eql(u8, d1, a0));
+    if (!add_inputs_match) return QAddPatternResult{ .detected = false };
+
+    // Add output feeds QuantizeLinear input x
+    if (!std.mem.eql(u8, add_out[0].name, q_in[0].name)) return QAddPatternResult{ .detected = false };
+
+    // Gather input quantized tensors and scales/zps
+    const deq0_in = try n0.get_input_tensors();
+    const deq1_in = try n1.get_input_tensors();
+    if (deq0_in.len < 3 or deq1_in.len < 3) return QAddPatternResult{ .detected = false };
+
+    return QAddPatternResult{
+        .detected = true,
+        .deq_a_node = n0,
+        .deq_b_node = n1,
+        .add_node = n2,
+        .quant_node = n3,
+        .a_q = deq0_in[0],
+        .a_scale = deq0_in[1],
+        .a_zp = deq0_in[2],
+        .b_q = deq1_in[0],
+        .b_scale = deq1_in[1],
+        .b_zp = deq1_in[2],
+        .c_q = q_out[0],
+        .c_scale = q_in[1],
+        .c_zp = q_in[2],
+    };
+}
+
+fn write_qadd_fused(writer: std.fs.File.Writer, pat: QAddPatternResult) !void {
+    if (!pat.detected) return;
+
+    // Helper to create tensor reference strings similar to other fused writers
+    const makeRef = struct {
+        fn call(t: *TensorZant) ![]u8 {
+            if (t.tc == tensorZant_lib.TensorCategory.INITIALIZER) {
+                return try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "@constCast(&param_lib.tensor_",
+                    try t.getNameSanitized(),
+                    ")",
+                });
+            } else {
+                return try std.mem.concat(allocator, u8, &[_][]const u8{
+                    "@constCast(&tensor_",
+                    try t.getNameSanitized(),
+                    ")",
+                });
+            }
+        }
+    }.call;
+
+    const a_q_ref = try makeRef(pat.a_q.?);
+    defer allocator.free(a_q_ref);
+    const a_scale_ref = try makeRef(pat.a_scale.?);
+    defer allocator.free(a_scale_ref);
+    const a_zp_ref = try makeRef(pat.a_zp.?);
+    defer allocator.free(a_zp_ref);
+    const b_q_ref = try makeRef(pat.b_q.?);
+    defer allocator.free(b_q_ref);
+    const b_scale_ref = try makeRef(pat.b_scale.?);
+    defer allocator.free(b_scale_ref);
+    const b_zp_ref = try makeRef(pat.b_zp.?);
+    defer allocator.free(b_zp_ref);
+    const c_scale_ref = try makeRef(pat.c_scale.?);
+    defer allocator.free(c_scale_ref);
+    const c_zp_ref = try makeRef(pat.c_zp.?);
+    defer allocator.free(c_zp_ref);
+
+    const out_name = try pat.c_q.?.getNameSanitized();
+
+    if (codegen_options.comm) {
+        try writer.print(
+            \\
+            \\    // OPTIMIZED PATTERN: DequantizeLinear + DequantizeLinear + Add + QuantizeLinear
+            \\    // Replaced with direct qlinearadd_lean to save passes and allocations
+            \\    
+        , .{});
+    }
+    if (codegen_options.log) {
+        try writer.print(
+            \\
+            \\    if (log_function) |log| {{
+            \\        log(@constCast(@ptrCast("Running fused QLinearAdd operation...\n")));
+            \\    }}
+            \\    
+        , .{});
+    }
+
+    // Emit the fused call
+    try writer.print("    tensMath.qlinearadd_lean(\n", .{});
+    try writer.print("        {s},\n", .{a_q_ref});
+    try writer.print("        {s},\n", .{a_scale_ref});
+    try writer.print("        {s},\n", .{a_zp_ref});
+    try writer.print("        {s},\n", .{b_q_ref});
+    try writer.print("        {s},\n", .{b_scale_ref});
+    try writer.print("        {s},\n", .{b_zp_ref});
+    try writer.print("        &tensor_{s},\n", .{out_name});
+    try writer.print("        {s},\n", .{c_scale_ref});
+    try writer.print("        {s},\n", .{c_zp_ref});
+    try writer.print("    ) catch return -1;\n", .{});
 }
