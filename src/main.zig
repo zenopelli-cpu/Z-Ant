@@ -49,7 +49,7 @@ pub fn main() !void {
 
     // Esegui 3 passate di predict
     var pass: u8 = 1;
-    while (pass <= 3) : (pass += 1) {
+    while (pass <= 1) : (pass += 1) {
         main_log.info("\n=== PASSATA {} ===\n", .{pass});
 
         var output_ptr: [*]model_opts.output_data_type = undefined;
