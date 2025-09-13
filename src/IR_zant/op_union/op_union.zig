@@ -8,11 +8,14 @@ pub const operators = @import("operators/operators.zig");
 
 const tensorZant = @import("../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
+const nodeZant = @import("../nodeZant.zig");
+const NodeZant = nodeZant.NodeZant;
 
 // --- uops ---
 const UOpBuilder = zant.uops.UOpBuilder;
 
 pub const Op_union = union(enum) {
+    // ------------- atomic operations
     add: operators.Add,
     averagePool: operators.AveragePool,
     batchNormalization: operators.BatchNormalization,
@@ -24,7 +27,6 @@ pub const Op_union = union(enum) {
     conv: operators.Conv,
     convClip: operators.ConvClip,
     convInteger: operators.ConvInteger,
-
     dequantizeLinear: operators.DequantizeLinear,
     div: operators.Div,
     dynamicQuantizeLinear: operators.DynamicQuantizeLinear,
@@ -74,6 +76,9 @@ pub const Op_union = union(enum) {
     transpose: operators.Transpose,
     unsqueeze: operators.Unsqueeze,
 
+    // ------------- fused operations
+
+    // ------------- others
     useless: operators.Useless,
 
     pub fn init(nodeProto: *NodeProto) !Op_union {
@@ -197,6 +202,14 @@ pub const Op_union = union(enum) {
         } else {
             std.debug.print("\n\nERROR: init() is not available for {s} operator!! \n\n", .{op_type});
             return Op_union{ .useless = try operators.Useless.init(nodeProto) };
+        }
+    }
+
+    pub fn init_fused(fusion_list: std.ArrayList(*NodeZant), op_type: []const u8) !Op_union {
+        if (std.mem.eql(u8, op_type, "fused_a_b_c")) {
+            return Op_union{ .add = try operators.Fused_A_B_C.init_fused(fusion_list) };
+        } else if (std.mem.eql(u8, op_type, "fused_a_f_k")) {
+            return Op_union{ .averagePool = try operators.Fused_A_F_K.init_fused(fusion_list) };
         }
     }
 

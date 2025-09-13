@@ -35,6 +35,9 @@ massif*.*
 # Zant generated code
 /generated/*
 
+# profiling
+/profiling/*
+
 # Onnx models
 **/*.onnx
 
