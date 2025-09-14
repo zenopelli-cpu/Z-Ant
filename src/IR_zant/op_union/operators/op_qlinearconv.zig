@@ -14,6 +14,8 @@ const TensorProto = onnx.TensorProto;
 const tensorZant_lib = IR_zant.tensorZant_lib;
 const TensorZant = tensorZant_lib.TensorZant;
 const TensorCategory = tensorZant_lib.TensorCategory;
+const NodeZant_lib = IR_zant.NodeZant_lib;
+const NodeZant = NodeZant_lib.NodeZant;
 
 const tensorMath = zant.core.tensor.math_standard;
 const utils = IR_zant.utils;
@@ -133,6 +135,15 @@ pub const QLinearConv = struct {
         _ = qlinear_conv.compute_output_shape() catch {};
 
         return qlinear_conv;
+    }
+
+    pub fn init_fused(fusion_list: std.ArrayList(*NodeZant)) !QLinearConv {
+        // CASE 1: DequantizeLinear -> Pad -> QuantizeLinear -> QLinearConv = QLinearConv
+        if (!std.mem.eql(u8, fusion_list.items[0].op_type, "DequantizeLinear") and
+            !std.mem.eql(u8, fusion_list.items[1].op_type, "Pad") and
+            !std.mem.eql(u8, fusion_list.items[2].op_type, "QuantizeLinear") and
+            !std.mem.eql(u8, fusion_list.items[3].op_type, "QLinearConv"))
+        {}
     }
 
     pub fn get_output_shape(self: QLinearConv) ![]usize {

@@ -5,6 +5,7 @@ const NodeProto = onnx.NodeProto;
 
 const allocator = std.heap.page_allocator;
 pub const operators = @import("operators/operators.zig");
+pub const fused_operators = @import("fused_operators/fused_operators.zig");
 
 const tensorZant = @import("../tensorZant.zig");
 const TensorZant = tensorZant.TensorZant;
@@ -77,6 +78,7 @@ pub const Op_union = union(enum) {
     unsqueeze: operators.Unsqueeze,
 
     // ------------- fused operations
+    fused_Conv_BatchNormalization_Relu: fused_operators.Fused_Conv_BatchNormalization_Relu,
 
     // ------------- others
     useless: operators.Useless,
@@ -205,11 +207,11 @@ pub const Op_union = union(enum) {
         }
     }
 
-    pub fn init_fused(fusion_list: std.ArrayList(*NodeZant), op_type: []const u8) !Op_union {
-        if (std.mem.eql(u8, op_type, "fused_a_b_c")) {
-            return Op_union{ .add = try operators.Fused_A_B_C.init_fused(fusion_list) };
-        } else if (std.mem.eql(u8, op_type, "fused_a_f_k")) {
-            return Op_union{ .averagePool = try operators.Fused_A_F_K.init_fused(fusion_list) };
+    pub fn init_fused(fusion_list: std.ArrayList(*NodeZant), op_type: []const u8, op_name: []const u8) !Op_union {
+        if (std.mem.eql(u8, op_type, "fused_DequantizeLinear_Pad_QuantizeLinear_QLinearConv")) { //REPLACEMENT: DequantizeLinear -> Pad -> QuantizeLinear -> QLinearConv = QLinearConv
+            return Op_union{ .qLinearConv = try operators.QLinearConv.init_fused(fusion_list, op_name) }; // NOTICE: here we call operators.QLinearConv.init_fused() since it is written (codegenerated) in the same way, it just change the way we retrive the information
+        } else if (std.mem.eql(u8, op_type, "fused_Conv_BatchNormalization_Relu")) { //FUSION: Conv -> BatchNormalization -> Relu = Fused_Conv_BatchNormalization_Relu
+            return Op_union{ .fused_Conv_BatchNormalization_Relu = try fused_operators.Fused_dequant_pad_quantize_qlinearconv.init_fused(fusion_list, op_name) }; // NOTICE: here we call fused_operators.Fused_dequant_pad_quantize_qlinearconv.init_fused() since it is a custom made kernel
         }
     }
 

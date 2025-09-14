@@ -9,7 +9,6 @@ pub const Constant = @import("op_constant.zig").Constant;
 pub const Conv = @import("op_conv.zig").Conv;
 pub const ConvClip = @import("op_conv_clip.zig").ConvClip;
 pub const ConvInteger = @import("op_convInteger.zig").ConvInteger;
-
 pub const DequantizeLinear = @import("op_dequantizeLinear.zig").DequantizeLinear;
 pub const Div = @import("op_div.zig").Div;
 pub const DynamicQuantizeLinear = @import("op_dynamicQuantizeLinear.zig").DynamicQuantizeLinear;
