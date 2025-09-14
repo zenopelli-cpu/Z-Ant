@@ -137,15 +137,6 @@ pub const QLinearConv = struct {
         return qlinear_conv;
     }
 
-    pub fn init_fused(fusion_list: std.ArrayList(*NodeZant)) !QLinearConv {
-        // CASE 1: DequantizeLinear -> Pad -> QuantizeLinear -> QLinearConv = QLinearConv
-        if (!std.mem.eql(u8, fusion_list.items[0].op_type, "DequantizeLinear") and
-            !std.mem.eql(u8, fusion_list.items[1].op_type, "Pad") and
-            !std.mem.eql(u8, fusion_list.items[2].op_type, "QuantizeLinear") and
-            !std.mem.eql(u8, fusion_list.items[3].op_type, "QLinearConv"))
-        {}
-    }
-
     pub fn get_output_shape(self: QLinearConv) ![]usize {
         return try self.compute_output_shape();
     }

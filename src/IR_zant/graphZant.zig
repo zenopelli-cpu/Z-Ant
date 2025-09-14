@@ -51,14 +51,14 @@ pub const GraphZant = struct {
 
         //populate the output map with the nodes
         for (self.nodes.items) |node| {
-            for (node.nodeProto.output) |output| {
+            for (node.nodeProto.?.output) |output| {
                 try output_map.put(output, node);
             }
         }
 
         // use the hashmap to find the producers of the inputs
         for (self.nodes.items) |customer| {
-            for (customer.nodeProto.input) |input| {
+            for (customer.nodeProto.?.input) |input| {
                 const producer = output_map.get(input);
                 if (producer) |p| {
                     try p.add_next(customer);

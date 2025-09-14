@@ -9,6 +9,8 @@ const allocator = zant.utils.allocator.allocator;
 
 const IR_zant = @import("IR_zant");
 const IR_graph = IR_zant.IR_graph;
+const tensorZant_lib = IR_zant.tensorZant_lib;
+const TensorZant = IR_zant.TensorZant;
 
 const testWriter = @import("tests_writer.zig");
 
@@ -393,4 +395,13 @@ pub fn loadUserTests(comptime T_in: type, comptime T_out: type, user_tests_path:
     const parsed_user_tests = try std.json.parseFromSlice([]testWriter.UserTest(T_in, T_out), allocator, user_tests_content, .{});
 
     return parsed_user_tests;
+}
+
+fn getTensorRef(tensor: *TensorZant) ![]u8 {
+    const name = try tensor.getNameSanitized();
+    if (tensor.tc == tensorZant_lib.TensorCategory.INITIALIZER) {
+        return try std.fmt.allocPrint(allocator, "@constCast(&param_lib.tensor_{s})", .{name});
+    } else {
+        return try std.fmt.allocPrint(allocator, "@constCast(&tensor_{s})", .{name});
+    }
 }

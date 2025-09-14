@@ -202,16 +202,8 @@ pub const Op_union = union(enum) {
         } else if (std.mem.eql(u8, op_type, "Unsqueeze")) {
             return Op_union{ .unsqueeze = try operators.Unsqueeze.init(nodeProto) };
         } else {
-            std.debug.print("\n\nERROR: init() is not available for {s} operator!! \n\n", .{op_type});
+            std.debug.print("\n\nERROR: init() is not available for {s} operator!! \n Pay attention! It may be a fused operation\n", .{op_type});
             return Op_union{ .useless = try operators.Useless.init(nodeProto) };
-        }
-    }
-
-    pub fn init_fused(fusion_list: std.ArrayList(*NodeZant), op_type: []const u8, op_name: []const u8) !Op_union {
-        if (std.mem.eql(u8, op_type, "fused_DequantizeLinear_Pad_QuantizeLinear_QLinearConv")) { //REPLACEMENT: DequantizeLinear -> Pad -> QuantizeLinear -> QLinearConv = QLinearConv
-            return Op_union{ .qLinearConv = try operators.QLinearConv.init_fused(fusion_list, op_name) }; // NOTICE: here we call operators.QLinearConv.init_fused() since it is written (codegenerated) in the same way, it just change the way we retrive the information
-        } else if (std.mem.eql(u8, op_type, "fused_Conv_BatchNormalization_Relu")) { //FUSION: Conv -> BatchNormalization -> Relu = Fused_Conv_BatchNormalization_Relu
-            return Op_union{ .fused_Conv_BatchNormalization_Relu = try fused_operators.Fused_dequant_pad_quantize_qlinearconv.init_fused(fusion_list, op_name) }; // NOTICE: here we call fused_operators.Fused_dequant_pad_quantize_qlinearconv.init_fused() since it is a custom made kernel
         }
     }
 
@@ -277,6 +269,8 @@ pub const Op_union = union(enum) {
             .tanh => |ptr| return ptr.get_output_shape(),
             .transpose => |ptr| return ptr.get_output_shape(),
             .unsqueeze => |ptr| return ptr.get_output_shape(),
+            // ------ fused operations
+            .fused_Conv_BatchNormalization_Relu => |ptr| return ptr.get_output_shape(),
             else => {
                 std.debug.print("\n\nERROR: get_output_shape() is not available!! \n\n", .{});
                 return error.OpNotAvailable;
@@ -347,6 +341,8 @@ pub const Op_union = union(enum) {
             .transpose => |ptr| try ptr.get_output_tensors(),
             .unsqueeze => |ptr| try ptr.get_output_tensors(),
             .useless => |ptr| try ptr.get_output_tensors(),
+            // ------ fused operations
+            .fused_Conv_BatchNormalization_Relu => |ptr| try ptr.get_output_tensors(),
         };
     }
 
@@ -413,6 +409,8 @@ pub const Op_union = union(enum) {
             .transpose => |ptr| try ptr.get_input_tensors(),
             .unsqueeze => |ptr| try ptr.get_input_tensors(),
             .useless => |ptr| try ptr.get_input_tensors(),
+            // ------ fused operations
+            .fused_Conv_BatchNormalization_Relu => |ptr| try ptr.get_input_tensors(),
         };
     }
 
@@ -495,6 +493,8 @@ pub const Op_union = union(enum) {
             .transpose => |ptr| try ptr.write_op(writer),
             .unsqueeze => |ptr| try ptr.write_op(writer),
             .useless => |ptr| try ptr.write_op(writer),
+            // ------ fused operations
+            .fused_Conv_BatchNormalization_Relu => |ptr| try ptr.write_op(writer),
         }
     }
 

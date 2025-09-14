@@ -20,49 +20,54 @@ const IR_utils = IR_zant.utils; //this is IR utils
 
 // --- union ---
 const Op_union = @import("../op_union.zig").Op_union;
+const operators = IR_zant.operators;
 
 pub const Fused_Conv_BatchNormalization_Relu = struct {
     op_name: []const u8,
-    op_Conv: Op_union,
-    op_BatchNormalization: Op_union,
-    op_Relu: Op_union,
+    op_Conv: operators.Conv, // Use the actual Conv type
+    op_BatchNormalization: operators.BatchNormalization, // Use the actual BatchNormalization type
+    op_Relu: operators.Relu, // Use the actual Relu type
 
-    pub fn init_fused(fusion_list: std.ArrayList(*NodeZant), op_name: []const u8) !Fused_Conv_BatchNormalization_Relu {
+    pub fn init_fused(fusion_list: std.ArrayList(*NodeZant)) !Fused_Conv_BatchNormalization_Relu {
         //Ensure that the ArrayList is the correct one
         if (fusion_list.items.len != 3) return error.WrongNumberOfElements;
         if (!std.mem.eql(u8, fusion_list.items[0].op_type, "Conv")) return error.WrongOpAtPose0;
         if (!std.mem.eql(u8, fusion_list.items[1].op_type, "BatchNormalization")) return error.WrongOpAtPose1;
         if (!std.mem.eql(u8, fusion_list.items[2].op_type, "Relu")) return error.WrongOpAtPose2;
 
+        // Extract the specific operations from the unions
+        const conv_op = switch (fusion_list.items[0].op) {
+            .conv => |c| c,
+            else => return error.InvalidConvOperation,
+        };
+
+        const batch_norm_op = switch (fusion_list.items[1].op) {
+            .batchNormalization => |bn| bn,
+            else => return error.InvalidBatchNormalizationOperation,
+        };
+
+        const relu_op = switch (fusion_list.items[2].op) {
+            .relu => |r| r,
+            else => return error.InvalidReluOperation,
+        };
+
         return Fused_Conv_BatchNormalization_Relu{
-            .op_name = op_name,
-            .op_Conv = fusion_list.items[0].op,
-            .op_BatchNormalization = fusion_list.items[1].op,
-            .op_Relu = fusion_list.items[2].op,
+            .op_Conv = conv_op,
+            .op_BatchNormalization = batch_norm_op,
+            .op_Relu = relu_op,
         };
     }
 
     pub fn get_output_shape(self: Fused_Conv_BatchNormalization_Relu) []usize {
-        return self.output_C.getShape();
+        return self.op_Relu.get_output_shape();
     }
 
-    pub fn get_input_tensors(self: Fused_Conv_BatchNormalization_Relu) ![]*TensorZant {
-        var input_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer input_tensors.deinit();
-
-        try input_tensors.append(self.input_A);
-        try input_tensors.append(self.input_B);
-
-        return input_tensors.toOwnedSlice();
+    pub fn get_input_tensors(self: Fused_Conv_BatchNormalization_Relu) anyerror![]*TensorZant {
+        return try self.op_Conv.get_input_tensors();
     }
 
-    pub fn get_output_tensors(self: Fused_Conv_BatchNormalization_Relu) ![]*TensorZant {
-        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer output_tensors.deinit();
-
-        try output_tensors.append(self.output_C);
-
-        return output_tensors.toOwnedSlice();
+    pub fn get_output_tensors(self: Fused_Conv_BatchNormalization_Relu) anyerror![]*TensorZant {
+        return try self.op_Relu.get_output_tensors();
     }
 
     pub fn write_op(self: Fused_Conv_BatchNormalization_Relu, writer: std.fs.File.Writer) !void {
@@ -71,16 +76,13 @@ pub const Fused_Conv_BatchNormalization_Relu = struct {
             \\    //{s}
             \\    tensMath.fused_Conv_BatchNormalization_Relu_lean(..., &tensor_{s}) catch return -1;
         , .{
-            try IR_utils.getSanitizedName(self.op_name),
-            try IR_utils.getSanitizedName(self.op_Relu.output.name), // Output tensor
+            "fused Conv-> BatchNormalization -> Relu",
+            try IR_utils.getSanitizedName(self.op_Relu.output_Y.name), // Output tensor
         });
     }
 
     pub fn compute_output_shape(self: Fused_Conv_BatchNormalization_Relu) []usize {
-        var output_shape: []usize = undefined;
-        output_shape = try IR_utils.broadcastShapes(allocator, self.input_A.shape, self.input_B.shape);
-        self.output_C.shape = output_shape;
-        return output_shape;
+        return self.op_Relu.compute_output_shape();
     }
 
     pub fn print(self: Fused_Conv_BatchNormalization_Relu) void {
