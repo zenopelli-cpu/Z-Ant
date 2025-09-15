@@ -73,6 +73,7 @@ inline fn get_channel_zero_point(tensor: anytype, channel: usize) i32 {
 }
 
 /// QLinearConv implementation following ONNX v10 specification exactly
+/// https://onnx.ai/onnx/operators/onnx__QLinearConv.html
 ///
 /// Formula: Y = (X_dequant * W_dequant + B_dequant) quantized to output
 /// Where:

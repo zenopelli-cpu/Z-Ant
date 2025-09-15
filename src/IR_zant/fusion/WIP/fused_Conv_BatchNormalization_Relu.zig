@@ -28,7 +28,8 @@ pub const Fused_Conv_BatchNormalization_Relu = struct {
     op_BatchNormalization: operators.BatchNormalization, // Use the actual BatchNormalization type
     op_Relu: operators.Relu, // Use the actual Relu type
 
-    pub fn init_fused(fusion_list: std.ArrayList(*NodeZant)) !Fused_Conv_BatchNormalization_Relu {
+    //inizialization logic for the new operation given a list of old nodes
+    pub fn init_fused_op(fusion_list: std.ArrayList(*NodeZant)) !Fused_Conv_BatchNormalization_Relu {
         //Ensure that the ArrayList is the correct one
         if (fusion_list.items.len != 3) return error.WrongNumberOfElements;
         if (!std.mem.eql(u8, fusion_list.items[0].op_type, "Conv")) return error.WrongOpAtPose0;

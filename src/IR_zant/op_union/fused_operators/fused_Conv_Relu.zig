@@ -1,0 +1,228 @@
+const std = @import("std");
+const allocator = std.heap.page_allocator;
+const zant = @import("zant");
+const IR_zant = @import("../../IR_zant.zig");
+
+// --- onnx ---
+const onnx = zant.onnx;
+const ModelProto = onnx.ModelProto;
+const GraphProto = onnx.GraphProto;
+const NodeProto = onnx.NodeProto;
+const TensorProto = onnx.TensorProto;
+
+// --- zant IR---
+const tensorZant_lib = IR_zant.tensorZant_lib;
+const TensorZant = tensorZant_lib.TensorZant;
+const TensorCategory = tensorZant_lib.TensorCategory;
+const NodeZant_lib = IR_zant.NodeZant_lib;
+const NodeZant = NodeZant_lib.NodeZant;
+const GraphZant = IR_zant.GraphZant;
+const IR_utils = IR_zant.utils; //this is IR utils
+
+// --- union ---
+const Op_union = @import("../op_union.zig").Op_union;
+const operators = IR_zant.operators;
+
+pub const Fused_Conv_Relu = struct {
+    op_name: []const u8,
+    op_Conv: operators.Conv, // Use the actual Conv type
+    op_Relu: operators.Relu, // Use the actual Relu type
+
+    //inizialization logic for the new operation given a list of old nodes
+    pub fn init_fused_op(fusion_list: std.ArrayList(*NodeZant)) !Fused_Conv_Relu {
+        //Ensure that the ArrayList is the correct one
+        if (fusion_list.items.len != 2) return error.WrongNumberOfElements;
+        if (!std.mem.eql(u8, fusion_list.items[0].op_type, "Conv")) return error.WrongOpAtPose0;
+        if (!std.mem.eql(u8, fusion_list.items[1].op_type, "Relu")) return error.WrongOpAtPose2;
+
+        // Extract the specific operations from the unions
+        const conv_op = switch (fusion_list.items[0].op) {
+            .conv => |c| c,
+            else => return error.InvalidConvOperation,
+        };
+
+        const relu_op = switch (fusion_list.items[1].op) {
+            .relu => |r| r,
+            else => return error.InvalidReluOperation,
+        };
+
+        return Fused_Conv_Relu{
+            .op_name = try NodeZant_lib.getFusedOpsName(fusion_list),
+            .op_Conv = conv_op,
+            .op_Relu = relu_op,
+        };
+    }
+
+    pub fn fn_pattern_detection(graph: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
+        _ = graph; // Not used in this sequential pattern
+
+        std.debug.print("\n  Checking pattern from node: {s}", .{root_node.op_type});
+
+        // CRITICAL FIX: Only start detection from Conv nodes
+        if (!std.mem.eql(u8, root_node.op_type, "Conv")) {
+            std.debug.print(" -> Not a Conv node, skipping", .{});
+            return null;
+        }
+
+        var node_list = std.ArrayList(*NodeZant).init(allocator);
+        errdefer node_list.deinit(); // Clean up on error
+
+        try node_list.append(root_node);
+        std.debug.print(" -> Conv node found, checking for Relu successor", .{});
+
+        // Check if Conv has exactly one successor and it's ReLU
+        const next_nodes = root_node.next;
+        if (next_nodes.items.len != 1) {
+            std.debug.print(" -> Conv has {} successors (expected 1)", .{next_nodes.items.len});
+            node_list.deinit();
+            return null;
+        }
+
+        const successor = next_nodes.items[0];
+        if (!std.mem.eql(u8, successor.op_type, "Relu")) {
+            std.debug.print(" -> Conv successor is {s} (expected Relu)", .{successor.op_type});
+            node_list.deinit();
+            return null;
+        }
+
+        std.debug.print(" -> Found Conv->Relu pattern!", .{});
+        try node_list.append(successor);
+        return node_list;
+    }
+
+    pub fn fn_pattern_fusion(graph: *GraphZant, node_list: std.ArrayList(*NodeZant)) anyerror!NodeZant {
+        _ = graph; // in this case graph is not used since the pattern is sequencial
+
+        //checks
+        if (node_list.items.len != 2) return error.InvalidNumberOfOps;
+
+        // PATTERN_MATCHING_STRATEGY
+        if (!std.mem.eql(u8, node_list.items[0].op_type, "Conv")) return error.UnexpectedOpAtPos0;
+        if (!std.mem.eql(u8, node_list.items[1].op_type, "Relu")) return error.UnexpectedOpAtPos1;
+
+        const relu_node: *NodeZant = node_list.items[1];
+
+        return NodeZant{
+            .name = try NodeZant_lib.getFusedOpsName(node_list),
+            .op_type = try NodeZant_lib.getFusedOpsType(node_list),
+            .op = Op_union{ .fused_Conv_Relu = try init_fused_op(node_list) },
+            .next = relu_node.next,
+            .nodeProto = null,
+            .ready = false,
+            .fusion_list = node_list, // Keep reference to original nodes
+        };
+    }
+
+    pub fn fn_pattern_sobstitution(graph: *GraphZant, fused_node: *NodeZant, node_list: std.ArrayList(*NodeZant)) anyerror!void {
+        // Validate inputs
+        if (node_list.items.len == 0) return error.EmptyNodeList;
+        if (node_list.items.len != 2) return error.InvalidPatternLength; // For Conv+Relu pattern
+
+        const first_node = node_list.items[0]; // Conv node
+        const last_node = node_list.items[1]; // Relu node
+
+        // Step 1: Find all predecessor nodes that point to the first node in the pattern
+        var predecessors = std.ArrayList(*NodeZant).init(allocator);
+        defer predecessors.deinit();
+
+        // Search through all nodes in the graph to find predecessors
+        for (graph.nodes.items) |node| {
+            // Skip nodes that are in our pattern to avoid self-references
+            var is_pattern_node = false;
+            for (node_list.items) |pattern_node| {
+                if (node == pattern_node) {
+                    is_pattern_node = true;
+                    break;
+                }
+            }
+            if (is_pattern_node) continue;
+
+            // Check if this node points to our first_node
+            for (node.next.items) |next_node| {
+                if (next_node == first_node) {
+                    try predecessors.append(node);
+                    break; // Each node should only be added once as predecessor
+                }
+            }
+        }
+
+        // Step 2: Update predecessor nodes to point to the fused_node instead of first_node
+        for (predecessors.items) |predecessor| {
+            // Find and replace all references to first_node with fused_node
+            for (predecessor.next.items, 0..) |next_node, i| {
+                if (next_node == first_node) {
+                    predecessor.next.items[i] = fused_node;
+                    // Don't break here - there might be multiple edges to the same node
+                }
+            }
+        }
+
+        // Step 3: Ensure fused_node.next points to the correct successors
+        // This should already be set in fn_pattern_fusion, but verify
+        if (fused_node.next.items.len == 0) {
+            // Copy the last node's successors to the fused node
+            for (last_node.next.items) |successor| {
+                try fused_node.next.append(successor);
+            }
+        }
+
+        // Step 4: Remove the old nodes from the graph's node list
+        // Remove in reverse order to avoid index shifting issues
+        var removal_count: usize = 0;
+        var i: usize = node_list.items.len;
+        while (i > 0) {
+            i -= 1;
+            const node_to_remove = node_list.items[i];
+
+            // Find and remove this node from the graph's nodes list
+            var j: usize = 0;
+            while (j < graph.nodes.items.len) {
+                if (graph.nodes.items[j] == node_to_remove) {
+                    _ = graph.nodes.orderedRemove(j);
+                    removal_count += 1;
+                    break; // Node found and removed, move to next
+                }
+                j += 1;
+            }
+        }
+
+        // Verify we removed the expected number of nodes
+        if (removal_count != node_list.items.len) {
+            return error.IncompleteNodeRemoval;
+        }
+
+        // Step 5: Add the fused_node to the graph's node list
+        try graph.nodes.append(fused_node);
+    }
+
+    pub fn get_output_shape(self: Fused_Conv_Relu) []usize {
+        return self.op_Relu.get_output_shape();
+    }
+
+    pub fn get_input_tensors(self: Fused_Conv_Relu) anyerror![]*TensorZant {
+        return try self.op_Conv.get_input_tensors();
+    }
+
+    pub fn get_output_tensors(self: Fused_Conv_Relu) anyerror![]*TensorZant {
+        return try self.op_Relu.get_output_tensors();
+    }
+
+    pub fn write_op(self: Fused_Conv_Relu, writer: std.fs.File.Writer) !void {
+        _ = try writer.print(
+            \\
+            \\    //{s}
+            \\    tensMath.Fused_Conv_Relu_lean(..., &tensor_{s}) catch return -1;
+        , .{
+            "fused Conv -> Relu",
+            try IR_utils.getSanitizedName(self.op_Relu.output_Y.name), // Output tensor
+        });
+    }
+
+    pub fn compute_output_shape(self: Fused_Conv_Relu) []usize {
+        return self.op_Relu.compute_output_shape();
+    }
+
+    pub fn print(self: Fused_Conv_Relu) void {
+        std.debug.print("\n Fused_Conv_Relu:\n {any}", .{self});
+    }
+};

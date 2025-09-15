@@ -11,12 +11,10 @@ const zant = @import("zant");
 const allocator = zant.utils.allocator.allocator;
 
 const IR_zant = @import("../IR_zant.zig");
+const NodeZant = IR_zant.NodeZant;
 
 const operators = IR_zant.operators;
 const Op_union = @import("../op_union/op_union.zig").Op_union;
-
-// Forward declaration to avoid circular dependency
-pub const NodeZant = opaque {};
 
 pub fn fuse_dequant_pad_qant_qLinConv(fusion_list: std.ArrayList(*NodeZant)) anyerror!NodeZant {
 
@@ -33,12 +31,12 @@ pub fn fuse_dequant_pad_qant_qLinConv(fusion_list: std.ArrayList(*NodeZant)) any
     const qLinearConv_node: *NodeZant = fusion_list.items[3];
 
     // Extract operations from the unions
-    const dequant_op = switch (deQuantLinear_node.op) {
+    const dequant_op: operators.DequantizeLinear = switch (deQuantLinear_node.op) {
         .dequantizeLinear => |d| d,
         else => return error.InvalidDequantizeLinearNode,
     };
 
-    const pad_op = switch (pad_node.op) {
+    const pad_op: operators.Pad = switch (pad_node.op) {
         .pad => |p| p,
         else => return error.InvalidPadNode,
     };
@@ -48,21 +46,21 @@ pub fn fuse_dequant_pad_qant_qLinConv(fusion_list: std.ArrayList(*NodeZant)) any
     //     else => return error.InvalidQuantizeLinearNode,
     // };
 
-    const qconv_op = switch (qLinearConv_node.op) {
+    const qconv_op: operators.QLinearConv = switch (qLinearConv_node.op) {
         .qlinearconv => |qc| qc,
         else => return error.InvalidQLinearConvNode,
     };
 
     // Create fused QLinearConv with modified inputs and fused padding
-    var fused_qconv = qconv_op;
+    var fused_qconv: operators.QLinearConv = qconv_op;
 
     // Use the original quantized input (bypass dequant->pad->quant)
     fused_qconv.input_x = dequant_op.x;
     fused_qconv.input_x_scale = dequant_op.x_scale;
-    fused_qconv.input_x_zero_point = dequant_op.x_zero_point;
+    fused_qconv.input_x_zero_point = dequant_op.x_zero_point.?;
 
     // Fuse padding from Pad operation into QLinearConv pads
-    if (pad_op.input_pads.data) |pad_data| {
+    if (pad_op.input_pads.ptr) |pad_data_AnyTensor| {
         // Extract existing pads from QLinearConv
         var existing_pads: [4]i64 = .{ 0, 0, 0, 0 };
         if (qconv_op.pads) |conv_pads| {
@@ -80,7 +78,7 @@ pub fn fuse_dequant_pad_qant_qLinConv(fusion_list: std.ArrayList(*NodeZant)) any
             const pad_len = pad_op.input_pads.shape[0];
             switch (pad_op.input_pads.ty) {
                 .i64 => {
-                    const pad_i64 = @as([*]i64, @ptrCast(@alignCast(pad_data)));
+                    const pad_i64 = pad_data_AnyTensor.get_data_as(i64);
                     if (pad_len >= 4) {
                         pad_values[0] = pad_i64[0]; // H_begin -> top
                         pad_values[1] = pad_i64[1]; // W_begin -> left

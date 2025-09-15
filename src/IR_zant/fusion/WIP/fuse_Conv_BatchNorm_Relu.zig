@@ -11,7 +11,7 @@ const zant = @import("zant");
 
 const IR_zant = @import("../IR_zant.zig");
 
-const operators = IR_zant.operators;
+const fused_operators = IR_zant.fused_operators;
 
 // --- zant ---
 const tensorZant_lib = IR_zant.tensorZant_lib;
@@ -20,6 +20,11 @@ const TensorCategory = tensorZant_lib.TensorCategory;
 const NodeZant_lib = IR_zant.NodeZant_lib;
 const NodeZant = NodeZant_lib.NodeZant;
 
-pub fn fuse_conv_batchNormlaization_relu(fusion_list: std.ArrayList(*NodeZant)) !NodeZant {
-    return NodeZant.init_fused(fusion_list, operators.Fused_Conv_BatchNormalization_Relu.init_fused(fusion_list));
+pub fn fuse_conv_batchNormlaization_relu(fusion_list: std.ArrayList(*NodeZant)) anyerror!NodeZant {
+    return NodeZant.init_fused_node(
+        fusion_list,
+        fused_operators.Fused_Conv_BatchNormalization_Relu.init_fused_op,
+        null,
+        null,
+    );
 }

@@ -19,9 +19,6 @@ const TensorZant = @import("tensorZant.zig").TensorZant;
 // --- uops ---
 const UOpBuilder = zant.uops.UOpBuilder;
 
-// Define the function pointer type for operation initialization
-const OpInitFn = *const fn (fusion_list: std.ArrayList(*NodeZant), op_type: []const u8) anyerror!Op_union;
-
 pub const NodeZant = struct {
     name: ?[]const u8, //name of the node
     op_type: []const u8, //onnx name of the operation, see here: https://onnx.ai/onnx/operators/
@@ -52,7 +49,12 @@ pub const NodeZant = struct {
     //   - "op_type" is the concatenation of "fused_" with all the other op_type divided by "_"
     //   - "op" is given by the Op_union class
     //   - "next" if the same next of the last node of the list
-    pub fn init_fused(fusion_list: std.ArrayList(*NodeZant), op_init_fn: OpInitFn, name: ?[]const u8, op_type: ?[]const u8) !NodeZant {
+    pub fn init_fused_node(
+        fusion_list: std.ArrayList(*NodeZant), //list of operations to fuse
+        fn_init_fused_op: *const fn (fusion_list: std.ArrayList(*NodeZant), op_type: []const u8) anyerror!Op_union, //initialization logic of the new node
+        name: ?[]const u8, // name of the new node
+        op_type: ?[]const u8, // op_type of the new node
+    ) !NodeZant {
 
         // Check if the fusion list is empty
         if (fusion_list.items.len == 0) {
@@ -64,7 +66,7 @@ pub const NodeZant = struct {
         return NodeZant{
             .name = name orelse getFusedOpsName(fusion_list),
             .op_type = op_type orelse getFusedOpsType(fusion_list),
-            .op = try op_init_fn(fusion_list),
+            .op = try fn_init_fused_op(fusion_list, op_type orelse getFusedOpsType(fusion_list)),
             .next = last_node.next,
             .nodeProto = null,
             .ready = false,
@@ -75,7 +77,7 @@ pub const NodeZant = struct {
     /// Deinitializes a NodeZant instance, freeing allocated resources.
     pub fn deinit(self: *NodeZant) void {
         self.next.deinit();
-        if (self.fusion_list) |fl| fl.deinit();
+        // if (self.fusion_list) |fl| fl.deinit();
     }
 
     /// Adds a new node to the next list.
@@ -102,18 +104,58 @@ pub const NodeZant = struct {
     pub fn isFused(self: *NodeZant) bool {
         return !self.fusion_list == null;
     }
+
+    // Print method for debugging and display purposes
+    pub fn print(self: *const NodeZant) void {
+        std.debug.print("NodeZant {{\n", .{});
+
+        // Print name
+        if (self.name) |name| {
+            std.debug.print("  name: \"{s}\"\n", .{name});
+        } else {
+            std.debug.print("  name: null\n", .{});
+        }
+
+        // Print operation type
+        std.debug.print("  op_type: \"{s}\"\n", .{self.op_type});
+
+        // Print operation union (simplified - you may want to expand this based on your Op_union variants)
+        std.debug.print("  Op_union: {s}\n", .{@tagName(self.op)});
+
+        // Print next nodes count
+        std.debug.print("  next: [{}] nodes\n", .{self.next.items.len});
+
+        // Print fusion list info
+        if (self.fusion_list) |fusion_list| {
+            std.debug.print("  fusion_list: [{}] nodes\n", .{fusion_list.items.len});
+        } else {
+            std.debug.print("  fusion_list: null\n", .{});
+        }
+
+        // Print nodeProto status
+        if (self.nodeProto) |_| {
+            std.debug.print("  nodeProto: *NodeProto\n", .{});
+        } else {
+            std.debug.print("  nodeProto: null\n", .{});
+        }
+
+        // Print ready status
+        std.debug.print("  ready: {}\n", .{self.ready});
+
+        std.debug.print("}}\n", .{});
+    }
 };
 
-pub fn getFusedOpsName(fusion_list: std.ArrayList(*NodeZant)) []const u8 {
-
-    // Create concatenated name
+pub fn getFusedOpsName(fusion_list: std.ArrayList(*NodeZant)) ![]const u8 {
+    // Create concatenated name using a string buffer
     var name_buffer = std.ArrayList(u8).init(allocator);
+    defer name_buffer.deinit();
 
     for (fusion_list.items, 0..) |node, i| {
         if (node.name) |node_name| {
-            try name_buffer.append(node_name);
+            try name_buffer.appendSlice(node_name);
         } else {
-            try name_buffer.append("unnamed");
+            try name_buffer.appendSlice("unnamed");
         }
         // Add separator between names (except for the last one)
         if (i < fusion_list.items.len - 1) {
@@ -121,19 +163,19 @@ pub fn getFusedOpsName(fusion_list: std.ArrayList(*NodeZant)) []const u8 {
         }
     }
 
-    return name_buffer.toOwnedSlice();
+    return try allocator.dupe(u8, name_buffer.items);
 }
 
-pub fn getFusedOpsType(fusion_list: std.ArrayList(*NodeZant)) []const u8 {
-
+pub fn getFusedOpsType(fusion_list: std.ArrayList(*NodeZant)) ![]const u8 {
     // Create concatenated op_type with "fused_" prefix
     var op_type_buffer = std.ArrayList(u8).init(allocator);
-    try op_type_buffer.append("fused");
+    defer op_type_buffer.deinit();
 
+    try op_type_buffer.appendSlice("fused");
     for (fusion_list.items) |node| {
         try op_type_buffer.append('_');
         try op_type_buffer.appendSlice(node.op_type);
     }
 
-    return op_type_buffer.toOwnedSlice();
+    return try allocator.dupe(u8, op_type_buffer.items);
 }

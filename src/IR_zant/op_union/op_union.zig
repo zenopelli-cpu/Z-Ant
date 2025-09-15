@@ -78,7 +78,7 @@ pub const Op_union = union(enum) {
     unsqueeze: operators.Unsqueeze,
 
     // ------------- fused operations
-    fused_Conv_BatchNormalization_Relu: fused_operators.Fused_Conv_BatchNormalization_Relu,
+    fused_Conv_Relu: fused_operators.Fused_Conv_Relu,
 
     // ------------- others
     useless: operators.Useless,
@@ -270,7 +270,7 @@ pub const Op_union = union(enum) {
             .transpose => |ptr| return ptr.get_output_shape(),
             .unsqueeze => |ptr| return ptr.get_output_shape(),
             // ------ fused operations
-            .fused_Conv_BatchNormalization_Relu => |ptr| return ptr.get_output_shape(),
+            .fused_Conv_Relu => |ptr| return ptr.get_output_shape(),
             else => {
                 std.debug.print("\n\nERROR: get_output_shape() is not available!! \n\n", .{});
                 return error.OpNotAvailable;
@@ -342,7 +342,7 @@ pub const Op_union = union(enum) {
             .unsqueeze => |ptr| try ptr.get_output_tensors(),
             .useless => |ptr| try ptr.get_output_tensors(),
             // ------ fused operations
-            .fused_Conv_BatchNormalization_Relu => |ptr| try ptr.get_output_tensors(),
+            .fused_Conv_Relu => |ptr| try ptr.get_output_tensors(),
         };
     }
 
@@ -410,7 +410,7 @@ pub const Op_union = union(enum) {
             .unsqueeze => |ptr| try ptr.get_input_tensors(),
             .useless => |ptr| try ptr.get_input_tensors(),
             // ------ fused operations
-            .fused_Conv_BatchNormalization_Relu => |ptr| try ptr.get_input_tensors(),
+            .fused_Conv_Relu => |ptr| try ptr.get_input_tensors(),
         };
     }
 
@@ -494,7 +494,7 @@ pub const Op_union = union(enum) {
             .unsqueeze => |ptr| try ptr.write_op(writer),
             .useless => |ptr| try ptr.write_op(writer),
             // ------ fused operations
-            .fused_Conv_BatchNormalization_Relu => |ptr| try ptr.write_op(writer),
+            .fused_Conv_Relu => |ptr| try ptr.write_op(writer),
         }
     }
 
@@ -559,6 +559,8 @@ pub const Op_union = union(enum) {
             .tanh => |ptr| ptr.print(),
             .transpose => |ptr| ptr.print(),
             .unsqueeze => |ptr| ptr.print(),
+            // ------ fused operations
+            .fused_Conv_Relu => |ptr| try ptr.print(),
             else => {
                 std.debug.print("\n\nERROR: print() is not available!! \n\n", .{});
                 return error.print_notAvailable;

@@ -6,6 +6,9 @@ const IR = @import("IR_zant");
 const GraphZant = IR.GraphZant;
 const TensorZant = IR.TensorZant;
 const NodeZant = IR.NodeZant;
+const pattern_matcher = IR.pattern_matcher;
+const pattern_collection = IR.pattern_collection;
+
 // --- utils
 pub const utils = @import("utils.zig");
 // --- onnx
@@ -38,12 +41,17 @@ pub fn codegnenerateFromOnnx(model_name: []const u8, generated_path: []const u8,
 }
 
 pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []const u8, graphZant: *GraphZant) !void {
+    try graphZant.fuse(&pattern_collection.patterns);
 
+    graphZant.print_before_linearizzation();
+
+    _ = model_name;
+    _ = generated_path;
     //linearizing the graph
-    var linearizedGraph: std.ArrayList(*NodeZant) = try graphZant.linearize(allocator);
-    defer linearizedGraph.deinit();
+    // var linearizedGraph: std.ArrayList(*NodeZant) = try graphZant.linearize(allocator);
+    // defer linearizedGraph.deinit();
 
-    try codegnenerateFromLinearizedGraph(model_name, generated_path, linearizedGraph);
+    // try codegnenerateFromLinearizedGraph(model_name, generated_path, linearizedGraph);
 }
 
 pub fn codegnenerateFromLinearizedGraph(model_name: []const u8, generated_path: []const u8, linearizedGraph: std.ArrayList(*NodeZant)) !void {
