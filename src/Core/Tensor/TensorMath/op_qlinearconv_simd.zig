@@ -219,7 +219,13 @@ pub fn qlinearconv_onnx_v10(
                     // Add bias if present (bias already quantized with x_scale * w_scale per spec)
                     if (bias) |b| {
                         if (m < b.data.len) {
-                            const bias_dequant = @as(f32, @floatFromInt(b.data[m])) * (x_scale_f * w_scale_m);
+                            const bias_val = b.data[m];
+                            const bias_f32 = switch (@TypeOf(bias_val)) {
+                                f32 => bias_val,
+                                f64 => @as(f32, @floatCast(bias_val)),
+                                else => @as(f32, @floatFromInt(bias_val)),
+                            };
+                            const bias_dequant = bias_f32 * (x_scale_f * w_scale_m);
                             acc_float += bias_dequant;
                         }
                     }

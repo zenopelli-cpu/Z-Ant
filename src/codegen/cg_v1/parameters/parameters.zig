@@ -273,6 +273,15 @@ pub inline fn writeArray(writer: std.fs.File.Writer, tz: *TensorZant) !void {
                     }
                     try writeArrayData(writer, u8, u8_data);
                 },
+                .i8 => {
+                    const i8_data = tz.ptr.?.get_data_as(i8);
+                    var u8_data = try allocator.alloc(u8, i8_data.len);
+                    defer allocator.free(u8_data);
+                    for (i8_data, 0..) |val, i| {
+                        u8_data[i] = @intCast(@max(0, @min(255, @as(i32, val) + 128))); // Convert i8 to u8 range
+                    }
+                    try writeArrayData(writer, u8, u8_data);
+                },
                 .u8 => try writeArrayData(writer, u8, tz.ptr.?.get_data_as(u8)),
                 else => {
                     std.debug.print("Unsupported input zero_point type: {any}\n", .{tz.ty});
