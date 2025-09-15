@@ -6,7 +6,7 @@ const TensorCategory = tensorZant_lib.TensorCategory;
 const templates = @import("templates.zig");
 const plan = @import("plan.zig");
 
-// Global allocator per la sanificazione dei nomi
+// Global allocator for name sanitization
 var sanitize_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 const sanitize_allocator = sanitize_arena.allocator();
 
