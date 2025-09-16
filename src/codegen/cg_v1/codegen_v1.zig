@@ -41,9 +41,13 @@ pub fn codegnenerateFromOnnx(model_name: []const u8, generated_path: []const u8,
 }
 
 pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []const u8, graphZant: *GraphZant) !void {
-    try graphZant.fuse(&pattern_collection.patterns);
+    var linearizedGraph_prefusion: std.ArrayList(*NodeZant) = try graphZant.linearize(allocator);
+    defer linearizedGraph_prefusion.deinit();
 
-    graphZant.print_before_linearizzation();
+    // --- fusion step ---
+    if (codegen_options.fuse) try graphZant.fuse(&pattern_collection.patterns);
+
+    // graphZant.print_before_linearizzation(); // DEBUG
 
     // _ = model_name;
     // _ = generated_path;
@@ -51,7 +55,11 @@ pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []cons
     var linearizedGraph: std.ArrayList(*NodeZant) = try graphZant.linearize(allocator);
     defer linearizedGraph.deinit();
 
-    std.debug.print("\n --- Linearized Graph : ", .{});
+    std.debug.print("\n\n--- Linearized Graph pre fusion: ", .{});
+    for (linearizedGraph_prefusion.items) |node| {
+        std.debug.print("\n  {s} ", .{node.name.?});
+    }
+    std.debug.print("\n\n --- Linearized Graph post fusion : ", .{});
     for (linearizedGraph.items) |node| {
         std.debug.print("\n  {s} ", .{node.name.?});
     }
