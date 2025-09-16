@@ -29,11 +29,12 @@ pub const GraphZant = struct {
 
     /// Deinitializes a GraphZant instance, freeing allocated resources.
     pub fn deinit(self: *GraphZant) void {
-        // Deinitialize each NodeZant in the nodes list
-        for (self.nodes.items) |node| {
-            node.deinit();
-            allocator.destroy(node); // Free the node
-        }
+
+        // // Deinitialize each NodeZant in the nodes list REMOVED FOR TESTING
+        // for (self.nodes.items) |node| {
+        //     node.deinit();
+        //     allocator.destroy(node); // Free the node
+        // }
         self.nodes.deinit();
     }
 

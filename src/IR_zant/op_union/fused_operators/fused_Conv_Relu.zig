@@ -91,7 +91,7 @@ pub const Fused_Conv_Relu = struct {
     }
 
     pub fn fn_pattern_fusion(graph: *GraphZant, node_list: std.ArrayList(*NodeZant)) anyerror!NodeZant {
-        _ = graph; // in this case graph is not used since the pattern is sequencial
+        _ = graph; // in this case graph is not used since the pattern is sequential
 
         //checks
         if (node_list.items.len != 2) return error.InvalidNumberOfOps;
@@ -102,18 +102,31 @@ pub const Fused_Conv_Relu = struct {
 
         const relu_node: *NodeZant = node_list.items[1];
 
+        //  Clone the next list instead of direct reference
+        var cloned_next = std.ArrayList(*NodeZant).init(allocator);
+        for (relu_node.next.items) |next_node| {
+            try cloned_next.append(next_node);
+        }
+
+        //  Clone the fusion_list instead of direct reference
+        var cloned_fusion_list = std.ArrayList(*NodeZant).init(allocator);
+        for (node_list.items) |node| {
+            try cloned_fusion_list.append(node);
+        }
+
         return NodeZant{
             .name = try NodeZant_lib.getFusedOpsName(node_list),
             .op_type = try NodeZant_lib.getFusedOpsType(node_list),
             .op = Op_union{ .fused_Conv_Relu = try init_fused_op(node_list) },
-            .next = relu_node.next,
+            .next = cloned_next,
             .nodeProto = null,
             .ready = false,
-            .fusion_list = node_list, // Keep reference to original nodes
+            .fusion_list = cloned_fusion_list,
         };
     }
 
     pub fn fn_pattern_sobstitution(graph: *GraphZant, fused_node: *NodeZant, node_list: std.ArrayList(*NodeZant)) anyerror!void {
+
         // Validate inputs
         if (node_list.items.len == 0) return error.EmptyNodeList;
         if (node_list.items.len != 2) return error.InvalidPatternLength; // For Conv+Relu pattern

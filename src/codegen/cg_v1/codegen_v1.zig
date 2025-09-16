@@ -45,13 +45,19 @@ pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []cons
 
     graphZant.print_before_linearizzation();
 
-    _ = model_name;
-    _ = generated_path;
-    //linearizing the graph
-    // var linearizedGraph: std.ArrayList(*NodeZant) = try graphZant.linearize(allocator);
-    // defer linearizedGraph.deinit();
+    // _ = model_name;
+    // _ = generated_path;
+    // linearizing the graph
+    var linearizedGraph: std.ArrayList(*NodeZant) = try graphZant.linearize(allocator);
+    defer linearizedGraph.deinit();
 
-    // try codegnenerateFromLinearizedGraph(model_name, generated_path, linearizedGraph);
+    std.debug.print("\n --- Linearized Graph : ", .{});
+    for (linearizedGraph.items) |node| {
+        std.debug.print("\n  {s} ", .{node.name.?});
+    }
+    std.debug.print("\n", .{});
+
+    try codegnenerateFromLinearizedGraph(model_name, generated_path, linearizedGraph);
 }
 
 pub fn codegnenerateFromLinearizedGraph(model_name: []const u8, generated_path: []const u8, linearizedGraph: std.ArrayList(*NodeZant)) !void {

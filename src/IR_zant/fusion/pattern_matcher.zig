@@ -91,7 +91,7 @@ fn findAndFusePattern(graph: *GraphZant, root_node: *NodeZant, config: PatternCo
     const maybe_node_list = try config.fn_pattern_detection(graph, root_node);
 
     if (maybe_node_list) |node_list| {
-        defer node_list.deinit();
+        // defer node_list.deinit();
 
         std.debug.print("\n Pattern detected! Found {} nodes in pattern", .{node_list.items.len});
 
