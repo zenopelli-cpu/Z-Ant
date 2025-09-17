@@ -204,7 +204,7 @@ pub const Op_union = union(enum) {
             return Op_union{ .unsqueeze = try operators.Unsqueeze.init(nodeProto) };
         } else {
             std.debug.print("\n\nERROR: init() is not available for {s} operator!! \n Pay attention! It may be a fused operation\n", .{op_type});
-            return Op_union{ .useless = try operators.Useless.init(nodeProto) };
+            return error.OpNotAvailable_for_init;
         }
     }
 

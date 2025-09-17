@@ -339,19 +339,10 @@ test "Static Library - User data Prediction Test" {
         } else if (std.mem.eql(u8, user_test.type, "exact")) {
             for (0.., user_test.output) |i, expected_output| {
                 const result_value = result[i];
-                const expected_output_value = expected_output;
-                std.testing.expectApproxEqAbs(expected_output_value, result_value, 0.01) catch |e| {
-                    std.debug.print(" \n expected output  ->  real value      difference ", .{});
-                    for (0.., user_test.output) |j, out_val| {
-                        std.debug.print(" \n {} ->  {}      {} ", .{ out_val, result[j], @abs(out_val - result[j]) });
-                    }
-                    return e;
-                };
-            }
-
-            std.debug.print(" \n expected output  ->  real value      difference ", .{});
-            for (0.., user_test.output) |j, out_val| {
-                std.debug.print(" \n {} ->  {}      {} ", .{ out_val, result[j], @abs(out_val - result[j]) });
+                const big_diff: bool = @abs(expected_output - result_value) > marginFor(model.output_data_type);
+                if (big_diff) {
+                    std.debug.print("\n\n  >>>>>>>ERROR!!<<<<<< \nTest failed for input: {d} expected: {} got: {}, margin: {}\n", .{ i, expected_output, result_value, marginFor(model.output_data_type) });
+                }
             }
         } else {
             std.debug.print("Unsupported test type: {s}\n", .{user_test.type});
@@ -364,4 +355,14 @@ test "Static Library - User data Prediction Test" {
     }
 
     try std.testing.expectEqual(error_counter, 0);
+}
+
+/// Returns `0` (of type `T`) for non-float `T`, otherwise `0.001` (of type `T`).
+fn marginFor(comptime T: type) T {
+    return if (@typeInfo(T) == .int)
+        // integer types: zero tolerance
+        0
+    else
+        // floating‑point (or any other type): tiny tolerance
+        0.001;
 }
