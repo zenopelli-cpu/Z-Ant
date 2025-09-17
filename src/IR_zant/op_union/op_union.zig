@@ -80,6 +80,7 @@ pub const Op_union = union(enum) {
     // ------------- fused operations
     fused_Conv_Relu: fused_operators.Fused_Conv_Relu,
     fused_Dequant_Pad_Quant_QLinConv: fused_operators.Fused_Dequant_Pad_Quant_QLinConv,
+    fused_Quant_Dequant: fused_operators.Fused_Quant_Dequant,
 
     // ------------- others
     useless: operators.Useless,
@@ -273,6 +274,7 @@ pub const Op_union = union(enum) {
             // ------ fused operations
             .fused_Conv_Relu => |ptr| return ptr.get_output_shape(),
             .fused_Dequant_Pad_Quant_QLinConv => |ptr| return ptr.get_output_shape(),
+            .fused_Quant_Dequant => |ptr| return ptr.get_output_shape(),
             else => {
                 std.debug.print("\n\nERROR: get_output_shape() is not available!! \n\n", .{});
                 return error.OpNotAvailable;
@@ -346,6 +348,7 @@ pub const Op_union = union(enum) {
             // ------ fused operations
             .fused_Conv_Relu => |ptr| try ptr.get_output_tensors(),
             .fused_Dequant_Pad_Quant_QLinConv => |ptr| return ptr.get_output_tensors(),
+            .fused_Quant_Dequant => |ptr| return ptr.get_output_tensors(),
         };
     }
 
@@ -415,6 +418,7 @@ pub const Op_union = union(enum) {
             // ------ fused operations
             .fused_Conv_Relu => |ptr| try ptr.get_input_tensors(),
             .fused_Dequant_Pad_Quant_QLinConv => |ptr| return ptr.get_input_tensors(),
+            .fused_Quant_Dequant => |ptr| return ptr.get_input_tensors(),
         };
     }
 
@@ -500,6 +504,7 @@ pub const Op_union = union(enum) {
             // ------ fused operations
             .fused_Conv_Relu => |ptr| try ptr.write_op(writer),
             .fused_Dequant_Pad_Quant_QLinConv => |ptr| return ptr.write_op(writer),
+            .fused_Quant_Dequant => |ptr| return ptr.write_op(writer),
         }
     }
 
@@ -567,6 +572,7 @@ pub const Op_union = union(enum) {
             // ------ fused operations
             .fused_Conv_Relu => |ptr| try ptr.print(),
             .fused_Dequant_Pad_Quant_QLinConv => |ptr| return ptr.print(),
+            .fused_Quant_Dequant => |ptr| return ptr.print(),
 
             else => {
                 std.debug.print("\n\nERROR: print() is not available!! \n\n", .{});

@@ -16,18 +16,11 @@ const IR_utils = IR_zant.utils;
 const Op_union = @import("../op_union.zig").Op_union;
 const operators = IR_zant.operators;
 
-pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
+pub const Fused_Quant_Dequant = struct {
     op_name: []const u8,
-    op_DequantizeLinear: operators.DequantizeLinear,
-    op_Pad: operators.Pad,
-    op_QuantizeLinear: operators.QuantizeLinear,
-    op_QLinearConv: operators.QLinearConv,
-
-    // The resulting fused operation that combines all four
-    fused_qlinearconv: operators.QLinearConv,
 
     /// FIXED fusion initialization with proper tensor handling
-    pub fn init_fused_op(fusion_list: std.ArrayList(*NodeZant)) !Fused_Dequant_Pad_Quant_QLinConv {
+    pub fn init_fused_op(fusion_list: std.ArrayList(*NodeZant)) !Fused_Quant_Dequant {
         // Validation
         if (fusion_list.items.len != 4) return error.WrongNumberOfElements;
         if (!std.mem.eql(u8, fusion_list.items[0].op_type, "DequantizeLinear")) return error.WrongOpAtPos0;
@@ -119,7 +112,7 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         // The output should be the same as the original QLinearConv output
         fused_qconv.output_y = qlinearconv_op.output_y;
 
-        return Fused_Dequant_Pad_Quant_QLinConv{
+        return Fused_Quant_Dequant{
             .op_name = try NodeZant_lib.getFusedOpsName(fusion_list),
             .op_DequantizeLinear = dequant_op,
             .op_Pad = pad_op,
@@ -129,15 +122,13 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         };
     }
 
-    /// Pattern detection function for DequantizeLinear -> Pad -> QuantizeLinear -> QLinearConv
+    /// Pattern detection function for QuantizeLinear -> DequantizeLinear
     pub fn fn_pattern_detection(graph: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
         _ = graph; // Not used in this sequential pattern
 
-        std.debug.print("\n  Checking 4-op pattern from node: {s}", .{root_node.op_type});
-
         // Only start detection from DequantizeLinear nodes
-        if (!std.mem.eql(u8, root_node.op_type, "DequantizeLinear")) {
-            std.debug.print(" -> Not a DequantizeLinear node, skipping", .{});
+        if (!std.mem.eql(u8, root_node.op_type, "QuantizeLinear")) {
+            std.debug.print(" -> Not a QuantizeLinear node, skipping", .{});
             return null;
         }
 
@@ -145,58 +136,23 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         errdefer node_list.deinit();
 
         try node_list.append(root_node);
-        std.debug.print(" -> DequantizeLinear node found, checking for Pad successor", .{});
+        std.debug.print(" -> QuantizeLinear node found, checking for DequantizeLinear successor", .{});
 
         // Check DequantizeLinear -> Pad
         if (root_node.next.items.len != 1) {
-            std.debug.print(" -> DequantizeLinear has {} successors (expected 1)", .{root_node.next.items.len});
+            std.debug.print(" -> QuantizeLinear has {} successors (expected 1)", .{root_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const pad_node = root_node.next.items[0];
-        if (!std.mem.eql(u8, pad_node.op_type, "Pad")) {
-            std.debug.print(" -> DequantizeLinear successor is {s} (expected Pad)", .{pad_node.op_type});
+        if (!std.mem.eql(u8, pad_node.op_type, "DequantizeLinear")) {
+            std.debug.print(" -> QuantizeLinear successor is {s} (expected DequantizeLinear)", .{pad_node.op_type});
             node_list.deinit();
             return null;
         }
 
         try node_list.append(pad_node);
-        std.debug.print(" -> Found DequantizeLinear->Pad, checking for QuantizeLinear", .{});
-
-        // Check Pad -> QuantizeLinear
-        if (pad_node.next.items.len != 1) {
-            std.debug.print(" -> Pad has {} successors (expected 1)", .{pad_node.next.items.len});
-            node_list.deinit();
-            return null;
-        }
-
-        const quant_node = pad_node.next.items[0];
-        if (!std.mem.eql(u8, quant_node.op_type, "QuantizeLinear")) {
-            std.debug.print(" -> Pad successor is {s} (expected QuantizeLinear)", .{quant_node.op_type});
-            node_list.deinit();
-            return null;
-        }
-
-        try node_list.append(quant_node);
-        std.debug.print(" -> Found Pad->QuantizeLinear, checking for QLinearConv", .{});
-
-        // Check QuantizeLinear -> QLinearConv
-        if (quant_node.next.items.len != 1) {
-            std.debug.print(" -> QuantizeLinear has {} successors (expected 1)", .{quant_node.next.items.len});
-            node_list.deinit();
-            return null;
-        }
-
-        const qlinearconv_node = quant_node.next.items[0];
-        if (!std.mem.eql(u8, qlinearconv_node.op_type, "QLinearConv")) {
-            std.debug.print(" -> QuantizeLinear successor is {s} (expected QLinearConv)", .{qlinearconv_node.op_type});
-            node_list.deinit();
-            return null;
-        }
-
-        try node_list.append(qlinearconv_node);
-        std.debug.print(" -> Found complete DequantizeLinear->Pad->QuantizeLinear->QLinearConv pattern!", .{});
 
         return node_list;
     }
@@ -207,12 +163,10 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
 
         // Validate the pattern
         if (node_list.items.len != 4) return error.InvalidNumberOfOps;
-        if (!std.mem.eql(u8, node_list.items[0].op_type, "DequantizeLinear")) return error.UnexpectedOpAtPos0;
-        if (!std.mem.eql(u8, node_list.items[1].op_type, "Pad")) return error.UnexpectedOpAtPos1;
-        if (!std.mem.eql(u8, node_list.items[2].op_type, "QuantizeLinear")) return error.UnexpectedOpAtPos2;
-        if (!std.mem.eql(u8, node_list.items[3].op_type, "QLinearConv")) return error.UnexpectedOpAtPos3;
+        if (!std.mem.eql(u8, node_list.items[0].op_type, "QuantizeLinear")) return error.UnexpectedOpAtPos0;
+        if (!std.mem.eql(u8, node_list.items[1].op_type, "DequantizeLinear")) return error.UnexpectedOpAtPos1;
 
-        const last_node = node_list.items[3]; // QLinearConv node
+        const last_node = node_list.items[1]; // QLinearConv node
 
         // Clone the next list instead of direct reference
         var cloned_next = std.ArrayList(*NodeZant).init(allocator);
@@ -229,21 +183,23 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         return NodeZant{
             .name = try NodeZant_lib.getFusedOpsName(node_list),
             .op_type = try NodeZant_lib.getFusedOpsType(node_list),
-            .op = Op_union{ .fused_Dequant_Pad_Quant_QLinConv = try init_fused_op(node_list) },
+            .op = Op_union{ .useless = operators.Useless{} },
             .next = cloned_next,
             .nodeProto = null,
             .ready = false,
-            .fusion_list = null, // ✅ FIX: Don't store references to nodes that will be freed
+            .fusion_list = null,
         };
     }
 
     /// Pattern substitution function
     pub fn fn_pattern_sobstitution(graph: *GraphZant, fused_node: *NodeZant, node_list: std.ArrayList(*NodeZant)) anyerror!void {
+        _ = fused_node; //the fuses node is totally useless since I removed the pattern completelly
+
         // Validate inputs
-        if (node_list.items.len != 4) return error.InvalidPatternLength;
+        if (node_list.items.len != 2) return error.InvalidPatternLength;
 
         const first_node = node_list.items[0]; // DequantizeLinear node
-        const last_node = node_list.items[3]; // QLinearConv node
+        const last_node = node_list.items[1]; // QLinearConv node
 
         // Step 1: Find all predecessor nodes that point to the first node
         var predecessors = std.ArrayList(*NodeZant).init(allocator);
@@ -269,19 +225,12 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
             }
         }
 
-        // Step 2: Update predecessor nodes to point to fused_node
+        // Step 2: Update predecessor nodes to point to the output of the last node
         for (predecessors.items) |predecessor| {
             for (predecessor.next.items, 0..) |next_node, i| {
                 if (next_node == first_node) {
-                    predecessor.next.items[i] = fused_node;
+                    predecessor.next.items[i] = last_node.next.items[i];
                 }
-            }
-        }
-
-        // Step 3: Set up fused node's successors
-        if (fused_node.next.items.len == 0) {
-            for (last_node.next.items) |successor| {
-                try fused_node.next.append(successor);
             }
         }
 
@@ -306,34 +255,32 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         if (removal_count != node_list.items.len) {
             return error.IncompleteNodeRemoval;
         }
-
-        // Step 5: Add fused node to graph
-        try graph.nodes.append(fused_node);
     }
 
     // Helper functions matching the Fused_Conv_Relu interface
 
-    pub fn get_output_shape(self: Fused_Dequant_Pad_Quant_QLinConv) []usize {
-        return self.fused_qlinearconv.get_output_shape();
+    pub fn get_output_shape(self: Fused_Quant_Dequant) []usize {
+        _ = self;
     }
 
-    pub fn get_input_tensors(self: Fused_Dequant_Pad_Quant_QLinConv) anyerror![]*TensorZant {
-        return try self.fused_qlinearconv.get_input_tensors();
+    pub fn get_input_tensors(self: Fused_Quant_Dequant) anyerror![]*TensorZant {
+        _ = self;
     }
 
-    pub fn get_output_tensors(self: Fused_Dequant_Pad_Quant_QLinConv) anyerror![]*TensorZant {
+    pub fn get_output_tensors(self: Fused_Quant_Dequant) anyerror![]*TensorZant {
         return try self.fused_qlinearconv.get_output_tensors();
     }
 
-    pub fn write_op(self: Fused_Dequant_Pad_Quant_QLinConv, writer: std.fs.File.Writer) !void {
-        try self.fused_qlinearconv.write_op(writer);
+    pub fn write_op(self: Fused_Quant_Dequant, writer: std.fs.File.Writer) !void {
+        _ = self;
+        _ = writer;
     }
 
-    pub fn compute_output_shape(self: Fused_Dequant_Pad_Quant_QLinConv) []usize {
-        return self.fused_qlinearconv.compute_output_shape();
+    pub fn compute_output_shape(self: Fused_Quant_Dequant) []usize {
+        _ = self;
     }
 
-    pub fn print(self: Fused_Dequant_Pad_Quant_QLinConv) void {
-        std.debug.print("\n Fused_Dequant_Pad_Quant_QLinConv:\n {any}", .{self});
+    pub fn print(self: Fused_Quant_Dequant) void {
+        _ = self;
     }
 };
