@@ -12,9 +12,18 @@ const Op_union = IR_zant.Op_union;
 const PatternConfig = @import("pattern_matcher.zig").PatternConfig;
 
 pub const patterns = [_]PatternConfig{
+    // Pattern configuration for the 4-operation fusion
+    .{
+        .pattern = &[_][]const u8{ "DequantizeLinear", "Pad", "QuantizeLinear", "QLinearConv" },
+        .name = "DequantPadQuantQLinConv",
+        .fn_pattern_detection = fused_operators.Fused_Dequant_Pad_Quant_QLinConv.fn_pattern_detection,
+        .fn_pattern_fusion = fused_operators.Fused_Dequant_Pad_Quant_QLinConv.fn_pattern_fusion,
+        .fn_pattern_sobstitution = fused_operators.Fused_Dequant_Pad_Quant_QLinConv.fn_pattern_sobstitution,
+    },
+
     .{
         .pattern = &[_][]const u8{ "Conv", "Relu" },
-        .name = "fudes_Conv_Relu", //used for more complex pattern like detect_qadd_pattern()
+        .name = "fused_Conv_Relu", //used for more complex pattern like detect_qadd_pattern()
         .fn_pattern_detection = fused_operators.Fused_Conv_Relu.fn_pattern_detection,
         .fn_pattern_fusion = fused_operators.Fused_Conv_Relu.fn_pattern_fusion, // fusion stategy
         .fn_pattern_sobstitution = fused_operators.Fused_Conv_Relu.fn_pattern_sobstitution, // sobstitution stategy

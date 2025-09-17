@@ -106,7 +106,7 @@ pub fn qlinearconv_onnx_v10(
     _ = auto_pad; // Not implemented yet
 
     // Validate input shapes per ONNX spec
-    if (x.shape.len < 3 or w.shape.len < 3) return TensorMathError.InvalidShape;
+    if (x.shape.len < 3 or w.shape.len < 3) return error.InvalidShape1;
 
     // Extract dimensions: x=[N, C, H, W], w=[M, C/group, kH, kW]
     const batch_size = x.shape[0];
@@ -143,7 +143,7 @@ pub fn qlinearconv_onnx_v10(
         output.shape[2] != out_height or
         (output.shape.len > 3 and output.shape[3] != out_width))
     {
-        return TensorMathError.InvalidShape;
+        return error.InvalidShape2;
     }
 
     // Extract quantization parameters per ONNX spec
@@ -159,7 +159,7 @@ pub fn qlinearconv_onnx_v10(
     // Validation check
     if (x_scale_f <= 0.0 or y_scale_f <= 0.0) {
         //std.debug.print("ERROR: Invalid scales x_scale={d:.6}, y_scale={d:.6}\n", .{ x_scale_f, y_scale_f });
-        return TensorMathError.InvalidShape;
+        return error.InvalidShape3;
     }
 
     // Detailed analysis of quantization parameters

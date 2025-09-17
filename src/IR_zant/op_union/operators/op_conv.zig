@@ -126,6 +126,7 @@ pub const Conv = struct {
     }
 
     pub fn write_op(self: Conv, writer: std.fs.File.Writer) !void {
+
         //----create tensor_X_string
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);

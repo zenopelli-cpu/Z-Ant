@@ -11,7 +11,7 @@ const model = @import("model_options.zig");
 // ----------- FULL TEMPLATE -----------
 
 test "model info" {
-    var buf: [20]u8 = undefined;
+    var buf: [256]u8 = undefined;
     if (model.name.len > buf.len) return error.ModelNameTooLong;
 
     // Fill the first `model.name.len` bytes with '+'
@@ -123,8 +123,8 @@ test "Static Library - Random data Prediction Test" {
         defer allocator.free(result[0..model.output_data_len]);
     }
 
-    std.debug.print("\nPrediction Result:\n", .{});
     try std.testing.expectEqual(0, return_code);
+    std.debug.print("\nPrediction done without errors", .{});
 }
 
 test "Static Library - Wrong Input Shape" {
@@ -340,7 +340,7 @@ test "Static Library - User data Prediction Test" {
             for (0.., user_test.output) |i, expected_output| {
                 const result_value = result[i];
                 const expected_output_value = expected_output;
-                std.testing.expectApproxEqAbs(expected_output_value, result_value, 0.05) catch |e| {
+                std.testing.expectApproxEqAbs(expected_output_value, result_value, 0.01) catch |e| {
                     std.debug.print(" \n expected output  ->  real value      difference ", .{});
                     for (0.., user_test.output) |j, out_val| {
                         std.debug.print(" \n {} ->  {}      {} ", .{ out_val, result[j], @abs(out_val - result[j]) });

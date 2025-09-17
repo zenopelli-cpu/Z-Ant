@@ -102,6 +102,30 @@ pub const QLinearConv = struct {
             }
         }
 
+        if (pads == null) {
+            const input_spatial_dims = input_x.shape.len;
+            const pads_len = input_spatial_dims * 2;
+            const default_pads = try allocator.alloc(i64, pads_len);
+
+            for (default_pads) |*pad_val| {
+                pad_val.* = 0;
+            }
+
+            pads = default_pads;
+        }
+
+        if (dilations == null) {
+            const input_spatial_dims = input_x.shape.len;
+            const dilations_len = input_spatial_dims * 2;
+            const default_dilations = try allocator.alloc(i64, dilations_len);
+
+            for (default_dilations) |*dil_val| {
+                dil_val.* = 1;
+            }
+
+            dilations = default_dilations;
+        }
+
         // Set the output type - for quantized convolution, output type should match input quantized type
         if (output_y.ty == tensorZant_lib.TensorType.undefined) output_y.ty = input_x.ty;
 
