@@ -16,21 +16,21 @@ const IR_utils = IR_zant.utils;
 const Op_union = @import("../op_union.zig").Op_union;
 const operators = IR_zant.operators;
 
-pub const Fused_Quant_Dequant = struct {
+pub const Fused_Dequant_Quant = struct {
     op_name: []const u8,
 
     // This method is not used since is initialized as a "useless" operator
-    pub fn init_fused_op(fusion_list: std.ArrayList(*NodeZant)) !Fused_Quant_Dequant {
+    pub fn init_fused_op(fusion_list: std.ArrayList(*NodeZant)) !Fused_Dequant_Quant {
         _ = fusion_list;
     }
 
-    /// Pattern detection function for QuantizeLinear -> DequantizeLinear
+    /// Pattern detection function for DequantizeLinear -> QuantizeLinear
     pub fn fn_pattern_detection(graph: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
         _ = graph; // Not used in this sequential pattern
 
         // Only start detection from DequantizeLinear nodes
-        if (!std.mem.eql(u8, root_node.op_type, "QuantizeLinear")) {
-            std.debug.print(" -> Not a QuantizeLinear node, skipping", .{});
+        if (!std.mem.eql(u8, root_node.op_type, "DequantizeLinear")) {
+            std.debug.print(" -> Not a DequantizeLinear node, skipping", .{});
             return null;
         }
 
@@ -38,23 +38,23 @@ pub const Fused_Quant_Dequant = struct {
         errdefer node_list.deinit();
 
         try node_list.append(root_node);
-        std.debug.print(" -> QuantizeLinear node found, checking for DequantizeLinear successor", .{});
+        std.debug.print(" -> DequantizeLinear node found, checking for QuantizeLinear successor", .{});
 
-        // Check DequantizeLinear -> Pad
+        // Check DequantizeLinear -> QuantizeLinear
         if (root_node.next.items.len != 1) {
-            std.debug.print(" -> QuantizeLinear has {} successors (expected 1)", .{root_node.next.items.len});
+            std.debug.print(" -> DequantizeLinear has {} successors (expected 1)", .{root_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
-        const pad_node = root_node.next.items[0];
-        if (!std.mem.eql(u8, pad_node.op_type, "DequantizeLinear")) {
-            std.debug.print(" -> QuantizeLinear successor is {s} (expected DequantizeLinear)", .{pad_node.op_type});
+        const quant_node = root_node.next.items[0];
+        if (!std.mem.eql(u8, quant_node.op_type, "QuantizeLinear")) {
+            std.debug.print(" -> DequantizeLinear successor is {s} (expected QuantizeLinear)", .{quant_node.op_type});
             node_list.deinit();
             return null;
         }
 
-        try node_list.append(pad_node);
+        try node_list.append(quant_node);
 
         return node_list;
     }
@@ -65,10 +65,10 @@ pub const Fused_Quant_Dequant = struct {
 
         // Validate the pattern
         if (node_list.items.len != 2) return error.InvalidNumberOfOps;
-        if (!std.mem.eql(u8, node_list.items[0].op_type, "QuantizeLinear")) return error.UnexpectedOpAtPos0;
-        if (!std.mem.eql(u8, node_list.items[1].op_type, "DequantizeLinear")) return error.UnexpectedOpAtPos1;
+        if (!std.mem.eql(u8, node_list.items[0].op_type, "DequantizeLinear")) return error.UnexpectedOpAtPos0;
+        if (!std.mem.eql(u8, node_list.items[1].op_type, "QuantizeLinear")) return error.UnexpectedOpAtPos1;
 
-        const last_node = node_list.items[1]; // QLinearConv node
+        const last_node = node_list.items[1]; // QuantizeLinear node
 
         // Clone the next list instead of direct reference
         var cloned_next = std.ArrayList(*NodeZant).init(allocator);
@@ -101,7 +101,7 @@ pub const Fused_Quant_Dequant = struct {
         if (node_list.items.len != 2) return error.InvalidPatternLength;
 
         const first_node = node_list.items[0]; // DequantizeLinear node
-        const last_node = node_list.items[1]; // QLinearConv node
+        const last_node = node_list.items[1]; // QuantizeLinear node
 
         // Step 1: Find all predecessor nodes that point to the first node
         var predecessors = std.ArrayList(*NodeZant).init(allocator);
@@ -161,33 +161,33 @@ pub const Fused_Quant_Dequant = struct {
 
     // Helper functions matching the interface
 
-    pub fn get_output_shape(self: Fused_Quant_Dequant) []usize {
+    pub fn get_output_shape(self: Fused_Dequant_Quant) []usize {
         _ = self;
         return &[_]usize{};
     }
 
-    pub fn get_input_tensors(self: Fused_Quant_Dequant) anyerror![]*TensorZant {
+    pub fn get_input_tensors(self: Fused_Dequant_Quant) anyerror![]*TensorZant {
         _ = self;
         return error.ThisIsUseless;
     }
 
-    pub fn get_output_tensors(self: Fused_Quant_Dequant) anyerror![]*TensorZant {
+    pub fn get_output_tensors(self: Fused_Dequant_Quant) anyerror![]*TensorZant {
         _ = self;
         return error.ThisIsUseless;
     }
 
-    pub fn write_op(self: Fused_Quant_Dequant, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Dequant_Quant, writer: std.fs.File.Writer) !void {
         _ = self;
         _ = writer;
         return error.ThisIsUseless;
     }
 
-    pub fn compute_output_shape(self: Fused_Quant_Dequant) []usize {
+    pub fn compute_output_shape(self: Fused_Dequant_Quant) []usize {
         _ = self;
         return &[_]usize{};
     }
 
-    pub fn print(self: Fused_Quant_Dequant) void {
+    pub fn print(self: Fused_Dequant_Quant) void {
         _ = self;
         return &[_]usize{};
     }

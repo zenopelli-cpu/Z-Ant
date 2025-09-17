@@ -31,9 +31,9 @@ pub const patterns = [_]PatternConfig{
     .{ // "QuantizeLinear" -> "DequantizeLinear" into nothing
         .pattern = &[_][]const u8{ "QuantizeLinear", "DequantizeLinear" },
         .name = "QuantizeLinearDequantizeLinear",
-        .fn_pattern_detection = fused_operators.Fused_Dequant_Quant.fn_pattern_detection,
-        .fn_pattern_fusion = fused_operators.Fused_Dequant_Quant.fn_pattern_fusion,
-        .fn_pattern_sobstitution = fused_operators.Fused_Dequant_Quant.fn_pattern_sobstitution,
+        .fn_pattern_detection = fused_operators.Fused_Quant_Dequant.fn_pattern_detection,
+        .fn_pattern_fusion = fused_operators.Fused_Quant_Dequant.fn_pattern_fusion,
+        .fn_pattern_sobstitution = fused_operators.Fused_Quant_Dequant.fn_pattern_sobstitution,
     },
 
     // .{

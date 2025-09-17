@@ -6,3 +6,6 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = @import("fused_Dequant_Pad_Quant_QL
 
 // QuantizeLinear -> DequantizeLinear
 pub const Fused_Quant_Dequant = @import("fused_Quant_Dequant.zig").Fused_Quant_Dequant;
+
+// DequantizeLinear -> QuantizeLinear
+pub const Fused_Dequant_Quant = @import("fused_Dequant_Quant.zig").Fused_Dequant_Quant;
