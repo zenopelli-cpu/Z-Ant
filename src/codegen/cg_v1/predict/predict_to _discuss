@@ -1,4 +1,0 @@
-- in write_TensorAllocation() perchè mettere il  defer tensor_{s}.deinit() ?? deallochiamo il tensore direttamente dopo il suo ultimo utilizzo!
-- è in write_predictInitialization() la modifica sulla copia dell'input di cui mi parlavi?
-- perchè last_result_size in writeReturn()? qual è la sua utilità?
-- cilp.write_op_quantized_pattern -> move it into fused_operators

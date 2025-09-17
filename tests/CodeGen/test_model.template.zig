@@ -359,7 +359,7 @@ test "Static Library - User data Prediction Test" {
         }
 
         if (model.is_dynamic) {
-            defer allocator.free(result[0..model.output_data_len]);
+            allocator.free(result[0..model.output_data_len]);
         }
     }
 
