@@ -49,9 +49,7 @@ pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []cons
 
     // graphZant.print_before_linearizzation(); // DEBUG
 
-    // _ = model_name;
-    // _ = generated_path;
-    // linearizing the graph
+    // linearizing the fused graph
     var linearizedGraph: std.ArrayList(*NodeZant) = try graphZant.linearize(allocator);
     defer linearizedGraph.deinit();
 

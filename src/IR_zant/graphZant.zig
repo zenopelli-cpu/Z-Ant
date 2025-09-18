@@ -72,65 +72,65 @@ pub const GraphZant = struct {
         std.debug.print("\n", .{});
 
         // Collecting all input and output tensors from the nodes_to_remove list
-        var tensor_list: std.ArrayList(*TensorZant) = std.ArrayList(*TensorZant).init(allocator);
-        defer tensor_list.deinit();
+        // var tensor_list: std.ArrayList(*TensorZant) = std.ArrayList(*TensorZant).init(allocator);
+        // defer tensor_list.deinit();
 
-        for (nodes_to_remove.items) |node| {
-            const node_input_tensors: []*TensorZant = try node.get_input_tensors();
-            const node_output_tensors: []*TensorZant = try node.get_output_tensors();
+        // for (nodes_to_remove.items) |node| {
+        //     const node_input_tensors: []*TensorZant = try node.get_input_tensors();
+        //     const node_output_tensors: []*TensorZant = try node.get_output_tensors();
 
-            // Add input tensors if not already present
-            for (node_input_tensors) |tensor| {
-                var already_exists = false;
-                for (tensor_list.items) |existing_tensor| {
-                    if (existing_tensor == tensor) {
-                        already_exists = true;
-                        break;
-                    }
-                }
-                if (!already_exists) {
-                    try tensor_list.append(tensor);
-                }
-            }
+        //     // Add input tensors if not already present
+        //     for (node_input_tensors) |tensor| {
+        //         var already_exists = false;
+        //         for (tensor_list.items) |existing_tensor| {
+        //             if (existing_tensor == tensor) {
+        //                 already_exists = true;
+        //                 break;
+        //             }
+        //         }
+        //         if (!already_exists) {
+        //             try tensor_list.append(tensor);
+        //         }
+        //     }
 
-            // Add output tensors if not already present
-            for (node_output_tensors) |tensor| {
-                var already_exists = false;
-                for (tensor_list.items) |existing_tensor| {
-                    if (existing_tensor == tensor) {
-                        already_exists = true;
-                        break;
-                    }
-                }
-                if (!already_exists) {
-                    try tensor_list.append(tensor);
-                }
-            }
-        }
+        //     // Add output tensors if not already present
+        //     for (node_output_tensors) |tensor| {
+        //         var already_exists = false;
+        //         for (tensor_list.items) |existing_tensor| {
+        //             if (existing_tensor == tensor) {
+        //                 already_exists = true;
+        //                 break;
+        //             }
+        //         }
+        //         if (!already_exists) {
+        //             try tensor_list.append(tensor);
+        //         }
+        //     }
+        // }
 
-        std.debug.print("\n\nTensord to be removed:", .{});
-        for (tensor_list.items) |t| std.debug.print("\n      {s}", .{t.name});
-        std.debug.print("\n", .{});
+        // std.debug.print("\n\nTensord to be removed:", .{});
+        // for (tensor_list.items) |t| std.debug.print("\n      {s}", .{t.name});
+        // std.debug.print("\n", .{});
 
-        for (tensor_list.items) |tens| {
-            std.debug.print("     Trying to remove tensor: {s}\n", .{tens.*.name});
-            if (tensorZant_lib.tensorMap.contains(tens.*.name)) {
-                _ = tensorZant_lib.tensorMap.remove(tens.*.name);
-            } else {
-                std.debug.print("     Tensor {s} not found in map\n", .{tens.*.name});
-            }
-        }
+        // for (tensor_list.items) |tens| {
+        //     std.debug.print("     Trying to remove tensor: {s}\n", .{tens.*.name});
+        //     if (tensorZant_lib.tensorMap.contains(tens.*.name)) {
+        //         _ = tensorZant_lib.tensorMap.remove(tens.*.name);
+        //     } else {
+        //         std.debug.print("     Tensor {s} not found in map\n", .{tens.*.name});
+        //     }
+        // }
 
-        var j: usize = 0;
-        while (j < self.nodes.items.len) {
-            for (nodes_to_remove.items) |n| {
+        for (nodes_to_remove.items) |n| {
+            var j: usize = 0;
+            while (j < self.nodes.items.len) {
                 if (self.nodes.items[j] == n) {
                     n.deinit();
                     _ = self.nodes.orderedRemove(j);
                     break;
                 }
+                j += 1;
             }
-            j += 1;
         }
     }
 
@@ -310,6 +310,19 @@ pub const GraphZant = struct {
         std.debug.print("\n\nGraphZant: {s}\n", .{self.name orelse "<unnamed>"});
         for (self.nodes.items) |node| {
             node.print();
+        }
+    }
+
+    pub fn print_detailed(self: *GraphZant) !void {
+        std.debug.print("\n\nGraphZant: {s}\n", .{self.name orelse "<unnamed>"});
+        for (self.nodes.items) |node| {
+            std.debug.print("\n node: {s}", .{node.name orelse "<unnamed>"});
+            std.debug.print("\n inputs:", .{});
+            const inputs = try node.get_input_tensors();
+            for (inputs) |i| std.debug.print("\n   {s}", .{i.name});
+            std.debug.print("\n outputs:", .{});
+            const outputs = try node.get_output_tensors();
+            for (outputs) |i| std.debug.print("\n   {s}", .{i.name});
         }
     }
 

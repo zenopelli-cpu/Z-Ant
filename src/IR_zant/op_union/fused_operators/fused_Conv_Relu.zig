@@ -53,7 +53,7 @@ pub const Fused_Conv_Relu = struct {
 
         // CRITICAL FIX: Only start detection from Conv nodes
         if (!std.mem.eql(u8, root_node.op_type, "Conv")) {
-            std.debug.print(" -> Not a Conv node, skipping", .{});
+            // std.debug.print(" -> Not a Conv node, skipping", .{});
             return null;
         }
 
@@ -66,14 +66,14 @@ pub const Fused_Conv_Relu = struct {
         // Check if Conv has exactly one successor and it's ReLU
         const next_nodes = root_node.next;
         if (next_nodes.items.len != 1) {
-            std.debug.print(" -> Conv has {} successors (expected 1)", .{next_nodes.items.len});
+            // std.debug.print(" -> Conv has {} successors (expected 1)", .{next_nodes.items.len});
             node_list.deinit();
             return null;
         }
 
         const successor = next_nodes.items[0];
         if (!std.mem.eql(u8, successor.op_type, "Relu")) {
-            std.debug.print(" -> Conv successor is {s} (expected Relu)", .{successor.op_type});
+            // std.debug.print(" -> Conv successor is {s} (expected Relu)", .{successor.op_type});
             node_list.deinit();
             return null;
         }

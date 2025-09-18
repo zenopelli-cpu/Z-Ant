@@ -100,12 +100,12 @@ pub const Fused_Quant_Dequant = struct {
         // Validate inputs
         if (node_list.items.len != 2) return error.InvalidPatternLength;
 
-        const first_node = node_list.items[0]; // DequantizeLinear node
-        const last_node = node_list.items[1]; // QLinearConv node
+        const first_node = node_list.items[0]; // QuantizeLinear node
+        const last_node = node_list.items[1]; // DequantizeLinear node
 
         // Step 1: Find all predecessor nodes that point to the first node
         const predecessors: std.ArrayList(*NodeZant) = try graph.get_predecessors(first_node);
-        const successors = last_node.next;
+        const successors: std.ArrayList(*NodeZant) = last_node.next;
 
         // Step 2: Update predecessor nodes to point to the output of the last node
         for (predecessors.items) |predecessor| {
@@ -116,9 +116,6 @@ pub const Fused_Quant_Dequant = struct {
             }
         }
 
-        // Step 4: Remove old nodes from graph
-        try graph.removeNodes(node_list);
-
         //This is a delicate step, read carrefully!!
         //for each successor sobtitute the input equal to old last_node output wiht the new output of the fusion
         //OSS: in this case the output of the fusion is the output of the predecessor since we don't grate any new node
@@ -127,17 +124,32 @@ pub const Fused_Quant_Dequant = struct {
         // assuming that the output of the fusion is only one tensor by construction
         const post_fusion_output: *TensorZant = (try predecessors.items[0].get_output_tensors())[0];
 
-        for (successors.items) |succ_node| { //for each succerssor nodes
+        std.debug.print("\n    successors:{} ", .{successors.items.len});
+        for (successors.items) |s| std.debug.print(" {s} ", .{s.name.?});
+
+        for (successors.items) |succ_node| { //for each succerssor node
             const inputs = try succ_node.get_input_tensors(); // collect its inputs
+
+            std.debug.print("\n    succ_node:{s} ", .{succ_node.name.?});
 
             //for each succ input:
             //if the input is equal to an old last_node output sobstitute it with the new output
             for (inputs) |succ_input| {
+                std.debug.print("\n        succ_input:{s}", .{succ_input.name});
+
                 for (prefusion_last_node_outputs) |old_out| {
-                    if (succ_input == old_out) try succ_node.sobstitute_tensors(old_out, post_fusion_output);
+                    if (succ_input == old_out) {
+                        std.debug.print("\n            sobstitute_tensors({s} with {s}) ", .{ old_out.name, post_fusion_output.name });
+                        try succ_node.sobstitute_tensors(old_out, post_fusion_output);
+                    }
                 }
             }
         }
+
+        // Step 4: Remove old nodes from graph
+        try graph.removeNodes(node_list);
+
+        try graph.print_detailed();
     }
 
     // Helper functions matching the interface

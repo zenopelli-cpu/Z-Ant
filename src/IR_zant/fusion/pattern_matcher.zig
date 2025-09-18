@@ -66,19 +66,18 @@ pub fn fusePatterns(graph: *GraphZant, pattern_configs: []const PatternConfig) !
 
 /// Generic pattern matcher using configuration
 fn fusePatternsByConfig(graph: *GraphZant, config: PatternConfig) !void {
-    std.debug.print("\n fusePatternsByConfig()...", .{});
-
     var i: usize = 0;
     var len = graph.nodes.items.len;
     while (i < len) {
         const node = graph.nodes.items[i];
         if (try findAndFusePattern(graph, node, config)) {
             // Pattern was found and fused, restart search since graph was modified
+            std.debug.print("\n -----------------------------  Pattern was found and fused, restart search since graph was modified ", .{});
+
             i = 0;
             len = graph.nodes.items.len;
             continue;
         }
-        std.debug.print("\n\n --- NEXT NODE ---", .{});
         i += 1;
     }
 }
@@ -93,16 +92,16 @@ fn findAndFusePattern(graph: *GraphZant, root_node: *NodeZant, config: PatternCo
     if (maybe_node_list) |node_list| {
         // defer node_list.deinit();
 
-        std.debug.print("\n Pattern detected! Found {} nodes in pattern", .{node_list.items.len});
+        std.debug.print("\n pattern detected! Found {} nodes in pattern", .{node_list.items.len});
 
         // Log the detected pattern
         for (node_list.items, 0..) |node, idx| {
-            std.debug.print("\n  Node[{}]: {s}", .{ idx, node.op_type });
+            std.debug.print("\n     Node[{}]: {s}", .{ idx, node.op_type });
         }
 
         // Step 2: Create the fused node
         const fused_node = try config.fn_pattern_fusion(graph, node_list);
-        std.debug.print("\n Fused node created: {s}", .{fused_node.op_type});
+        std.debug.print("\n     Fused node created: {s}", .{fused_node.op_type});
 
         // Step 3: Allocate the fused node on the heap to ensure it persists
         const fused_node_ptr = try allocator.create(NodeZant);
@@ -110,7 +109,7 @@ fn findAndFusePattern(graph: *GraphZant, root_node: *NodeZant, config: PatternCo
 
         // Step 4: Substitute the pattern with the fused node
         try config.fn_pattern_sobstitution(graph, fused_node_ptr, node_list);
-        std.debug.print("\n Pattern substitution completed", .{});
+        std.debug.print("\n     Pattern substitution completed", .{});
 
         return true; // Pattern was found and fused
     }
