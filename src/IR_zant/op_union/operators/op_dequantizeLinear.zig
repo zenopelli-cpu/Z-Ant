@@ -226,4 +226,24 @@ pub const DequantizeLinear = struct {
     pub fn print(self: DequantizeLinear) void {
         std.debug.print("\n QuantizeLinear:\n {any}", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *DequantizeLinear, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.x == old_tensor) {
+            self.x = new_tensor;
+            return;
+        }
+        if (self.x_scale == old_tensor) {
+            self.x_scale = new_tensor;
+            return;
+        }
+        if (self.x_zero_point != null and self.x_zero_point.? == old_tensor) {
+            self.x_zero_point = new_tensor;
+            return;
+        }
+        if (self.y == old_tensor) {
+            self.y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

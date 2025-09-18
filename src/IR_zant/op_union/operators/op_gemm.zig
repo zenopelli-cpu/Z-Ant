@@ -296,4 +296,24 @@ pub const Gemm = struct {
     pub fn print(self: Gemm) void { // TODO
         std.debug.print("\n Gemm:\n {any}", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *Gemm, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_A == old_tensor) {
+            self.input_A = new_tensor;
+            return;
+        }
+        if (self.input_B == old_tensor) {
+            self.input_B = new_tensor;
+            return;
+        }
+        if (self.input_C != null and self.input_C.? == old_tensor) {
+            self.input_C = new_tensor;
+            return;
+        }
+        if (self.output == old_tensor) {
+            self.output = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

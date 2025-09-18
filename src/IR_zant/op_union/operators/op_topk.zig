@@ -181,6 +181,26 @@ pub const TopK = struct {
         std.debug.print("\n TopK: {any}", .{self});
     }
 
+    pub fn sobstitute_tensors(self: *TopK, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_X == old_tensor) {
+            self.input_X = new_tensor;
+            return;
+        }
+        if (self.input_K == old_tensor) {
+            self.input_K = new_tensor;
+            return;
+        }
+        if (self.output_values == old_tensor) {
+            self.output_values = new_tensor;
+            return;
+        }
+        if (self.output_indices == old_tensor) {
+            self.output_indices = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
+
     pub fn render_lower(self: TopK, builder: *UOpBuilder) !void {
         // TopK is complex and typically implemented as a library call
         // For now, we'll create a placeholder that calls the lean function

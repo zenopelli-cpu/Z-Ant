@@ -220,4 +220,22 @@ pub const Split = struct {
             });
         }
     }
+
+    pub fn sobstitute_tensors(self: *Split, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input == old_tensor) {
+            self.input = new_tensor;
+            return;
+        }
+        if (self.split != null and self.split.? == old_tensor) {
+            self.split = new_tensor;
+            return;
+        }
+        for (self.outputs, 0..) |tensor, i| {
+            if (tensor == old_tensor) {
+                self.outputs[i] = new_tensor;
+                return;
+            }
+        }
+        return error.TensorNotFound;
+    }
 };

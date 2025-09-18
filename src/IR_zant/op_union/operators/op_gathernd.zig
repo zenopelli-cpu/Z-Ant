@@ -135,4 +135,20 @@ pub const GatherND = struct {
             try utils.getSanitizedName(self.output.name),
         });
     }
+
+    pub fn sobstitute_tensors(self: *GatherND, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_data == old_tensor) {
+            self.input_data = new_tensor;
+            return;
+        }
+        if (self.input_indices == old_tensor) {
+            self.input_indices = new_tensor;
+            return;
+        }
+        if (self.output == old_tensor) {
+            self.output = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

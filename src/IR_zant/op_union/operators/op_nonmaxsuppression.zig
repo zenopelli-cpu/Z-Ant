@@ -222,6 +222,34 @@ pub const NonMaxSuppression = struct {
         );
     }
 
+    pub fn sobstitute_tensors(self: *NonMaxSuppression, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.boxes == old_tensor) {
+            self.boxes = new_tensor;
+            return;
+        }
+        if (self.scores == old_tensor) {
+            self.scores = new_tensor;
+            return;
+        }
+        if (self.max_output_boxes_per_class != null and self.max_output_boxes_per_class.? == old_tensor) {
+            self.max_output_boxes_per_class = new_tensor;
+            return;
+        }
+        if (self.iou_threshold != null and self.iou_threshold.? == old_tensor) {
+            self.iou_threshold = new_tensor;
+            return;
+        }
+        if (self.score_threshold != null and self.score_threshold.? == old_tensor) {
+            self.score_threshold = new_tensor;
+            return;
+        }
+        if (self.output == old_tensor) {
+            self.output = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
+
     pub fn compute_output_shape(self: NonMaxSuppression) ![]usize {
         // For compute_output_shape, we use a default max value since we can't access tensor data at compile time
         const max_output_boxes_val: i64 = 2048; // Use default for shape computation

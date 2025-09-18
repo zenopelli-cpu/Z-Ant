@@ -226,4 +226,24 @@ pub const Clip = struct {
     pub fn print(self: Clip) void {
         std.debug.print("\n Clip:\n {any}", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *Clip, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input == old_tensor) {
+            self.input = new_tensor;
+            return;
+        }
+        if (self.min != null and self.min.? == old_tensor) {
+            self.min = new_tensor;
+            return;
+        }
+        if (self.max != null and self.max.? == old_tensor) {
+            self.max = new_tensor;
+            return;
+        }
+        if (self.output == old_tensor) {
+            self.output = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

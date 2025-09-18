@@ -107,6 +107,18 @@ pub const Exp = struct {
         std.debug.print("\n Exp: {any}", .{self});
     }
 
+    pub fn sobstitute_tensors(self: *Exp, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input == old_tensor) {
+            self.input = new_tensor;
+            return;
+        }
+        if (self.output == old_tensor) {
+            self.output = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
+
     pub fn render_lower(self: Exp, builder: *UOpBuilder) !void {
         const X_id = self.input.get_tensorZantID();
         const out_shape = self.get_output_shape();

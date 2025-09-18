@@ -226,4 +226,16 @@ pub const AveragePool = struct {
     pub fn print(self: AveragePool) void { // TODO
         std.debug.print("\n AveragePool:\n {any}", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *AveragePool, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_X == old_tensor) {
+            self.input_X = new_tensor;
+            return;
+        }
+        if (self.output_Y == old_tensor) {
+            self.output_Y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

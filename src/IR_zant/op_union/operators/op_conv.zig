@@ -314,6 +314,25 @@ pub const Conv = struct {
         std.debug.print("\n CONV:\n {any}", .{self});
     }
 
+    pub fn sobstitute_tensors(self: *Conv, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_X == old_tensor) {
+            self.input_X = new_tensor;
+            return;
+        }
+        if (self.input_W == old_tensor) {
+            self.input_W = new_tensor;
+            return;
+        }
+        if (self.input_B != null and self.input_B.? == old_tensor) {
+            self.input_B = new_tensor;
+            return;
+        }
+        if (self.output_Y == old_tensor) {
+            self.output_Y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
     pub fn render_lower(self: Conv, builder: *UOpBuilder) !void {
         const X_id = self.input_X.get_tensorZantID();
         const W_id = self.input_W.get_tensorZantID();

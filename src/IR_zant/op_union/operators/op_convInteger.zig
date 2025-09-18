@@ -411,4 +411,28 @@ pub const ConvInteger = struct {
     pub fn print(op: *const ConvInteger) void {
         std.debug.print("\n CONV_INTEGER:\n {any}", .{op});
     }
+
+    pub fn sobstitute_tensors(self: *ConvInteger, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_x == old_tensor) {
+            self.input_x = new_tensor;
+            return;
+        }
+        if (self.input_w == old_tensor) {
+            self.input_w = new_tensor;
+            return;
+        }
+        if (self.input_x_zero_point != null and self.input_x_zero_point.? == old_tensor) {
+            self.input_x_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_w_zero_point != null and self.input_w_zero_point.? == old_tensor) {
+            self.input_w_zero_point = new_tensor;
+            return;
+        }
+        if (self.output_y == old_tensor) {
+            self.output_y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

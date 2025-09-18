@@ -185,4 +185,44 @@ pub const QLinearMatMul = struct {
         try writer.print("        {s},\n", .{tensor_y_zero_point_string});
         try writer.print("    ) catch return -1;\n", .{});
     }
+
+    pub fn sobstitute_tensors(self: *QLinearMatMul, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_a == old_tensor) {
+            self.input_a = new_tensor;
+            return;
+        }
+        if (self.input_a_scale == old_tensor) {
+            self.input_a_scale = new_tensor;
+            return;
+        }
+        if (self.input_a_zero_point == old_tensor) {
+            self.input_a_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_b == old_tensor) {
+            self.input_b = new_tensor;
+            return;
+        }
+        if (self.input_b_scale == old_tensor) {
+            self.input_b_scale = new_tensor;
+            return;
+        }
+        if (self.input_b_zero_point == old_tensor) {
+            self.input_b_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_y_scale == old_tensor) {
+            self.input_y_scale = new_tensor;
+            return;
+        }
+        if (self.input_y_zero_point == old_tensor) {
+            self.input_y_zero_point = new_tensor;
+            return;
+        }
+        if (self.output_y == old_tensor) {
+            self.output_y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

@@ -320,4 +320,32 @@ pub const ConvClip = struct {
     pub fn print(self: ConvClip) void {
         std.debug.print("\n CONV+CLIP FUSED:\n {any}", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *ConvClip, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_X == old_tensor) {
+            self.input_X = new_tensor;
+            return;
+        }
+        if (self.input_W == old_tensor) {
+            self.input_W = new_tensor;
+            return;
+        }
+        if (self.input_B != null and self.input_B.? == old_tensor) {
+            self.input_B = new_tensor;
+            return;
+        }
+        if (self.min != null and self.min.? == old_tensor) {
+            self.min = new_tensor;
+            return;
+        }
+        if (self.max != null and self.max.? == old_tensor) {
+            self.max = new_tensor;
+            return;
+        }
+        if (self.output_Y == old_tensor) {
+            self.output_Y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

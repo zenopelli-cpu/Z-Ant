@@ -252,4 +252,28 @@ pub const Resize = struct {
     pub fn print(self: Resize) void {
         std.debug.print("\n Resize :{any}\n", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *Resize, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_X == old_tensor) {
+            self.input_X = new_tensor;
+            return;
+        }
+        if (self.input_roi != null and self.input_roi.? == old_tensor) {
+            self.input_roi = new_tensor;
+            return;
+        }
+        if (self.input_scales != null and self.input_scales.? == old_tensor) {
+            self.input_scales = new_tensor;
+            return;
+        }
+        if (self.input_sizes != null and self.input_sizes.? == old_tensor) {
+            self.input_sizes = new_tensor;
+            return;
+        }
+        if (self.output_Y == old_tensor) {
+            self.output_Y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

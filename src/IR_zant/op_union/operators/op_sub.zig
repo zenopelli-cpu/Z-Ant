@@ -222,6 +222,22 @@ pub const Sub = struct {
         });
     }
 
+    pub fn sobstitute_tensors(self: *Sub, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_A == old_tensor) {
+            self.input_A = new_tensor;
+            return;
+        }
+        if (self.input_B == old_tensor) {
+            self.input_B = new_tensor;
+            return;
+        }
+        if (self.output_Y == old_tensor) {
+            self.output_Y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
+
     pub fn render_lower(self: Sub, builder: *UOpBuilder) !void {
         const A_id = self.input_A.get_tensorZantID();
         const B_id = self.input_B.get_tensorZantID();

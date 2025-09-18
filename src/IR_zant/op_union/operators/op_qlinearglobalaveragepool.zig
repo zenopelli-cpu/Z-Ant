@@ -170,4 +170,32 @@ pub const QLinearGlobalAveragePool = struct {
         self.output_Y.shape = output_shape;
         return output_shape;
     }
+
+    pub fn sobstitute_tensors(self: *QLinearGlobalAveragePool, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_X == old_tensor) {
+            self.input_X = new_tensor;
+            return;
+        }
+        if (self.input_X_scale == old_tensor) {
+            self.input_X_scale = new_tensor;
+            return;
+        }
+        if (self.input_X_zero_point == old_tensor) {
+            self.input_X_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_Y_scale == old_tensor) {
+            self.input_Y_scale = new_tensor;
+            return;
+        }
+        if (self.input_Y_zero_point == old_tensor) {
+            self.input_Y_zero_point = new_tensor;
+            return;
+        }
+        if (self.output_Y == old_tensor) {
+            self.output_Y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

@@ -288,4 +288,28 @@ pub const Pad = struct {
     pub fn print(op: *const Pad) void {
         std.debug.print("\n PAD:\n {any}", .{op});
     }
+
+    pub fn sobstitute_tensors(self: *Pad, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_data == old_tensor) {
+            self.input_data = new_tensor;
+            return;
+        }
+        if (self.input_pads == old_tensor) {
+            self.input_pads = new_tensor;
+            return;
+        }
+        if (self.input_constant_value != null and self.input_constant_value.? == old_tensor) {
+            self.input_constant_value = new_tensor;
+            return;
+        }
+        if (self.input_axes != null and self.input_axes.? == old_tensor) {
+            self.input_axes = new_tensor;
+            return;
+        }
+        if (self.output == old_tensor) {
+            self.output = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

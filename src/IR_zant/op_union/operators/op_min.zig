@@ -71,6 +71,20 @@ pub const Min = struct {
         std.debug.print("\n Min: inputs={d}, output={s}", .{ self.inputs.len, self.output.name });
     }
 
+    pub fn sobstitute_tensors(self: *Min, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        for (self.inputs, 0..) |tensor, i| {
+            if (tensor == old_tensor) {
+                self.inputs[i] = new_tensor;
+                return;
+            }
+        }
+        if (self.output == old_tensor) {
+            self.output = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
+
     pub fn write_op(self: Min, writer: std.fs.File.Writer) !void {
         if (self.inputs.len == 0) return;
 

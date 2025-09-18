@@ -117,4 +117,24 @@ pub const DynamicQuantizeLinear = struct {
     pub fn print(op: *const DynamicQuantizeLinear) void {
         std.debug.print("\n DYNAMIC_QUANTIZE_LINEAR:\n {any}", .{op});
     }
+
+    pub fn sobstitute_tensors(self: *DynamicQuantizeLinear, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_x == old_tensor) {
+            self.input_x = new_tensor;
+            return;
+        }
+        if (self.output_y == old_tensor) {
+            self.output_y = new_tensor;
+            return;
+        }
+        if (self.output_y_scale == old_tensor) {
+            self.output_y_scale = new_tensor;
+            return;
+        }
+        if (self.output_y_zero_point == old_tensor) {
+            self.output_y_zero_point = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

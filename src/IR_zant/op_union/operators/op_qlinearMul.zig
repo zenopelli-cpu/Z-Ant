@@ -255,4 +255,44 @@ pub const QLinearMul = struct {
     pub fn print(op: *const QLinearMul) void {
         std.debug.print("\n QLINEAR_MUL:\n {any}", .{op});
     }
+
+    pub fn sobstitute_tensors(self: *QLinearMul, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_A == old_tensor) {
+            self.input_A = new_tensor;
+            return;
+        }
+        if (self.input_A_scale == old_tensor) {
+            self.input_A_scale = new_tensor;
+            return;
+        }
+        if (self.input_A_zero_point == old_tensor) {
+            self.input_A_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_B == old_tensor) {
+            self.input_B = new_tensor;
+            return;
+        }
+        if (self.input_B_scale == old_tensor) {
+            self.input_B_scale = new_tensor;
+            return;
+        }
+        if (self.input_B_zero_point == old_tensor) {
+            self.input_B_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_C_scale == old_tensor) {
+            self.input_C_scale = new_tensor;
+            return;
+        }
+        if (self.input_C_zero_point == old_tensor) {
+            self.input_C_zero_point = new_tensor;
+            return;
+        }
+        if (self.output_C == old_tensor) {
+            self.output_C = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

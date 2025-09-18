@@ -208,4 +208,18 @@ pub const Concat = struct {
     pub fn print(self: Concat) void { // TODO
         std.debug.print("\n Flatten:\n {any}", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *Concat, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        for (self.inputs.items, 0..) |tensor, i| {
+            if (tensor == old_tensor) {
+                self.inputs.items[i] = new_tensor;
+                return;
+            }
+        }
+        if (self.concat_result == old_tensor) {
+            self.concat_result = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

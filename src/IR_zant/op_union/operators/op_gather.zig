@@ -194,4 +194,20 @@ pub const Gather = struct {
     pub fn print(self: Gather) void {
         std.debug.print("\n Gather:\n {any}", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *Gather, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_A == old_tensor) {
+            self.input_A = new_tensor;
+            return;
+        }
+        if (self.input_B == old_tensor) {
+            self.input_B = new_tensor;
+            return;
+        }
+        if (self.output_C == old_tensor) {
+            self.output_C = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

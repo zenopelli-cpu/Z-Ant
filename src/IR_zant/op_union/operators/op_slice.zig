@@ -203,4 +203,32 @@ pub const Slice = struct {
     pub fn print(self: Slice) void {
         std.debug.print("\n Slice: {any}", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *Slice, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input == old_tensor) {
+            self.input = new_tensor;
+            return;
+        }
+        if (self.starts == old_tensor) {
+            self.starts = new_tensor;
+            return;
+        }
+        if (self.ends == old_tensor) {
+            self.ends = new_tensor;
+            return;
+        }
+        if (self.axes != null and self.axes.? == old_tensor) {
+            self.axes = new_tensor;
+            return;
+        }
+        if (self.steps != null and self.steps.? == old_tensor) {
+            self.steps = new_tensor;
+            return;
+        }
+        if (self.output == old_tensor) {
+            self.output = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

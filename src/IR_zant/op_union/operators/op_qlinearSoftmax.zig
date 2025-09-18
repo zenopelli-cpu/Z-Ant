@@ -232,4 +232,32 @@ pub const QLinearSoftmax = struct {
     pub fn print(op: *const QLinearSoftmax) void {
         std.debug.print("\n QLINEAR_SOFTMAX:\n {any}", .{op});
     }
+
+    pub fn sobstitute_tensors(self: *QLinearSoftmax, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_x == old_tensor) {
+            self.input_x = new_tensor;
+            return;
+        }
+        if (self.input_x_scale == old_tensor) {
+            self.input_x_scale = new_tensor;
+            return;
+        }
+        if (self.input_x_zero_point == old_tensor) {
+            self.input_x_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_y_scale == old_tensor) {
+            self.input_y_scale = new_tensor;
+            return;
+        }
+        if (self.input_y_zero_point == old_tensor) {
+            self.input_y_zero_point = new_tensor;
+            return;
+        }
+        if (self.output_y == old_tensor) {
+            self.output_y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

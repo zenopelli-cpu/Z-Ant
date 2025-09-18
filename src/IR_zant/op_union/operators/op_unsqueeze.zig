@@ -133,4 +133,20 @@ pub const Unsqueeze = struct {
             try utils.getSanitizedName(self.output_Y.name),
         });
     }
+
+    pub fn sobstitute_tensors(self: *Unsqueeze, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_X == old_tensor) {
+            self.input_X = new_tensor;
+            return;
+        }
+        if (self.input_axes == old_tensor) {
+            self.input_axes = new_tensor;
+            return;
+        }
+        if (self.output_Y == old_tensor) {
+            self.output_Y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

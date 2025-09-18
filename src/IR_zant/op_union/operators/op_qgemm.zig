@@ -262,4 +262,48 @@ pub const QGemm = struct {
         std.debug.print("   input_C: {s}\n", .{self.input_C.name});
         std.debug.print("   output: {s}\n", .{self.output.name});
     }
+
+    pub fn sobstitute_tensors(self: *QGemm, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_A == old_tensor) {
+            self.input_A = new_tensor;
+            return;
+        }
+        if (self.input_A_scale == old_tensor) {
+            self.input_A_scale = new_tensor;
+            return;
+        }
+        if (self.input_A_zero_point == old_tensor) {
+            self.input_A_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_B == old_tensor) {
+            self.input_B = new_tensor;
+            return;
+        }
+        if (self.input_B_scale == old_tensor) {
+            self.input_B_scale = new_tensor;
+            return;
+        }
+        if (self.input_B_zero_point == old_tensor) {
+            self.input_B_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_C == old_tensor) {
+            self.input_C = new_tensor;
+            return;
+        }
+        if (self.output_Y_scale == old_tensor) {
+            self.output_Y_scale = new_tensor;
+            return;
+        }
+        if (self.output_Y_zero_point == old_tensor) {
+            self.output_Y_zero_point = new_tensor;
+            return;
+        }
+        if (self.output == old_tensor) {
+            self.output = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

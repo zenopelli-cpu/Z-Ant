@@ -301,4 +301,38 @@ pub const QLinearConcat = struct {
     pub fn print(self: QLinearConcat) void {
         std.debug.print("\n QLinearConcat:\n {any}", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *QLinearConcat, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        for (self.inputs.items, 0..) |tensor, i| {
+            if (tensor == old_tensor) {
+                self.inputs.items[i] = new_tensor;
+                return;
+            }
+        }
+        for (self.input_scales.items, 0..) |tensor, i| {
+            if (tensor == old_tensor) {
+                self.input_scales.items[i] = new_tensor;
+                return;
+            }
+        }
+        for (self.input_zero_points.items, 0..) |tensor, i| {
+            if (tensor == old_tensor) {
+                self.input_zero_points.items[i] = new_tensor;
+                return;
+            }
+        }
+        if (self.output_scale == old_tensor) {
+            self.output_scale = new_tensor;
+            return;
+        }
+        if (self.output_zero_point == old_tensor) {
+            self.output_zero_point = new_tensor;
+            return;
+        }
+        if (self.concat_result == old_tensor) {
+            self.concat_result = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

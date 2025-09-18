@@ -157,4 +157,16 @@ pub const Cast = struct {
     pub fn print(op: *const Cast) void {
         std.debug.print("\n CAST:\n {any}", .{op});
     }
+
+    pub fn sobstitute_tensors(self: *Cast, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input == old_tensor) {
+            self.input = new_tensor;
+            return;
+        }
+        if (self.output == old_tensor) {
+            self.output = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

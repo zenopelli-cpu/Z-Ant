@@ -126,4 +126,16 @@ pub const Shape = struct {
     pub fn print(self: Shape) void {
         std.debug.print("\n Shape:\n {any}", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *Shape, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.data == old_tensor) {
+            self.data = new_tensor;
+            return;
+        }
+        if (self.shape == old_tensor) {
+            self.shape = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

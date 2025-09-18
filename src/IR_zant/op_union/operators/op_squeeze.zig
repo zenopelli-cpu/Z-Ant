@@ -124,4 +124,20 @@ pub const Squeeze = struct {
             try utils.getSanitizedName(self.output.name),
         });
     }
+
+    pub fn sobstitute_tensors(self: *Squeeze, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_data == old_tensor) {
+            self.input_data = new_tensor;
+            return;
+        }
+        if (self.input_axes != null and self.input_axes.? == old_tensor) {
+            self.input_axes = new_tensor;
+            return;
+        }
+        if (self.output == old_tensor) {
+            self.output = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };

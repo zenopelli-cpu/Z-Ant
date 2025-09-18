@@ -447,4 +447,48 @@ pub const QLinearConv = struct {
     pub fn print(self: QLinearConv) !void {
         std.debug.print("\n QLINEARCONV:\n {any}", .{self});
     }
+
+    pub fn sobstitute_tensors(self: *QLinearConv, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        if (self.input_x == old_tensor) {
+            self.input_x = new_tensor;
+            return;
+        }
+        if (self.input_x_scale == old_tensor) {
+            self.input_x_scale = new_tensor;
+            return;
+        }
+        if (self.input_x_zero_point == old_tensor) {
+            self.input_x_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_w == old_tensor) {
+            self.input_w = new_tensor;
+            return;
+        }
+        if (self.input_w_scale == old_tensor) {
+            self.input_w_scale = new_tensor;
+            return;
+        }
+        if (self.input_w_zero_point == old_tensor) {
+            self.input_w_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_y_scale == old_tensor) {
+            self.input_y_scale = new_tensor;
+            return;
+        }
+        if (self.input_y_zero_point == old_tensor) {
+            self.input_y_zero_point = new_tensor;
+            return;
+        }
+        if (self.input_B != null and self.input_B.? == old_tensor) {
+            self.input_B = new_tensor;
+            return;
+        }
+        if (self.output_y == old_tensor) {
+            self.output_y = new_tensor;
+            return;
+        }
+        return error.TensorNotFound;
+    }
 };
