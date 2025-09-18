@@ -100,6 +100,10 @@ pub const NodeZant = struct {
         return try self.op.get_input_tensors();
     }
 
+    pub fn sobstitute_tensors(self: *NodeZant, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        try self.op.sobstitute_tensors(old_tensor, new_tensor);
+    }
+
     pub fn render_lower_math_op(self: *NodeZant, builder: *UOpBuilder) !void {
         return try self.op.render_lower_math_op(builder);
     }

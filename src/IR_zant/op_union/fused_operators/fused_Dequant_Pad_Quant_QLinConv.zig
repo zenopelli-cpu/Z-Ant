@@ -59,12 +59,10 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         // Create the fused QLinearConv operation
         var fused_qconv = qlinearconv_op;
 
-        // ✅ FIX 1: Properly use original quantized input (bypass dequant->requant)
         fused_qconv.input_x = dequant_op.x;
         fused_qconv.input_x_scale = dequant_op.x_scale;
         fused_qconv.input_x_zero_point = dequant_op.x_zero_point.?;
 
-        // ✅ FIX 2: Proper padding fusion with correct indexing
         if (pad_op.input_pads.ptr) |pad_data_AnyTensor| {
             // Get existing pads from QLinearConv (should be initialized to zeros in QLinearConv.init)
             var existing_pads: [4]i64 = .{ 0, 0, 0, 0 };
@@ -115,7 +113,6 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
             std.debug.print("Fused padding: original={any}, pad_op={any}, final={any}\n", .{ existing_pads, pad_values, final_pads });
         }
 
-        // ✅ FIX 3: Ensure output tensor is properly set
         // The output should be the same as the original QLinearConv output
         fused_qconv.output_y = qlinearconv_op.output_y;
 
@@ -233,7 +230,7 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
             .next = cloned_next,
             .nodeProto = null,
             .ready = false,
-            .fusion_list = null, // ✅ FIX: Don't store references to nodes that will be freed
+            .fusion_list = null,
         };
     }
 
@@ -246,28 +243,7 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         const last_node = node_list.items[3]; // QLinearConv node
 
         // Step 1: Find all predecessor nodes that point to the first node
-        var predecessors = std.ArrayList(*NodeZant).init(allocator);
-        defer predecessors.deinit();
-
-        for (graph.nodes.items) |node| {
-            // Skip nodes that are in our pattern
-            var is_pattern_node = false;
-            for (node_list.items) |pattern_node| {
-                if (node == pattern_node) {
-                    is_pattern_node = true;
-                    break;
-                }
-            }
-            if (is_pattern_node) continue;
-
-            // Check if this node points to our first_node
-            for (node.next.items) |next_node| {
-                if (next_node == first_node) {
-                    try predecessors.append(node);
-                    break;
-                }
-            }
-        }
+        const predecessors = try graph.get_predecessors(first_node);
 
         // Step 2: Update predecessor nodes to point to fused_node
         for (predecessors.items) |predecessor| {
@@ -286,26 +262,7 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         }
 
         // Step 4: Remove old nodes from graph
-        var removal_count: usize = 0;
-        var i: usize = node_list.items.len;
-        while (i > 0) {
-            i -= 1;
-            const node_to_remove = node_list.items[i];
-
-            var j: usize = 0;
-            while (j < graph.nodes.items.len) {
-                if (graph.nodes.items[j] == node_to_remove) {
-                    _ = graph.nodes.orderedRemove(j);
-                    removal_count += 1;
-                    break;
-                }
-                j += 1;
-            }
-        }
-
-        if (removal_count != node_list.items.len) {
-            return error.IncompleteNodeRemoval;
-        }
+        try graph.removeNodes(node_list);
 
         // Step 5: Add fused node to graph
         try graph.nodes.append(fused_node);
@@ -335,5 +292,22 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
 
     pub fn print(self: Fused_Dequant_Pad_Quant_QLinConv) void {
         std.debug.print("\n Fused_Dequant_Pad_Quant_QLinConv:\n {any}", .{self});
+    }
+
+    pub fn sobstitute_tensors(self: *Fused_Dequant_Pad_Quant_QLinConv, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        // Try to substitute in DequantizeLinear operation
+        self.op_DequantizeLinear.sobstitute_tensors(old_tensor, new_tensor) catch {
+            // If not found, try Pad operation
+            self.op_Pad.sobstitute_tensors(old_tensor, new_tensor) catch {
+                // If not found, try QuantizeLinear operation
+                self.op_QuantizeLinear.sobstitute_tensors(old_tensor, new_tensor) catch {
+                    // If not found, try QLinearConv operation
+                    self.op_QLinearConv.sobstitute_tensors(old_tensor, new_tensor) catch {
+                        // Finally, try the fused result operation
+                        return try self.fused_qlinearconv.sobstitute_tensors(old_tensor, new_tensor);
+                    };
+                };
+            };
+        };
     }
 };

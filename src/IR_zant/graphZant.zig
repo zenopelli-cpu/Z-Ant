@@ -1,13 +1,18 @@
 const std = @import("std");
 const zant = @import("zant");
-const onnx = zant.onnx;
 const allocator = zant.utils.allocator.allocator;
+
+// --- core ---
 const Tensor = zant.core.Tensor;
+
+// --- Zant IR ---
 const NodeZant = @import("nodeZant.zig").NodeZant;
 const tensorZant_lib = @import("tensorZant.zig");
+const TensorZant = tensorZant_lib.TensorZant;
 
-//--- proto structure
+// --- onnx ---
 const GraphProto = zant.onnx.GraphProto;
+const onnx = zant.onnx;
 
 // --- fusion
 const pattern_matcher = @import("fusion/pattern_matcher.zig");
@@ -36,6 +41,97 @@ pub const GraphZant = struct {
         //     allocator.destroy(node); // Free the node
         // }
         self.nodes.deinit();
+    }
+
+    /// Removes the specified nodes from the graph and cleans up their associated tensors.
+    ///
+    /// What this method DOES:
+    /// - Safely removes nodes from the graph structure
+    /// - Cleans up tensor references in the global tensor map
+    /// - Frees memory allocated for the removed nodes
+    /// - Maintains graph integrity by properly unlinking nodes
+    /// - Provides debug output showing which nodes and tensors are being removed
+    ///
+    /// What this method DOES NOT do:
+    /// - Does not update tensor references in remaining nodes (caller responsibility)
+    /// - Does not validate that removal won't break graph connectivity
+    /// - Does not check if removed tensors are still needed by other nodes
+    /// - Does not handle graph input/output tensor updates
+    /// - Does not recompute graph topology or perform graph optimization
+    /// - Does not free the actual tensor data (only removes map references)
+    ///
+    /// IMPORTANT: After calling this method, the caller should:
+    /// - Update any remaining nodes that referenced the removed tensors
+    /// - Verify graph connectivity and validity
+    /// - Update graph inputs/outputs if any were removed
+    pub fn removeNodes(self: *GraphZant, nodes_to_remove: std.ArrayList(*NodeZant)) !void {
+        if (nodes_to_remove.items.len == 0) return;
+
+        std.debug.print("\n\nNodes to be removed:", .{});
+        for (nodes_to_remove.items) |n| std.debug.print("\n      {s}", .{n.name.?});
+        std.debug.print("\n", .{});
+
+        // Collecting all input and output tensors from the nodes_to_remove list
+        var tensor_list: std.ArrayList(*TensorZant) = std.ArrayList(*TensorZant).init(allocator);
+        defer tensor_list.deinit();
+
+        for (nodes_to_remove.items) |node| {
+            const node_input_tensors: []*TensorZant = try node.get_input_tensors();
+            const node_output_tensors: []*TensorZant = try node.get_output_tensors();
+
+            // Add input tensors if not already present
+            for (node_input_tensors) |tensor| {
+                var already_exists = false;
+                for (tensor_list.items) |existing_tensor| {
+                    if (existing_tensor == tensor) {
+                        already_exists = true;
+                        break;
+                    }
+                }
+                if (!already_exists) {
+                    try tensor_list.append(tensor);
+                }
+            }
+
+            // Add output tensors if not already present
+            for (node_output_tensors) |tensor| {
+                var already_exists = false;
+                for (tensor_list.items) |existing_tensor| {
+                    if (existing_tensor == tensor) {
+                        already_exists = true;
+                        break;
+                    }
+                }
+                if (!already_exists) {
+                    try tensor_list.append(tensor);
+                }
+            }
+        }
+
+        std.debug.print("\n\nTensord to be removed:", .{});
+        for (tensor_list.items) |t| std.debug.print("\n      {s}", .{t.name});
+        std.debug.print("\n", .{});
+
+        for (tensor_list.items) |tens| {
+            std.debug.print("     Trying to remove tensor: {s}\n", .{tens.*.name});
+            if (tensorZant_lib.tensorMap.contains(tens.*.name)) {
+                _ = tensorZant_lib.tensorMap.remove(tens.*.name);
+            } else {
+                std.debug.print("     Tensor {s} not found in map\n", .{tens.*.name});
+            }
+        }
+
+        var j: usize = 0;
+        while (j < self.nodes.items.len) {
+            for (nodes_to_remove.items) |n| {
+                if (self.nodes.items[j] == n) {
+                    n.deinit();
+                    _ = self.nodes.orderedRemove(j);
+                    break;
+                }
+            }
+            j += 1;
+        }
     }
 
     // Adds a new node to the graph.
@@ -72,6 +168,21 @@ pub const GraphZant = struct {
 
         // Perform shape inference after graph is built
         //try self.performShapeInference(&output_map);
+    }
+
+    pub fn get_predecessors(self: *GraphZant, root_node: *NodeZant) !std.ArrayList(*NodeZant) {
+        var predecessors = std.ArrayList(*NodeZant).init(allocator);
+        for (self.nodes.items) |node| {
+            // Check if this node points to our first_node
+            for (node.next.items) |next_node| {
+                if (next_node == root_node) {
+                    try predecessors.append(node);
+                    break;
+                }
+            }
+        }
+
+        return predecessors;
     }
 
     // /// Mathematical shape inference pass over the entire graph

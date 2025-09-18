@@ -104,28 +104,8 @@ pub const Fused_Dequant_Quant = struct {
         const last_node = node_list.items[1]; // QuantizeLinear node
 
         // Step 1: Find all predecessor nodes that point to the first node
-        var predecessors = std.ArrayList(*NodeZant).init(allocator);
-        defer predecessors.deinit();
-
-        for (graph.nodes.items) |node| {
-            // Skip nodes that are in our pattern
-            var is_pattern_node = false;
-            for (node_list.items) |pattern_node| {
-                if (node == pattern_node) {
-                    is_pattern_node = true;
-                    break;
-                }
-            }
-            if (is_pattern_node) continue;
-
-            // Check if this node points to our first_node
-            for (node.next.items) |next_node| {
-                if (next_node == first_node) {
-                    try predecessors.append(node);
-                    break;
-                }
-            }
-        }
+        const predecessors = try graph.get_predecessors(first_node);
+        const successors = last_node.next;
 
         // Step 2: Update predecessor nodes to point to the output of the last node
         for (predecessors.items) |predecessor| {
@@ -137,25 +117,25 @@ pub const Fused_Dequant_Quant = struct {
         }
 
         // Step 4: Remove old nodes from graph
-        var removal_count: usize = 0;
-        var i: usize = node_list.items.len;
-        while (i > 0) {
-            i -= 1;
-            const node_to_remove = node_list.items[i];
+        try graph.removeNodes(node_list);
 
-            var j: usize = 0;
-            while (j < graph.nodes.items.len) {
-                if (graph.nodes.items[j] == node_to_remove) {
-                    _ = graph.nodes.orderedRemove(j);
-                    removal_count += 1;
-                    break;
+        //This is a delicate step, read carrefully!!
+        //for each successor sobtitute the input equal to old last_node output wiht the new output of the fusion
+        //OSS: in this case the output of the fusion is the output of the predecessor since we don't grate any new node
+        const prefusion_last_node_outputs: []*TensorZant = try last_node.get_output_tensors();
+        // assuming that the putput of the fusion is only one node:
+        const post_fusion_output: *TensorZant = (try predecessors.items[0].get_output_tensors())[0];
+
+        for (successors.items) |succ_node| { //for each succerssor nodes
+            const inputs = try succ_node.get_input_tensors(); // collect its inputs
+
+            //for each succ input:
+            //if the input is equal to an old last_node output sobstitute it with the new output
+            for (inputs) |succ_input| {
+                for (prefusion_last_node_outputs) |old_out| {
+                    if (succ_input == old_out) try succ_node.sobstitute_tensors(old_out, post_fusion_output);
                 }
-                j += 1;
             }
-        }
-
-        if (removal_count != node_list.items.len) {
-            return error.IncompleteNodeRemoval;
         }
     }
 

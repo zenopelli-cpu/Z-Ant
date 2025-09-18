@@ -51,4 +51,10 @@ pub const Useless = struct {
         _ = writer;
         // Useless operator does nothing - no code generation needed
     }
+
+    pub fn sobstitute_tensors(self: Useless, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        _ = self;
+        _ = old_tensor;
+        _ = new_tensor;
+    }
 };

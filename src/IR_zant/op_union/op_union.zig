@@ -287,10 +287,13 @@ pub const Op_union = union(enum) {
         }
     }
 
-    pub fn sobstitute_tensors(self: Op_union, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
-        switch (self) {
-            .useless => |ptr| try ptr.sobstitute_tensors(old_tensor, new_tensor),
-            inline else => |ptr, tag| ptr.sobstitute_tensors(old_tensor, new_tensor) catch |e| {
+    pub fn sobstitute_tensors(self: *Op_union, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        switch (self.*) {
+            .useless => |*ptr| try ptr.sobstitute_tensors(old_tensor, new_tensor),
+            .fused_Quant_Dequant, .fused_Dequant_Quant => {
+                //do nothing
+            },
+            inline else => |*ptr, tag| ptr.sobstitute_tensors(old_tensor, new_tensor) catch |e| {
                 std.debug.print("\n\nERROR: sobstitute_tensors() is not available for {s}!! \n\n", .{@tagName(tag)});
                 return e;
             },

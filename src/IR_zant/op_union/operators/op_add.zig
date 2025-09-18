@@ -120,7 +120,7 @@ pub const Add = struct {
         return output_shape;
     }
 
-    pub fn sobstitute_tensors(self: Add, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+    pub fn sobstitute_tensors(self: *Add, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
         if (self.input_A == old_tensor) {
             self.input_A = new_tensor;
             return;

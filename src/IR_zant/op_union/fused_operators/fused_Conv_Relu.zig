@@ -128,29 +128,7 @@ pub const Fused_Conv_Relu = struct {
         const last_node = node_list.items[1]; // Relu node
 
         // Step 1: Find all predecessor nodes that point to the first node in the pattern
-        var predecessors = std.ArrayList(*NodeZant).init(allocator);
-        defer predecessors.deinit();
-
-        // Search through all nodes in the graph to find predecessors
-        for (graph.nodes.items) |node| {
-            // Skip nodes that are in our pattern to avoid self-references
-            var is_pattern_node = false;
-            for (node_list.items) |pattern_node| {
-                if (node == pattern_node) {
-                    is_pattern_node = true;
-                    break;
-                }
-            }
-            if (is_pattern_node) continue;
-
-            // Check if this node points to our first_node
-            for (node.next.items) |next_node| {
-                if (next_node == first_node) {
-                    try predecessors.append(node);
-                    break; // Each node should only be added once as predecessor
-                }
-            }
-        }
+        const predecessors = try graph.get_predecessors(first_node);
 
         // Step 2: Update predecessor nodes to point to the fused_node instead of first_node
         for (predecessors.items) |predecessor| {
@@ -172,33 +150,31 @@ pub const Fused_Conv_Relu = struct {
             }
         }
 
-        // Step 4: Remove the old nodes from the graph's node list
-        // Remove in reverse order to avoid index shifting issues
-        var removal_count: usize = 0;
-        var i: usize = node_list.items.len;
-        while (i > 0) {
-            i -= 1;
-            const node_to_remove = node_list.items[i];
-
-            // Find and remove this node from the graph's nodes list
-            var j: usize = 0;
-            while (j < graph.nodes.items.len) {
-                if (graph.nodes.items[j] == node_to_remove) {
-                    _ = graph.nodes.orderedRemove(j);
-                    removal_count += 1;
-                    break; // Node found and removed, move to next
-                }
-                j += 1;
-            }
-        }
-
-        // Verify we removed the expected number of nodes
-        if (removal_count != node_list.items.len) {
-            return error.IncompleteNodeRemoval;
-        }
+        // Step 4: Remove old nodes from graph
+        try graph.removeNodes(node_list);
 
         // Step 5: Add the fused_node to the graph's node list
         try graph.nodes.append(fused_node);
+
+        // //This is a delicate step, read carrefully!!
+        // //for each successor sobtitute the input equal to old last_node output wiht the new output of the fusion
+        // //OSS: in this case the output of the fusion is the output of the new node!
+        // const prefusion_last_node_outputs: []*TensorZant = try last_node.get_output_tensors();
+        // // assuming that the putput of the fusion is only one node:
+        // const post_fusion_output: *TensorZant = (try fused_node.get_output_tensors())[0];
+        // const successors = last_node.next;
+        //
+        // for (successors.items) |succ_node| { //for each succerssor nodes
+        //     const inputs = succ_node.get_input_tensors(); // collect its inputs
+
+        //     //for each succ input:
+        //     //if the input is equal to an old last_node output sobstitute it with the new output
+        //     for (inputs) |succ_input| {
+        //         for (prefusion_last_node_outputs) |old_out| {
+        //             if (succ_input == old_out) succ_node.sobstitute_tensors(old_out, post_fusion_output);
+        //         }
+        //     }
+        // }
     }
 
     pub fn get_output_shape(self: Fused_Conv_Relu) []usize {
@@ -230,5 +206,13 @@ pub const Fused_Conv_Relu = struct {
 
     pub fn print(self: Fused_Conv_Relu) void {
         std.debug.print("\n Fused_Conv_Relu:\n {any}", .{self});
+    }
+
+    pub fn sobstitute_tensors(self: *Fused_Conv_Relu, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        // Try to substitute in the Conv operation
+        self.op_Conv.sobstitute_tensors(old_tensor, new_tensor) catch {
+            // If not found in Conv, try Relu operation
+            return try self.op_Relu.sobstitute_tensors(old_tensor, new_tensor);
+        };
     }
 };
