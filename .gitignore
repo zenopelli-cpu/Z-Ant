@@ -8,6 +8,11 @@
 *.tmp
 *.swp
 
+*.bin
+*.elf
+*.hex
+*.map
+
 # Ignore macOS system files
 .DS_Store
 

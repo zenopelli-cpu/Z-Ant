@@ -63,6 +63,8 @@ pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []cons
     }
     std.debug.print("\n", .{});
 
+    std.debug.print("\n Pre-Fusion nodes: {} \n Post-Fusion nodes: {}", .{ linearizedGraph_prefusion.items.len, linearizedGraph.items.len });
+
     try codegnenerateFromLinearizedGraph(model_name, generated_path, linearizedGraph);
 }
 
