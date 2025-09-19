@@ -58,7 +58,10 @@ pub const PatternConfig = struct {
 /// Generic pattern matcher that can be extended for other patterns
 pub fn fusePatterns(graph: *GraphZant, pattern_configs: []const PatternConfig) !void {
     for (pattern_configs) |config| {
+        std.debug.print("\n\n f---------------------------------------------------------------- ", .{});
         std.debug.print("\n fusePatterns() with config ", .{});
+        std.debug.print("\n f---------------------------------------------------------------- ", .{});
+
         for (config.pattern) |p| std.debug.print(" {s} -", .{p});
         try fusePatternsByConfig(graph, config);
     }

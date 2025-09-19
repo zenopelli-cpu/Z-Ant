@@ -16,6 +16,7 @@ const IR_utils = IR_zant.utils;
 const Op_union = @import("../op_union.zig").Op_union;
 const operators = IR_zant.operators;
 
+/// Fused// DequantizeLinear -> pad -> QuantizeLinear -> QLinearConv operation for better performance
 pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
     op_name: []const u8,
     op_DequantizeLinear: operators.DequantizeLinear,
