@@ -26,7 +26,6 @@ pub const Op_union = union(enum) {
     concat: operators.Concat,
     constant: operators.Constant,
     conv: operators.Conv,
-    convClip: operators.ConvClip,
     convInteger: operators.ConvInteger,
     dequantizeLinear: operators.DequantizeLinear,
     div: operators.Div,
@@ -78,10 +77,11 @@ pub const Op_union = union(enum) {
     unsqueeze: operators.Unsqueeze,
 
     // ------------- fused operations
+    fused_Conv_Clip: fused_operators.Fused_Conv_Clip,
     fused_Conv_Relu: fused_operators.Fused_Conv_Relu,
     fused_Dequant_Pad_Quant_QLinConv: fused_operators.Fused_Dequant_Pad_Quant_QLinConv,
-    fused_Quant_Dequant: fused_operators.Fused_Quant_Dequant,
     fused_Dequant_Quant: fused_operators.Fused_Dequant_Quant,
+    fused_Quant_Dequant: fused_operators.Fused_Quant_Dequant,
 
     // ------------- others
     useless: operators.Useless,

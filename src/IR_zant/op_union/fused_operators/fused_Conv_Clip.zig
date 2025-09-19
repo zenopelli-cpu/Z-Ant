@@ -10,26 +10,27 @@ const GraphProto = onnx.GraphProto;
 const NodeProto = onnx.NodeProto;
 const TensorProto = onnx.TensorProto;
 
-// --- zant ---
+// --- zant IR---
 const tensorZant_lib = IR_zant.tensorZant_lib;
 const TensorZant = tensorZant_lib.TensorZant;
 const TensorCategory = tensorZant_lib.TensorCategory;
+const NodeZant_lib = IR_zant.NodeZant_lib;
+const NodeZant = NodeZant_lib.NodeZant;
+const GraphZant = IR_zant.GraphZant;
+const IR_utils = IR_zant.utils;
+
+// --- union ---
+const Op_union = @import("../op_union.zig").Op_union;
+const operators = IR_zant.operators;
 
 const tensorMath = zant.core.tensor.math_standard;
 
 const utils = IR_zant.utils;
 
-// --- uops ---
-const cg_v2 = @import("codegen").codegen_v2;
-const Uops = cg_v2.uops;
-const UOpBuilder = cg_v2.builder;
-const DType = Uops.DType;
-const Any = Uops.Any;
-
 /// Fused Conv+Clip operation for better performance
 /// This combines convolution followed by clipping (typically ReLU6: clip(x, 0, 6))
 /// Common pattern in MobileNet v2 and other efficient architectures
-pub const ConvClip = struct {
+pub const Fused_Conv_Clip = struct {
     // Conv inputs
     input_X: *TensorZant,
     input_W: *TensorZant,
@@ -50,7 +51,7 @@ pub const ConvClip = struct {
     pads: ?[]i64,
     strides: ?[]i64,
 
-    pub fn init_from_conv_clip(conv_node: NodeProto, clip_node: NodeProto) !ConvClip {
+    pub fn init_from_conv_clip(conv_node: NodeProto, clip_node: NodeProto) !Fused_Conv_Clip {
         // Get Conv inputs
         const input_X = if (tensorZant_lib.tensorMap.getPtr(conv_node.input[0])) |ptr| ptr else return error.input_X_notFound;
         const input_W = if (tensorZant_lib.tensorMap.getPtr(conv_node.input[1])) |ptr| ptr else return error.input_W_notFound;
@@ -95,7 +96,7 @@ pub const ConvClip = struct {
         // Set output type
         if (output_Y.ty == tensorZant_lib.TensorType.undefined) output_Y.ty = input_X.ty;
 
-        return ConvClip{
+        return Fused_Conv_Clip{
             .input_X = input_X,
             .input_W = input_W,
             .input_B = input_B,
@@ -111,11 +112,11 @@ pub const ConvClip = struct {
         };
     }
 
-    pub fn get_output_shape(self: ConvClip) []usize {
+    pub fn get_output_shape(self: Fused_Conv_Clip) []usize {
         return self.output_Y.getShape();
     }
 
-    pub fn get_input_tensors(self: ConvClip) ![]*TensorZant {
+    pub fn get_input_tensors(self: Fused_Conv_Clip) ![]*TensorZant {
         var inputs = std.ArrayList(*TensorZant).init(allocator);
         defer inputs.deinit();
 
@@ -128,7 +129,7 @@ pub const ConvClip = struct {
         return inputs.toOwnedSlice();
     }
 
-    pub fn get_output_tensors(self: ConvClip) ![]*TensorZant {
+    pub fn get_output_tensors(self: Fused_Conv_Clip) ![]*TensorZant {
         var outputs = std.ArrayList(*TensorZant).init(allocator);
         defer outputs.deinit();
 
@@ -136,7 +137,7 @@ pub const ConvClip = struct {
         return outputs.toOwnedSlice();
     }
 
-    pub fn write_op(self: ConvClip, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Conv_Clip, writer: std.fs.File.Writer) !void {
         // Build Conv operation strings (similar to op_conv.zig)
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);
@@ -297,7 +298,7 @@ pub const ConvClip = struct {
         });
     }
 
-    pub fn compute_output_shape(self: ConvClip) []usize {
+    pub fn compute_output_shape(self: Fused_Conv_Clip) []usize {
         var output_shape: []usize = undefined;
         const input_shape = self.input_X.get_shape();
         const kernel_shape = self.input_W.get_shape();
@@ -317,11 +318,11 @@ pub const ConvClip = struct {
         return output_shape;
     }
 
-    pub fn print(self: ConvClip) void {
+    pub fn print(self: Fused_Conv_Clip) void {
         std.debug.print("\n CONV+CLIP FUSED:\n {any}", .{self});
     }
 
-    pub fn sobstitute_tensors(self: *ConvClip, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+    pub fn sobstitute_tensors(self: *Fused_Conv_Clip, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
         if (self.input_X == old_tensor) {
             self.input_X = new_tensor;
             return;
@@ -347,5 +348,119 @@ pub const ConvClip = struct {
             return;
         }
         return error.TensorNotFound;
+    }
+
+    // --- Fusion --
+
+    /// Pattern detection function for DequantizeLinear -> Pad -> QuantizeLinear -> QLinearConv
+    pub fn fn_pattern_detection(graph: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
+        _ = graph; // Not used in this sequential pattern
+
+        std.debug.print("\n  Checking 2-op pattern from node: {s}", .{root_node.op_type});
+
+        // Only start detection from DequantizeLinear nodes
+        if (!std.mem.eql(u8, root_node.op_type, "Conv")) {
+            std.debug.print(" -> Not a Conv node, skipping", .{});
+            return null;
+        }
+
+        var node_list = std.ArrayList(*NodeZant).init(allocator);
+        errdefer node_list.deinit();
+
+        try node_list.append(root_node);
+        std.debug.print(" -> Conv node found, checking for Clip successor", .{});
+
+        // Check DequantizeLinear -> Pad
+        if (root_node.next.items.len != 1) {
+            std.debug.print(" -> Conv has {} successors (expected 1)", .{root_node.next.items.len});
+            node_list.deinit();
+            return null;
+        }
+
+        const pad_node = root_node.next.items[0];
+        if (!std.mem.eql(u8, pad_node.op_type, "Clip")) {
+            std.debug.print(" -> Conv successor is {s} (expected Pad)", .{pad_node.op_type});
+            node_list.deinit();
+            return null;
+        }
+
+        try node_list.append(pad_node);
+
+        std.debug.print(" -> Found complete Conv->Clip pattern!", .{});
+
+        return node_list;
+    }
+
+    /// Pattern fusion function
+    pub fn fn_pattern_fusion(graph: *GraphZant, node_list: std.ArrayList(*NodeZant)) anyerror!NodeZant {
+        _ = graph; // Not used in this sequential pattern
+
+        // Validate the pattern
+        if (node_list.items.len != 2) return error.InvalidNumberOfOps;
+        if (!std.mem.eql(u8, node_list.items[0].op_type, "Conv")) return error.UnexpectedOpAtPos0;
+        if (!std.mem.eql(u8, node_list.items[1].op_type, "Clip")) return error.UnexpectedOpAtPos1;
+
+        const last_node = node_list.items[1]; // Clip
+
+        // Clone the next list instead of direct reference
+        var cloned_next = std.ArrayList(*NodeZant).init(allocator);
+        for (last_node.next.items) |next_node| {
+            try cloned_next.append(next_node);
+        }
+
+        //  Clone the fusion_list instead of direct reference
+        var cloned_fusion_list = std.ArrayList(*NodeZant).init(allocator);
+        for (node_list.items) |node| {
+            try cloned_fusion_list.append(node);
+        }
+
+        return NodeZant{
+            .name = try NodeZant_lib.getFusedOpsName(node_list),
+            .op_type = try NodeZant_lib.getFusedOpsType(node_list),
+            .op = Op_union{
+                .fused_Conv_Clip = try init_from_conv_clip(
+                    node_list.items[0].nodeProto.?.*, //Conv proto node
+                    node_list.items[1].nodeProto.?.*, //Clip proto node
+                ),
+            },
+            .next = cloned_next,
+            .nodeProto = null,
+            .ready = false,
+            .fusion_list = cloned_fusion_list,
+        };
+    }
+
+    /// Pattern substitution function
+    pub fn fn_pattern_sobstitution(graph: *GraphZant, fused_node: *NodeZant, node_list: std.ArrayList(*NodeZant)) anyerror!void {
+        // Validate inputs
+        if (node_list.items.len != 2) return error.InvalidPatternLength;
+
+        const first_node = node_list.items[0]; // DequantizeLinear node
+        const last_node = node_list.items[1]; // QLinearConv node
+
+        // Step 1: Find all predecessor nodes that point to the first node
+        const predecessors = try graph.get_predecessors(first_node);
+
+        // Step 2: Update predecessor nodes to point to fused_node
+        for (predecessors.items) |predecessor| {
+            for (predecessor.next.items, 0..) |next_node, i| {
+                if (next_node == first_node) {
+                    predecessor.next.items[i] = fused_node;
+                }
+            }
+        }
+
+        // Step 3: Set up fused node's successors
+        if (fused_node.next.items.len == 0) {
+            for (last_node.next.items) |successor| {
+                try fused_node.next.append(successor);
+            }
+        }
+
+        // Step 4: Remove old nodes from graph
+        try graph.removeNodes(node_list);
+
+        // Step 5: Add fused node to graph
+        try graph.nodes.append(fused_node);
     }
 };

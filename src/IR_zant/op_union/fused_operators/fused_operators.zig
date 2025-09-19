@@ -9,3 +9,6 @@ pub const Fused_Quant_Dequant = @import("fused_Quant_Dequant.zig").Fused_Quant_D
 
 // DequantizeLinear -> QuantizeLinear
 pub const Fused_Dequant_Quant = @import("fused_Dequant_Quant.zig").Fused_Dequant_Quant;
+
+// Conv -> Clip
+pub const Fused_Conv_Clip = @import("fused_Conv_Clip.zig").Fused_Conv_Clip;

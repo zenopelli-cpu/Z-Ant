@@ -230,7 +230,7 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
             .next = cloned_next,
             .nodeProto = null,
             .ready = false,
-            .fusion_list = null,
+            .fusion_list = cloned_fusion_list,
         };
     }
 

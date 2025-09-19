@@ -7,7 +7,6 @@ pub const Clip = @import("op_clip.zig").Clip;
 pub const Concat = @import("op_concat.zig").Concat;
 pub const Constant = @import("op_constant.zig").Constant;
 pub const Conv = @import("op_conv.zig").Conv;
-pub const ConvClip = @import("op_conv_clip.zig").ConvClip;
 pub const ConvInteger = @import("op_convInteger.zig").ConvInteger;
 pub const DequantizeLinear = @import("op_dequantizeLinear.zig").DequantizeLinear;
 pub const Div = @import("op_div.zig").Div;

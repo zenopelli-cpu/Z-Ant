@@ -12,13 +12,13 @@ const Op_union = IR_zant.Op_union;
 const PatternConfig = @import("pattern_matcher.zig").PatternConfig;
 
 pub const patterns = [_]PatternConfig{
-    // .{ // "DequantizeLinear" -> "Pad" -> "QuantizeLinear" -> "QLinearConv" into "QLinearConv"
-    //     .pattern = &[_][]const u8{ "DequantizeLinear", "Pad", "QuantizeLinear", "QLinearConv" },
-    //     .name = "DequantPadQuantQLinConv",
-    //     .fn_pattern_detection = fused_operators.Fused_Dequant_Pad_Quant_QLinConv.fn_pattern_detection,
-    //     .fn_pattern_fusion = fused_operators.Fused_Dequant_Pad_Quant_QLinConv.fn_pattern_fusion,
-    //     .fn_pattern_sobstitution = fused_operators.Fused_Dequant_Pad_Quant_QLinConv.fn_pattern_sobstitution,
-    // },
+    .{ // "DequantizeLinear" -> "Pad" -> "QuantizeLinear" -> "QLinearConv" into "QLinearConv"
+        .pattern = &[_][]const u8{ "DequantizeLinear", "Pad", "QuantizeLinear", "QLinearConv" },
+        .name = "DequantPadQuantQLinConv",
+        .fn_pattern_detection = fused_operators.Fused_Dequant_Pad_Quant_QLinConv.fn_pattern_detection,
+        .fn_pattern_fusion = fused_operators.Fused_Dequant_Pad_Quant_QLinConv.fn_pattern_fusion,
+        .fn_pattern_sobstitution = fused_operators.Fused_Dequant_Pad_Quant_QLinConv.fn_pattern_sobstitution,
+    },
 
     // .{ // "DequantizeLinear" -> "QuantizeLinear" into nothing
     //     .pattern = &[_][]const u8{ "DequantizeLinear", "QuantizeLinear" },
@@ -34,6 +34,14 @@ pub const patterns = [_]PatternConfig{
         .fn_pattern_detection = fused_operators.Fused_Quant_Dequant.fn_pattern_detection,
         .fn_pattern_fusion = fused_operators.Fused_Quant_Dequant.fn_pattern_fusion,
         .fn_pattern_sobstitution = fused_operators.Fused_Quant_Dequant.fn_pattern_sobstitution,
+    },
+
+    .{
+        .pattern = &[_][]const u8{ "Conv", "Clip" },
+        .name = "fused_Conv_Clip", //used for more complex pattern like detect_qadd_pattern()
+        .fn_pattern_detection = fused_operators.Fused_Conv_Clip.fn_pattern_detection, // pattern recognition
+        .fn_pattern_fusion = fused_operators.Fused_Conv_Clip.fn_pattern_fusion, // fusion stategy
+        .fn_pattern_sobstitution = fused_operators.Fused_Conv_Clip.fn_pattern_sobstitution, // sobstitution stategy
     },
 
     // .{
@@ -63,14 +71,6 @@ pub const patterns = [_]PatternConfig{
 
 // // TODO, just organized into different files
 // pub const patterns_marco = [_]PatternConfig{
-//     // DequantizeLinear -> QuantizeLinear
-//     .{
-//         .pattern = &[_][]const u8{ "DequantizeLinear", "QuantizeLinear" },
-//         .fusion_fn = @import("fuse_DequantizeLinear_QuantizeLinear.zig").fuse_DequantizeLinear_QuantizeLinear,
-//         .name = "do_nothing",
-//         .pattern_fn = null,
-//     },
-
 //     // DequantizeLinear -> Clip -> QuantizeLinear
 //     .{
 //         .pattern = &[_][]const u8{ "DequantizeLinear", " Clip ", " QuantizeLinear" },
