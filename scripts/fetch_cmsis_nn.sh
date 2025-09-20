@@ -60,7 +60,7 @@ fi
 
 if [ -d "${DEST}/.git" ]; then
     echo "Updating CMSIS-NN in ${DEST}"
-    if ! git -C "${DEST}" fetch --depth 1 origin "${REF}"; then
+    if ! git -C "${DEST}" -c http.https://github.com/.extraheader= fetch --depth 1 origin "${REF}"; then
         echo "error: failed to fetch CMSIS-NN (check your network/proxy settings)" >&2
         exit 1
     fi
@@ -68,7 +68,7 @@ if [ -d "${DEST}/.git" ]; then
 else
     mkdir -p "${REPO_ROOT}/third_party"
     echo "Cloning CMSIS-NN (${REF}) into ${DEST}"
-    if ! git clone --depth 1 --branch "${REF}" "${REPO_URL}" "${DEST}"; then
+    if ! git -c http.https://github.com/.extraheader= clone --depth 1 --branch "${REF}" "${REPO_URL}" "${DEST}"; then
         echo "error: failed to clone CMSIS-NN from ${REPO_URL}" >&2
         exit 1
     fi
