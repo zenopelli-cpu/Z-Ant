@@ -38,6 +38,8 @@ jobs:
         run: |
           # Workaround GitHub Actions setting auth headers that break public clones
           git config --global --unset-all http.https://github.com/.extraheader || true
+          bash scripts/fetch_cmsis_5.sh
+          bash scripts/fetch_cmsis_dsp.sh
           bash scripts/fetch_cmsis_nn.sh
           bash scripts/fetch_ethos_u_driver.sh
 
