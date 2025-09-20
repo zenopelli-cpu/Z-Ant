@@ -34,6 +34,6 @@ test "linearizing mnist-8 " {
 
     std.debug.print("\n\nLinearized Graph Nodes:\n", .{});
     for (linearizedGraph.items) |node| {
-        std.debug.print(" - Node: {s}\n", .{node.nodeProto.name orelse "<unnamed>"});
+        std.debug.print(" - Node: {s}\n", .{node.nodeProto.?.name orelse "<unnamed>"});
     }
 }

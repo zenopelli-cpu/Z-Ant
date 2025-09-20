@@ -76,7 +76,6 @@ fn fusePatternsByConfig(graph: *GraphZant, config: PatternConfig) !void {
         if (try findAndFusePattern(graph, node, config)) {
             // Pattern was found and fused, restart search since graph was modified
             std.debug.print("\n -----------------------------  Pattern was found and fused, restart search since graph was modified ", .{});
-
             i = 0;
             len = graph.nodes.items.len;
             continue;
