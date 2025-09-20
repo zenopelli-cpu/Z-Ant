@@ -7,7 +7,7 @@ set -e
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$SCRIPT_DIR"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="$REPO_ROOT/build/beer_comparison"
 RESULTS_FILE="$BUILD_DIR/comparison_results.txt"
 
@@ -39,12 +39,20 @@ zig build lib \
     -Dfuse \
     -Duse_tensor_pool=true \
     -Ddo_export=true \
+    -Doutput_path="$BUILD_DIR" \
     -Dtarget=thumb-freestanding \
     -Dcpu=cortex_m55 \
     -Doptimize=ReleaseSmall
 
-# Backup the reference library
-cp zig-out/beer/libzant.a "$BUILD_DIR/libzant_reference.a"
+# Backup the reference library (support both output_path and default zig-out path)
+if [ -f "$BUILD_DIR/libzant.a" ]; then
+    cp "$BUILD_DIR/libzant.a" "$BUILD_DIR/libzant_reference.a"
+elif [ -f "zig-out/beer/libzant.a" ]; then
+    cp "zig-out/beer/libzant.a" "$BUILD_DIR/libzant_reference.a"
+else
+    echo "error: libzant.a not found after build (checked $BUILD_DIR and zig-out/beer)" >&2
+    exit 1
+fi
 echo "✅ Reference library built and backed up"
 
 echo
@@ -152,12 +160,20 @@ zig build lib \
     -Dstm32n6_accel=true \
     -Dstm32n6_use_cmsis=true \
     -Dstm32n6_use_ethos=true \
+    -Doutput_path="$BUILD_DIR" \
     -Dtarget=thumb-freestanding \
     -Dcpu=cortex_m55 \
     -Doptimize=ReleaseSmall
 
-# Backup the CMSIS library
-cp zig-out/beer/libzant.a "$BUILD_DIR/libzant_cmsis.a"
+# Backup the CMSIS library (support both output_path and default zig-out path)
+if [ -f "$BUILD_DIR/libzant.a" ]; then
+    cp "$BUILD_DIR/libzant.a" "$BUILD_DIR/libzant_cmsis.a"
+elif [ -f "zig-out/beer/libzant.a" ]; then
+    cp "zig-out/beer/libzant.a" "$BUILD_DIR/libzant_cmsis.a"
+else
+    echo "error: CMSIS libzant.a not found after build (checked $BUILD_DIR and zig-out/beer)" >&2
+    exit 1
+fi
 echo "✅ CMSIS-NN library built and backed up"
 
 echo
