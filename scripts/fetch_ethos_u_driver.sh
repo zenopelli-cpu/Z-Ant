@@ -5,30 +5,49 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 DEST="${REPO_ROOT}/third_party/ethos-u-core-driver"
-REPO_URL="${ETHOS_U_REPO:-https://github.com/ARM-software/ethos-u.git}"
+REPO_URL="${ETHOS_U_REPO:-https://github.com/ARM-software/ethos-u-core-driver.git}"
 REF="${ETHOS_U_REF:-main}"
 ARCHIVE="${ETHOS_U_ARCHIVE:-}"
+ML_REPO_URL="${ETHOS_U_ML_REPO:-https://git.mlplatform.org/ml/ethos-u/ethos-u-core-driver.git}"
 
 fallback_download_extract() {
     echo "Falling back to ZIP download from codeload.github.com"
     tmpzip=$(mktemp /tmp/ethos-u-XXXXXX.zip)
-    # Prefer requested REF if it's a branch; otherwise default to main
-    zip_url="https://codeload.github.com/ARM-software/ethos-u/zip/refs/heads/main"
-    if [[ "${REF}" =~ ^(main|master)$ ]]; then
-        zip_url="https://codeload.github.com/ARM-software/ethos-u/zip/refs/heads/${REF}"
+    # Derive owner/repo slug from REPO_URL
+    slug="${REPO_URL}"
+    slug="${slug#git@github.com:}"
+    slug="${slug#https://github.com/}"
+    slug="${slug#http://github.com/}"
+    slug="${slug%.git}"
+
+    try_download() {
+        local url="$1"
+        if command -v curl >/dev/null 2>&1; then
+            curl -fsSL "${url}" -o "${tmpzip}" && return 0
+        elif command -v wget >/dev/null 2>&1; then
+            wget -qO "${tmpzip}" "${url}" && return 0
+        fi
+        return 1
+    }
+
+    # Try requested REF as head/tag, then main/master heads
+    candidates=()
+    if [ -n "${REF}" ]; then
+        candidates+=("https://codeload.github.com/${slug}/zip/refs/heads/${REF}")
+        candidates+=("https://codeload.github.com/${slug}/zip/refs/tags/${REF}")
     fi
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "${zip_url}" -o "${tmpzip}" || {
-            echo "error: curl download failed from ${zip_url}" >&2
-            return 1
-        }
-    elif command -v wget >/dev/null 2>&1; then
-        wget -qO "${tmpzip}" "${zip_url}" || {
-            echo "error: wget download failed from ${zip_url}" >&2
-            return 1
-        }
-    else
-        echo "error: neither curl nor wget found for ZIP fallback" >&2
+    candidates+=("https://codeload.github.com/${slug}/zip/refs/heads/main")
+    candidates+=("https://codeload.github.com/${slug}/zip/refs/heads/master")
+
+    downloaded=0
+    for url in "${candidates[@]}"; do
+        if try_download "${url}"; then
+            downloaded=1
+            break
+        fi
+    done
+    if [ "${downloaded}" -ne 1 ]; then
+        echo "error: ZIP fallback failed for repo ${slug}; tried: ${candidates[*]}" >&2
         return 1
     fi
 
@@ -101,18 +120,27 @@ fi
 if [ -d "${DEST}/.git" ]; then
     echo "Updating Ethos-U driver in ${DEST}"
     if ! git -C "${DEST}" -c http.https://github.com/.extraheader= fetch --depth 1 origin "${REF}"; then
-        echo "warn: git fetch failed; attempting ZIP fallback" >&2
-        fallback_download_extract || exit 1
-        exit 0
+        echo "warn: git fetch from origin failed; trying mlplatform mirror" >&2
+        # Switch remote to mlplatform mirror and retry
+        if git -C "${DEST}" remote set-url origin "${ML_REPO_URL}" && git -C "${DEST}" fetch --depth 1 origin "${REF}"; then
+            :
+        else
+            echo "warn: mlplatform fetch failed; attempting ZIP fallback" >&2
+            fallback_download_extract || exit 1
+            exit 0
+        fi
     fi
     git -C "${DEST}" checkout FETCH_HEAD
 else
     mkdir -p "${REPO_ROOT}/third_party"
     echo "Cloning Ethos-U driver (${REF}) into ${DEST}"
     if ! git -c http.https://github.com/.extraheader= clone --depth 1 --branch "${REF}" "${REPO_URL}" "${DEST}"; then
-        echo "warn: git clone failed from ${REPO_URL}; attempting ZIP fallback" >&2
-        fallback_download_extract || exit 1
-        exit 0
+        echo "warn: git clone failed from ${REPO_URL}; trying mlplatform mirror" >&2
+        if ! git clone --depth 1 --branch "${REF}" "${ML_REPO_URL}" "${DEST}"; then
+            echo "warn: mlplatform clone failed; attempting ZIP fallback" >&2
+            fallback_download_extract || exit 1
+            exit 0
+        fi
     fi
 fi
 
