@@ -53,6 +53,10 @@ massif*.*
 /datasets/models/*
 /datasets/oneOpModels/*
 
+# allow committing the Beer model
+!datasets/models/beer/
+!datasets/models/beer/**
+
 
 /benchmarks/output
 
