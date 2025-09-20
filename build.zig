@@ -49,20 +49,71 @@ fn configureStm32n6Support(
             if (err != error.FileNotFound) @panic("unexpected error probing CMSIS-DSP path");
         }
 
-        if (std.fs.cwd().access("/usr/lib/gcc/arm-none-eabi/10.3.1/include", .{})) |_| {
-            step.addIncludePath(.{ .cwd_relative = "/usr/lib/gcc/arm-none-eabi/10.3.1/include" });
-        } else |err| {
-            if (err != error.FileNotFound) @panic("unexpected error probing GCC include path");
-        }
-        if (std.fs.cwd().access("/usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed", .{})) |_| {
-            step.addIncludePath(.{ .cwd_relative = "/usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed" });
-        } else |err| {
-            if (err != error.FileNotFound) @panic("unexpected error probing GCC include-fixed path");
-        }
-        if (std.fs.cwd().access("/usr/lib/arm-none-eabi/include", .{})) |_| {
+        // Add ARM newlib headers so <string.h>, <math.h>, etc. are found when targeting arm-none-eabi
+        if (std.fs.cwd().access("/usr/lib/arm-none-eabi/include", .{})) {
             step.addIncludePath(.{ .cwd_relative = "/usr/lib/arm-none-eabi/include" });
+        } else |_| {
+            // Fallback common location (ignore errors)
+            if (std.fs.cwd().access("/usr/arm-none-eabi/include", .{})) {
+                step.addIncludePath(.{ .cwd_relative = "/usr/arm-none-eabi/include" });
+            } else |_| {}
+        }
+
+        // Add CMSIS-NN source files
+        if (std.fs.cwd().access("third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_convolve_s8.c", .{})) |_| {
+            step.addCSourceFile(.{
+                .file = b.path("third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_convolve_s8.c"),
+                .flags = c_flags,
+            });
         } else |err| {
-            if (err != error.FileNotFound) @panic("unexpected error probing arm-none-eabi include path");
+            if (err != error.FileNotFound) @panic("unexpected error probing arm_convolve_s8.c");
+        }
+
+        if (std.fs.cwd().access("third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_convolve_get_buffer_sizes_s8.c", .{})) |_| {
+            step.addCSourceFile(.{
+                .file = b.path("third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_convolve_get_buffer_sizes_s8.c"),
+                .flags = c_flags,
+            });
+        } else |err| {
+            if (err != error.FileNotFound) @panic("unexpected error probing arm_convolve_get_buffer_sizes_s8.c");
+        }
+
+        // Add additional CMSIS-NN source files that are commonly needed
+        const cmsis_nn_sources = [_][]const u8{
+            "third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_nn_mat_mult_kernel_s8_s16.c",
+            "third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_nn_mat_mult_kernel_row_offset_s8_s16.c",
+            "third_party/CMSIS-NN/Source/NNSupportFunctions/arm_s8_to_s16_unordered_with_offset.c",
+            "third_party/CMSIS-NN/Source/NNSupportFunctions/arm_nn_mat_mult_nt_t_s8.c",
+            "third_party/CMSIS-NN/Source/NNSupportFunctions/arm_nn_vec_mat_mult_t_s8.c",
+            "third_party/CMSIS-NN/Source/NNSupportFunctions/arm_nn_mat_mult_nt_t_s8_s32.c",
+            "third_party/CMSIS-NN/Source/NNSupportFunctions/arm_q7_to_q15_with_offset.c",
+        };
+
+        for (cmsis_nn_sources) |source_path| {
+            if (std.fs.cwd().access(source_path, .{})) |_| {
+                step.addCSourceFile(.{
+                    .file = b.path(source_path),
+                    .flags = c_flags,
+                });
+            } else |err| {
+                if (err != error.FileNotFound) @panic("unexpected error probing CMSIS-NN source");
+            }
+        }
+
+        // Add CMSIS-DSP source files
+        const cmsis_dsp_sources = [_][]const u8{
+            "third_party/CMSIS-DSP/Source/BasicMathFunctions/arm_dot_prod_f32.c",
+        };
+
+        for (cmsis_dsp_sources) |source_path| {
+            if (std.fs.cwd().access(source_path, .{})) |_| {
+                step.addCSourceFile(.{
+                    .file = b.path(source_path),
+                    .flags = c_flags,
+                });
+            } else |err| {
+                if (err != error.FileNotFound) @panic("unexpected error probing CMSIS-DSP source");
+            }
         }
     }
 

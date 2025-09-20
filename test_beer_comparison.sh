@@ -5,7 +5,9 @@
 
 set -e
 
-REPO_ROOT="/home/marco/Z-Ant"
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$SCRIPT_DIR"
 BUILD_DIR="$REPO_ROOT/build/beer_comparison"
 RESULTS_FILE="$BUILD_DIR/comparison_results.txt"
 

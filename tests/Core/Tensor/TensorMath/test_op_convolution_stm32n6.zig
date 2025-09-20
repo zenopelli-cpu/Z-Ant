@@ -1,12 +1,11 @@
 const std = @import("std");
-const build_options = @import("build_options");
 const zant = @import("zant");
 
 const accelerators = zant.core.tensor.accelerators;
 const Tensor = zant.core.tensor.Tensor;
 
 inline fn isForceNativeEnabled() bool {
-    return @hasDecl(build_options, "stm32n6_force_native") and build_options.stm32n6_force_native;
+    return accelerators.isForceNativeEnabled();
 }
 
 test "STM32N6 accelerator f32 convolution matches reference" {
@@ -66,8 +65,8 @@ test "STM32N6 accelerator f32 convolution matches reference" {
     const accelerated = try accelerators.tryConvLean(f32, &input_tensor, &weight_tensor, &output_tensor, null, params);
     try std.testing.expect(accelerated);
 
-    const expect_ethos = @hasDecl(build_options, "stm32n6_use_ethos") and build_options.stm32n6_use_ethos;
-    const expect_cmsis = @hasDecl(build_options, "stm32n6_use_cmsis") and build_options.stm32n6_use_cmsis;
+    const expect_ethos = accelerators.isEthosRequested();
+    const expect_cmsis = accelerators.isCmsisRequested();
 
     if (expect_ethos) {
         try std.testing.expect(accelerators.ethosUsed());

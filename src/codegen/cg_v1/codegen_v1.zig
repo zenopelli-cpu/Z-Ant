@@ -53,13 +53,12 @@ pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []cons
     var linearizedGraph: std.ArrayList(*NodeZant) = try graphZant.linearize(allocator);
     defer linearizedGraph.deinit();
 
-    std.debug.print("\n\n--- Linearized Graph pre fusion: ", .{});
-    for (linearizedGraph_prefusion.items) |node| {
-        std.debug.print("\n  {s} ", .{node.name.?});
-    }
+    // Note: Pre-fusion graph printing disabled to avoid accessing freed nodes
+    std.debug.print("\n\n--- Linearized Graph pre fusion: {} nodes (printing disabled due to potential freed nodes)", .{linearizedGraph_prefusion.items.len});
     std.debug.print("\n\n --- Linearized Graph post fusion : ", .{});
     for (linearizedGraph.items) |node| {
-        std.debug.print("\n  {s} ", .{node.name.?});
+        const name = if (node.name) |n| n else "unnamed";
+        std.debug.print("\n  {s} ", .{name});
     }
     std.debug.print("\n", .{});
 

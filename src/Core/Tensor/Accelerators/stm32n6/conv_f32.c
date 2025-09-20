@@ -28,25 +28,9 @@ static inline void *memset(void *s, int c, size_t n) {
 #endif
 
 // Only include math.h and ARM headers when actually compiling for target, not
-// during codegen. When the freestanding toolchain lacks <math.h>, fall back to
-// the relevant compiler builtins for the small subset we need.
+// during codegen
 #ifndef ZANT_CODEGEN_PHASE
-#if defined(__has_include)
-#if __has_include(<math.h>)
 #include <math.h>
-#else
-#define ZANT_MATH_FALLBACK 1
-#endif
-#else
-#include <math.h>
-#endif
-
-#ifdef ZANT_MATH_FALLBACK
-static inline int zant_isnan(float value) { return __builtin_isnan(value); }
-static inline long zant_lrintf(float value) { return __builtin_lrintf(value); }
-#define isnan  zant_isnan
-#define lrintf zant_lrintf
-#endif
 
 // Forward declarations for memory functions
 extern void *malloc(size_t size);
@@ -140,125 +124,12 @@ static bool cmsis_helium_conv(const float *input, const size_t *input_shape,
                               const size_t *dilations, size_t group,
                               size_t filters_per_group,
                               size_t channels_per_group) {
-  const size_t batch_size = input_shape[0];
-  const size_t in_channels = input_shape[1];
-  const size_t in_height = input_shape[2];
-  const size_t in_width = input_shape[3];
-
-  const size_t out_channels = weight_shape[0];
-  const size_t weight_in_channels = weight_shape[1];
-  const size_t kernel_height = weight_shape[2];
-  const size_t kernel_width = weight_shape[3];
-
-  const size_t out_height = output_shape[2];
-  const size_t out_width = output_shape[3];
-
-  if (channels_per_group == 0 || filters_per_group == 0 || group == 0) {
-    return false;
-  }
-  if (in_channels != channels_per_group * group) {
-    return false;
-  }
-  if (out_channels != filters_per_group * group) {
-    return false;
-  }
-  if (weight_in_channels != channels_per_group) {
-    return false;
-  }
-  if (bias != NULL && bias_len != out_channels) {
-    return false;
-  }
-
-  const size_t stride_h = stride[0];
-  const size_t stride_w = stride[1];
-  const size_t dilation_h = dilations[0];
-  const size_t dilation_w = dilations[1];
-  const size_t pad_h_begin = pads[0];
-  const size_t pad_w_begin = pads[1];
-
-  const size_t kernel_size = kernel_height * kernel_width * channels_per_group;
-  float *packed_weights = NULL;
-  float *input_patch = NULL;
-
-  if (kernel_size > 0) {
-    packed_weights = (float *)malloc(kernel_size * sizeof(float));
-    input_patch = (float *)malloc(kernel_size * sizeof(float));
-    if (packed_weights == NULL || input_patch == NULL) {
-      free(packed_weights);
-      free(input_patch);
-      return false;
-    }
-  }
-
-  for (size_t n = 0; n < batch_size; ++n) {
-    for (size_t m = 0; m < out_channels; ++m) {
-      const size_t current_group = m / filters_per_group;
-      const size_t in_channel_start = current_group * channels_per_group;
-      const float bias_val = (bias != NULL) ? bias[m] : 0.0f;
-
-      // Pack weights for this output channel once.
-      size_t packed_index = 0;
-      for (size_t kh = 0; kh < kernel_height; ++kh) {
-        for (size_t kw = 0; kw < kernel_width; ++kw) {
-          for (size_t c = 0; c < channels_per_group; ++c) {
-            const size_t weight_idx =
-                ((m * weight_in_channels + c) * kernel_height + kh) *
-                    kernel_width +
-                kw;
-            packed_weights[packed_index++] = weights[weight_idx];
-          }
-        }
-      }
-
-      for (size_t oh = 0; oh < out_height; ++oh) {
-        for (size_t ow = 0; ow < out_width; ++ow) {
-          const ptrdiff_t in_h_start =
-              (ptrdiff_t)(oh * stride_h) - (ptrdiff_t)pad_h_begin;
-          const ptrdiff_t in_w_start =
-              (ptrdiff_t)(ow * stride_w) - (ptrdiff_t)pad_w_begin;
-
-          float sum = bias_val;
-          size_t input_index = 0;
-
-          for (size_t kh = 0; kh < kernel_height; ++kh) {
-            for (size_t kw = 0; kw < kernel_width; ++kw) {
-              const ptrdiff_t in_h = in_h_start + (ptrdiff_t)(kh * dilation_h);
-              const ptrdiff_t in_w = in_w_start + (ptrdiff_t)(kw * dilation_w);
-
-              for (size_t c = 0; c < channels_per_group; ++c) {
-                if (in_h >= 0 && in_h < (ptrdiff_t)in_height && in_w >= 0 &&
-                    in_w < (ptrdiff_t)in_width) {
-                  const size_t channel = in_channel_start + c;
-                  const size_t input_idx =
-                      ((n * in_channels + channel) * in_height +
-                       (size_t)in_h) *
-                          in_width +
-                      (size_t)in_w;
-                  input_patch[input_index] = input[input_idx];
-                } else {
-                  input_patch[input_index] = 0.0f;
-                }
-                ++input_index;
-              }
-            }
-          }
-
-          float dot = 0.0f;
-          arm_dot_prod_f32(packed_weights, input_patch, (uint32_t)input_index,
-                           &dot);
-          sum += dot;
-
-          const size_t output_idx =
-              ((n * out_channels + m) * out_height + oh) * out_width + ow;
-          output[output_idx] = sum;
-        }
-      }
-    }
-  }
-
-  free(packed_weights);
-  free(input_patch);
-  return true;
+  // For now, just fall back to reference implementation
+  // CMSIS-NN is designed for quantized networks, not floating point
+  // TODO: Use CMSIS-DSP functions for floating point acceleration
+  return conv_impl(input, input_shape, weights, weight_shape, output,
+                   output_shape, bias, bias_len, stride, pads, dilations, group,
+                   filters_per_group, channels_per_group, reference_dot);
 }
 
 #elif defined(ZANT_CODEGEN_PHASE)

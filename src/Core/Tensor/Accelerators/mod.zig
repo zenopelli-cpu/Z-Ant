@@ -20,6 +20,18 @@ pub fn isStm32n6Enabled() bool {
     return @hasDecl(build_options, "stm32n6_accel") and build_options.stm32n6_accel;
 }
 
+pub fn isForceNativeEnabled() bool {
+    return @hasDecl(build_options, "stm32n6_force_native") and build_options.stm32n6_force_native;
+}
+
+pub fn isCmsisRequested() bool {
+    return @hasDecl(build_options, "stm32n6_use_cmsis") and build_options.stm32n6_use_cmsis;
+}
+
+pub fn isEthosRequested() bool {
+    return @hasDecl(build_options, "stm32n6_use_ethos") and build_options.stm32n6_use_ethos;
+}
+
 pub fn tryConvLean(
     comptime T: type,
     input: *const TensorModule.Tensor(T),

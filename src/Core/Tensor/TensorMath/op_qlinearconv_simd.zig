@@ -106,26 +106,70 @@ const cmsis_nn_per_channel_quant_params = extern struct {
     shift: [*]i32,
 };
 
-// External CMSIS-NN function declarations
-extern fn arm_convolve_s8_get_buffer_size(
-    input_dims: *const cmsis_nn_dims,
-    filter_dims: *const cmsis_nn_dims,
-) callconv(.C) i32;
+// External CMSIS-NN function declarations (only when CMSIS is enabled)
+const build_options = @import("build_options");
+const use_cmsis = @hasDecl(build_options, "stm32n6_use_cmsis") and build_options.stm32n6_use_cmsis;
 
-extern fn arm_convolve_s8(
-    ctx: *const cmsis_nn_context,
-    conv_params: *const cmsis_nn_conv_params,
-    quant_params: *const cmsis_nn_per_channel_quant_params,
-    input_dims: *const cmsis_nn_dims,
-    input_data: [*]const i8,
-    filter_dims: *const cmsis_nn_dims,
-    filter_data: [*]const i8,
-    bias_dims: *const cmsis_nn_dims,
-    bias_data: ?[*]const i32,
-    upscale_dims: ?*const cmsis_nn_dims,
-    output_dims: *const cmsis_nn_dims,
-    output_data: [*]i8,
-) callconv(.C) i32;
+const cmsis_nn_functions = if (use_cmsis) struct {
+    extern fn arm_convolve_s8_get_buffer_size(
+        input_dims: *const cmsis_nn_dims,
+        filter_dims: *const cmsis_nn_dims,
+    ) callconv(.C) i32;
+
+    extern fn arm_convolve_s8(
+        ctx: *const cmsis_nn_context,
+        conv_params: *const cmsis_nn_conv_params,
+        quant_params: *const cmsis_nn_per_channel_quant_params,
+        input_dims: *const cmsis_nn_dims,
+        input_data: [*]const i8,
+        filter_dims: *const cmsis_nn_dims,
+        filter_data: [*]const i8,
+        bias_dims: *const cmsis_nn_dims,
+        bias_data: ?[*]const i32,
+        upscale_dims: ?*const cmsis_nn_dims,
+        output_dims: *const cmsis_nn_dims,
+        output_data: [*]i8,
+    ) callconv(.C) i32;
+} else struct {
+    // Dummy functions when CMSIS is not enabled
+    fn arm_convolve_s8_get_buffer_size(
+        input_dims: *const cmsis_nn_dims,
+        filter_dims: *const cmsis_nn_dims,
+    ) callconv(.C) i32 {
+        _ = input_dims;
+        _ = filter_dims;
+        return 0;
+    }
+
+    fn arm_convolve_s8(
+        ctx: *const cmsis_nn_context,
+        conv_params: *const cmsis_nn_conv_params,
+        quant_params: *const cmsis_nn_per_channel_quant_params,
+        input_dims: *const cmsis_nn_dims,
+        input_data: [*]const i8,
+        filter_dims: *const cmsis_nn_dims,
+        filter_data: [*]const i8,
+        bias_dims: *const cmsis_nn_dims,
+        bias_data: ?[*]const i32,
+        upscale_dims: ?*const cmsis_nn_dims,
+        output_dims: *const cmsis_nn_dims,
+        output_data: [*]i8,
+    ) callconv(.C) i32 {
+        _ = ctx;
+        _ = conv_params;
+        _ = quant_params;
+        _ = input_dims;
+        _ = input_data;
+        _ = filter_dims;
+        _ = filter_data;
+        _ = bias_dims;
+        _ = bias_data;
+        _ = upscale_dims;
+        _ = output_dims;
+        _ = output_data;
+        return 0;
+    }
+};
 
 // CMSIS-NN constants
 const ARM_CMSIS_NN_SUCCESS: i32 = 0;
@@ -218,7 +262,7 @@ fn tryDirectCmsisNnQLinearConv(
     };
 
     // Get buffer size and allocate
-    const buffer_size = arm_convolve_s8_get_buffer_size(&input_dims, &filter_dims);
+    const buffer_size = cmsis_nn_functions.arm_convolve_s8_get_buffer_size(&input_dims, &filter_dims);
     if (buffer_size <= 0) return false;
 
     const buffer = alloc.alignedAlloc(u8, @alignOf(i16), @as(usize, @intCast(buffer_size))) catch return false;
@@ -283,7 +327,7 @@ fn tryDirectCmsisNnQLinearConv(
     defer if (bias_allocated) alloc.free(bias_storage);
 
     // Call CMSIS-NN directly with quantized data!
-    const result = arm_convolve_s8(
+    const result = cmsis_nn_functions.arm_convolve_s8(
         &ctx,
         &conv_params,
         &quant_params,
