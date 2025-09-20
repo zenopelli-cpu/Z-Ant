@@ -7,8 +7,8 @@ on:
       - 'tests/**'
       - 'scripts/**'
       - 'build.zig'
-      - 'test_beer_comparison.sh'
-      - 'test_beer_independent.sh'
+      - 'scripts/test_beer_comparison.sh'
+      - 'scripts/test_beer_independent.sh'
       - '.github/workflows/beer-regression.yml'
   workflow_dispatch: {}
   schedule:
@@ -39,8 +39,7 @@ jobs:
           ZANT_FBA_SIZE_KB: '320'
           ZANT_FBA_SECTION: '.tensor_pool'
         run: |
-          chmod +x ./test_beer_comparison.sh
-          ./test_beer_comparison.sh
+          bash scripts/test_beer_comparison.sh
 
       - name: Update README with latest timings
         env:
