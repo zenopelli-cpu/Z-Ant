@@ -34,6 +34,11 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y qemu-system-arm gcc-arm-none-eabi python3 python3-pip
 
+      - name: Fetch third-party dependencies (CMSIS-NN, Ethos-U)
+        run: |
+          bash scripts/fetch_cmsis_nn.sh
+          bash scripts/fetch_ethos_u_driver.sh
+
       - name: Run beer comparison (reference vs CMSIS)
         env:
           ZANT_FBA_SIZE_KB: '320'
