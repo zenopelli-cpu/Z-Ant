@@ -162,7 +162,7 @@ pub const Fused_Dequant_Clip_Quant = struct {
             .next = cloned_next,
             .nodeProto = null,
             .ready = false,
-            .fusion_list = cloned_fusion_list,
+            .is_fused = true,
         };
     }
 

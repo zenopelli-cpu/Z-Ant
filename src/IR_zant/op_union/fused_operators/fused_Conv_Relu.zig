@@ -101,12 +101,6 @@ pub const Fused_Conv_Relu = struct {
             try cloned_next.append(next_node);
         }
 
-        //  Clone the fusion_list instead of direct reference
-        var cloned_fusion_list = std.ArrayList(*NodeZant).init(allocator);
-        for (node_list.items) |node| {
-            try cloned_fusion_list.append(node);
-        }
-
         return NodeZant{
             .name = try NodeZant_lib.getFusedOpsName(node_list),
             .op_type = try NodeZant_lib.getFusedOpsType(node_list),
@@ -114,7 +108,7 @@ pub const Fused_Conv_Relu = struct {
             .next = cloned_next,
             .nodeProto = null,
             .ready = false,
-            .fusion_list = cloned_fusion_list,
+            .is_fused = true,
         };
     }
 
