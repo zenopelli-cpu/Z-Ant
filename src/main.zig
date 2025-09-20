@@ -20,9 +20,7 @@ fn prepareInputData(allocator: std.mem.Allocator) ![]model_opts.input_data_type 
 
     const data = try allocator.alloc(model_opts.input_data_type, total_size);
     errdefer allocator.free(data);
-
-    // Fill with zeros to test if model works at all
-    @memset(data, 0);
+    @memset(data, 1);
 
     return data;
 }
@@ -36,7 +34,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    main_log.info("Preparing input data...\\n", .{});
+    // main_log.info("Preparing input data...\\n", .{});
     const input_data = try prepareInputData(allocator);
     const input_shape = model_opts.input_shape;
     main_log.info("Model expects input shape: {any}\n", .{input_shape});
@@ -102,8 +100,8 @@ pub fn main() !void {
         // main_log.info("Passata {} completata.\n", .{pass});
     }
 
-    main_log.info("Attempting to free input memory...\\n", .{});
+    // main_log.info("Attempting to free input memory...\\n", .{});
     allocator.free(input_data);
 
-    main_log.info("Program finished.\\n", .{});
+    // main_log.info("Program finished.\\n", .{});
 }

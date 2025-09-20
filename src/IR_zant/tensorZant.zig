@@ -243,6 +243,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
     tensorMap = std.StringHashMap(TensorZant).init(allocator);
 
     // std.debug.print("\n ---- initialize_tensorZantMap ---- ", .{});
+    // std.debug.print("\n ---- initialize_tensorZantMap ---- ", .{});
 
     const protoGraph = try if (modelProto.graph) |graph| graph else error.GraphNotAvailable;
 
@@ -519,6 +520,7 @@ fn initializeAllTensors(protoGraph: *GraphProto) !void {
 
     //adding inputs to the hash map
     // std.debug.print("\n -------- inputs: {d} ", .{protoGraph.inputs.len});
+    // std.debug.print("\n -------- inputs: {d} ", .{protoGraph.inputs.len});
 
     for (protoGraph.inputs) |inputs_ptr| { //inputs : *ValueInfoProto,
         if (tensorMap.getPtr(inputs_ptr.name.?) != null) continue;
@@ -536,6 +538,7 @@ fn initializeAllTensors(protoGraph: *GraphProto) !void {
 
     //adding outputs to the hash map
     // std.debug.print("\n -------- outputs: {d}", .{protoGraph.outputs.len});
+    // std.debug.print("\n -------- outputs: {d}", .{protoGraph.outputs.len});
 
     for (protoGraph.outputs) |outputs_ptr| { //outputs : *ValueInfoProto,
         if (tensorMap.getPtr(outputs_ptr.name.?) != null) continue;
@@ -551,6 +554,7 @@ fn initializeAllTensors(protoGraph: *GraphProto) !void {
         try tensorMap.put(tensorZant.name, tensorZant);
     }
 
+    // std.debug.print("\n -------- nodes: {d}", .{protoGraph.nodes.len});
     // std.debug.print("\n -------- nodes: {d}", .{protoGraph.nodes.len});
     //adding all the nodes inputs and outputs
     for (protoGraph.nodes) |node| { //for each NodeProto in the GraphProto
@@ -572,6 +576,7 @@ fn initializeAllTensors(protoGraph: *GraphProto) !void {
         } else {
             for (node.input) |input_name| {
                 // std.debug.print("\n    inputs >>> {s}", .{input_name});
+                // std.debug.print("\n    inputs >>> {s}", .{input_name});
                 if (tensorMap.getPtr(input_name) != null) continue;
 
                 //if the tensor is null is represented by an empty string in the onnx, so It must not be initialized in the hashMap
@@ -591,6 +596,7 @@ fn initializeAllTensors(protoGraph: *GraphProto) !void {
                 try tensorMap.put(tensorZant.name, tensorZant);
             }
             for (node.output) |output_name| {
+                // std.debug.print("\n    >>> outputs {s}", .{output_name});
                 // std.debug.print("\n    >>> outputs {s}", .{output_name});
                 if (tensorMap.getPtr(output_name) != null) continue;
 
@@ -619,6 +625,7 @@ fn initializeAllTensors(protoGraph: *GraphProto) !void {
 
                     return error.Reshape_outputShape_NotFound;
                 } else {
+                    // std.debug.print("\n  +++", .{});
                     // std.debug.print("\n  +++", .{});
 
                     //if the tensor is null is represented by an empty string in the onnx, so It must not be initialized in the hashMap
