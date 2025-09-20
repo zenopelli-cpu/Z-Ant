@@ -291,6 +291,49 @@ Z-Ant/
 └── scripts/test_stm32n6_qemu.py # QEMU test runner
 ```
 
+## Harness file roles
+
+- `tests/stm32n6_qemu/runtime.c`: bare‑metal startup and reset handler.
+  - Installs the minimal vector table, initializes `.data`/`.bss`, enables FPU/MVE, calls `main()`.
+  - On exit, calls `support_emit_heap_report()` and `semihost_exit(code)` so QEMU terminates.
+
+- `tests/stm32n6_qemu/beer_main.c`: tiny app `main()` for the Beer model.
+  - Prepares a `[1,96,96,1]` input buffer, calls `predict(...)`, checks status, prints `beer PASS` via semihosting.
+
+- `tests/stm32n6_qemu/semihost.c`: C semihost helpers.
+  - Host build (`STM32N6_HOST=1`): uses `stdio`/`exit`.
+  - Target build: performs semihost calls via a BKPT 0xAB instruction to write strings and exit QEMU.
+
+- `tests/stm32n6_qemu/semihost_arm.c`: alternate semihost wrappers for target.
+  - Declares `semihost_call(op, param)` and forwards `semihost_write0/semihost_exit` to it.
+
+- `tests/stm32n6_qemu/semihost_arm.S`: ARM Thumb assembly for semihosting.
+  - Implements `semihost_call`: executes `bkpt 0xAB` so QEMU handles semihost ops (write0/exit).
+
+- `tests/stm32n6_qemu/stm32n6.ld`: linker script for the Cortex‑M55/QEMU platform.
+  - Defines FLASH/RAM regions, section placements, vector table location, and symbols used by startup.
+
+- `tests/stm32n6_qemu/support.c`: minimal freestanding libc shims used by small tests.
+  - Simple `malloc` (bump), `free` (no‑op), `memcpy/memmove/memset/memcmp`, and a few math helpers.
+
+- `tests/stm32n6_qemu/common/support.c`: enhanced support layer used by performance harnesses.
+  - Managed heap with peak/current usage accounting, `__aeabi_*` memory intrinsics, math (`roundf/expf/fmaxf/fminf`),
+    `support_emit_heap_report()` printed at exit by the runtime.
+
+- `src/Core/Tensor/Accelerators/stm32n6/conv_f32.c`: reference CPU convolution for the harness.
+  - Provides floating‑point conv implementation; can fall back even when CMSIS‑NN is enabled.
+
+- `src/Core/Tensor/Accelerators/stm32n6/ethos_stub.c`: stubbed Ethos‑U hooks so the binary links without real NPU libs.
+
+- `scripts/test_stm32n6_qemu.py`: builds and runs the firmware variants under QEMU.
+  - Detects toolchains (arm‑none‑eabi‑gcc, zig cc, clang), wires include paths, adds CMSIS sources when requested,
+    launches QEMU, and looks for the PASS markers (e.g., `beer PASS`).
+
+- `test_beer_comparison.sh`: end‑to‑end A/B comparison.
+  - Builds Beer lib (reference and CMSIS‑NN), runs QEMU for each, records timings.
+
+- `test_beer_independent.sh`: runs each configuration independently, useful for debugging single variants.
+
 ## Contributing
 
 When modifying the beer model testing:

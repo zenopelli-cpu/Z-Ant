@@ -26,7 +26,7 @@ BARE_METAL_SOURCES = (
     HARNESS_DIR / "runtime.c",
     HARNESS_DIR / "semihost_arm.c",  # Use ARM semihosting
     HARNESS_DIR / "semihost_arm.S",
-    HARNESS_DIR / "support.c",
+    HARNESS_DIR / "common" / "support.c",
     HARNESS_DIR / "main.c",  # Full test
     STM32_DIR / "conv_f32.c",
     STM32_DIR / "ethos_stub.c",
@@ -36,7 +36,7 @@ BEER_SOURCES = (
     HARNESS_DIR / "runtime.c",
     HARNESS_DIR / "semihost_arm.c",
     HARNESS_DIR / "semihost_arm.S",
-    HARNESS_DIR / "support.c",
+    HARNESS_DIR / "common" / "support.c",
     HARNESS_DIR / "beer_main.c",
     STM32_DIR / "conv_f32.c",
     STM32_DIR / "ethos_stub.c",

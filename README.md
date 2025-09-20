@@ -6,6 +6,14 @@
   <img src="https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-codegen-tests.yml/badge.svg" alt="Zig Codegen Tests" />
 </div>
 
+<!-- BEER_TIMINGS_START -->
+Beer model timing (QEMU, Cortex-M55):
+
+- Reference: 2187.11 ms
+- CMSIS-NN: 874.04 ms
+- Improvement: 1313.07 ms (60.0%)
+<!-- BEER_TIMINGS_END -->
+
 ![image](https://github.com/user-attachments/assets/6a5346e5-58ec-4069-8143-c3b7b03586f3)
 
 
@@ -270,3 +278,5 @@ This project is licensed under the [LICENSE](LICENSE) file in the repository.
 [GitHub](https://github.com/ZIGTinyBook/Z-Ant) • [Documentation](docs/) • [Examples](examples/) • [Community](https://github.com/ZIGTinyBook/Z-Ant/discussions)
 
 </div>
+
+ 
