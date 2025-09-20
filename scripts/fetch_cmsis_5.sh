@@ -6,7 +6,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 DEST="${REPO_ROOT}/third_party/CMSIS_5"
 REPO_URL="${CMSIS5_REPO:-https://github.com/ARM-software/CMSIS_5.git}"
-REF="${CMSIS5_REF:-main}"
+REF="${CMSIS5_REF:-develop}"
 ARCHIVE="${CMSIS5_ARCHIVE:-}"
 
 if [ -n "${ARCHIVE}" ]; then
@@ -39,16 +39,32 @@ fi
 
 if [ -d "${DEST}/.git" ]; then
     echo "Updating CMSIS_5 in ${DEST}"
-    if ! git -C "${DEST}" -c http.https://github.com/.extraheader= fetch --depth 1 origin "${REF}"; then
-        echo "error: failed to fetch CMSIS_5 (check your network/proxy)" >&2
+    candidates=("${REF}" develop main master)
+    fetched=0
+    for r in "${candidates[@]}"; do
+        if git -C "${DEST}" -c http.https://github.com/.extraheader= fetch --depth 1 origin "$r"; then
+            fetched=1
+            break
+        fi
+    done
+    if [ "$fetched" -ne 1 ]; then
+        echo "error: failed to fetch CMSIS_5 (tried: ${candidates[*]})" >&2
         exit 1
     fi
     git -C "${DEST}" checkout FETCH_HEAD
 else
     mkdir -p "${REPO_ROOT}/third_party"
     echo "Cloning CMSIS_5 (${REF}) into ${DEST}"
-    if ! git -c http.https://github.com/.extraheader= clone --depth 1 --branch "${REF}" "${REPO_URL}" "${DEST}"; then
-        echo "error: failed to clone CMSIS_5 from ${REPO_URL}" >&2
+    candidates=("${REF}" develop main master)
+    cloned=0
+    for r in "${candidates[@]}"; do
+        if git -c http.https://github.com/.extraheader= clone --depth 1 --branch "$r" "${REPO_URL}" "${DEST}"; then
+            cloned=1
+            break
+        fi
+    done
+    if [ "$cloned" -ne 1 ]; then
+        echo "error: failed to clone CMSIS_5 from ${REPO_URL} (tried: ${candidates[*]})" >&2
         exit 1
     fi
 fi

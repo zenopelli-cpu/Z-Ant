@@ -6,7 +6,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 DEST="${REPO_ROOT}/third_party/CMSIS-DSP"
 REPO_URL="${CMSIS_DSP_REPO:-https://github.com/ARM-software/CMSIS-DSP.git}"
-REF="${CMSIS_DSP_REF:-main}"
+REF="${CMSIS_DSP_REF:-develop}"
 ARCHIVE="${CMSIS_DSP_ARCHIVE:-}"
 
 if [ -n "${ARCHIVE}" ]; then
@@ -39,16 +39,32 @@ fi
 
 if [ -d "${DEST}/.git" ]; then
     echo "Updating CMSIS-DSP in ${DEST}"
-    if ! git -C "${DEST}" -c http.https://github.com/.extraheader= fetch --depth 1 origin "${REF}"; then
-        echo "error: failed to fetch CMSIS-DSP (check your network/proxy)" >&2
+    candidates=("${REF}" develop main master)
+    fetched=0
+    for r in "${candidates[@]}"; do
+        if git -C "${DEST}" -c http.https://github.com/.extraheader= fetch --depth 1 origin "$r"; then
+            fetched=1
+            break
+        fi
+    done
+    if [ "$fetched" -ne 1 ]; then
+        echo "error: failed to fetch CMSIS-DSP (tried: ${candidates[*]})" >&2
         exit 1
     fi
     git -C "${DEST}" checkout FETCH_HEAD
 else
     mkdir -p "${REPO_ROOT}/third_party"
     echo "Cloning CMSIS-DSP (${REF}) into ${DEST}"
-    if ! git -c http.https://github.com/.extraheader= clone --depth 1 --branch "${REF}" "${REPO_URL}" "${DEST}"; then
-        echo "error: failed to clone CMSIS-DSP from ${REPO_URL}" >&2
+    candidates=("${REF}" develop main master)
+    cloned=0
+    for r in "${candidates[@]}"; do
+        if git -c http.https://github.com/.extraheader= clone --depth 1 --branch "$r" "${REPO_URL}" "${DEST}"; then
+            cloned=1
+            break
+        fi
+    done
+    if [ "$cloned" -ne 1 ]; then
+        echo "error: failed to clone CMSIS-DSP from ${REPO_URL} (tried: ${candidates[*]})" >&2
         exit 1
     fi
 fi
