@@ -11,16 +11,39 @@ const conv = @import("op_convolution.zig");
 // HELPER FUNCTIONS FOR CORRECT QUANTIZATION
 inline fn readScalarZP(comptime T: type, zp_any: anytype) i32 {
     _ = T;
+    return readScalarZPInternal(zp_any);
+}
 
-    // Simple approach: check if it's a pointer first
+fn readScalarZPInternal(zp_any: anytype) i32 {
     const ZPType = @TypeOf(zp_any);
-    if (@typeInfo(ZPType) == .pointer) {
-        // Dereference and try to access .data[0]
-        return @as(i32, @intCast(zp_any.data[0]));
-    } else {
-        // It's already a scalar or struct, use directly
-        return @as(i32, @intCast(zp_any));
-    }
+    const info = @typeInfo(ZPType);
+
+    return switch (info) {
+        .Pointer => readScalarZPInternal(zp_any.*),
+        .Optional => if (zp_any) |payload| readScalarZPInternal(payload) else 0,
+        .Slice => blk: {
+            if (zp_any.len == 0) break :blk 0;
+            break :blk @as(i32, @intCast(zp_any[0]));
+        },
+        .Array => blk: {
+            if (info.Array.len == 0) break :blk 0;
+            break :blk @as(i32, @intCast(zp_any[0]));
+        },
+        .Vector => blk: {
+            if (info.Vector.len == 0) break :blk 0;
+            break :blk @as(i32, @intCast(zp_any[0]));
+        },
+        .Struct => blk: {
+            if (std.meta.trait.hasField("data")(ZPType)) {
+                const data = zp_any.data;
+                if (data.len == 0) break :blk 0;
+                break :blk @as(i32, @intCast(data[0]));
+            }
+            break :blk @compileError("unsupported zero-point struct representation");
+        },
+        .Int, .ComptimeInt => @as(i32, @intCast(zp_any)),
+        else => @compileError("unsupported zero-point representation"),
+    };
 }
 
 inline fn readPerChannelScale(comptime T: type, s: *const Tensor(T), m: usize, M: usize) f32 {
@@ -28,18 +51,50 @@ inline fn readPerChannelScale(comptime T: type, s: *const Tensor(T), m: usize, M
     return @as(f32, @floatCast(s.data[0])); // broadcast
 }
 
+inline fn selectChannelIndex(len: usize, channel: usize) usize {
+    if (len <= 1) return 0;
+    return if (channel < len) channel else len - 1;
+}
+
 inline fn readPerChannelZP(comptime T: type, zp_any: anytype, m: usize, M: usize) i32 {
-    return switch (@TypeOf(zp_any)) {
-        *const Tensor(T) => {
-            if (zp_any.shape.len == 1 and zp_any.shape[0] == M) return @as(i32, @intCast(zp_any.data[m]));
-            return @as(i32, @intCast(zp_any.data[0]));
+    _ = M;
+    return readPerChannelZPInternal(T, zp_any, m);
+}
+
+fn readPerChannelZPInternal(comptime T: type, zp_any: anytype, m: usize) i32 {
+    _ = T;
+    const ZPType = @TypeOf(zp_any);
+    const info = @typeInfo(ZPType);
+
+    return switch (info) {
+        .Pointer => readPerChannelZPInternal(T, zp_any.*, m),
+        .Optional => if (zp_any) |payload| readPerChannelZPInternal(T, payload, m) else 0,
+        .Slice => blk: {
+            if (zp_any.len == 0) break :blk 0;
+            const idx = selectChannelIndex(zp_any.len, m);
+            break :blk @as(i32, @intCast(zp_any[idx]));
         },
-        Tensor(T) => {
-            if (zp_any.shape.len == 1 and zp_any.shape[0] == M) return @as(i32, @intCast(zp_any.data[0]));
-            return @as(i32, @intCast(zp_any.data[0]));
+        .Array => blk: {
+            if (info.Array.len == 0) break :blk 0;
+            const idx = selectChannelIndex(info.Array.len, m);
+            break :blk @as(i32, @intCast(zp_any[idx]));
         },
-        T => @as(i32, @intCast(zp_any)),
-        else => @compileError("zp per-channel expected"),
+        .Vector => blk: {
+            if (info.Vector.len == 0) break :blk 0;
+            const idx = selectChannelIndex(info.Vector.len, m);
+            break :blk @as(i32, @intCast(zp_any[idx]));
+        },
+        .Struct => blk: {
+            if (std.meta.trait.hasField("data")(ZPType)) {
+                const data = zp_any.data;
+                if (data.len == 0) break :blk 0;
+                const idx = selectChannelIndex(data.len, m);
+                break :blk @as(i32, @intCast(data[idx]));
+            }
+            break :blk @compileError("unsupported zero-point struct representation");
+        },
+        .Int, .ComptimeInt => @as(i32, @intCast(zp_any)),
+        else => @compileError("unsupported zero-point representation"),
     };
 }
 
