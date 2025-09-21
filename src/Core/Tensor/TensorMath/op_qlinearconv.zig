@@ -620,7 +620,9 @@ pub fn qlinearconv_embedded_lean(
     group: ?usize,
     auto_pad: []const u8,
 ) !void {
-    _ = auto_pad;
+    if (auto_pad.len != 0 and !std.mem.eql(u8, auto_pad, "NOTSET")) {
+        return TensorMathError.InvalidPadding;
+    }
 
     const isInt = struct {
         fn call(comptime T: type) bool {
@@ -781,7 +783,7 @@ pub fn qlinearconv_embedded_lean(
 
 inline fn conv3x3EmbeddedOptimized(
     comptime InputType: type,
-    comptime _WeightType: type,
+    comptime WeightType: type,
     x_data: []const InputType,
     w_data: []const WeightType,
     out_data: []InputType,
@@ -862,7 +864,7 @@ inline fn conv3x3EmbeddedOptimized(
 
 inline fn conv1x1EmbeddedOptimized(
     comptime InputType: type,
-    comptime _WeightType: type,
+    comptime WeightType: type,
     x_data: []const InputType,
     w_data: []const WeightType,
     out_data: []InputType,
@@ -931,7 +933,7 @@ inline fn conv1x1EmbeddedOptimized(
 
 inline fn convGenericEmbeddedOptimized(
     comptime InputType: type,
-    comptime _WeightType: type,
+    comptime WeightType: type,
     x_data: []const InputType,
     w_data: []const WeightType,
     out_data: []InputType,

@@ -38,10 +38,10 @@ pub const PerChannelQuantParams = extern struct {
 /// CMSIS-NN status codes shared across the accelerator bindings.
 pub const ARM_CMSIS_NN_SUCCESS: i32 = 0;
 
-/// Namespace exposing the CMSIS-NN entry points we rely on. When Helium support
-/// is disabled at build time the functions degrade to inert stubs so that the
-/// call sites automatically fall back to the portable implementations.
-pub const functions = if (is_enabled) struct {
+/// Namespace exposing the CMSIS-NN entry points grouped by operator family.
+/// Additional Helium kernels (e.g. pooling) can extend this pattern by adding
+/// new structs next to `conv` while keeping the conditional stubs centralized.
+pub const conv = if (is_enabled) struct {
     extern fn arm_convolve_s8_get_buffer_size(
         input_dims: *const Dims,
         filter_dims: *const Dims,
@@ -100,6 +100,10 @@ pub const functions = if (is_enabled) struct {
         return 0;
     }
 };
+
+pub inline fn isEnabled() bool {
+    return is_enabled;
+}
 
 /// Helper queried by the TensorMath layer to understand if a Helium
 /// implementation for QLinearConv can be attempted. Extend this (or add new

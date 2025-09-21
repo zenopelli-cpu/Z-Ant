@@ -83,7 +83,7 @@ const cmsis_nn_dims = cmsis_nn.Dims;
 const cmsis_nn_context = cmsis_nn.Context;
 const cmsis_nn_conv_params = cmsis_nn.ConvParams;
 const cmsis_nn_per_channel_quant_params = cmsis_nn.PerChannelQuantParams;
-const cmsis_nn_functions = cmsis_nn.functions;
+const cmsis_nn_conv = cmsis_nn.conv;
 
 fn tryDirectCmsisNnQLinearConv(
     comptime InputType: type,
@@ -174,7 +174,7 @@ fn tryDirectCmsisNnQLinearConv(
     };
 
     // Get buffer size and allocate
-    const buffer_size = cmsis_nn_functions.arm_convolve_s8_get_buffer_size(&input_dims, &filter_dims);
+    const buffer_size = cmsis_nn_conv.arm_convolve_s8_get_buffer_size(&input_dims, &filter_dims);
     if (buffer_size <= 0) return false;
 
     const buffer = alloc.alignedAlloc(u8, @alignOf(i16), @as(usize, @intCast(buffer_size))) catch return false;
@@ -239,7 +239,7 @@ fn tryDirectCmsisNnQLinearConv(
     defer if (bias_allocated) alloc.free(bias_storage);
 
     // Call CMSIS-NN directly with quantized data!
-    const result = cmsis_nn_functions.arm_convolve_s8(
+    const result = cmsis_nn_conv.arm_convolve_s8(
         &ctx,
         &conv_params,
         &quant_params,
