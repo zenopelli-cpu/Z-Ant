@@ -2,7 +2,8 @@ MEMORY
 {
     FLASH (rx)  : ORIGIN = 0x00000000, LENGTH = 0x00400000
     RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00080000
-    EXT_RAM (rwx) : ORIGIN = 0x31000000, LENGTH = 0x00200000
+    /* External SRAM modeled by QEMU; make it roomy for tests */
+    EXT_RAM (rwx) : ORIGIN = 0x31000000, LENGTH = 0x00800000
 }
 
 ENTRY(Reset_Handler)
@@ -42,6 +43,16 @@ SECTIONS
         *(.tensor_pool*)
         . = ALIGN(4);
         __tensor_pool_end__ = .;
+    } > EXT_RAM
+
+    /* Place the simulated heap in external RAM as well */
+    .ext_heap (NOLOAD) :
+    {
+        . = ALIGN(8);
+        __ext_heap_start__ = .;
+        *(.ext_heap*)
+        . = ALIGN(8);
+        __ext_heap_end__ = .;
     } > EXT_RAM
 
     .bss (NOLOAD) :

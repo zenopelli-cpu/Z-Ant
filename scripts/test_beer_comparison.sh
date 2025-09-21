@@ -62,6 +62,7 @@ echo "=== Step 2: Test Reference (No CMSIS-NN) ==="
 cat > "$BUILD_DIR/test_reference.py" << 'EOF'
 #!/usr/bin/env python3
 import sys
+import os
 import subprocess
 import shutil
 from pathlib import Path
@@ -101,10 +102,11 @@ qemu_path = detect_qemu(None)
 elf_path = BUILD_DIR / "beer_reference.elf"
 
 # Build reference executable using original build process
+heap_kb = int(os.environ.get("ZANT_HEAP_KB", "2048"))
 toolchain.build(
     output=elf_path,
     base_sources=BEER_SOURCES,
-    macros=(*toolchain.default_macros(),),  # No CMSIS macros
+    macros=(*toolchain.default_macros(), f"ZANT_HEAP_KB={heap_kb}"),  # Configure heap
     extra_sources=(target_lib,),  # Only the beer library
     include_dirs=(GENERATED_DIR,),
 )
@@ -183,6 +185,7 @@ echo "=== Step 4: Test CMSIS-NN Optimized ==="
 cat > "$BUILD_DIR/test_cmsis.py" << 'EOF'
 #!/usr/bin/env python3
 import sys
+import os
 import subprocess
 import shutil
 from pathlib import Path
@@ -237,10 +240,11 @@ qemu_path = detect_qemu(None)
 elf_path = BUILD_DIR / "beer_cmsis.elf"
 
 # Build CMSIS executable using original build process
+heap_kb = int(os.environ.get("ZANT_HEAP_KB", "2048"))
 toolchain.build(
     output=elf_path,
     base_sources=BEER_SOURCES,
-    macros=(*toolchain.default_macros(), "ZANT_HAS_CMSIS_DSP=1", "ZANT_HAS_CMSIS_NN=1"),
+    macros=(*toolchain.default_macros(), "ZANT_HAS_CMSIS_DSP=1", "ZANT_HAS_CMSIS_NN=1", f"ZANT_HEAP_KB={heap_kb}"),
     extra_sources=(*cmsis_nn_sources, *cmsis_dsp_sources, target_lib),
     include_dirs=tuple(include_dirs),
 )
