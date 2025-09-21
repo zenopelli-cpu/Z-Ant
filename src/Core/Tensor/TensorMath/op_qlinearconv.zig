@@ -19,12 +19,18 @@ fn readScalarZPInternal(zp_any: anytype) i32 {
     const info = @typeInfo(ZPType);
 
     return switch (info) {
-        .pointer => readScalarZPInternal(zp_any.*),
-        .optional => if (zp_any) |payload| readScalarZPInternal(payload) else 0,
-        .slice => blk: {
-            if (zp_any.len == 0) break :blk 0;
-            break :blk @as(i32, @intCast(zp_any[0]));
+        .pointer => switch (info.pointer.size) {
+            .One => readScalarZPInternal(zp_any.*),
+            .Slice => blk: {
+                if (zp_any.len == 0) break :blk 0;
+                break :blk @as(i32, @intCast(zp_any[0]));
+            },
+            .Many, .C, .Sentinel => blk: {
+                // Treat bare pointers as single-value buffers and read the first element.
+                break :blk @as(i32, @intCast(zp_any[0]));
+            },
         },
+        .optional => if (zp_any) |payload| readScalarZPInternal(payload) else 0,
         .array => blk: {
             if (info.array.len == 0) break :blk 0;
             break :blk @as(i32, @intCast(zp_any[0]));
@@ -63,13 +69,16 @@ fn readPerChannelZPInternal(zp_any: anytype, m: usize) i32 {
     const info = @typeInfo(ZPType);
 
     return switch (info) {
-        .pointer => readPerChannelZPInternal(zp_any.*, m),
-        .optional => if (zp_any) |payload| readPerChannelZPInternal(payload, m) else 0,
-        .slice => blk: {
-            if (zp_any.len == 0) break :blk 0;
-            const idx = selectChannelIndex(zp_any.len, m);
-            break :blk @as(i32, @intCast(zp_any[idx]));
+        .pointer => switch (info.pointer.size) {
+            .One => readPerChannelZPInternal(zp_any.*, m),
+            .Slice => blk: {
+                if (zp_any.len == 0) break :blk 0;
+                const idx = selectChannelIndex(zp_any.len, m);
+                break :blk @as(i32, @intCast(zp_any[idx]));
+            },
+            .Many, .C, .Sentinel => @compileError("unsupported zero-point pointer representation"),
         },
+        .optional => if (zp_any) |payload| readPerChannelZPInternal(payload, m) else 0,
         .array => blk: {
             if (info.array.len == 0) break :blk 0;
             const idx = selectChannelIndex(info.array.len, m);
