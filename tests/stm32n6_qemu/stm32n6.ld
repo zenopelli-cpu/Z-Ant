@@ -2,7 +2,7 @@ MEMORY
 {
     FLASH (rx)  : ORIGIN = 0x00000000, LENGTH = 0x00400000
     RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00080000
-    /* External RAM for large heaps/buffers (QEMU modeled) */
+
     EXT_RAM (rwx) : ORIGIN = 0x31000000, LENGTH = 0x00800000
 }
 
@@ -45,7 +45,7 @@ SECTIONS
         __tensor_pool_end__ = .;
     } > EXT_RAM
 
-    /* Simulated heap lives in external RAM */
+
     .ext_heap (NOLOAD) :
     {
         . = ALIGN(8);

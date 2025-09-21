@@ -107,6 +107,7 @@ toolchain.build(
     output=elf_path,
     base_sources=BEER_SOURCES,
     macros=(*toolchain.default_macros(), f"ZANT_HEAP_KB={heap_kb}"),
+
     extra_sources=(target_lib,),  # Only the beer library
     include_dirs=(GENERATED_DIR,),
 )
