@@ -9,13 +9,20 @@
 <!-- BEER_TIMINGS_START -->
 Beer model timing (QEMU, Cortex-M55):
 
-- Reference: 3472.36 ms
-- CMSIS-NN: 1353.59 ms
-- Improvement: 2118.77 ms (61.0%)
+- Reference: 1019.10 ms
+- CMSIS-NN: 868.57 ms
+- Improvement: 150.53 ms (14.8%)
 <!-- BEER_TIMINGS_END -->
 
-
 ![image](https://github.com/user-attachments/assets/6a5346e5-58ec-4069-8143-c3b7b03586f3)
+
+## 🛠️ CI/CD
+
+- `zig-tests` – regression suite covering the core runtime.
+- `zig-codegen-tests` – validates generated operators and glue code.
+- `zant-benchmarks` – runs the Beer end-to-end benchmark and refreshes the metrics below.
+
+### 📈 Performance Snapshot
 
 
 ## Project Overview

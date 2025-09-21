@@ -2,6 +2,7 @@ const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("zant");
 const IR_zant = @import("../../IR_zant.zig");
+const accelerators = zant.core.tensor.accelerators;
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -19,6 +20,8 @@ const NodeZant = NodeZant_lib.NodeZant;
 
 const tensorMath = zant.core.tensor.math_standard;
 const utils = IR_zant.utils;
+
+const cmsis_codegen_enabled = accelerators.canUseCmsisHelium();
 
 // https://onnx.ai/onnx/operators/onnx__QLinearConv.html
 // INPUTS:
@@ -257,9 +260,10 @@ pub const QLinearConv = struct {
         // Determine the bias type
         const bias_type = if (self.input_B) |bias_tensor| bias_tensor.ty.toString() else "f32";
 
-        // Generate the function call - use SIMD optimized version for maximum performance
+        // Generate the function call - prefer CMSIS Helium when it is part of the build, otherwise fall back to the embedded-friendly path
+        const qlinearconv_impl = if (cmsis_codegen_enabled) "qlinearconv_simd_lean" else "qlinearconv_embedded_lean";
         try writer.print(
-            \\    tensMath.qlinearconv_simd_lean(
+            \\    tensMath.{s}(
             \\        {s}, // InputType
             \\        {s}, // WeightType
             \\        {s}, // ScaleType
@@ -282,6 +286,7 @@ pub const QLinearConv = struct {
             \\        "{s}", // auto_pad
             \\    ) catch return -1;
         , .{
+            qlinearconv_impl,
             target_type, // InputType
             self.input_w.ty.toString(), // WeightType (use actual weight type)
             "f32", // ScaleType (scales are always f32)
