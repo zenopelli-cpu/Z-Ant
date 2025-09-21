@@ -42,7 +42,7 @@ zig build lib \
     -Doutput_path="$BUILD_DIR" \
     -Dtarget=thumb-freestanding \
     -Dcpu=cortex_m55 \
-    -Doptimize=ReleaseSmall
+    -Doptimize=ReleaseFast
 
 # Backup the reference library (support both output_path and default zig-out path)
 if [ -f "$BUILD_DIR/libzant.a" ]; then
@@ -163,7 +163,7 @@ zig build lib \
     -Doutput_path="$BUILD_DIR" \
     -Dtarget=thumb-freestanding \
     -Dcpu=cortex_m55 \
-    -Doptimize=ReleaseSmall
+    -Doptimize=ReleaseFast
 
 # Backup the CMSIS library (support both output_path and default zig-out path)
 if [ -f "$BUILD_DIR/libzant.a" ]; then

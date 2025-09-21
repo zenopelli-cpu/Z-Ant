@@ -20,12 +20,12 @@ fn readScalarZPInternal(zp_any: anytype) i32 {
 
     return switch (info) {
         .pointer => switch (info.pointer.size) {
-            .One => readScalarZPInternal(zp_any.*),
-            .Slice => blk: {
+            .one => readScalarZPInternal(zp_any.*),
+            .slice => blk: {
                 if (zp_any.len == 0) break :blk 0;
                 break :blk @as(i32, @intCast(zp_any[0]));
             },
-            .Many, .C, .Sentinel => blk: {
+            .many, .c => blk: {
                 // Treat bare pointers as single-value buffers and read the first element.
                 break :blk @as(i32, @intCast(zp_any[0]));
             },
@@ -39,7 +39,7 @@ fn readScalarZPInternal(zp_any: anytype) i32 {
             if (info.vector.len == 0) break :blk 0;
             break :blk @as(i32, @intCast(zp_any[0]));
         },
-        .@"struct" => if (std.meta.trait.hasField("data")(ZPType)) blk: {
+        .@"struct" => if (@hasField(ZPType, "data")) blk: {
             const data = zp_any.data;
             if (data.len == 0) break :blk 0;
             break :blk @as(i32, @intCast(data[0]));
@@ -70,13 +70,13 @@ fn readPerChannelZPInternal(zp_any: anytype, m: usize) i32 {
 
     return switch (info) {
         .pointer => switch (info.pointer.size) {
-            .One => readPerChannelZPInternal(zp_any.*, m),
-            .Slice => blk: {
+            .one => readPerChannelZPInternal(zp_any.*, m),
+            .slice => blk: {
                 if (zp_any.len == 0) break :blk 0;
                 const idx = selectChannelIndex(zp_any.len, m);
                 break :blk @as(i32, @intCast(zp_any[idx]));
             },
-            .Many, .C, .Sentinel => @compileError("unsupported zero-point pointer representation"),
+            .many, .c => @compileError("unsupported zero-point pointer representation"),
         },
         .optional => if (zp_any) |payload| readPerChannelZPInternal(payload, m) else 0,
         .array => blk: {
@@ -89,7 +89,7 @@ fn readPerChannelZPInternal(zp_any: anytype, m: usize) i32 {
             const idx = selectChannelIndex(info.vector.len, m);
             break :blk @as(i32, @intCast(zp_any[idx]));
         },
-        .@"struct" => if (std.meta.trait.hasField("data")(ZPType)) blk: {
+        .@"struct" => if (@hasField(ZPType, "data")) blk: {
             const data = zp_any.data;
             if (data.len == 0) break :blk 0;
             const idx = selectChannelIndex(data.len, m);
