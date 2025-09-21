@@ -1240,8 +1240,6 @@ pub fn qlinearconv_cmsis_accelerated(
     const kernel_width = w.shape[3];
     const out_height = output.shape[2];
     const out_width = output.shape[3];
-    const total_input_pixels = batch_size * in_height * in_width;
-    const total_output_pixels = batch_size * out_height * out_width;
 
     const stride_h = if (stride) |s| s[0] else 1;
     const stride_w = if (stride) |s| (if (s.len > 1) s[1] else s[0]) else 1;
@@ -1347,7 +1345,7 @@ pub fn qlinearconv_cmsis_accelerated(
     var bias_ptr: ?[*]const i32 = null;
 
     if (bias) |b| {
-        var bias_buf = try pkg_allocator.alloc(i32, out_channels);
+        const bias_buf = try pkg_allocator.alloc(i32, out_channels);
         const has_per_channel_bias = b.data.len == out_channels;
         var bias_slice = bias_buf;
         for (0..out_channels) |ch| {
@@ -1358,7 +1356,7 @@ pub fn qlinearconv_cmsis_accelerated(
             bias_slice[ch] = @as(i32, @intFromFloat(@round(bias_float / bias_scale)));
         }
         bias_converted = bias_slice;
-        bias_ptr = @ptrCast([*]const i32, bias_slice.ptr);
+        bias_ptr = @ptrCast(bias_slice.ptr);
     }
 
     // Pack weights depending on conv kind:
@@ -1545,16 +1543,13 @@ pub fn qlinearconv_cmsis_accelerated(
         const grouped_out_buf = grouped_output.?;
         const grouped_in_ptr: [*]const i8 = grouped_in_buf.ptr;
         const grouped_out_ptr: [*]i8 = grouped_out_buf.ptr;
-<<<<<<< HEAD
-        const total_input_pixels = batch_size * in_height * in_width;
-        const total_output_pixels = batch_size * out_height * out_width;
-=======
->>>>>>> 30a7309 (Optimize CMSIS qlinearconv staging)
+        const total_input_pixels_group = batch_size * in_height * in_width;
+        const total_output_pixels_group = batch_size * out_height * out_width;
         var g: usize = 0;
         while (g < group_val) : (g += 1) {
             const channel_offset_in = g * group_in_channels;
             const channel_offset_out = g * group_out_channels;
-            for (0..total_input_pixels) |idx| {
+            for (0..total_input_pixels_group) |idx| {
                 const src_base = idx * in_channels + channel_offset_in;
                 const dst_base = idx * group_in_channels;
                 std.mem.copyForwards(i8, grouped_in_buf[dst_base .. dst_base + group_in_channels], input_buf[src_base .. src_base + group_in_channels]);
@@ -1586,7 +1581,7 @@ pub fn qlinearconv_cmsis_accelerated(
                 break;
             }
 
-            for (0..total_output_pixels) |idx| {
+            for (0..total_output_pixels_group) |idx| {
                 const src_base = idx * group_out_channels;
                 const dst_base = idx * out_channels + channel_offset_out;
                 std.mem.copyForwards(i8, output_buf[dst_base .. dst_base + group_out_channels], grouped_out_buf[src_base .. src_base + group_out_channels]);
