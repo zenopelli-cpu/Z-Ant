@@ -35,6 +35,16 @@ pub const PerChannelQuantParams = extern struct {
     shift: [*]i32,
 };
 
+pub const DwConvParams = extern struct {
+    input_offset: i32,
+    output_offset: i32,
+    ch_mult: i32,
+    stride: extern struct { h: i32, w: i32 },
+    padding: extern struct { h: i32, w: i32 },
+    dilation: extern struct { h: i32, w: i32 },
+    activation: extern struct { min: i32, max: i32 },
+};
+
 /// CMSIS-NN status codes shared across the accelerator bindings.
 pub const ARM_CMSIS_NN_SUCCESS: i32 = 0;
 
@@ -42,12 +52,54 @@ pub const ARM_CMSIS_NN_SUCCESS: i32 = 0;
 /// Additional Helium kernels (e.g. pooling) can extend this pattern by adding
 /// new structs next to `conv` while keeping the conditional stubs centralized.
 pub const conv = if (is_enabled) struct {
-    extern fn arm_convolve_s8_get_buffer_size(
+    pub extern fn arm_convolve_wrapper_s8_get_buffer_size(
+        conv_params: *const ConvParams,
+        input_dims: *const Dims,
+        filter_dims: *const Dims,
+        output_dims: *const Dims,
+    ) callconv(.C) i32;
+
+    // Depthwise wrappers (s8)
+    pub extern fn arm_depthwise_conv_wrapper_s8(
+        ctx: *const Context,
+        dw_conv_params: *const DwConvParams,
+        quant_params: *const PerChannelQuantParams,
+        input_dims: *const Dims,
+        input_data: [*]const i8,
+        filter_dims: *const Dims,
+        filter_data: [*]const i8,
+        bias_dims: *const Dims,
+        bias_data: ?[*]const i32,
+        output_dims: *const Dims,
+        output_data: [*]i8,
+    ) callconv(.C) i32;
+
+    pub extern fn arm_depthwise_conv_wrapper_s8_get_buffer_size(
+        dw_conv_params: *const DwConvParams,
+        input_dims: *const Dims,
+        filter_dims: *const Dims,
+        output_dims: *const Dims,
+    ) callconv(.C) i32;
+
+    pub extern fn arm_convolve_wrapper_s8(
+        ctx: *const Context,
+        conv_params: *const ConvParams,
+        quant_params: *const PerChannelQuantParams,
+        input_dims: *const Dims,
+        input_data: [*]const i8,
+        filter_dims: *const Dims,
+        filter_data: [*]const i8,
+        bias_dims: *const Dims,
+        bias_data: ?[*]const i32,
+        output_dims: *const Dims,
+        output_data: [*]i8,
+    ) callconv(.C) i32;
+    pub extern fn arm_convolve_s8_get_buffer_size(
         input_dims: *const Dims,
         filter_dims: *const Dims,
     ) callconv(.C) i32;
 
-    extern fn arm_convolve_s8(
+    pub extern fn arm_convolve_s8(
         ctx: *const Context,
         conv_params: *const ConvParams,
         quant_params: *const PerChannelQuantParams,
@@ -62,6 +114,85 @@ pub const conv = if (is_enabled) struct {
         output_data: [*]i8,
     ) callconv(.C) i32;
 } else struct {
+    pub fn arm_convolve_wrapper_s8_get_buffer_size(
+        conv_params: *const ConvParams,
+        input_dims: *const Dims,
+        filter_dims: *const Dims,
+        output_dims: *const Dims,
+    ) callconv(.C) i32 {
+        _ = conv_params;
+        _ = input_dims;
+        _ = filter_dims;
+        _ = output_dims;
+        return 0;
+    }
+
+    pub fn arm_convolve_wrapper_s8(
+        ctx: *const Context,
+        conv_params: *const ConvParams,
+        quant_params: *const PerChannelQuantParams,
+        input_dims: *const Dims,
+        input_data: [*]const i8,
+        filter_dims: *const Dims,
+        filter_data: [*]const i8,
+        bias_dims: *const Dims,
+        bias_data: ?[*]const i32,
+        output_dims: *const Dims,
+        output_data: [*]i8,
+    ) callconv(.C) i32 {
+        _ = ctx;
+        _ = conv_params;
+        _ = quant_params;
+        _ = input_dims;
+        _ = input_data;
+        _ = filter_dims;
+        _ = filter_data;
+        _ = bias_dims;
+        _ = bias_data;
+        _ = output_dims;
+        _ = output_data;
+        return 0;
+    }
+
+    pub fn arm_depthwise_conv_wrapper_s8(
+        ctx: *const Context,
+        dw_conv_params: *const DwConvParams,
+        quant_params: *const PerChannelQuantParams,
+        input_dims: *const Dims,
+        input_data: [*]const i8,
+        filter_dims: *const Dims,
+        filter_data: [*]const i8,
+        bias_dims: *const Dims,
+        bias_data: ?[*]const i32,
+        output_dims: *const Dims,
+        output_data: [*]i8,
+    ) callconv(.C) i32 {
+        _ = ctx;
+        _ = dw_conv_params;
+        _ = quant_params;
+        _ = input_dims;
+        _ = input_data;
+        _ = filter_dims;
+        _ = filter_data;
+        _ = bias_dims;
+        _ = bias_data;
+        _ = output_dims;
+        _ = output_data;
+        return 0;
+    }
+
+    pub fn arm_depthwise_conv_wrapper_s8_get_buffer_size(
+        dw_conv_params: *const DwConvParams,
+        input_dims: *const Dims,
+        filter_dims: *const Dims,
+        output_dims: *const Dims,
+    ) callconv(.C) i32 {
+        _ = dw_conv_params;
+        _ = input_dims;
+        _ = filter_dims;
+        _ = output_dims;
+        return 0;
+    }
     pub fn arm_convolve_s8_get_buffer_size(
         input_dims: *const Dims,
         filter_dims: *const Dims,
@@ -111,4 +242,3 @@ pub inline fn isEnabled() bool {
 pub inline fn supportsConvolveS8() bool {
     return is_enabled;
 }
-

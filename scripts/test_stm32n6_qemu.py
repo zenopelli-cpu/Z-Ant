@@ -424,15 +424,20 @@ def get_cmsis_sources(convolve_source: Path, nn_include: Path) -> tuple[Path, ..
         cmsis_nn_source = nn_include.parent / "Source"
         if cmsis_nn_source.exists():
             additional_sources = [
-                # Buffer size functions
+                # Wrapper and buffer size helpers
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_wrapper_s8.c",
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_get_buffer_sizes_s8.c",
-                # Matrix multiplication kernels
+                # Common conv kernels the wrapper may dispatch to
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_1x1_s8.c",
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_1x1_s8_fast.c",
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_1_x_n_s8.c",
+                # MatMul kernels used by conv
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_nn_mat_mult_s8.c",
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_nn_mat_mult_kernel_s8_s16.c",
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_nn_mat_mult_kernel_row_offset_s8_s16.c",
                 # Support functions
                 cmsis_nn_source / "NNSupportFunctions" / "arm_s8_to_s16_unordered_with_offset.c",
                 cmsis_nn_source / "NNSupportFunctions" / "arm_nn_mat_mult_nt_t_s8.c",
-                # Additional support functions that might be needed
                 cmsis_nn_source / "NNSupportFunctions" / "arm_nn_vec_mat_mult_t_s8.c",
                 cmsis_nn_source / "NNSupportFunctions" / "arm_nn_mat_mult_nt_t_s8_s32.c",
             ]

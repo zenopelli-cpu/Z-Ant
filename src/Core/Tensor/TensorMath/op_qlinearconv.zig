@@ -704,6 +704,8 @@ pub fn qlinearconv_embedded_lean(
         return qlinearconv_lean(InputType, WeightType, ScaleType, void, BiasType, x, x_scale, x_zero_point, w, w_scale, w_zero_point, output, y_scale, y_zero_point, bias, stride, pads, dilations, group, auto_pad);
     }
 
+    // Pure reference implementation - no CMSIS dispatch overhead
+
     if (x.shape.len != 4 or w.shape.len != 4 or output.shape.len != 4) {
         return TensorMathError.InvalidDimensions;
     }
@@ -1070,6 +1072,442 @@ inline fn convGenericEmbeddedOptimized(
         }
     }
 }
+
+// Helper function to quantize multiplier for CMSIS-NN
+fn quantizeMultiplier(scale: f32, multiplier: *i32, shift: *i32) void {
+    if (scale == 0.0) {
+        multiplier.* = 0;
+        shift.* = 0;
+        return;
+    }
+
+    var sig = scale;
+    var exp: i32 = 0;
+
+    // Normalize to [0.5, 1.0) range
+    while (sig >= 1.0) {
+        sig /= 2.0;
+        exp += 1;
+    }
+    while (sig < 0.5) {
+        sig *= 2.0;
+        exp -= 1;
+    }
+
+    // Convert to fixed point representation
+    const fixed_point_multiplier = @as(i32, @intFromFloat(@round(sig * (1 << 31))));
+
+    multiplier.* = fixed_point_multiplier;
+    shift.* = exp;
+}
+
+/// Direct CMSIS-NN wrapper - passes quantized data directly with minimal overhead
+/// CMSIS-NN accelerated quantized convolution - direct implementation without fallback overhead
+/// Compile-time dispatch function that chooses the best implementation
+pub fn qlinearconv_dispatch(
+    comptime InputType: anytype,
+    comptime WeightType: anytype,
+    comptime ScaleType: anytype,
+    comptime OutputType: anytype,
+    comptime BiasType: anytype,
+    x: *const Tensor(InputType),
+    x_scale: *const Tensor(ScaleType),
+    x_zero_point: anytype,
+    w: *const Tensor(WeightType),
+    w_scale: *const Tensor(ScaleType),
+    w_zero_point: anytype,
+    output: *Tensor(InputType),
+    y_scale: *const Tensor(ScaleType),
+    y_zero_point: anytype,
+    bias: ?*const Tensor(BiasType),
+    stride: ?[]const usize,
+    pads: ?[]const usize,
+    dilations: ?[]const usize,
+    group: ?usize,
+    auto_pad: []const u8,
+) !void {
+    const accelerators = @import("../Accelerators/mod.zig");
+    if (!accelerators.canUseCmsisHelium()) {
+        // Use original path in reference build to avoid CMSIS stubs
+        return qlinearconv_lean(
+            InputType,
+            WeightType,
+            ScaleType,
+            void,
+            BiasType,
+            x,
+            x_scale,
+            x_zero_point,
+            w,
+            w_scale,
+            w_zero_point,
+            output,
+            y_scale,
+            y_zero_point,
+            bias,
+            stride,
+            pads,
+            dilations,
+            group,
+            auto_pad,
+        );
+    }
+
+    // CMSIS path
+    return qlinearconv_cmsis_accelerated(
+        InputType,
+        WeightType,
+        ScaleType,
+        OutputType,
+        BiasType,
+        x,
+        x_scale,
+        x_zero_point,
+        w,
+        w_scale,
+        w_zero_point,
+        output,
+        y_scale,
+        y_zero_point,
+        bias,
+        stride,
+        pads,
+        dilations,
+        group,
+        auto_pad,
+    );
+}
+
+/// CMSIS-NN accelerated quantized convolution - direct implementation without fallback overhead
+pub fn qlinearconv_cmsis_accelerated(
+    comptime InputType: anytype,
+    comptime WeightType: anytype,
+    comptime ScaleType: anytype,
+    comptime _: anytype,
+    comptime BiasType: anytype,
+    x: *const Tensor(InputType),
+    _x_scale: *const Tensor(ScaleType),
+    x_zero_point: anytype,
+    w: *const Tensor(WeightType),
+    _w_scale: *const Tensor(ScaleType),
+    w_zero_point_any: anytype,
+    output: *Tensor(InputType),
+    _y_scale: *const Tensor(ScaleType),
+    y_zero_point: anytype,
+    bias: ?*const Tensor(BiasType),
+    stride: ?[]const usize,
+    pads: ?[]const usize,
+    dilations: ?[]const usize,
+    group: ?usize,
+    _auto_pad: []const u8,
+) !void {
+    // Mark CMSIS usage for testing
+    const accelerators = @import("../Accelerators/mod.zig");
+    accelerators.markCmsisUsed();
+
+    // DEBUG: Print function entry
+    // std.debug.print("CMSIS DEBUG: qlinearconv_cmsis_accelerated called\n", .{});
+
+    // Suppress unused parameter warnings
+    // w_zero_point_any is actually used later when packing weights (readPerChannelZP)
+    _ = _auto_pad;
+
+    // Basic validation
+    if (x.shape.len != 4 or w.shape.len != 4 or output.shape.len != 4) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    if ((group orelse 1) != 1) {
+        return TensorMathError.InvalidGroupParameter;
+    }
+
+    const dilation_h = if (dilations) |d| d[0] else 1;
+    const dilation_w = if (dilations) |d| (if (d.len > 1) d[1] else d[0]) else 1;
+    if (dilation_h != 1 or dilation_w != 1) {
+        return TensorMathError.InvalidGroupParameter;
+    }
+
+    const cmsis_nn = @import("../Accelerators/stm32n6/cmsis_nn.zig");
+
+    // Extract dimensions
+    const batch_size = x.shape[0];
+    const in_channels = x.shape[1];
+    const in_height = x.shape[2];
+    const in_width = x.shape[3];
+    const out_channels = w.shape[0];
+    const kernel_height = w.shape[2];
+    const kernel_width = w.shape[3];
+    const out_height = output.shape[2];
+    const out_width = output.shape[3];
+
+    const stride_h = if (stride) |s| s[0] else 1;
+    const stride_w = if (stride) |s| (if (s.len > 1) s[1] else s[0]) else 1;
+    const pads_arr = pads orelse &[_]usize{ 0, 0, 0, 0 };
+    const pad_h = pads_arr[0];
+    const pad_w = pads_arr[1];
+
+    // DEBUG: Print tensor dimensions
+    // std.debug.print("CMSIS DEBUG: Input dims: {}x{}x{}x{}\n", .{ batch_size, in_channels, in_height, in_width });
+    // std.debug.print("CMSIS DEBUG: Weight dims: {}x{}x{}x{}\n", .{ out_channels, in_channels, kernel_height, kernel_width });
+    // std.debug.print("CMSIS DEBUG: Output dims: {}x{}x{}x{}\n", .{ batch_size, out_channels, out_height, out_width });
+    // std.debug.print("CMSIS DEBUG: Stride: {}x{}, Pad: {}x{}\n", .{ stride_h, stride_w, pad_h, pad_w });
+
+    // Extract zero points
+    const input_zero_point = readScalarZP(InputType, x_zero_point);
+    const output_zero_point = readScalarZP(InputType, y_zero_point);
+
+    // DEBUG: Print zero points
+    // std.debug.print("CMSIS DEBUG: input_zero_point: {}, output_zero_point: {}\n", .{ input_zero_point, output_zero_point });
+
+    // Helper functions for zero point and scale extraction
+    const asF32 = struct {
+        fn call(comptime T: type, v: T) f32 {
+            return switch (@typeInfo(T)) {
+                .float => @as(f32, @floatCast(v)),
+                .int, .comptime_int => @as(f32, @floatFromInt(v)),
+                else => @compileError("Unsupported type for float cast"),
+            };
+        }
+    }.call;
+
+    // Extract quantization parameters
+    const x_scale_val = asF32(ScaleType, _x_scale.data[0]);
+    const y_scale_val = asF32(ScaleType, _y_scale.data[0]);
+
+    // DEBUG: Print scale values
+    // std.debug.print("CMSIS DEBUG: x_scale: {}, y_scale: {}\n", .{ x_scale_val, y_scale_val });
+
+    // Compute real quantization multipliers and shifts
+    var multipliers: [512]i32 = undefined;
+    var shifts: [512]i32 = undefined;
+    for (0..out_channels) |ch| {
+        const w_scale_val = if (_w_scale.data.len == out_channels)
+            asF32(ScaleType, _w_scale.data[ch])
+        else
+            asF32(ScaleType, _w_scale.data[0]);
+
+        // Compute quantization multiplier and shift
+        const scale_ratio = (x_scale_val * w_scale_val) / y_scale_val;
+        quantizeMultiplier(scale_ratio, &multipliers[ch], &shifts[ch]);
+
+        // DEBUG: Print first few quantization parameters
+        if (ch < 3) {
+            // std.debug.print("CMSIS DEBUG: ch{}: w_scale: {}, scale_ratio: {}, mult: {}, shift: {}\n", .{ ch, w_scale_val, scale_ratio, multipliers[ch], shifts[ch] });
+        }
+    }
+
+    // Now implementing the actual CMSIS-NN convolution with proper u8 to i8 conversion
+
+    // Setup CMSIS-NN dimensions
+    var input_dims = cmsis_nn.Dims{ .n = @intCast(batch_size), .h = @intCast(in_height), .w = @intCast(in_width), .c = @intCast(in_channels) };
+    var filter_dims = cmsis_nn.Dims{ .n = @intCast(out_channels), .h = @intCast(kernel_height), .w = @intCast(kernel_width), .c = @intCast(in_channels) };
+    var output_dims = cmsis_nn.Dims{ .n = @intCast(batch_size), .h = @intCast(out_height), .w = @intCast(out_width), .c = @intCast(out_channels) };
+    var bias_dims = cmsis_nn.Dims{ .n = 1, .h = 1, .w = 1, .c = @intCast(out_channels) };
+
+    // Proper CMSIS-NN offset calculation and data conversion
+    // CMSIS arm_convolve_s8 expects s8 input/output and uses offsets in the same s8 domain.
+    // If our tensors are u8, convert data to s8 domain by subtracting 128, and convert offsets accordingly.
+    const is_u8_input = InputType == u8;
+    const input_zero_point_s8: i32 = if (is_u8_input)
+        @as(i32, @intCast(input_zero_point)) - 128
+    else
+        @as(i32, @intCast(input_zero_point));
+    const output_zero_point_s8: i32 = if (is_u8_input)
+        @as(i32, @intCast(output_zero_point)) - 128
+    else
+        @as(i32, @intCast(output_zero_point));
+
+    const cmsis_input_offset = -input_zero_point_s8;
+    const cmsis_output_offset = output_zero_point_s8;
+
+    var conv_params = cmsis_nn.ConvParams{
+        .input_offset = cmsis_input_offset,
+        .output_offset = cmsis_output_offset,
+        .stride = .{ .h = @intCast(stride_h), .w = @intCast(stride_w) },
+        .padding = .{ .h = @intCast(pad_h), .w = @intCast(pad_w) },
+        .dilation = .{ .h = 1, .w = 1 },
+        // CMSIS s8 kernels clamp in s8 domain
+        .activation = .{ .min = -128, .max = 127 },
+    };
+
+    var quant_params = cmsis_nn.PerChannelQuantParams{
+        .multiplier = multipliers[0..out_channels].ptr,
+        .shift = shifts[0..out_channels].ptr,
+    };
+
+    // Convert bias to i32 format as expected by CMSIS-NN
+    var bias_i32: [512]i32 = undefined;
+    var bias_ptr: ?[*]const i32 = null;
+
+    if (bias) |b| {
+        for (0..out_channels) |ch| {
+            const bias_val = if (b.data.len == 1) b.data[0] else b.data[ch];
+            // Bias needs to be scaled by input_scale * weight_scale
+            const w_scale_val = asF32(ScaleType, _w_scale.data[if (_w_scale.data.len == 1) 0 else ch]);
+            const bias_scale = x_scale_val * w_scale_val;
+            const bias_float = asF32(BiasType, bias_val);
+            const bias_quantized = @as(i32, @intFromFloat(@round(bias_float / bias_scale)));
+            bias_i32[ch] = bias_quantized;
+        }
+        bias_ptr = bias_i32[0..out_channels].ptr;
+    }
+
+    // Pack weights to OHWI layout expected by CMSIS and subtract per-output-channel weight zero points
+    // Our internal layout is [out_channels][in_channels][kH][kW] with kw fastest
+    const total_weights: usize = out_channels * in_channels * kernel_height * kernel_width;
+    var w_packed: []i8 = try pkg_allocator.alloc(i8, total_weights);
+    defer pkg_allocator.free(w_packed);
+    var wp: usize = 0;
+    for (0..out_channels) |m| {
+        // Per-channel weight zp (broadcast or per-channel)
+        const w_zp_m: i32 = readPerChannelZP(w_zero_point_any, m, out_channels);
+        for (0..kernel_height) |kh| {
+            for (0..kernel_width) |kw| {
+                for (0..in_channels) |c| {
+                    const weight_idx = ((m * in_channels + c) * kernel_height + kh) * kernel_width + kw;
+                    const w_q_i32 = @as(i32, @intCast(w.data[weight_idx]));
+                    var val = w_q_i32 - w_zp_m;
+                    if (val < -128) val = -128;
+                    if (val > 127) val = 127;
+                    w_packed[wp] = @as(i8, @intCast(val));
+                    wp += 1;
+                }
+            }
+        }
+    }
+
+    // Allocate buffer required by CMSIS-NN wrapper
+    const buffer_size = cmsis_nn.conv.arm_convolve_wrapper_s8_get_buffer_size(&conv_params, &input_dims, &filter_dims, &output_dims);
+    var dyn_buffer: ?[]u8 = null;
+    defer if (dyn_buffer) |buf| pkg_allocator.free(buf);
+    const buffer_ptr: ?*anyopaque = blk_buf: {
+        if (buffer_size > 0) {
+            const buf = try pkg_allocator.alloc(u8, @intCast(buffer_size));
+            dyn_buffer = buf;
+            break :blk_buf buf.ptr;
+        } else {
+            break :blk_buf null;
+        }
+    };
+
+    // DEBUG: Store first few input values and parameters for comparison
+    var debug_info: struct {
+        input_val: u8,
+        weight_val: i8,
+        input_offset: i32,
+        output_offset: i32,
+        multiplier: i32,
+        shift: i32,
+        buffer_size: i32,
+    } = .{
+        .input_val = x.data[0],
+        .weight_val = w.data[0],
+        .input_offset = cmsis_input_offset,
+        .output_offset = cmsis_output_offset,
+        .multiplier = multipliers[0],
+        .shift = shifts[0],
+        .buffer_size = buffer_size,
+    };
+    _ = &debug_info; // Prevent optimization
+
+    var ctx = cmsis_nn.Context{ .buf = buffer_ptr, .size = @intCast(buffer_size) };
+    // Wrapper API does not use upscale_dims
+
+    // Prepare input/output pointers in s8 domain
+    var input_converted: ?[]i8 = null;
+    var output_converted: ?[]i8 = null;
+    defer if (input_converted) |buf| pkg_allocator.free(buf);
+    defer if (output_converted) |buf| pkg_allocator.free(buf);
+
+    const input_ptr_s8: [*]const i8 = blk: {
+        if (is_u8_input) {
+            // Convert u8 -> s8 by subtracting 128
+            const len = x.data.len;
+            const buf = try pkg_allocator.alloc(i8, len);
+            var i: usize = 0;
+            while (i < len) : (i += 1) {
+                buf[i] = @as(i8, @intCast(@as(i32, @intCast(x.data[i])) - 128));
+            }
+            input_converted = buf;
+            break :blk buf.ptr;
+        } else {
+            break :blk @ptrCast(@as([*]const i8, @ptrCast(x.data.ptr)));
+        }
+    };
+
+    const output_ptr_s8: [*]i8 = blk2: {
+        if (is_u8_input) {
+            // Use temporary s8 buffer; convert back to u8 after kernel
+            const len = output.data.len;
+            const buf = try pkg_allocator.alloc(i8, len);
+            output_converted = buf;
+            break :blk2 buf.ptr;
+        } else {
+            break :blk2 @ptrCast(@as([*]i8, @ptrCast(output.data.ptr)));
+        }
+    };
+
+    // Call CMSIS-NN wrapper
+    const result = cmsis_nn.conv.arm_convolve_wrapper_s8(
+        &ctx,
+        &conv_params,
+        &quant_params,
+        &input_dims,
+        input_ptr_s8,
+        &filter_dims,
+        w_packed.ptr,
+        &bias_dims,
+        if (bias_ptr) |ptr| @ptrCast(ptr) else null,
+        &output_dims,
+        output_ptr_s8,
+    );
+
+    if (result != cmsis_nn.ARM_CMSIS_NN_SUCCESS) {
+        return TensorMathError.UnexpectedError;
+    }
+
+    // If input was u8, convert s8 output back to u8 domain by adding 128
+    if (is_u8_input) {
+        const buf = output_converted.?;
+        const len = output.data.len;
+        var i: usize = 0;
+        while (i < len) : (i += 1) {
+            const v = @as(i32, buf[i]) + 128;
+            output.data[i] = @as(u8, @intCast(std.math.clamp(v, 0, 255)));
+        }
+    }
+}
+
+// Renamed version of the original embedded lean function
+fn qlinearconv_embedded_lean_fallback(
+    comptime InputType: anytype,
+    comptime WeightType: anytype,
+    comptime ScaleType: anytype,
+    comptime _: anytype,
+    comptime BiasType: anytype,
+    x: *const Tensor(InputType),
+    x_scale: *const Tensor(ScaleType),
+    x_zero_point: anytype,
+    w: *const Tensor(WeightType),
+    w_scale: *const Tensor(ScaleType),
+    w_zero_point: anytype,
+    output: *Tensor(InputType),
+    y_scale: *const Tensor(ScaleType),
+    y_zero_point: anytype,
+    bias: ?*const Tensor(BiasType),
+    stride: ?[]const usize,
+    pads: ?[]const usize,
+    dilations: ?[]const usize,
+    group: ?usize,
+    auto_pad: []const u8,
+) !void {
+    // DEBUG: Print reference function entry
+    // std.debug.print("REFERENCE DEBUG: qlinearconv_embedded_lean_fallback called\n", .{});
+    // TODO: Move the original embedded lean implementation here
+    // For now, just call the regular qlinearconv_lean
+    return qlinearconv_lean(InputType, WeightType, ScaleType, void, BiasType, x, x_scale, x_zero_point, w, w_scale, w_zero_point, output, y_scale, y_zero_point, bias, stride, pads, dilations, group, auto_pad);
+}
+
 /// Calculate output shape for QLinearConv - same as regular Conv
 pub fn get_qlinearconv_output_shape(
     comptime T: type,
