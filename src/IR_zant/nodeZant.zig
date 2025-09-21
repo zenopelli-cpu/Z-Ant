@@ -44,7 +44,8 @@ pub const NodeZant = struct {
 
     /// Deinitializes a NodeZant instance, freeing allocated resources.
     pub fn deinit(self: *NodeZant) void {
-        std.debug.print("\n    {s}.deinit()  ", .{self.name.?});
+        const name = if (self.name) |n| n else "<unnamed>";
+        std.debug.print("\n    {s}.deinit()  ", .{name});
         self.next.deinit();
     }
 

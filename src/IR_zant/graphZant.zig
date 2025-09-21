@@ -38,7 +38,8 @@ pub const GraphZant = struct {
 
         // Deinitialize each NodeZant in the nodes list REMOVED FOR TESTING
         for (self.nodes.items) |node| {
-            std.debug.print("\n  {s}.deinit()  ", .{node.name.?});
+            const n = if (node.name) |nn| nn else "<unnamed>";
+            std.debug.print("\n  {s}.deinit()  ", .{n});
             node.deinit();
             allocator.destroy(node); // Free the node
         }
@@ -71,7 +72,7 @@ pub const GraphZant = struct {
         if (nodes_to_remove.items.len == 0) return;
 
         std.debug.print("\n\nNodes to be removed:", .{});
-        for (nodes_to_remove.items) |n| std.debug.print("\n      {s}", .{n.name.?});
+        for (nodes_to_remove.items) |n| std.debug.print("\n      {s}", .{n.name orelse "<unnamed>"});
         std.debug.print("\n", .{});
 
         {
@@ -131,6 +132,7 @@ pub const GraphZant = struct {
             while (j < self.nodes.items.len) {
                 if (self.nodes.items[j] == n) {
                     n.deinit();
+                    allocator.destroy(n); // Free the node memory
                     _ = self.nodes.orderedRemove(j);
                     break;
                 }

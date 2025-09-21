@@ -1,6 +1,6 @@
 const std = @import("std");
-const allocator = std.heap.page_allocator;
 const zant = @import("zant");
+const allocator = zant.utils.allocator.allocator;
 const IR_zant = @import("../../IR_zant.zig");
 
 // --- zant IR---
@@ -267,7 +267,6 @@ pub const Fused_Dequant_Clip_Quant = struct {
         writer: std.fs.File.Writer,
     ) !void {
         _ = self; // Self is not used in this static-like function
-        _ = output_quantized_tensor; // Output is the same as input (in-place)
 
         // Helper to create tensor strings
         const createTensorStr = struct {
@@ -290,6 +289,8 @@ pub const Fused_Dequant_Clip_Quant = struct {
         defer allocator.free(str_input_scale);
         const str_input_zero_point = try createTensorStr(input_zero_point_tensor);
         defer allocator.free(str_input_zero_point);
+        const str_output_quantized = try createTensorStr(output_quantized_tensor);
+        defer allocator.free(str_output_quantized);
         const str_output_scale = try createTensorStr(output_scale_tensor);
         defer allocator.free(str_output_scale);
         const str_output_zero_point = try createTensorStr(output_zero_point_tensor);
@@ -305,7 +306,7 @@ pub const Fused_Dequant_Clip_Quant = struct {
             \\        {s}.data[0], // input_zero_point
             \\        {d:.6}, // min_val
             \\        {d:.6}, // max_val
-            \\        @constCast({s}), // output = input (in-place)
+            \\        @constCast({s}), // output tensor
             \\        {s}.data[0], // output_scale
             \\        {s}.data[0], // output_zero_point
             \\    ) catch return -1;
@@ -317,7 +318,7 @@ pub const Fused_Dequant_Clip_Quant = struct {
             str_input_zero_point,
             min_val,
             max_val,
-            str_input_quantized,
+            str_output_quantized,
             str_output_scale,
             str_output_zero_point,
         });
