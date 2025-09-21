@@ -427,6 +427,7 @@ def get_cmsis_sources(convolve_source: Path, nn_include: Path) -> tuple[Path, ..
                 # Wrapper and buffer size helpers
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_wrapper_s8.c",
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_get_buffer_sizes_s8.c",
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_depthwise_conv_get_buffer_sizes_s8.c",
                 # Common conv kernels the wrapper may dispatch to
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_1x1_s8.c",
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_1x1_s8_fast.c",

@@ -2,7 +2,8 @@ MEMORY
 {
     FLASH (rx)  : ORIGIN = 0x00000000, LENGTH = 0x00400000
     RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00080000
-    EXT_RAM (rwx) : ORIGIN = 0x31000000, LENGTH = 0x00200000
+    /* External RAM for large heaps/buffers (QEMU modeled) */
+    EXT_RAM (rwx) : ORIGIN = 0x31000000, LENGTH = 0x00800000
 }
 
 ENTRY(Reset_Handler)
@@ -44,6 +45,16 @@ SECTIONS
         __tensor_pool_end__ = .;
     } > EXT_RAM
 
+    /* Simulated heap lives in external RAM */
+    .ext_heap (NOLOAD) :
+    {
+        . = ALIGN(8);
+        __ext_heap_start__ = .;
+        *(.ext_heap*)
+        . = ALIGN(8);
+        __ext_heap_end__ = .;
+    } > EXT_RAM
+
     .bss (NOLOAD) :
     {
         __sbss = .;
@@ -74,5 +85,7 @@ PROVIDE(_sbss = __sbss);
 PROVIDE(_ebss = __ebss);
 PROVIDE(__tensor_pool_start = __tensor_pool_start__);
 PROVIDE(__tensor_pool_end = __tensor_pool_end__);
+PROVIDE(__ext_heap_start = __ext_heap_start__);
+PROVIDE(__ext_heap_end = __ext_heap_end__);
 PROVIDE(__exidx_start = __etext);
 PROVIDE(__exidx_end = __etext);

@@ -1199,7 +1199,7 @@ pub fn qlinearconv_cmsis_accelerated(
     pads: ?[]const usize,
     dilations: ?[]const usize,
     group: ?usize,
-    _auto_pad: []const u8,
+    _: []const u8,
 ) !void {
     // Mark CMSIS usage for testing
     const accelerators = @import("../Accelerators/mod.zig");
