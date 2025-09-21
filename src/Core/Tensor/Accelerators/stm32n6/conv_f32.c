@@ -4,28 +4,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-// Only include standard library headers when not in freestanding mode
-#ifndef __STDC_HOSTED__
-// Freestanding environment - provide minimal stubs
-static inline void *malloc(size_t size) {
-  (void)size;
-  return NULL;
-}
-static inline void free(void *ptr) { (void)ptr; }
-static inline void *memcpy(void *dest, const void *src, size_t n) {
-  char *d = (char *)dest;
-  const char *s = (const char *)src;
-  for (size_t i = 0; i < n; i++)
-    d[i] = s[i];
-  return dest;
-}
-static inline void *memset(void *s, int c, size_t n) {
-  char *p = (char *)s;
-  for (size_t i = 0; i < n; i++)
-    p[i] = (char)c;
-  return s;
-}
-#endif
 
 // Only include math.h and ARM headers when actually compiling for target, not
 // during codegen

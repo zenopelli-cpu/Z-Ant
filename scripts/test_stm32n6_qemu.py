@@ -431,6 +431,11 @@ def get_cmsis_sources(convolve_source: Path, nn_include: Path) -> tuple[Path, ..
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_1x1_s8.c",
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_1x1_s8_fast.c",
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_1_x_n_s8.c",
+                # Depthwise wrapper and variants
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_depthwise_conv_wrapper_s8.c",
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_depthwise_conv_s8.c",
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_depthwise_conv_s8_opt.c",
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_depthwise_conv_3x3_s8.c",
                 # MatMul kernels used by conv
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_nn_mat_mult_s8.c",
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_nn_mat_mult_kernel_s8_s16.c",

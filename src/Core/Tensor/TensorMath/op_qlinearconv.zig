@@ -1128,8 +1128,8 @@ pub fn qlinearconv_dispatch(
 ) !void {
     const accelerators = @import("../Accelerators/mod.zig");
     if (!accelerators.canUseCmsisHelium()) {
-        // Use original path in reference build to avoid CMSIS stubs
-        return qlinearconv_lean(
+        // Reference build: force embedded fixed-point implementation
+        return qlinearconv_embedded_lean(
             InputType,
             WeightType,
             ScaleType,
@@ -1210,22 +1210,15 @@ pub fn qlinearconv_cmsis_accelerated(
 
     // Suppress unused parameter warnings
     // w_zero_point_any is actually used later when packing weights (readPerChannelZP)
-    _ = _auto_pad;
 
     // Basic validation
     if (x.shape.len != 4 or w.shape.len != 4 or output.shape.len != 4) {
         return TensorMathError.InvalidDimensions;
     }
 
-    if ((group orelse 1) != 1) {
-        return TensorMathError.InvalidGroupParameter;
-    }
-
+    const group_val: usize = group orelse 1;
     const dilation_h = if (dilations) |d| d[0] else 1;
     const dilation_w = if (dilations) |d| (if (d.len > 1) d[1] else d[0]) else 1;
-    if (dilation_h != 1 or dilation_w != 1) {
-        return TensorMathError.InvalidGroupParameter;
-    }
 
     const cmsis_nn = @import("../Accelerators/stm32n6/cmsis_nn.zig");
 
@@ -1300,7 +1293,6 @@ pub fn qlinearconv_cmsis_accelerated(
 
     // Setup CMSIS-NN dimensions
     var input_dims = cmsis_nn.Dims{ .n = @intCast(batch_size), .h = @intCast(in_height), .w = @intCast(in_width), .c = @intCast(in_channels) };
-    var filter_dims = cmsis_nn.Dims{ .n = @intCast(out_channels), .h = @intCast(kernel_height), .w = @intCast(kernel_width), .c = @intCast(in_channels) };
     var output_dims = cmsis_nn.Dims{ .n = @intCast(batch_size), .h = @intCast(out_height), .w = @intCast(out_width), .c = @intCast(out_channels) };
     var bias_dims = cmsis_nn.Dims{ .n = 1, .h = 1, .w = 1, .c = @intCast(out_channels) };
 
@@ -1325,7 +1317,7 @@ pub fn qlinearconv_cmsis_accelerated(
         .output_offset = cmsis_output_offset,
         .stride = .{ .h = @intCast(stride_h), .w = @intCast(stride_w) },
         .padding = .{ .h = @intCast(pad_h), .w = @intCast(pad_w) },
-        .dilation = .{ .h = 1, .w = 1 },
+        .dilation = .{ .h = @intCast(dilation_h), .w = @intCast(dilation_w) },
         // CMSIS s8 kernels clamp in s8 domain
         .activation = .{ .min = -128, .max = 127 },
     };
@@ -1352,19 +1344,42 @@ pub fn qlinearconv_cmsis_accelerated(
         bias_ptr = bias_i32[0..out_channels].ptr;
     }
 
-    // Pack weights to OHWI layout expected by CMSIS and subtract per-output-channel weight zero points
-    // Our internal layout is [out_channels][in_channels][kH][kW] with kw fastest
+    // Pack weights depending on conv kind:
+    // - Regular conv: OHWI (out, kh, kw, in)
+    // - Depthwise conv: [1, kh, kw, C_out] per CMSIS DW wrapper
     const total_weights: usize = out_channels * in_channels * kernel_height * kernel_width;
     var w_packed: []i8 = try pkg_allocator.alloc(i8, total_weights);
     defer pkg_allocator.free(w_packed);
-    var wp: usize = 0;
-    for (0..out_channels) |m| {
-        // Per-channel weight zp (broadcast or per-channel)
-        const w_zp_m: i32 = readPerChannelZP(w_zero_point_any, m, out_channels);
+
+    if (group_val == 1) {
+        // Regular conv OHWI
+        var wp: usize = 0;
+        for (0..out_channels) |m| {
+            const w_zp_m: i32 = readPerChannelZP(w_zero_point_any, m, out_channels);
+            for (0..kernel_height) |kh| {
+                for (0..kernel_width) |kw| {
+                    for (0..in_channels) |c| {
+                        const weight_idx = ((m * in_channels + c) * kernel_height + kh) * kernel_width + kw;
+                        const w_q_i32 = @as(i32, @intCast(w.data[weight_idx]));
+                        var val = w_q_i32 - w_zp_m;
+                        if (val < -128) val = -128;
+                        if (val > 127) val = 127;
+                        w_packed[wp] = @as(i8, @intCast(val));
+                        wp += 1;
+                    }
+                }
+            }
+        }
+    } else if (group_val == in_channels) {
+        // Depthwise: expect C_out = in_channels * channel_multiplier and layout [1, kh, kw, C_out]
+        // Source layout is [M=out_channels, C/group=weight_in_channels(=1), kh, kw]
+        const weight_in_channels = w.shape[1]; // should be 1 for depthwise
+        var wp: usize = 0;
         for (0..kernel_height) |kh| {
             for (0..kernel_width) |kw| {
-                for (0..in_channels) |c| {
-                    const weight_idx = ((m * in_channels + c) * kernel_height + kh) * kernel_width + kw;
+                for (0..out_channels) |m| {
+                    const w_zp_m: i32 = readPerChannelZP(w_zero_point_any, m, out_channels);
+                    const weight_idx = ((m * weight_in_channels + 0) * kernel_height + kh) * kernel_width + kw;
                     const w_q_i32 = @as(i32, @intCast(w.data[weight_idx]));
                     var val = w_q_i32 - w_zp_m;
                     if (val < -128) val = -128;
@@ -1374,21 +1389,57 @@ pub fn qlinearconv_cmsis_accelerated(
                 }
             }
         }
+    } else {
+        // Unsupported grouped conv for CMSIS wrapper right now: fallback to embedded path for correctness
+        return qlinearconv_embedded_lean_fallback(
+            InputType,
+            WeightType,
+            ScaleType,
+            void,
+            BiasType,
+            x,
+            _x_scale,
+            x_zero_point,
+            w,
+            _w_scale,
+            w_zero_point_any,
+            output,
+            _y_scale,
+            y_zero_point,
+            bias,
+            stride,
+            pads,
+            dilations,
+            group,
+            _auto_pad,
+        );
     }
 
-    // Allocate buffer required by CMSIS-NN wrapper
-    const buffer_size = cmsis_nn.conv.arm_convolve_wrapper_s8_get_buffer_size(&conv_params, &input_dims, &filter_dims, &output_dims);
+    // Allocate buffer required by CMSIS-NN wrapper (regular or depthwise)
+    var filter_dims = cmsis_nn.Dims{ .n = @intCast(out_channels), .h = @intCast(kernel_height), .w = @intCast(kernel_width), .c = @intCast(in_channels) };
+    var buffer_size: i32 = if (group_val == in_channels)
+        cmsis_nn.conv.arm_depthwise_conv_wrapper_s8_get_buffer_size(&.{
+            .input_offset = cmsis_input_offset,
+            .output_offset = cmsis_output_offset,
+            .ch_mult = @intCast(out_channels / in_channels),
+            .stride = .{ .h = @intCast(stride_h), .w = @intCast(stride_w) },
+            .padding = .{ .h = @intCast(pad_h), .w = @intCast(pad_w) },
+            .dilation = .{ .h = @intCast(dilation_h), .w = @intCast(dilation_w) },
+            .activation = .{ .min = -128, .max = 127 },
+        }, &input_dims, &.{ .n = 1, .h = @intCast(kernel_height), .w = @intCast(kernel_width), .c = @intCast(out_channels) }, &output_dims)
+    else
+        cmsis_nn.conv.arm_convolve_wrapper_s8_get_buffer_size(&conv_params, &input_dims, &filter_dims, &output_dims);
+    if (buffer_size < 0) buffer_size = 0;
     var dyn_buffer: ?[]u8 = null;
     defer if (dyn_buffer) |buf| pkg_allocator.free(buf);
-    const buffer_ptr: ?*anyopaque = blk_buf: {
-        if (buffer_size > 0) {
-            const buf = try pkg_allocator.alloc(u8, @intCast(buffer_size));
-            dyn_buffer = buf;
-            break :blk_buf buf.ptr;
-        } else {
-            break :blk_buf null;
-        }
-    };
+    var buffer_ptr: ?*anyopaque = null;
+    var ctx_size_i32: i32 = 0;
+    if (buffer_size > 0) {
+        const buf = try pkg_allocator.alloc(u8, @intCast(buffer_size));
+        dyn_buffer = buf;
+        buffer_ptr = buf.ptr;
+        ctx_size_i32 = @intCast(buf.len);
+    }
 
     // DEBUG: Store first few input values and parameters for comparison
     var debug_info: struct {
@@ -1410,45 +1461,77 @@ pub fn qlinearconv_cmsis_accelerated(
     };
     _ = &debug_info; // Prevent optimization
 
-    var ctx = cmsis_nn.Context{ .buf = buffer_ptr, .size = @intCast(buffer_size) };
+    var ctx = cmsis_nn.Context{ .buf = buffer_ptr, .size = ctx_size_i32 };
     // Wrapper API does not use upscale_dims
 
-    // Prepare input/output pointers in s8 domain
+    // Prepare input/output pointers in s8 NHWC domain
     var input_converted: ?[]i8 = null;
     var output_converted: ?[]i8 = null;
     defer if (input_converted) |buf| pkg_allocator.free(buf);
     defer if (output_converted) |buf| pkg_allocator.free(buf);
 
-    const input_ptr_s8: [*]const i8 = blk: {
-        if (is_u8_input) {
-            // Convert u8 -> s8 by subtracting 128
-            const len = x.data.len;
-            const buf = try pkg_allocator.alloc(i8, len);
-            var i: usize = 0;
-            while (i < len) : (i += 1) {
-                buf[i] = @as(i8, @intCast(@as(i32, @intCast(x.data[i])) - 128));
+    // Convert input from NCHW (our layout) to NHWC (CMSIS layout) and to s8
+    const input_len = x.data.len;
+    const input_buf = try pkg_allocator.alloc(i8, input_len);
+    input_converted = input_buf;
+    {
+        var n: usize = 0;
+        while (n < batch_size) : (n += 1) {
+            var h: usize = 0;
+            while (h < in_height) : (h += 1) {
+                var w_: usize = 0;
+                while (w_ < in_width) : (w_ += 1) {
+                    var c: usize = 0;
+                    while (c < in_channels) : (c += 1) {
+                        const src_idx = ((n * in_channels + c) * in_height + h) * in_width + w_;
+                        const dst_idx = ((n * in_height + h) * in_width + w_) * in_channels + c;
+                        if (is_u8_input) {
+                            const q = @as(i32, @intCast(x.data[src_idx]));
+                            input_buf[dst_idx] = @as(i8, @intCast(q - 128));
+                        } else {
+                            // InputType is i8: just reorder
+                            input_buf[dst_idx] = @as(i8, @intCast(x.data[src_idx]));
+                        }
+                    }
+                }
             }
-            input_converted = buf;
-            break :blk buf.ptr;
-        } else {
-            break :blk @ptrCast(@as([*]const i8, @ptrCast(x.data.ptr)));
         }
-    };
+    }
+    const input_ptr_s8: [*]const i8 = input_buf.ptr;
 
-    const output_ptr_s8: [*]i8 = blk2: {
-        if (is_u8_input) {
-            // Use temporary s8 buffer; convert back to u8 after kernel
-            const len = output.data.len;
-            const buf = try pkg_allocator.alloc(i8, len);
-            output_converted = buf;
-            break :blk2 buf.ptr;
-        } else {
-            break :blk2 @ptrCast(@as([*]i8, @ptrCast(output.data.ptr)));
-        }
-    };
+    // Always use a temporary NHWC s8 buffer for output (convert+reorder back after)
+    const output_len = output.data.len;
+    const output_buf = try pkg_allocator.alloc(i8, output_len);
+    output_converted = output_buf;
+    const output_ptr_s8: [*]i8 = output_buf.ptr;
 
-    // Call CMSIS-NN wrapper
-    const result = cmsis_nn.conv.arm_convolve_wrapper_s8(
+    // Call CMSIS-NN wrapper (regular or depthwise)
+    const result = if (group_val == in_channels) blk_call: {
+        var dw_params = cmsis_nn.DwConvParams{
+            .input_offset = cmsis_input_offset,
+            .output_offset = cmsis_output_offset,
+            .ch_mult = @intCast(out_channels / in_channels),
+            .stride = .{ .h = @intCast(stride_h), .w = @intCast(stride_w) },
+            .padding = .{ .h = @intCast(pad_h), .w = @intCast(pad_w) },
+            .dilation = .{ .h = @intCast(dilation_h), .w = @intCast(dilation_w) },
+            .activation = .{ .min = -128, .max = 127 },
+        };
+        // Depthwise expects filter dims [1, kh, kw, C_out]
+        var dw_filter_dims = cmsis_nn.Dims{ .n = 1, .h = @intCast(kernel_height), .w = @intCast(kernel_width), .c = @intCast(out_channels) };
+        break :blk_call cmsis_nn.conv.arm_depthwise_conv_wrapper_s8(
+            &ctx,
+            &dw_params,
+            &quant_params,
+            &input_dims,
+            input_ptr_s8,
+            &dw_filter_dims,
+            w_packed.ptr,
+            &bias_dims,
+            if (bias_ptr) |ptr| @ptrCast(ptr) else null,
+            &output_dims,
+            output_ptr_s8,
+        );
+    } else cmsis_nn.conv.arm_convolve_wrapper_s8(
         &ctx,
         &conv_params,
         &quant_params,
@@ -1466,14 +1549,29 @@ pub fn qlinearconv_cmsis_accelerated(
         return TensorMathError.UnexpectedError;
     }
 
-    // If input was u8, convert s8 output back to u8 domain by adding 128
-    if (is_u8_input) {
+    // Reorder output from NHWC back to NCHW and convert s8 -> u8 if needed
+    {
         const buf = output_converted.?;
-        const len = output.data.len;
-        var i: usize = 0;
-        while (i < len) : (i += 1) {
-            const v = @as(i32, buf[i]) + 128;
-            output.data[i] = @as(u8, @intCast(std.math.clamp(v, 0, 255)));
+        var n: usize = 0;
+        while (n < batch_size) : (n += 1) {
+            var h: usize = 0;
+            while (h < out_height) : (h += 1) {
+                var w_: usize = 0;
+                while (w_ < out_width) : (w_ += 1) {
+                    var c: usize = 0;
+                    while (c < out_channels) : (c += 1) {
+                        const src_idx = ((n * out_height + h) * out_width + w_) * out_channels + c; // NHWC
+                        const dst_idx = ((n * out_channels + c) * out_height + h) * out_width + w_; // NCHW
+                        if (is_u8_input) {
+                            const v = @as(i32, buf[src_idx]) + 128;
+                            output.data[dst_idx] = @as(u8, @intCast(std.math.clamp(v, 0, 255)));
+                        } else {
+                            // InputType i8 output: write back as i8 -> NCHW
+                            output.data[dst_idx] = @as(InputType, @intCast(buf[src_idx]));
+                        }
+                    }
+                }
+            }
         }
     }
 }
