@@ -4,28 +4,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-// Only include standard library headers when not in freestanding mode
-#ifndef __STDC_HOSTED__
-// Freestanding environment - provide minimal stubs
-static inline void *malloc(size_t size) {
-  (void)size;
-  return NULL;
-}
-static inline void free(void *ptr) { (void)ptr; }
-static inline void *memcpy(void *dest, const void *src, size_t n) {
-  char *d = (char *)dest;
-  const char *s = (const char *)src;
-  for (size_t i = 0; i < n; i++)
-    d[i] = s[i];
-  return dest;
-}
-static inline void *memset(void *s, int c, size_t n) {
-  char *p = (char *)s;
-  for (size_t i = 0; i < n; i++)
-    p[i] = (char)c;
-  return s;
-}
-#endif
 
 // Only include math.h and ARM headers when actually compiling for target, not
 // during codegen
@@ -47,7 +25,7 @@ extern void free(void *ptr);
 #endif
 #endif
 
-static bool g_cmsis_used = false;
+static size_t g_cmsis_invocations = 0;
 
 extern void zant_stm32n6_reset_ethos_test_state(void);
 
@@ -115,6 +93,16 @@ static inline int32_t quantize_to_q31(float value) {
   return (int32_t)lrintf(value);
 }
 
+// CMSIS-DSP accelerated dot product function
+static void cmsis_dsp_dot(const float *a, const float *b, size_t len,
+                          float *out) {
+  // Mark that CMSIS path was taken
+  zant_stm32n6_mark_cmsis_used();
+
+  // Use CMSIS-DSP arm_dot_prod_f32 for hardware acceleration
+  arm_dot_prod_f32(a, b, (uint32_t)len, out);
+}
+
 // Move cmsis_helium_conv function implementation inside CMSIS block
 static bool cmsis_helium_conv(const float *input, const size_t *input_shape,
                               const float *weights, const size_t *weight_shape,
@@ -124,12 +112,10 @@ static bool cmsis_helium_conv(const float *input, const size_t *input_shape,
                               const size_t *dilations, size_t group,
                               size_t filters_per_group,
                               size_t channels_per_group) {
-  // For now, just fall back to reference implementation
-  // CMSIS-NN is designed for quantized networks, not floating point
-  // TODO: Use CMSIS-DSP functions for floating point acceleration
+  // Use CMSIS-DSP accelerated convolution with arm_dot_prod_f32
   return conv_impl(input, input_shape, weights, weight_shape, output,
                    output_shape, bias, bias_len, stride, pads, dilations, group,
-                   filters_per_group, channels_per_group, reference_dot);
+                   filters_per_group, channels_per_group, cmsis_dsp_dot);
 }
 
 #elif defined(ZANT_CODEGEN_PHASE)
@@ -156,23 +142,17 @@ typedef struct {
 } cmsis_nn_activation;
 
 typedef struct {
+  int32_t h;
+  int32_t w;
+} cmsis_nn_tile;
+
+typedef struct {
   int32_t input_offset;
   int32_t output_offset;
+  cmsis_nn_tile stride;
+  cmsis_nn_tile padding;
+  cmsis_nn_tile dilation;
   cmsis_nn_activation activation;
-  int32_t activation_min;
-  int32_t activation_max;
-  struct {
-    int32_t h;
-    int32_t w;
-  } stride;
-  struct {
-    int32_t h;
-    int32_t w;
-  } padding;
-  struct {
-    int32_t h;
-    int32_t w;
-  } dilation;
 } cmsis_nn_conv_params;
 
 typedef struct {
@@ -207,6 +187,7 @@ arm_convolve_s8(const cmsis_nn_context *ctx,
                 const cmsis_nn_dims *input_dims, const q7_t *input_data,
                 const cmsis_nn_dims *filter_dims, const q7_t *filter_data,
                 const cmsis_nn_dims *bias_dims, const q31_t *bias_data,
+                const cmsis_nn_dims *upscale_dims,
                 const cmsis_nn_dims *output_dims, q7_t *output_data) {
   (void)ctx;
   (void)conv_params;
@@ -217,6 +198,7 @@ arm_convolve_s8(const cmsis_nn_context *ctx,
   (void)filter_data;
   (void)bias_dims;
   (void)bias_data;
+  (void)upscale_dims;
   (void)output_dims;
   (void)output_data;
   return ARM_CMSIS_NN_SUCCESS;
@@ -383,7 +365,6 @@ bool zant_stm32n6_conv_f32_helium(const float *input, const size_t *input_shape,
   if (cmsis_helium_conv(input, input_shape, weights, weight_shape, output,
                         output_shape, bias, bias_len, stride, pads, dilations,
                         group, filters_per_group, channels_per_group)) {
-    g_cmsis_used = true;
     return true;
   }
 #endif
@@ -393,9 +374,92 @@ bool zant_stm32n6_conv_f32_helium(const float *input, const size_t *input_shape,
                    filters_per_group, channels_per_group, reference_dot);
 }
 
+bool zant_stm32n6_cmsis_s8_selftest(float *output, size_t output_len) {
+#if defined(ZANT_HAS_CMSIS_DSP) && defined(ZANT_HAS_CMSIS_NN) &&               \
+    !defined(ZANT_CODEGEN_PHASE)
+  const size_t expected_count = 4;
+  if (output == NULL || output_len < expected_count) {
+    return false;
+  }
+
+  const q7_t input_data[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+  const q7_t weight_data[4] = {1, 0, 0, 1};
+  const int32_t bias_data[1] = {0};
+
+  cmsis_nn_dims input_dims = {.n = 1, .h = 3, .w = 3, .c = 1};
+  cmsis_nn_dims filter_dims = {.n = 1, .h = 2, .w = 2, .c = 1};
+  cmsis_nn_dims bias_dims = {.n = 1, .h = 1, .w = 1, .c = 1};
+  cmsis_nn_dims output_dims = {.n = 1, .h = 2, .w = 2, .c = 1};
+
+  cmsis_nn_conv_params conv_params = {
+      .input_offset = 0,
+      .output_offset = 0,
+      .stride = {.h = 1, .w = 1},
+      .padding = {.h = 0, .w = 0},
+      .dilation = {.h = 1, .w = 1},
+      .activation = {.min = -128, .max = 127},
+  };
+
+  int32_t multipliers[1] = {128};
+  int32_t shifts[1] = {24};
+  cmsis_nn_per_channel_quant_params quant_params = {
+      .multiplier = multipliers,
+      .shift = shifts,
+  };
+
+  cmsis_nn_context ctx = {.buf = NULL, .size = 0};
+  const int32_t buffer_size =
+      arm_convolve_s8_get_buffer_size(&input_dims, &filter_dims);
+  if (buffer_size < 0) {
+    return false;
+  }
+  if (buffer_size > 0) {
+    ctx.buf = malloc((size_t)buffer_size);
+    if (ctx.buf == NULL) {
+      return false;
+    }
+    ctx.size = buffer_size;
+  }
+
+  q7_t output_data[4] = {0, 0, 0, 0};
+  cmsis_nn_dims upscale_dims = {.n = 1, .h = 1, .w = 1, .c = 1};
+  const arm_cmsis_nn_status status =
+      arm_convolve_s8(&ctx, &conv_params, &quant_params, &input_dims,
+                      input_data, &filter_dims, weight_data, &bias_dims,
+                      bias_data, &upscale_dims, &output_dims, output_data);
+
+  if (ctx.buf != NULL) {
+    free(ctx.buf);
+  }
+
+  if (status != ARM_CMSIS_NN_SUCCESS) {
+    return false;
+  }
+
+  const float expected[4] = {6.0f, 8.0f, 12.0f, 14.0f};
+  for (size_t i = 0; i < expected_count; ++i) {
+    if ((float)output_data[i] != expected[i]) {
+      return false;
+    }
+    output[i] = expected[i];
+  }
+
+  zant_stm32n6_mark_cmsis_used();
+  return true;
+#else
+  (void)output;
+  (void)output_len;
+  return false;
+#endif
+}
+
+void zant_stm32n6_mark_cmsis_used(void) { g_cmsis_invocations += 1; }
+
 void zant_stm32n6_reset_test_state(void) {
-  g_cmsis_used = false;
+  g_cmsis_invocations = 0;
   zant_stm32n6_reset_ethos_test_state();
 }
 
-bool zant_stm32n6_cmsis_was_used(void) { return g_cmsis_used; }
+bool zant_stm32n6_cmsis_was_used(void) { return g_cmsis_invocations > 0; }
+
+size_t zant_stm32n6_cmsis_invocation_count(void) { return g_cmsis_invocations; }

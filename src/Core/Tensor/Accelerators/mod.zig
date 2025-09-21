@@ -56,6 +56,12 @@ pub fn resetTestHooks() void {
     }
 }
 
+pub fn markCmsisUsed() void {
+    if (@hasDecl(Backend, "markCmsisUsed")) {
+        Backend.markCmsisUsed();
+    }
+}
+
 pub fn cmsisUsed() bool {
     if (@hasDecl(Backend, "cmsisUsed")) {
         return Backend.cmsisUsed();
