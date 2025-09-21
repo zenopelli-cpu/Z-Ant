@@ -115,6 +115,16 @@ static inline int32_t quantize_to_q31(float value) {
   return (int32_t)lrintf(value);
 }
 
+// CMSIS-DSP accelerated dot product function
+static void cmsis_dsp_dot(const float *a, const float *b, size_t len,
+                          float *out) {
+  // Mark that CMSIS path was taken
+  zant_stm32n6_mark_cmsis_used();
+
+  // Use CMSIS-DSP arm_dot_prod_f32 for hardware acceleration
+  arm_dot_prod_f32(a, b, (uint32_t)len, out);
+}
+
 // Move cmsis_helium_conv function implementation inside CMSIS block
 static bool cmsis_helium_conv(const float *input, const size_t *input_shape,
                               const float *weights, const size_t *weight_shape,
@@ -124,12 +134,10 @@ static bool cmsis_helium_conv(const float *input, const size_t *input_shape,
                               const size_t *dilations, size_t group,
                               size_t filters_per_group,
                               size_t channels_per_group) {
-  // For now, just fall back to reference implementation
-  // CMSIS-NN is designed for quantized networks, not floating point
-  // TODO: Use CMSIS-DSP functions for floating point acceleration
+  // Use CMSIS-DSP accelerated convolution with arm_dot_prod_f32
   return conv_impl(input, input_shape, weights, weight_shape, output,
                    output_shape, bias, bias_len, stride, pads, dilations, group,
-                   filters_per_group, channels_per_group, reference_dot);
+                   filters_per_group, channels_per_group, cmsis_dsp_dot);
 }
 
 #elif defined(ZANT_CODEGEN_PHASE)
@@ -156,23 +164,17 @@ typedef struct {
 } cmsis_nn_activation;
 
 typedef struct {
+  int32_t h;
+  int32_t w;
+} cmsis_nn_tile;
+
+typedef struct {
   int32_t input_offset;
   int32_t output_offset;
+  cmsis_nn_tile stride;
+  cmsis_nn_tile padding;
+  cmsis_nn_tile dilation;
   cmsis_nn_activation activation;
-  int32_t activation_min;
-  int32_t activation_max;
-  struct {
-    int32_t h;
-    int32_t w;
-  } stride;
-  struct {
-    int32_t h;
-    int32_t w;
-  } padding;
-  struct {
-    int32_t h;
-    int32_t w;
-  } dilation;
 } cmsis_nn_conv_params;
 
 typedef struct {
@@ -207,6 +209,7 @@ arm_convolve_s8(const cmsis_nn_context *ctx,
                 const cmsis_nn_dims *input_dims, const q7_t *input_data,
                 const cmsis_nn_dims *filter_dims, const q7_t *filter_data,
                 const cmsis_nn_dims *bias_dims, const q31_t *bias_data,
+                const cmsis_nn_dims *upscale_dims,
                 const cmsis_nn_dims *output_dims, q7_t *output_data) {
   (void)ctx;
   (void)conv_params;
@@ -217,6 +220,7 @@ arm_convolve_s8(const cmsis_nn_context *ctx,
   (void)filter_data;
   (void)bias_dims;
   (void)bias_data;
+  (void)upscale_dims;
   (void)output_dims;
   (void)output_data;
   return ARM_CMSIS_NN_SUCCESS;
@@ -415,8 +419,7 @@ bool zant_stm32n6_cmsis_s8_selftest(float *output, size_t output_len) {
       .stride = {.h = 1, .w = 1},
       .padding = {.h = 0, .w = 0},
       .dilation = {.h = 1, .w = 1},
-      .activation_min = -128,
-      .activation_max = 127,
+      .activation = {.min = -128, .max = 127},
   };
 
   int32_t multipliers[1] = {128};
@@ -441,10 +444,11 @@ bool zant_stm32n6_cmsis_s8_selftest(float *output, size_t output_len) {
   }
 
   q7_t output_data[4] = {0, 0, 0, 0};
+  cmsis_nn_dims upscale_dims = {.n = 1, .h = 1, .w = 1, .c = 1};
   const arm_cmsis_nn_status status =
       arm_convolve_s8(&ctx, &conv_params, &quant_params, &input_dims,
                       input_data, &filter_dims, weight_data, &bias_dims,
-                      bias_data, &output_dims, output_data);
+                      bias_data, &upscale_dims, &output_dims, output_data);
 
   if (ctx.buf != NULL) {
     free(ctx.buf);
