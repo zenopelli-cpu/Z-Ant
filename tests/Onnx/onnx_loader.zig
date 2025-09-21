@@ -11,27 +11,26 @@ const ErrorDetail = struct {
     errorLoad: anyerror,
 };
 
-var models: std.ArrayList([]const u8) = std.ArrayList([]const u8).init(allocator);
-var failed_parsed_models: std.ArrayList(ErrorDetail) = std.ArrayList(ErrorDetail).init(allocator);
-
 test " Onnx loader" {
     tests_log.info("\n     test:  Onnx loader\n", .{});
+
+    var arena_state = std.heap.ArenaAllocator.init(allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    var failed_parsed_models = std.ArrayList(ErrorDetail).init(allocator);
+    defer failed_parsed_models.deinit();
 
     var dir = try std.fs.cwd().openDir("datasets/models", .{ .iterate = true });
     defer dir.close();
 
-    // Iterate over directory entries
+    // Iterate over directory entries and parse models on the fly
     var it = dir.iterate();
     while (try it.next()) |entry| {
-        if (entry.kind == .directory) {
-            // Print the directory name
-            try models.append(entry.name);
-        }
-    }
+        if (entry.kind != .directory) continue;
 
-    for (models.items) |model_name| {
+        const model_name = try arena.dupe(u8, entry.name);
 
-        // Format model path according to model_name
         const model_path = try std.mem.concat(allocator, u8, &[_][]const u8{ "datasets/models/", model_name, "/", model_name, ".onnx" });
         defer allocator.free(model_path);
 
@@ -44,7 +43,7 @@ test " Onnx loader" {
             continue;
         };
         defer model.deinit(allocator);
-        model.print();
+        tests_log.debug("parsed {s}", .{model_name});
     }
 
     if (failed_parsed_models.items.len != 0) {
@@ -53,7 +52,4 @@ test " Onnx loader" {
     } else {
         tests_log.info("\n\n ---- SUCCESFULLY PARSED ALL ONNX MODELS ---- \n\n", .{});
     }
-
-    models.deinit();
-    failed_parsed_models.deinit();
 }

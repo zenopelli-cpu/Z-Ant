@@ -6,6 +6,7 @@
 pub const math_lean = @import("TensorMath/tensor_math_standard.zig");
 pub const math_standard = @import("TensorMath/tensor_math_standard.zig");
 pub const quantized_math = @import("QuantTensorMath/quant_tensor_math_standard.zig");
+pub const accelerators = @import("Accelerators/mod.zig");
 
 const std = @import("std");
 const zant = @import("../../zant.zig");

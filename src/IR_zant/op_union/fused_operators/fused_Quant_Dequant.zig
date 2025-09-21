@@ -1,6 +1,6 @@
 const std = @import("std");
-const allocator = std.heap.page_allocator;
 const zant = @import("zant");
+const allocator = zant.utils.allocator.allocator;
 const IR_zant = @import("../../IR_zant.zig");
 
 // --- zant IR---
@@ -119,12 +119,16 @@ pub const Fused_Quant_Dequant = struct {
         const post_fusion_output: *TensorZant = (try predecessors.items[0].get_output_tensors())[0];
 
         std.debug.print("\n    successors:{} ", .{successors.items.len});
-        for (successors.items) |s| std.debug.print(" {s} ", .{s.name.?});
+        for (successors.items) |s| {
+            const name = s.name orelse "unnamed";
+            std.debug.print(" {s} ", .{name});
+        }
 
         for (successors.items) |succ_node| { //for each succerssor node
             const inputs = try succ_node.get_input_tensors(); // collect its inputs
 
-            std.debug.print("\n    succ_node:{s} ", .{succ_node.name.?});
+            const name = succ_node.name orelse "unnamed";
+            std.debug.print("\n    succ_node:{s} ", .{name});
 
             //for each succ input:
             //if the input is equal to an old last_node output sobstitute it with the new output

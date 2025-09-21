@@ -119,21 +119,55 @@ fn write_FBA(writer: std.fs.File.Writer) !void {
         break :blk std.fmt.parseInt(u32, env_size, 10) catch 512;
     } else |_| 1024; // Default 1MB to handle peak allocation
 
-    try writer.print(
-        \\
-        \\
-        \\ // Static allocation: two FixedBufferAllocator pools (ping-pong)
-        \\ // Buffer size: {d}KB each (configurable via ZANT_FBA_SIZE_KB env var)
-        \\ var buf_a: [{d}]u8 = undefined;
-        \\ var fba_state_a = std.heap.FixedBufferAllocator.init(&buf_a);
-        \\ const fba_a = fba_state_a.allocator();
-        \\ var fba_live_a: usize = 0; // live LINK tensors in pool A
-        \\
-        \\ var buf_b: [{d}]u8 = undefined;
-        \\ var fba_state_b = std.heap.FixedBufferAllocator.init(&buf_b);
-        \\ const fba_b = fba_state_b.allocator();
-        \\ var fba_live_b: usize = 0; // live LINK tensors in pool B
-        \\
-        \\
-    , .{ buffer_size_kb, buffer_size_kb * 1024, buffer_size_kb * 1024 });
+    var link_section: ?[]u8 = null;
+    if (std.process.getEnvVarOwned(std.heap.page_allocator, "ZANT_FBA_SECTION")) |section_name| {
+        link_section = section_name;
+    } else |_| {}
+
+    // Use tensor_pool if the option is enabled or if custom section is specified
+    const should_use_tensor_pool = codegen_options.use_tensor_pool or link_section != null;
+
+    if (should_use_tensor_pool) {
+        const section = link_section orelse ".tensor_pool";
+        try writer.print(
+            \\
+            \\
+            \\ // Static allocation: two FixedBufferAllocator pools (ping-pong)
+            \\ // Buffer size: {d}KB each (configurable via ZANT_FBA_SIZE_KB env var)
+            \\ var buf_a: [{d}]u8 linksection("{s}") = undefined;
+            \\ var fba_state_a = std.heap.FixedBufferAllocator.init(&buf_a);
+            \\ const fba_a = fba_state_a.allocator();
+            \\ var fba_live_a: usize = 0; // live LINK tensors in pool A
+            \\
+            \\ var buf_b: [{d}]u8 linksection("{s}") = undefined;
+            \\ var fba_state_b = std.heap.FixedBufferAllocator.init(&buf_b);
+            \\ const fba_b = fba_state_b.allocator();
+            \\ var fba_live_b: usize = 0; // live LINK tensors in pool B
+            \\ const fba = fba_a; // Backward compatibility path
+            \\
+            \\
+        , .{ buffer_size_kb, buffer_size_kb * 1024, section, buffer_size_kb * 1024, section });
+        if (link_section) |section_to_free| {
+            std.heap.page_allocator.free(section_to_free);
+        }
+    } else {
+        try writer.print(
+            \\
+            \\
+            \\ // Static allocation: two FixedBufferAllocator pools (ping-pong)
+            \\ // Buffer size: {d}KB each (configurable via ZANT_FBA_SIZE_KB env var)
+            \\ var buf_a: [{d}]u8 = undefined;
+            \\ var fba_state_a = std.heap.FixedBufferAllocator.init(&buf_a);
+            \\ const fba_a = fba_state_a.allocator();
+            \\ var fba_live_a: usize = 0; // live LINK tensors in pool A
+            \\
+            \\ var buf_b: [{d}]u8 = undefined;
+            \\ var fba_state_b = std.heap.FixedBufferAllocator.init(&buf_b);
+            \\ const fba_b = fba_state_b.allocator();
+            \\ var fba_live_b: usize = 0; // live LINK tensors in pool B
+            \\ const fba = fba_a; // Backward compatibility path
+            \\
+            \\
+        , .{ buffer_size_kb, buffer_size_kb * 1024, buffer_size_kb * 1024 });
+    }
 }

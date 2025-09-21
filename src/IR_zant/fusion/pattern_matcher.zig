@@ -36,9 +36,8 @@
 //!     - The pattern matching will fail (return null) if any middle node has multiple outgoing connections, preventing incorrect fusions that would lose graph topology information.
 
 const std = @import("std");
-const allocator = std.heap.page_allocator; // Use your allocator
-
-// --- Zant_IR ---
+const zant = @import("zant");
+const allocator = zant.utils.allocator.allocator; // Use project allocator so create/destroy match
 const IR_zant = @import("../IR_zant.zig");
 const GraphZant = IR_zant.GraphZant;
 const NodeZant = IR_zant.NodeZant;
@@ -86,7 +85,8 @@ fn fusePatternsByConfig(graph: *GraphZant, config: PatternConfig) !void {
 
 /// Core function that coordinates pattern detection, fusion, and substitution
 fn findAndFusePattern(graph: *GraphZant, root_node: *NodeZant, config: PatternConfig) !bool {
-    std.debug.print("\n findAndFusePattern() starting from node type :{s} name:{s}", .{ root_node.op_type, root_node.name.? });
+    const name = root_node.name orelse "unnamed";
+    std.debug.print("\n findAndFusePattern() starting from node type :{s} name:{s}", .{ root_node.op_type, name });
 
     // Step 1: Try to detect the pattern starting from this root node
     const maybe_node_list = try config.fn_pattern_detection(graph, root_node);
