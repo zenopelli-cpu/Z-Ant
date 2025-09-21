@@ -62,6 +62,7 @@ extern fn zant_stm32n6_conv_f32_ethos(
 
 extern fn zant_stm32n6_reset_test_state() callconv(.C) void;
 extern fn zant_stm32n6_cmsis_was_used() callconv(.C) bool;
+extern fn zant_stm32n6_mark_cmsis_used() callconv(.C) void;
 extern fn zant_stm32n6_ethos_was_used() callconv(.C) bool;
 
 inline fn archSupported() bool {
@@ -179,6 +180,10 @@ pub fn tryConvLean(
 
 pub fn resetTestHooks() void {
     zant_stm32n6_reset_test_state();
+}
+
+pub fn markCmsisUsed() void {
+    zant_stm32n6_mark_cmsis_used();
 }
 
 pub fn cmsisUsed() bool {

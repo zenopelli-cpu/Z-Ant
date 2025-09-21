@@ -254,7 +254,12 @@ fn tryDirectCmsisNnQLinearConv(
         @as([*]i8, @ptrCast(output.data.ptr)),
     );
 
-    return result == cmsis_nn.ARM_CMSIS_NN_SUCCESS;
+    if (result == cmsis_nn.ARM_CMSIS_NN_SUCCESS) {
+        accelerators.markCmsisUsed();
+        return true;
+    }
+
+    return false;
 }
 
 fn tryAcceleratedQLinearConv(

@@ -62,6 +62,7 @@ static const char kFailMessage[] = "stm32n6 " VARIANT_NAME " FAIL\n";
 static const char kOutputMismatch[] = "stm32n6 output mismatch\n";
 static const char kUsageErrorCmsis[] = "stm32n6 expected CMSIS path\n";
 static const char kUsageErrorEthos[] = "stm32n6 expected Ethos path\n";
+static const char kUnexpectedCmsis[] = "stm32n6 unexpected CMSIS usage\n";
 
 static float float_abs(float value) {
   return (value < 0.0f) ? -value : value;
@@ -105,10 +106,20 @@ int main(void) {
       break;
     }
 
-    if (kCases[idx].require_cmsis && !zant_stm32n6_cmsis_was_used()) {
-      semihost_write0(kUsageErrorCmsis);
-      all_passed = false;
-      break;
+    const size_t cmsis_calls = zant_stm32n6_cmsis_invocation_count();
+    const bool cmsis_used = zant_stm32n6_cmsis_was_used();
+    if (kCases[idx].require_cmsis) {
+      if (!cmsis_used || cmsis_calls == 0u) {
+        semihost_write0(kUsageErrorCmsis);
+        all_passed = false;
+        break;
+      }
+    } else {
+      if (cmsis_used || cmsis_calls != 0u) {
+        semihost_write0(kUnexpectedCmsis);
+        all_passed = false;
+        break;
+      }
     }
 
     if (kCases[idx].require_ethos && !zant_stm32n6_ethos_was_used()) {
