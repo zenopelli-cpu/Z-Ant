@@ -33,14 +33,11 @@ fn readScalarZPInternal(zp_any: anytype) i32 {
             if (info.Vector.len == 0) break :blk 0;
             break :blk @as(i32, @intCast(zp_any[0]));
         },
-        .Struct => blk: {
-            if (std.meta.trait.hasField("data")(ZPType)) {
-                const data = zp_any.data;
-                if (data.len == 0) break :blk 0;
-                break :blk @as(i32, @intCast(data[0]));
-            }
-            break :blk @compileError("unsupported zero-point struct representation");
-        },
+        .Struct => if (std.meta.trait.hasField("data")(ZPType)) blk: {
+            const data = zp_any.data;
+            if (data.len == 0) break :blk 0;
+            break :blk @as(i32, @intCast(data[0]));
+        } else @compileError("unsupported zero-point struct representation"),
         .Int, .ComptimeInt => @as(i32, @intCast(zp_any)),
         else => @compileError("unsupported zero-point representation"),
     };
@@ -56,19 +53,18 @@ inline fn selectChannelIndex(len: usize, channel: usize) usize {
     return if (channel < len) channel else len - 1;
 }
 
-inline fn readPerChannelZP(comptime T: type, zp_any: anytype, m: usize, M: usize) i32 {
+inline fn readPerChannelZP(zp_any: anytype, m: usize, M: usize) i32 {
     _ = M;
-    return readPerChannelZPInternal(T, zp_any, m);
+    return readPerChannelZPInternal(zp_any, m);
 }
 
-fn readPerChannelZPInternal(comptime T: type, zp_any: anytype, m: usize) i32 {
-    _ = T;
+fn readPerChannelZPInternal(zp_any: anytype, m: usize) i32 {
     const ZPType = @TypeOf(zp_any);
     const info = @typeInfo(ZPType);
 
     return switch (info) {
-        .Pointer => readPerChannelZPInternal(T, zp_any.*, m),
-        .Optional => if (zp_any) |payload| readPerChannelZPInternal(T, payload, m) else 0,
+        .Pointer => readPerChannelZPInternal(zp_any.*, m),
+        .Optional => if (zp_any) |payload| readPerChannelZPInternal(payload, m) else 0,
         .Slice => blk: {
             if (zp_any.len == 0) break :blk 0;
             const idx = selectChannelIndex(zp_any.len, m);
@@ -84,15 +80,12 @@ fn readPerChannelZPInternal(comptime T: type, zp_any: anytype, m: usize) i32 {
             const idx = selectChannelIndex(info.Vector.len, m);
             break :blk @as(i32, @intCast(zp_any[idx]));
         },
-        .Struct => blk: {
-            if (std.meta.trait.hasField("data")(ZPType)) {
-                const data = zp_any.data;
-                if (data.len == 0) break :blk 0;
-                const idx = selectChannelIndex(data.len, m);
-                break :blk @as(i32, @intCast(data[idx]));
-            }
-            break :blk @compileError("unsupported zero-point struct representation");
-        },
+        .Struct => if (std.meta.trait.hasField("data")(ZPType)) blk: {
+            const data = zp_any.data;
+            if (data.len == 0) break :blk 0;
+            const idx = selectChannelIndex(data.len, m);
+            break :blk @as(i32, @intCast(data[idx]));
+        } else @compileError("unsupported zero-point struct representation"),
         .Int, .ComptimeInt => @as(i32, @intCast(zp_any)),
         else => @compileError("unsupported zero-point representation"),
     };
@@ -808,7 +801,7 @@ pub fn qlinearconv_embedded_lean(
         const weight_zero_point = if (@typeInfo(@TypeOf(w_zero_point)) == .pointer and w_zero_point.data.len == 0)
             0
         else
-            readPerChannelZP(WeightType, w_zero_point, m, out_channels);
+            readPerChannelZP(w_zero_point, m, out_channels);
 
         const bias_q16 = if (bias_tensor) |b_tensor| blk: {
             if (b_tensor.data.len == 0) break :blk 0;
