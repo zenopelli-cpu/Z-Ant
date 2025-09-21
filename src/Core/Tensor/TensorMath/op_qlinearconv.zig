@@ -19,26 +19,26 @@ fn readScalarZPInternal(zp_any: anytype) i32 {
     const info = @typeInfo(ZPType);
 
     return switch (info) {
-        .Pointer => readScalarZPInternal(zp_any.*),
-        .Optional => if (zp_any) |payload| readScalarZPInternal(payload) else 0,
-        .Slice => blk: {
+        .pointer => readScalarZPInternal(zp_any.*),
+        .optional => if (zp_any) |payload| readScalarZPInternal(payload) else 0,
+        .slice => blk: {
             if (zp_any.len == 0) break :blk 0;
             break :blk @as(i32, @intCast(zp_any[0]));
         },
-        .Array => blk: {
-            if (info.Array.len == 0) break :blk 0;
+        .array => blk: {
+            if (info.array.len == 0) break :blk 0;
             break :blk @as(i32, @intCast(zp_any[0]));
         },
-        .Vector => blk: {
-            if (info.Vector.len == 0) break :blk 0;
+        .vector => blk: {
+            if (info.vector.len == 0) break :blk 0;
             break :blk @as(i32, @intCast(zp_any[0]));
         },
-        .Struct => if (std.meta.trait.hasField("data")(ZPType)) blk: {
+        .@"struct" => if (std.meta.trait.hasField("data")(ZPType)) blk: {
             const data = zp_any.data;
             if (data.len == 0) break :blk 0;
             break :blk @as(i32, @intCast(data[0]));
         } else @compileError("unsupported zero-point struct representation"),
-        .Int, .ComptimeInt => @as(i32, @intCast(zp_any)),
+        .int, .comptime_int => @as(i32, @intCast(zp_any)),
         else => @compileError("unsupported zero-point representation"),
     };
 }
@@ -63,30 +63,30 @@ fn readPerChannelZPInternal(zp_any: anytype, m: usize) i32 {
     const info = @typeInfo(ZPType);
 
     return switch (info) {
-        .Pointer => readPerChannelZPInternal(zp_any.*, m),
-        .Optional => if (zp_any) |payload| readPerChannelZPInternal(payload, m) else 0,
-        .Slice => blk: {
+        .pointer => readPerChannelZPInternal(zp_any.*, m),
+        .optional => if (zp_any) |payload| readPerChannelZPInternal(payload, m) else 0,
+        .slice => blk: {
             if (zp_any.len == 0) break :blk 0;
             const idx = selectChannelIndex(zp_any.len, m);
             break :blk @as(i32, @intCast(zp_any[idx]));
         },
-        .Array => blk: {
-            if (info.Array.len == 0) break :blk 0;
-            const idx = selectChannelIndex(info.Array.len, m);
+        .array => blk: {
+            if (info.array.len == 0) break :blk 0;
+            const idx = selectChannelIndex(info.array.len, m);
             break :blk @as(i32, @intCast(zp_any[idx]));
         },
-        .Vector => blk: {
-            if (info.Vector.len == 0) break :blk 0;
-            const idx = selectChannelIndex(info.Vector.len, m);
+        .vector => blk: {
+            if (info.vector.len == 0) break :blk 0;
+            const idx = selectChannelIndex(info.vector.len, m);
             break :blk @as(i32, @intCast(zp_any[idx]));
         },
-        .Struct => if (std.meta.trait.hasField("data")(ZPType)) blk: {
+        .@"struct" => if (std.meta.trait.hasField("data")(ZPType)) blk: {
             const data = zp_any.data;
             if (data.len == 0) break :blk 0;
             const idx = selectChannelIndex(data.len, m);
             break :blk @as(i32, @intCast(data[idx]));
         } else @compileError("unsupported zero-point struct representation"),
-        .Int, .ComptimeInt => @as(i32, @intCast(zp_any)),
+        .int, .comptime_int => @as(i32, @intCast(zp_any)),
         else => @compileError("unsupported zero-point representation"),
     };
 }
