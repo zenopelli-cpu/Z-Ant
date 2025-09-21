@@ -106,32 +106,67 @@ heap_kb = int(os.environ.get("ZANT_HEAP_KB", "2048"))
 toolchain.build(
     output=elf_path,
     base_sources=BEER_SOURCES,
-    macros=(*toolchain.default_macros(), f"ZANT_HEAP_KB={heap_kb}"),  # Configure heap
+    macros=(*toolchain.default_macros(), f"ZANT_HEAP_KB={heap_kb}"),
+
     extra_sources=(target_lib,),  # Only the beer library
     include_dirs=(GENERATED_DIR,),
 )
 
 print("✅ Reference executable built using original build process")
 
-# Run test using original QEMU runner
-print("Running reference test...")
+import re
+cycle_re = re.compile(r"beer PASS .*?cycles=(\d+) .*?time_ms=([0-9.]+) fps=([0-9.]+)")
+
+# Run test using FVP by default if detected (ZANT_USE_FVP=1 default)
+print("Running reference test (FVP preferred)...")
 import time
 start_time = time.perf_counter()
-result = run_qemu(
-    qemu_path,
-    elf_path,
-    verbose=False,
-    success_marker="beer PASS",
-    timeout=30.0
-)
+from test_stm32n6_qemu import detect_fvp, run_fvp
+fvp_path = detect_fvp(os.environ.get("FVP_BIN"))
+if fvp_path and (os.environ.get("ZANT_USE_FVP", "1") != "0"):
+    result = run_fvp(
+        fvp_path,
+        elf_path,
+        verbose=False,
+        success_marker="beer PASS",
+        timeout=30.0
+    )
+    if result.returncode != 0:
+        print("FVP failed to run, falling back to QEMU...")
+        result = run_qemu(
+            qemu_path,
+            elf_path,
+            verbose=False,
+            success_marker="beer PASS",
+            timeout=30.0
+        )
+else:
+    result = run_qemu(
+        qemu_path,
+        elf_path,
+        verbose=False,
+        success_marker="beer PASS",
+        timeout=30.0
+    )
 end_time = time.perf_counter()
 
 if result.returncode == 0:
     duration = (end_time - start_time) * 1000
-    print(f"✅ Reference test PASSED in {duration:.2f} ms")
-    
+    m = cycle_re.search(result.stdout)
+    if m:
+        # Prefer device-time from cycles if available and non-zero; otherwise fallback to host time
+        ref_ms = float(m.group(2))
+        if ref_ms <= 0.0:
+            ref_ms = duration
+            print(f"✅ Reference test PASSED host_time={ref_ms:.2f} ms (no device cycles)")
+        else:
+            ref_fps = float(m.group(3)) if len(m.groups()) >= 3 else (1000.0 / ref_ms if ref_ms > 0 else 0.0)
+            print(f"✅ Reference test PASSED device_time={ref_ms:.2f} ms ({ref_fps:.2f} fps) (host {duration:.2f} ms)")
+    else:
+        ref_ms = duration
+        print(f"✅ Reference test PASSED host_time={ref_ms:.2f} ms")
     with open(BUILD_DIR / "comparison_results.txt", "w") as f:
-        f.write(f"beer_reference: {duration:.2f} ms\n")
+        f.write(f"beer_reference: {ref_ms:.2f} ms\n")
 else:
     print("❌ Reference test FAILED")
     print("STDOUT:", result.stdout)
@@ -251,25 +286,56 @@ toolchain.build(
 
 print("✅ CMSIS-NN executable built using original build process")
 
-# Run test using original QEMU runner
-print("Running CMSIS-NN optimized test...")
+print("Running CMSIS-NN optimized test (FVP preferred)...")
 import time
 start_time = time.perf_counter()
-result = run_qemu(
-    qemu_path,
-    elf_path,
-    verbose=False,
-    success_marker="beer PASS",
-    timeout=30.0
-)
+from test_stm32n6_qemu import detect_fvp, run_fvp
+fvp_path = detect_fvp(os.environ.get("FVP_BIN"))
+if fvp_path and (os.environ.get("ZANT_USE_FVP", "1") != "0"):
+    result = run_fvp(
+        fvp_path,
+        elf_path,
+        verbose=False,
+        success_marker="beer PASS",
+        timeout=30.0
+    )
+    if result.returncode != 0:
+        print("FVP failed to run, falling back to QEMU...")
+        result = run_qemu(
+            qemu_path,
+            elf_path,
+            verbose=False,
+            success_marker="beer PASS",
+            timeout=30.0
+        )
+else:
+    result = run_qemu(
+        qemu_path,
+        elf_path,
+        verbose=False,
+        success_marker="beer PASS",
+        timeout=30.0
+    )
 end_time = time.perf_counter()
 
 if result.returncode == 0:
     duration = (end_time - start_time) * 1000
-    print(f"✅ CMSIS-NN test PASSED in {duration:.2f} ms")
-    
+    import re
+    cycle_re = re.compile(r"beer PASS .*?cycles=(\d+) .*?time_ms=([0-9.]+) fps=([0-9.]+)")
+    m = cycle_re.search(result.stdout)
+    if m:
+        cmsis_ms = float(m.group(2))
+        if cmsis_ms <= 0.0:
+            cmsis_ms = duration
+            print(f"✅ CMSIS-NN test PASSED host_time={cmsis_ms:.2f} ms (no device cycles)")
+        else:
+            cmsis_fps = float(m.group(3)) if len(m.groups()) >= 3 else (1000.0 / cmsis_ms if cmsis_ms > 0 else 0.0)
+            print(f"✅ CMSIS-NN test PASSED device_time={cmsis_ms:.2f} ms ({cmsis_fps:.2f} fps) (host {duration:.2f} ms)")
+    else:
+        cmsis_ms = duration
+        print(f"✅ CMSIS-NN test PASSED host_time={cmsis_ms:.2f} ms")
     with open(BUILD_DIR / "comparison_results.txt", "a") as f:
-        f.write(f"beer_cmsis_nn: {duration:.2f} ms\n")
+        f.write(f"beer_cmsis_nn: {cmsis_ms:.2f} ms\n")
 else:
     print("❌ CMSIS-NN test FAILED")
     print("STDOUT:", result.stdout)
