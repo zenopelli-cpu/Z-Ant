@@ -46,20 +46,10 @@ pub fn emitFunctionSignature(writer: std.fs.File.Writer, do_export: bool) !void 
 pub fn emitInputSizeCalculation(writer: std.fs.File.Writer) !void {
     try writer.print(
         \\  
-        \\    //computing the size of the input tensor
-        \\    var size: u32 = 1;
+        \\    //computing the size of the input tensor (runtime)
+        \\    var input_size: usize = 1;
         \\    for(0..shape_len) |dim_i| {{
-        \\        size *= input_shape[dim_i];
+        \\        input_size *= @as(usize, input_shape[dim_i]);
         \\    }}
-        \\     
-        \\    //allocating space in memory for the data
-        \\    const data = allocator.alloc(T_in, size) catch return {d};
-        \\    defer allocator.free(data);
-        \\    for (0..size) |i| {{
-        \\        data[i] = input[i]; // Copying input elements 
-        \\    }}
-        \\    
-        \\    //converting the shape from [*]u32 to []usize
-        \\    const usized_shape: []usize = utils.u32ToUsize(allocator, input_shape, shape_len) catch return {d};
-    , .{ RC.INIT_ERROR, RC.INIT_ERROR });
+    , .{});
 }
