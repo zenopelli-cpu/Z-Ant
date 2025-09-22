@@ -12,6 +12,21 @@ pub fn build(b: *std.Build) void {
     build_options.addOption(bool, "trace_allocator", b.option(bool, "trace_allocator", "Use a tracing allocator") orelse true);
     build_options.addOption([]const u8, "allocator", (b.option([]const u8, "allocator", "Allocator to use") orelse "raw_c_allocator"));
 
+    const use_tensor_pool = b.option(bool, "use_tensor_pool", "Allocate large tensor arrays to tensor_pool section for embedded targets") orelse false;
+    build_options.addOption(bool, "use_tensor_pool", use_tensor_pool);
+
+    const stm32n6_accel = b.option(bool, "stm32n6_accel", "Enable STM32 N6 accelerator support") orelse false;
+    const stm32n6_cmsis_path = b.option([]const u8, "stm32n6_cmsis_path", "Optional CMSIS include path for STM32 N6 support");
+    const stm32n6_force_native =
+        b.option(bool, "stm32n6_force_native", "Force STM32 N6 accelerator stubs on non-Thumb targets (useful for host testing)") orelse false;
+    const stm32n6_use_cmsis = b.option(bool, "stm32n6_use_cmsis", "Enable CMSIS Helium kernels for STM32 N6") orelse false;
+    const stm32n6_use_ethos = b.option(bool, "stm32n6_use_ethos", "Enable Ethos-U integration stubs for STM32 N6") orelse false;
+    const stm32n6_ethos_path = b.option([]const u8, "stm32n6_ethos_path", "Optional include path for Ethos-U driver headers");
+    build_options.addOption(bool, "stm32n6_accel", stm32n6_accel);
+    build_options.addOption(bool, "stm32n6_force_native", stm32n6_force_native);
+    build_options.addOption(bool, "stm32n6_use_cmsis", stm32n6_use_cmsis);
+    build_options.addOption(bool, "stm32n6_use_ethos", stm32n6_use_ethos);
+
     // Get target and CPU options from command line or use defaults
     const target_str = b.option([]const u8, "target", "Target architecture (e.g., thumb-freestanding)") orelse "native";
     const cpu_str = b.option([]const u8, "cpu", "CPU model (e.g., cortex_m33)");
@@ -70,7 +85,7 @@ pub fn build(b: *std.Build) void {
     const input_type_option = b.option([]const u8, "type", "Input type") orelse "f32";
     const output_type_option = b.option([]const u8, "output_type", "Output type") orelse "f32";
     const comm_option = b.option(bool, "comm", "Codegen with comments") orelse false;
-    const dynamic_option = b.option(bool, "dynamic", "Dynamic allocation") orelse false;
+    const dynamic_option = b.option(bool, "dynamic", "Dynamic allocation") orelse true;
     const fuse_option = b.option(bool, "fuse", "enable Kernel fusion") orelse false;
     const export_option = b.option(bool, "do_export", "codegen Exportable ") orelse false;
     const codegen_version_option = b.option([]const u8, "v", "Version, v1 or v2") orelse "v1";
@@ -95,6 +110,7 @@ pub fn build(b: *std.Build) void {
     codegen_options.addOption(bool, "fuse", fuse_option);
     codegen_options.addOption([]const u8, "version", codegen_version_option);
     codegen_options.addOption(bool, "xip", xip_enabled);
+    codegen_options.addOption(bool, "use_tensor_pool", use_tensor_pool);
 
     // --------------------------------------------------------------
     // ---------------------- Modules creation ----------------------
@@ -124,6 +140,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    if (stm32n6_accel) configureStm32n6Support(b, unit_tests, stm32n6_cmsis_path, stm32n6_use_cmsis, stm32n6_use_ethos, stm32n6_ethos_path, stm32n6_force_native);
 
     // Define test options
     const test_options = b.addOptions();
@@ -155,6 +173,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    if (stm32n6_accel) configureStm32n6Support(b, IR_codeGen_exe, stm32n6_cmsis_path, stm32n6_use_cmsis, stm32n6_use_ethos, stm32n6_ethos_path, stm32n6_force_native);
 
     IR_codeGen_exe.linkLibC();
 
@@ -196,6 +216,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    if (stm32n6_accel) configureStm32n6Support(b, lib_model_exe, stm32n6_cmsis_path, stm32n6_use_cmsis, stm32n6_use_ethos, stm32n6_ethos_path, stm32n6_force_native);
+
     // Add necessary imports for the executable.
     lib_model_exe.root_module.addImport("codegen", codegen_mod);
     lib_model_exe.root_module.addImport("zant", zant_mod);
@@ -224,6 +246,8 @@ pub fn build(b: *std.Build) void {
         .optimize = .Debug,
     });
 
+    if (stm32n6_accel) configureStm32n6Support(b, test_generated_lib, stm32n6_cmsis_path, stm32n6_use_cmsis, stm32n6_use_ethos, stm32n6_ethos_path, stm32n6_force_native);
+
     test_generated_lib.root_module.addImport("zant", zant_mod);
     test_generated_lib.root_module.addImport("IR_zant", IR_zant_mod); //codegen
     test_generated_lib.root_module.addImport("codegen", codegen_mod);
@@ -249,6 +273,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    if (stm32n6_accel) configureStm32n6Support(b, static_lib, stm32n6_cmsis_path, stm32n6_use_cmsis, stm32n6_use_ethos, stm32n6_ethos_path, stm32n6_force_native);
     static_lib.linkLibC();
     static_lib.root_module.addImport("zant", zant_mod);
     static_lib.root_module.addImport("codegen", codegen_mod);
@@ -294,6 +320,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    if (stm32n6_accel) configureStm32n6Support(b, oneop_codegen_exe, stm32n6_cmsis_path, stm32n6_use_cmsis, stm32n6_use_ethos, stm32n6_ethos_path, stm32n6_force_native);
+
     oneop_codegen_exe.root_module.addImport("zant", zant_mod);
     oneop_codegen_exe.root_module.addImport("IR_zant", IR_zant_mod);
     oneop_codegen_exe.root_module.addImport("codegen", codegen_mod); //codegen
@@ -314,6 +342,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    if (stm32n6_accel) configureStm32n6Support(b, test_all_oneOp, stm32n6_cmsis_path, stm32n6_use_cmsis, stm32n6_use_ethos, stm32n6_ethos_path, stm32n6_force_native);
 
     test_all_oneOp.root_module.addImport("zant", zant_mod);
     test_all_oneOp.root_module.addImport("IR_zant", IR_zant_mod);
@@ -345,6 +375,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    if (stm32n6_accel) configureStm32n6Support(b, node_extractor_generator, stm32n6_cmsis_path, stm32n6_use_cmsis, stm32n6_use_ethos, stm32n6_ethos_path, stm32n6_force_native);
+
     node_extractor_generator.root_module.addImport("zant", zant_mod);
     node_extractor_generator.root_module.addImport("IR_zant", IR_zant_mod);
     node_extractor_generator.root_module.addImport("codegen", codegen_mod); //codegen
@@ -369,6 +401,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    if (stm32n6_accel) configureStm32n6Support(b, test_node_extractor, stm32n6_cmsis_path, stm32n6_use_cmsis, stm32n6_use_ethos, stm32n6_ethos_path, stm32n6_force_native);
+
     test_node_extractor.root_module.addImport("zant", zant_mod);
     test_node_extractor.root_module.addImport("IR_zant", IR_zant_mod);
     test_node_extractor.root_module.addImport("codegen", codegen_mod); //codegen
@@ -387,6 +421,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    if (stm32n6_accel) configureStm32n6Support(b, benchmark, stm32n6_cmsis_path, stm32n6_use_cmsis, stm32n6_use_ethos, stm32n6_ethos_path, stm32n6_force_native);
 
     const bench_options = b.addOptions();
     bench_options.addOption(bool, "full", b.option(bool, "full", "Choose whenever run full benchmark or not") orelse false);
@@ -409,6 +445,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    if (stm32n6_accel) configureStm32n6Support(b, test_onnx_parser, stm32n6_cmsis_path, stm32n6_use_cmsis, stm32n6_use_ethos, stm32n6_ethos_path, stm32n6_force_native);
 
     test_onnx_parser.root_module.addImport("zant", zant_mod);
     test_onnx_parser.linkLibC();
@@ -445,34 +483,128 @@ pub fn build(b: *std.Build) void {
 
     const build_main_step = b.step("build-main", "Build the main executable for profiling");
     build_main_step.dependOn(&install_main_exe_step.step);
+}
 
-    // ************************************************ NATIVE GUI ************************************************
+fn configureStm32n6Support(
+    b: *std.Build,
+    step: *std.Build.Step.Compile,
+    cmsis_path: ?[]const u8,
+    use_cmsis: bool,
+    use_ethos: bool,
+    ethos_path: ?[]const u8,
+    force_native: bool,
+) void {
+    step.addIncludePath(b.path("src/Core/Tensor/Accelerators/stm32n6"));
+    var flag_buf = std.BoundedArray([]const u8, 3).init(0) catch unreachable;
+    if (force_native) flag_buf.append("-DZANT_STM32N6_FORCE_NATIVE=1") catch unreachable;
+    if (use_cmsis) flag_buf.append("-DZANT_HAS_CMSIS_DSP=1") catch unreachable;
+    if (use_ethos) flag_buf.append("-DZANT_HAS_ETHOS_U=1") catch unreachable;
+    const c_flags = flag_buf.constSlice();
 
-    const dvui_dep = b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .sdl, .sdl3 = true });
-
-    const gui_exe = b.addExecutable(.{
-        .name = "gui",
-        .root_source_file = b.path("gui/sdl/sdl-standalone.zig"),
-        .target = target,
-        .optimize = optimize,
+    step.addCSourceFile(.{
+        .file = b.path("src/Core/Tensor/Accelerators/stm32n6/conv_f32.c"),
+        .flags = c_flags,
+    });
+    step.addCSourceFile(.{
+        .file = b.path("src/Core/Tensor/Accelerators/stm32n6/ethos_stub.c"),
+        .flags = c_flags,
     });
 
-    // Can either link the backend ourselves:
-    // const dvui_mod = dvui_dep.module("dvui");
-    // const sdl = dvui_dep.module("sdl");
-    // @import("dvui").linkBackend(dvui_mod, sdl);
-    // exe.root_module.addImport("dvui", dvui_mod);
+    if (use_cmsis) {
+        if (cmsis_path) |path| {
+            step.addIncludePath(.{ .cwd_relative = path });
+            step.addIncludePath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/Core/Include", .{path}) catch unreachable });
+        } else {
+            if (std.fs.cwd().access("third_party/CMSIS-NN", .{})) |_| {
+                step.addIncludePath(b.path("third_party/CMSIS-NN"));
+                step.addIncludePath(b.path("third_party/CMSIS-NN/Include"));
+            } else |err| {
+                if (err != error.FileNotFound) @panic("unexpected error probing CMSIS-NN path");
+            }
+            if (std.fs.cwd().access("third_party/CMSIS_5/CMSIS/Core/Include", .{})) |_| {
+                step.addIncludePath(b.path("third_party/CMSIS_5/CMSIS/Core/Include"));
+            } else |err| {
+                if (err != error.FileNotFound) @panic("unexpected error probing CMSIS Core path");
+            }
+        }
 
-    // Or use a prelinked one:
-    gui_exe.root_module.addImport("dvui", dvui_dep.module("dvui_sdl"));
+        if (std.fs.cwd().access("third_party/CMSIS-DSP/Include", .{})) |_| {
+            step.addIncludePath(b.path("third_party/CMSIS-DSP/Include"));
+        } else |err| {
+            if (err != error.FileNotFound) @panic("unexpected error probing CMSIS-DSP path");
+        }
 
-    const compile_step = b.step("compile-gui", "Compile gui");
-    compile_step.dependOn(&b.addInstallArtifact(gui_exe, .{}).step);
-    b.getInstallStep().dependOn(compile_step);
+        // Add ARM newlib headers so <string.h>, <math.h>, etc. are found when targeting arm-none-eabi
+        if (std.fs.cwd().access("/usr/lib/arm-none-eabi/include", .{})) {
+            step.addIncludePath(.{ .cwd_relative = "/usr/lib/arm-none-eabi/include" });
+        } else |_| {
+            // Fallback common location (ignore errors)
+            if (std.fs.cwd().access("/usr/arm-none-eabi/include", .{})) {
+                step.addIncludePath(.{ .cwd_relative = "/usr/arm-none-eabi/include" });
+            } else |_| {}
+        }
 
-    const run_cmd = b.addRunArtifact(gui_exe);
-    run_cmd.step.dependOn(compile_step);
+        // Add CMSIS-NN source files
+        if (std.fs.cwd().access("third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_convolve_s8.c", .{})) |_| {
+            step.addCSourceFile(.{
+                .file = b.path("third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_convolve_s8.c"),
+                .flags = c_flags,
+            });
+        } else |err| {
+            if (err != error.FileNotFound) @panic("unexpected error probing arm_convolve_s8.c");
+        }
 
-    const run_step = b.step("gui", "Run gui");
-    run_step.dependOn(&run_cmd.step);
+        if (std.fs.cwd().access("third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_convolve_get_buffer_sizes_s8.c", .{})) |_| {
+            step.addCSourceFile(.{
+                .file = b.path("third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_convolve_get_buffer_sizes_s8.c"),
+                .flags = c_flags,
+            });
+        } else |err| {
+            if (err != error.FileNotFound) @panic("unexpected error probing arm_convolve_get_buffer_sizes_s8.c");
+        }
+
+        // Add additional CMSIS-NN source files that are commonly needed
+        const cmsis_nn_sources = [_][]const u8{
+            "third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_nn_mat_mult_kernel_s8_s16.c",
+            "third_party/CMSIS-NN/Source/ConvolutionFunctions/arm_nn_mat_mult_kernel_row_offset_s8_s16.c",
+            "third_party/CMSIS-NN/Source/NNSupportFunctions/arm_s8_to_s16_unordered_with_offset.c",
+            "third_party/CMSIS-NN/Source/NNSupportFunctions/arm_nn_mat_mult_nt_t_s8.c",
+            "third_party/CMSIS-NN/Source/NNSupportFunctions/arm_nn_vec_mat_mult_t_s8.c",
+            "third_party/CMSIS-NN/Source/NNSupportFunctions/arm_nn_mat_mult_nt_t_s8_s32.c",
+            "third_party/CMSIS-NN/Source/NNSupportFunctions/arm_q7_to_q15_with_offset.c",
+        };
+
+        for (cmsis_nn_sources) |source_path| {
+            if (std.fs.cwd().access(source_path, .{})) |_| {
+                step.addCSourceFile(.{
+                    .file = b.path(source_path),
+                    .flags = c_flags,
+                });
+            } else |err| {
+                if (err != error.FileNotFound) @panic("unexpected error probing CMSIS-NN source");
+            }
+        }
+
+        // Add CMSIS-DSP source files
+        const cmsis_dsp_sources = [_][]const u8{
+            "third_party/CMSIS-DSP/Source/BasicMathFunctions/arm_dot_prod_f32.c",
+        };
+
+        for (cmsis_dsp_sources) |source_path| {
+            if (std.fs.cwd().access(source_path, .{})) |_| {
+                step.addCSourceFile(.{
+                    .file = b.path(source_path),
+                    .flags = c_flags,
+                });
+            } else |err| {
+                if (err != error.FileNotFound) @panic("unexpected error probing CMSIS-DSP source");
+            }
+        }
+    }
+
+    if (use_ethos) {
+        if (ethos_path) |path| {
+            step.addIncludePath(.{ .cwd_relative = path });
+        }
+    }
 }

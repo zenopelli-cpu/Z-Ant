@@ -1,6 +1,6 @@
 const std = @import("std");
-const allocator = std.heap.page_allocator;
 const zant = @import("zant");
+const allocator = zant.utils.allocator.allocator;
 const IR_zant = @import("../../IR_zant.zig");
 
 // --- zant IR---
@@ -30,7 +30,6 @@ pub const Fused_Quant_Dequant = struct {
 
         // Only start detection from DequantizeLinear nodes
         if (!std.mem.eql(u8, root_node.op_type, "QuantizeLinear")) {
-            std.debug.print(" -> Not a QuantizeLinear node, skipping", .{});
             return null;
         }
 
@@ -38,18 +37,15 @@ pub const Fused_Quant_Dequant = struct {
         errdefer node_list.deinit();
 
         try node_list.append(root_node);
-        std.debug.print(" -> QuantizeLinear node found, checking for DequantizeLinear successor", .{});
 
         // Check DequantizeLinear -> Pad
         if (root_node.next.items.len != 1) {
-            std.debug.print(" -> QuantizeLinear has {} successors (expected 1)", .{root_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const pad_node = root_node.next.items[0];
         if (!std.mem.eql(u8, pad_node.op_type, "DequantizeLinear")) {
-            std.debug.print(" -> QuantizeLinear successor is {s} (expected DequantizeLinear)", .{pad_node.op_type});
             node_list.deinit();
             return null;
         }
@@ -76,20 +72,14 @@ pub const Fused_Quant_Dequant = struct {
             try cloned_next.append(next_node);
         }
 
-        //  Clone the fusion_list instead of direct reference
-        var cloned_fusion_list = std.ArrayList(*NodeZant).init(allocator);
-        for (node_list.items) |node| {
-            try cloned_fusion_list.append(node);
-        }
-
         return NodeZant{
-            .name = try NodeZant_lib.getFusedOpsName(node_list),
+            .name = "Fused_Quant_Dequant",
             .op_type = try NodeZant_lib.getFusedOpsType(node_list),
             .op = Op_union{ .useless = operators.Useless{} },
             .next = cloned_next,
             .nodeProto = null,
             .ready = false,
-            .fusion_list = null,
+            .is_fused = true,
         };
     }
 
@@ -125,12 +115,16 @@ pub const Fused_Quant_Dequant = struct {
         const post_fusion_output: *TensorZant = (try predecessors.items[0].get_output_tensors())[0];
 
         std.debug.print("\n    successors:{} ", .{successors.items.len});
-        for (successors.items) |s| std.debug.print(" {s} ", .{s.name.?});
+        for (successors.items) |s| {
+            const name = s.name orelse "unnamed";
+            std.debug.print(" {s} ", .{name});
+        }
 
         for (successors.items) |succ_node| { //for each succerssor node
             const inputs = try succ_node.get_input_tensors(); // collect its inputs
 
-            std.debug.print("\n    succ_node:{s} ", .{succ_node.name.?});
+            const name = succ_node.name orelse "unnamed";
+            std.debug.print("\n    succ_node:{s} ", .{name});
 
             //for each succ input:
             //if the input is equal to an old last_node output sobstitute it with the new output

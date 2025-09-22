@@ -91,9 +91,9 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
         , .{});
     }
 
-    try write_checks(writer);
+    try write_checks(writer, linearizedGraph);
 
-    try write_predictInitialization(writer);
+    try write_predictInitialization(writer, linearizedGraph);
 
     // Allocate output tensors for dynamic mode (only when NOT using plan-based execution)
     if (codegen_options.dynamic) {
@@ -238,7 +238,7 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
 
 // -------------------------------- WRITE PREDICT() --------------------------------
 
-fn write_predictInitialization(writer: std.fs.File.Writer) !void {
+fn write_predictInitialization(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
     const inputs: []TensorZant = try IR_utils.getInputs(tensorZantMap);
 
     // if there are no external inputs (e.g., node extracted model with only initializers), skip input setup
@@ -260,41 +260,50 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         return;
     }
 
+    // If the external input is not used by any node, skip emitting it to save memory
+    if (!isTensorUsedInGraph(linearizedGraph, inputs[primary_index])) {
+        return;
+    }
+
     //checks
     // Allow multiple inputs; only the primary is sourced from the user pointer
     if (inputs.len > 1) {
         // no-op: other inputs will be allocated below
     }
 
+    // Zero-copy input binding: view directly over caller's input pointer
+    // 1) compute runtime input_size from provided input_shape
     _ = try writer.print(
         \\  
-        \\    //computing the size of the input tensor
-        \\    var size: u32 = 1;
+        \\    //computing the size of the input tensor (runtime)
+        \\    var input_size: usize = 1;
         \\    for(0..shape_len) |dim_i| {{
-        \\        size *= input_shape[dim_i];
+        \\        input_size *= @as(usize, input_shape[dim_i]);
         \\    }}
-        \\     
-        \\    //allocating space in memory for the data
-        \\    const data = allocator.alloc(T_in, size) catch return {d};
-        \\    defer allocator.free(data);
-        \\    for (0..size) |i| {{
-        \\        data[i] = input[i]; // Copying input elements 
-        \\    }}
-        \\    
-        \\    //converting the shape from [*]u32 to []usize
-        \\    const usized_shape: []usize = utils.u32ToUsize(allocator, input_shape, shape_len) catch return {d};
-        \\    var tensor_{s} = Tensor(T_in).fromShape(&allocator, @constCast(usized_shape)) catch return {d};
-        \\    defer allocator.free(usized_shape);
-        \\    defer tensor_{s}.deinit();
-        \\    @memcpy(tensor_{s}.data, data);
-    , .{
-        templates.RC.INIT_ERROR,
-        templates.RC.INIT_ERROR,
-        try inputs[primary_index].getNameSanitized(),
-        templates.RC.INIT_ERROR,
-        try inputs[primary_index].getNameSanitized(),
-        try inputs[primary_index].getNameSanitized(),
-    });
+    , .{});
+
+    // 2) emit fixed input shape from model (already validated by checks)
+    const fixed_shape = inputs[primary_index].getShape();
+    _ = try writer.print(
+        \\
+        \\    // Fixed input shape (validated above)
+        \\    var input_shape_fixed: [{d}]usize = .{{ 
+    , .{fixed_shape.len});
+    for (fixed_shape, 0..) |dim, i| {
+        if (i > 0) try writer.print(", ", .{});
+        try writer.print("{d}", .{dim});
+    }
+    _ = try writer.print(
+        \\ }};
+        \\
+        \\    // Zero-copy tensor pointing directly to input data
+        \\    var tensor_{s} = Tensor(T_in){{
+        \\        .data = input[0..input_size],
+        \\        .shape = input_shape_fixed[0..],
+        \\        .size = input_size,
+        \\        .allocator = &allocator, // non-owning view
+        \\    }};
+    , .{try inputs[primary_index].getNameSanitized()});
 
     // For any additional non-initializer inputs, allocate zero-initialized tensors using their declared shapes
     for (inputs, 0..) |*tz, idx| {
@@ -359,7 +368,7 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
 
 // -------------------------------- OTHER WRITE --------------------------------
 
-fn write_checks(writer: std.fs.File.Writer) !void {
+fn write_checks(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
     // Autogen a check for the input shape as arg VS input shape as codegen option
 
     const inputs: []TensorZant = try IR_utils.getInputs(tensorZantMap);
@@ -370,12 +379,24 @@ fn write_checks(writer: std.fs.File.Writer) !void {
     }
 
     // Allow multiple inputs; only validate against the first non-initializer input
-    var check_index: usize = 0;
+    var check_index: usize = std.math.maxInt(usize);
     for (inputs, 0..) |*tz, idx| {
         if (tz.tc != tensorZant_lib.TensorCategory.INITIALIZER) {
             check_index = idx;
             break;
         }
+    }
+
+    // If no suitable external input or it is not used by any node, skip checks and suppress args usage
+    if (check_index == std.math.maxInt(usize) or !isTensorUsedInGraph(linearizedGraph, inputs[check_index])) {
+        _ = try writer.print(
+            \\
+            \\    // No external input used by the graph; suppress unused args
+            \\    _ = input;
+            \\    _ = input_shape;
+            \\    _ = shape_len;
+        , .{});
+        return;
     }
 
     //check on the number of dims
@@ -393,6 +414,22 @@ fn write_checks(writer: std.fs.File.Writer) !void {
             \\    if( input_shape[{}] != {}) return {d};
         , .{ i, dim, templates.RC.INIT_ERROR });
     }
+}
+
+// Returns true if the given tensor is consumed as an input by any node in the linearized graph
+fn isTensorUsedInGraph(linearizedGraph: std.ArrayList(*NodeZant), tensor: TensorZant) bool {
+    // Iterate nodes and their input tensors; compare names
+    for (linearizedGraph.items) |node| {
+        const maybe_inputs = node.get_input_tensors() catch {
+            continue;
+        };
+        for (maybe_inputs) |t_in| {
+            if (std.mem.eql(u8, t_in.name, tensor.name)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 fn write_graphSerializationPlan(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {

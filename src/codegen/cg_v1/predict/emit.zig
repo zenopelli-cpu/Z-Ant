@@ -5,6 +5,7 @@ const tensorZant_lib = IR_zant.tensorZant_lib;
 const TensorCategory = tensorZant_lib.TensorCategory;
 const templates = @import("templates.zig");
 const plan = @import("plan.zig");
+const codegen_options = @import("codegen_options");
 
 // Global allocator for name sanitization
 var sanitize_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -69,7 +70,13 @@ pub const TensorEmitter = struct {
             try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return {d};", .{ sanitized_name, type_str, sanitized_name, templates.RC.INIT_ERROR });
         } else {
             // Static allocation: Use fromConstBuffer to allow mutation
-            try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};", .{ sanitized_name, size, type_str, type_str, size });
+            // Add tensor_pool linksection for large arrays when the option is enabled
+            const use_tensor_pool = codegen_options.use_tensor_pool and size >= 10; // 10 element threshold (~40 bytes for f32)
+            if (use_tensor_pool) {
+                try writer.print("    var array_{s}: [{d}]{s} linksection(\".tensor_pool\") = [_]{s}{{0}} ** {d};", .{ sanitized_name, size, type_str, type_str, size });
+            } else {
+                try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};", .{ sanitized_name, size, type_str, type_str, size });
+            }
             try writer.print("    var tensor_{s} = Tensor({s}).fromConstBuffer(&fba, &array_{s}, &shape_tensor_{s});", .{ sanitized_name, type_str, sanitized_name, sanitized_name });
         }
     }
@@ -88,10 +95,20 @@ pub const PlanEmitter = struct {
                 try emitTensorAllocation(writer, &tensor, dynamic);
             }
 
+            // Emit aliases for in-place operations
+            for (step.aliases.items) |tensor| {
+                if (tensor.alias_of) |base_name| {
+                    const alias_name = sanitizeName(tensor.name);
+                    const base_alias = sanitizeName(base_name);
+                    try writer.print("    // In-place alias: {s} -> {s}\n", .{ alias_name, base_alias });
+                    try writer.print("    var tensor_{s} = tensor_{s};\n", .{ alias_name, base_alias });
+                }
+            }
+
             // Comment with operation info
             try writer.print(
                 \\
-                \\   // Step {d}: {s} operation
+               \\   // Step {d}: {s} operation
                 \\
             , .{ step_idx, sanitizeName(step.node.*.op_type) });
 
@@ -142,7 +159,13 @@ pub const PlanEmitter = struct {
                 size *= @intCast(dim);
             }
 
-            try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};\n", .{ sanitized_name, size, type_str, type_str, size });
+            // Add tensor_pool linksection for large arrays when the option is enabled
+            const use_tensor_pool = codegen_options.use_tensor_pool and size >= 10; // 10 element threshold (~40 bytes for f32)
+            if (use_tensor_pool) {
+                try writer.print("    var array_{s}: [{d}]{s} linksection(\".tensor_pool\") = [_]{s}{{0}} ** {d};\n", .{ sanitized_name, size, type_str, type_str, size });
+            } else {
+                try writer.print("    var array_{s}: [{d}]{s} = [_]{s}{{0}} ** {d};\n", .{ sanitized_name, size, type_str, type_str, size });
+            }
             try writer.print("    var tensor_{s} = Tensor({s}).fromConstBuffer(&fba, &array_{s}, &shape_tensor_{s});\n", .{ sanitized_name, type_str, sanitized_name, sanitized_name });
         }
     }

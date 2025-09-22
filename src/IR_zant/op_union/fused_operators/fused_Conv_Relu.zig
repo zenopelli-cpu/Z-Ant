@@ -1,6 +1,6 @@
 const std = @import("std");
-const allocator = std.heap.page_allocator;
 const zant = @import("zant");
+const allocator = zant.utils.allocator.allocator;
 const IR_zant = @import("../../IR_zant.zig");
 
 // --- zant IR---
@@ -49,11 +49,8 @@ pub const Fused_Conv_Relu = struct {
     pub fn fn_pattern_detection(graph: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
         _ = graph; // Not used in this sequential pattern
 
-        std.debug.print("\n  Checking pattern from node: {s}", .{root_node.op_type});
-
         // CRITICAL FIX: Only start detection from Conv nodes
         if (!std.mem.eql(u8, root_node.op_type, "Conv")) {
-            // std.debug.print(" -> Not a Conv node, skipping", .{});
             return null;
         }
 
@@ -61,19 +58,16 @@ pub const Fused_Conv_Relu = struct {
         errdefer node_list.deinit(); // Clean up on error
 
         try node_list.append(root_node);
-        std.debug.print(" -> Conv node found, checking for Relu successor", .{});
 
         // Check if Conv has exactly one successor and it's ReLU
         const next_nodes = root_node.next;
         if (next_nodes.items.len != 1) {
-            // std.debug.print(" -> Conv has {} successors (expected 1)", .{next_nodes.items.len});
             node_list.deinit();
             return null;
         }
 
         const successor = next_nodes.items[0];
         if (!std.mem.eql(u8, successor.op_type, "Relu")) {
-            // std.debug.print(" -> Conv successor is {s} (expected Relu)", .{successor.op_type});
             node_list.deinit();
             return null;
         }
@@ -101,12 +95,6 @@ pub const Fused_Conv_Relu = struct {
             try cloned_next.append(next_node);
         }
 
-        //  Clone the fusion_list instead of direct reference
-        var cloned_fusion_list = std.ArrayList(*NodeZant).init(allocator);
-        for (node_list.items) |node| {
-            try cloned_fusion_list.append(node);
-        }
-
         return NodeZant{
             .name = try NodeZant_lib.getFusedOpsName(node_list),
             .op_type = try NodeZant_lib.getFusedOpsType(node_list),
@@ -114,7 +102,7 @@ pub const Fused_Conv_Relu = struct {
             .next = cloned_next,
             .nodeProto = null,
             .ready = false,
-            .fusion_list = cloned_fusion_list,
+            .is_fused = true,
         };
     }
 

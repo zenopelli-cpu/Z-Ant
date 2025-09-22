@@ -34,12 +34,16 @@ pub const GraphZant = struct {
 
     /// Deinitializes a GraphZant instance, freeing allocated resources.
     pub fn deinit(self: *GraphZant) void {
+        std.debug.print("\n\ngraph.deinit() ------------- ", .{});
 
-        // // Deinitialize each NodeZant in the nodes list REMOVED FOR TESTING
-        // for (self.nodes.items) |node| {
-        //     node.deinit();
-        //     allocator.destroy(node); // Free the node
-        // }
+        // Deinitialize each NodeZant in the nodes list REMOVED FOR TESTING
+        for (self.nodes.items) |node| {
+            const n = if (node.name) |nn| nn else "<unnamed>";
+            std.debug.print("\n  {s}.deinit()  ", .{n});
+            node.deinit();
+            allocator.destroy(node); // Free the node
+        }
+
         self.nodes.deinit();
     }
 
@@ -67,65 +71,17 @@ pub const GraphZant = struct {
     pub fn removeNodes(self: *GraphZant, nodes_to_remove: std.ArrayList(*NodeZant)) !void {
         if (nodes_to_remove.items.len == 0) return;
 
+        // DEBUG
         std.debug.print("\n\nNodes to be removed:", .{});
-        for (nodes_to_remove.items) |n| std.debug.print("\n      {s}", .{n.name.?});
+        for (nodes_to_remove.items) |n| std.debug.print("\n      {s}", .{n.name orelse "<unnamed>"});
         std.debug.print("\n", .{});
-
-        // Collecting all input and output tensors from the nodes_to_remove list
-        // var tensor_list: std.ArrayList(*TensorZant) = std.ArrayList(*TensorZant).init(allocator);
-        // defer tensor_list.deinit();
-
-        // for (nodes_to_remove.items) |node| {
-        //     const node_input_tensors: []*TensorZant = try node.get_input_tensors();
-        //     const node_output_tensors: []*TensorZant = try node.get_output_tensors();
-
-        //     // Add input tensors if not already present
-        //     for (node_input_tensors) |tensor| {
-        //         var already_exists = false;
-        //         for (tensor_list.items) |existing_tensor| {
-        //             if (existing_tensor == tensor) {
-        //                 already_exists = true;
-        //                 break;
-        //             }
-        //         }
-        //         if (!already_exists) {
-        //             try tensor_list.append(tensor);
-        //         }
-        //     }
-
-        //     // Add output tensors if not already present
-        //     for (node_output_tensors) |tensor| {
-        //         var already_exists = false;
-        //         for (tensor_list.items) |existing_tensor| {
-        //             if (existing_tensor == tensor) {
-        //                 already_exists = true;
-        //                 break;
-        //             }
-        //         }
-        //         if (!already_exists) {
-        //             try tensor_list.append(tensor);
-        //         }
-        //     }
-        // }
-
-        // std.debug.print("\n\nTensord to be removed:", .{});
-        // for (tensor_list.items) |t| std.debug.print("\n      {s}", .{t.name});
-        // std.debug.print("\n", .{});
-
-        // for (tensor_list.items) |tens| {
-        //     std.debug.print("     Trying to remove tensor: {s}\n", .{tens.*.name});
-        //     if (tensorZant_lib.tensorMap.contains(tens.*.name)) {
-        //         _ = tensorZant_lib.tensorMap.remove(tens.*.name);
-        //     } else {
-        //         std.debug.print("     Tensor {s} not found in map\n", .{tens.*.name});
-        //     }
-        // }
 
         for (nodes_to_remove.items) |n| {
             var j: usize = 0;
             while (j < self.nodes.items.len) {
                 if (self.nodes.items[j] == n) {
                     n.deinit();
+                    allocator.destroy(n); // Free the node memory
                     _ = self.nodes.orderedRemove(j);
                     break;
                 }
@@ -185,77 +141,6 @@ pub const GraphZant = struct {
         return predecessors;
     }
 
-    // /// Mathematical shape inference pass over the entire graph
-    // fn performShapeInference(self: *GraphZant, output_map: *std.StringHashMap(*NodeZant)) !void {
-    //     std.debug.print("\n=== STARTING MATHEMATICAL SHAPE INFERENCE ===\n", .{});
-
-    //     // Multiple passes to propagate shapes through the graph
-    //     const max_passes: u32 = 5;
-    //     var pass: u32 = 0;
-
-    //     while (pass < max_passes) {
-    //         std.debug.print("Shape inference pass {}\n", .{pass + 1});
-    //         var shapes_updated = false;
-
-    //         // Go through nodes in dependency order and compute output shapes
-    //         for (self.nodes.items) |node| {
-    //             const node_updated = try self.computeNodeOutputShapes(node, output_map);
-    //             if (node_updated) {
-    //                 shapes_updated = true;
-    //                 std.debug.print("Updated shapes for node: {s}\n", .{node.op_type});
-    //             }
-    //         }
-
-    //         // If no shapes were updated, we're done
-    //         if (!shapes_updated) {
-    //             std.debug.print("Shape inference converged after {} passes\n", .{pass + 1});
-    //             break;
-    //         }
-
-    //         pass += 1;
-    //     }
-
-    //     std.debug.print("=== SHAPE INFERENCE COMPLETE ===\n\n", .{});
-    // }
-
-    // /// Compute output shapes for a single node based on its operation type
-    // fn computeNodeOutputShapes(self: *GraphZant, node: *NodeZant, output_map: *std.StringHashMap(*NodeZant)) !bool {
-    //     _ = self;
-    //     _ = output_map;
-
-    //     // Try to compute the correct shape first
-    //     const new_shape = node.op.get_output_shape() catch {
-    //         return false;
-    //     };
-
-    //     // Get output tensors for this node
-    //     const output_tensors = node.get_output_tensors() catch return false;
-    //     // Note: potential memory leak, but avoids segfault for now
-
-    //     var shapes_changed = false;
-
-    //     for (output_tensors) |output_tensor| {
-    //         // Only update LINK tensors with placeholder shapes
-    //         if (output_tensor.tc == tensorZant_lib.TensorCategory.LINK) {
-    //             // Check if current shape is placeholder
-    //             const is_placeholder = (output_tensor.shape.len == 1 and output_tensor.shape[0] == 1);
-
-    //             if (is_placeholder) {
-    //                 // Update the tensor shape with the computed shape
-    //                 // NOTE: Potential memory leak, but avoids segfault
-    //                 // TODO: Implement proper shape memory tracking
-    //                 output_tensor.shape = try allocator.dupe(usize, new_shape);
-    //                 output_tensor.stride = try tensorZant_lib.TensorZant.computeStride(output_tensor.shape);
-
-    //                 std.debug.print("Shape inference: Updated {s} from placeholder to {any}\n", .{ output_tensor.name, output_tensor.shape });
-    //                 shapes_changed = true;
-    //             }
-    //         }
-    //     }
-
-    //     return shapes_changed;
-    // }
-
     // kernel fusion and sobstitutions
     pub fn fuse(self: *GraphZant, pattern_configs: []const PatternConfig) !void {
         std.debug.print("\nGraphZant.fuse()...", .{});
@@ -311,6 +196,17 @@ pub const GraphZant = struct {
         for (self.nodes.items) |node| {
             node.print();
         }
+    }
+
+    pub fn print_linearized(self: *GraphZant) !void {
+        var linearizedGraph: std.ArrayList(*NodeZant) = try self.linearize(allocator);
+        defer linearizedGraph.deinit();
+        std.debug.print("\n\n --- Linearized Graph post fusion : ", .{});
+        for (linearizedGraph.items) |node| {
+            const name = if (node.name) |n| n else "unnamed";
+            std.debug.print("\n  {s} ", .{name});
+        }
+        std.debug.print("\n", .{});
     }
 
     pub fn print_detailed(self: *GraphZant) !void {

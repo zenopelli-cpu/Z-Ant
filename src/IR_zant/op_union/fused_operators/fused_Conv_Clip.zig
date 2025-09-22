@@ -1,6 +1,6 @@
 const std = @import("std");
-const allocator = std.heap.page_allocator;
 const zant = @import("zant");
+const allocator = zant.utils.allocator.allocator;
 const IR_zant = @import("../../IR_zant.zig");
 
 // --- onnx ---
@@ -356,11 +356,8 @@ pub const Fused_Conv_Clip = struct {
     pub fn fn_pattern_detection(graph: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
         _ = graph; // Not used in this sequential pattern
 
-        std.debug.print("\n  Checking 2-op pattern from node: {s}", .{root_node.op_type});
-
         // Only start detection from DequantizeLinear nodes
         if (!std.mem.eql(u8, root_node.op_type, "Conv")) {
-            std.debug.print(" -> Not a Conv node, skipping", .{});
             return null;
         }
 
@@ -368,18 +365,15 @@ pub const Fused_Conv_Clip = struct {
         errdefer node_list.deinit();
 
         try node_list.append(root_node);
-        std.debug.print(" -> Conv node found, checking for Clip successor", .{});
 
         // Check DequantizeLinear -> Pad
         if (root_node.next.items.len != 1) {
-            std.debug.print(" -> Conv has {} successors (expected 1)", .{root_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const pad_node = root_node.next.items[0];
         if (!std.mem.eql(u8, pad_node.op_type, "Clip")) {
-            std.debug.print(" -> Conv successor is {s} (expected Pad)", .{pad_node.op_type});
             node_list.deinit();
             return null;
         }
@@ -408,12 +402,6 @@ pub const Fused_Conv_Clip = struct {
             try cloned_next.append(next_node);
         }
 
-        //  Clone the fusion_list instead of direct reference
-        var cloned_fusion_list = std.ArrayList(*NodeZant).init(allocator);
-        for (node_list.items) |node| {
-            try cloned_fusion_list.append(node);
-        }
-
         return NodeZant{
             .name = try NodeZant_lib.getFusedOpsName(node_list),
             .op_type = try NodeZant_lib.getFusedOpsType(node_list),
@@ -426,7 +414,7 @@ pub const Fused_Conv_Clip = struct {
             .next = cloned_next,
             .nodeProto = null,
             .ready = false,
-            .fusion_list = cloned_fusion_list,
+            .is_fused = true,
         };
     }
 

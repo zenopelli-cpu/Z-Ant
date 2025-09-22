@@ -16,5 +16,10 @@ pub const Fused_Conv_Clip = @import("fused_Conv_Clip.zig").Fused_Conv_Clip;
 // DequantizeLinear -> Clip -> QuantizeLinear
 pub const Fused_Dequant_Clip_Quant = @import("fused_Dequant_Clip_Quant.zig").Fused_Dequant_Clip_Quant;
 
+// DequantizeLinear-->
+//                    |--> Add->QuantizeLinear operation for better performance
+// DequantizeLinear-->
+pub const Fused_2Dequant_Add_Quant = @import("fused_2Dequant_Add_Quant.zig").Fused_2Dequant_Add_Quant;
+
 // Conv -> Sigmoid -> Mul
 pub const Fused_Conv_Sigmoid_Mul = @import("fused_Conv_Sigmoid_Mul.zig").Fused_Conv_Sigmoid_Mul;

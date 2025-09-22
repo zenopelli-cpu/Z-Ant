@@ -25,7 +25,7 @@ pub const NodeZant = struct {
     op: Op_union, // contains all the information of the operation
     next: std.ArrayList(*NodeZant), // points to the following nodes
 
-    fusion_list: ?std.ArrayList(*NodeZant), // This is a list of all the operations fused in this node, by deafult is null. It is only different from Null when the node represent the fusion of two or more nodes. A fused node is created in pattern_matcher.fuse_nodes().
+    is_fused: bool, // This is a list of all the operations fused in this node, by deafult is null. It is only different from Null when the node represent the fusion of two or more nodes. A fused node is created in pattern_matcher.fuse_nodes().
     nodeProto: ?*NodeProto,
     ready: bool,
 
@@ -38,49 +38,16 @@ pub const NodeZant = struct {
             .next = std.ArrayList(*NodeZant).init(allocator),
             .nodeProto = nodeProto,
             .ready = false,
-            .fusion_list = null,
-        };
-    }
-
-    //this method will generate a NodeZant that represent the fusion of two or more nodes.
-    //OSS: it assumes that the given nodes are consecutive and in the correct order
-    //returns a nodeZant where:
-    //   - "name" is the concatenation of all the names
-    //   - "op_type" is the concatenation of "fused_" with all the other op_type divided by "_"
-    //   - "op" is given by the Op_union class
-    //   - "next" if the same next of the last node of the list
-    pub fn init_fused_node(
-        fusion_list: std.ArrayList(*NodeZant), //list of operations to fuse
-        fn_init_fused_op: *const fn (fusion_list: std.ArrayList(*NodeZant), op_type: []const u8) anyerror!Op_union, //initialization logic of the new node
-        name: ?[]const u8, // name of the new node
-        op_type: ?[]const u8, // op_type of the new node
-    ) !NodeZant {
-
-        // Check if the fusion list is empty
-        if (fusion_list.items.len == 0) {
-            return error.EmptyFusionList;
-        }
-
-        const last_node: *NodeZant = fusion_list.items[fusion_list.items.len - 1];
-
-        return NodeZant{
-            .name = name orelse getFusedOpsName(fusion_list),
-            .op_type = op_type orelse getFusedOpsType(fusion_list),
-            .op = try fn_init_fused_op(fusion_list, op_type orelse getFusedOpsType(fusion_list)),
-            .next = last_node.next,
-            .nodeProto = null,
-            .ready = false,
-            .fusion_list = fusion_list,
+            .is_fused = false,
         };
     }
 
     /// Deinitializes a NodeZant instance, freeing allocated resources.
     pub fn deinit(self: *NodeZant) void {
+        // dam
+        // const name = if (self.name) |n| n else "<unnamed>";
+        // std.debug.print("\n    {s}.deinit()  ", .{name});
         self.next.deinit();
-
-        if (self.fusion_list) |*fusion_list| {
-            fusion_list.deinit();
-        }
     }
 
     /// Adds a new node to the next list.
@@ -109,7 +76,7 @@ pub const NodeZant = struct {
     }
 
     pub fn isFused(self: *NodeZant) bool {
-        return !self.fusion_list == null;
+        return !self.is_fused == null;
     }
 
     // Print method for debugging and display purposes
@@ -131,13 +98,12 @@ pub const NodeZant = struct {
 
         // Print next nodes count
         std.debug.print("  next: [{}] nodes\n", .{self.next.items.len});
+        // for (self.next.items) |next_node| {
+        //     next_node.print();
+        // }
 
         // Print fusion list info
-        if (self.fusion_list) |fusion_list| {
-            std.debug.print("  fusion_list: [{}] nodes\n", .{fusion_list.items.len});
-        } else {
-            std.debug.print("  fusion_list: null\n", .{});
-        }
+        std.debug.print("  is_fused: {}\n", .{self.is_fused});
 
         // Print nodeProto status
         if (self.nodeProto) |_| {

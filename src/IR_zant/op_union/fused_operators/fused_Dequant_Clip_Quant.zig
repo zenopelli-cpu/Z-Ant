@@ -1,6 +1,6 @@
 const std = @import("std");
-const allocator = std.heap.page_allocator;
 const zant = @import("zant");
+const allocator = zant.utils.allocator.allocator;
 const IR_zant = @import("../../IR_zant.zig");
 
 // --- zant IR---
@@ -80,11 +80,8 @@ pub const Fused_Dequant_Clip_Quant = struct {
     pub fn fn_pattern_detection(graph: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
         _ = graph; // Not used in this sequential pattern
 
-        std.debug.print("\n  Checking 3-op DequantClipQuant pattern from node: {s}", .{root_node.op_type});
-
         // Only start detection from DequantizeLinear nodes
         if (!std.mem.eql(u8, root_node.op_type, "DequantizeLinear")) {
-            std.debug.print(" -> Not a DequantizeLinear node, skipping", .{});
             return null;
         }
 
@@ -92,35 +89,29 @@ pub const Fused_Dequant_Clip_Quant = struct {
         errdefer node_list.deinit();
 
         try node_list.append(root_node);
-        std.debug.print(" -> DequantizeLinear node found, checking for Clip successor", .{});
 
         // Check DequantizeLinear -> Clip
         if (root_node.next.items.len != 1) {
-            std.debug.print(" -> DequantizeLinear has {} successors (expected 1)", .{root_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const clip_node = root_node.next.items[0];
         if (!std.mem.eql(u8, clip_node.op_type, "Clip")) {
-            std.debug.print(" -> DequantizeLinear successor is {s} (expected Clip)", .{clip_node.op_type});
             node_list.deinit();
             return null;
         }
 
         try node_list.append(clip_node);
-        std.debug.print(" -> Found DequantizeLinear->Clip, checking for QuantizeLinear", .{});
 
         // Check Clip -> QuantizeLinear
         if (clip_node.next.items.len != 1) {
-            std.debug.print(" -> Clip has {} successors (expected 1)", .{clip_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const quant_node = clip_node.next.items[0];
         if (!std.mem.eql(u8, quant_node.op_type, "QuantizeLinear")) {
-            std.debug.print(" -> Clip successor is {s} (expected QuantizeLinear)", .{quant_node.op_type});
             node_list.deinit();
             return null;
         }
@@ -149,12 +140,6 @@ pub const Fused_Dequant_Clip_Quant = struct {
             try cloned_next.append(next_node);
         }
 
-        // Clone the fusion_list instead of direct reference
-        var cloned_fusion_list = std.ArrayList(*NodeZant).init(allocator);
-        for (node_list.items) |node| {
-            try cloned_fusion_list.append(node);
-        }
-
         return NodeZant{
             .name = try NodeZant_lib.getFusedOpsName(node_list),
             .op_type = try NodeZant_lib.getFusedOpsType(node_list),
@@ -162,7 +147,7 @@ pub const Fused_Dequant_Clip_Quant = struct {
             .next = cloned_next,
             .nodeProto = null,
             .ready = false,
-            .fusion_list = cloned_fusion_list,
+            .is_fused = true,
         };
     }
 
@@ -273,7 +258,6 @@ pub const Fused_Dequant_Clip_Quant = struct {
         writer: std.fs.File.Writer,
     ) !void {
         _ = self; // Self is not used in this static-like function
-        _ = output_quantized_tensor; // Output is the same as input (in-place)
 
         // Helper to create tensor strings
         const createTensorStr = struct {
@@ -296,6 +280,8 @@ pub const Fused_Dequant_Clip_Quant = struct {
         defer allocator.free(str_input_scale);
         const str_input_zero_point = try createTensorStr(input_zero_point_tensor);
         defer allocator.free(str_input_zero_point);
+        const str_output_quantized = try createTensorStr(output_quantized_tensor);
+        defer allocator.free(str_output_quantized);
         const str_output_scale = try createTensorStr(output_scale_tensor);
         defer allocator.free(str_output_scale);
         const str_output_zero_point = try createTensorStr(output_zero_point_tensor);
@@ -311,7 +297,7 @@ pub const Fused_Dequant_Clip_Quant = struct {
             \\        {s}.data[0], // input_zero_point
             \\        {d:.6}, // min_val
             \\        {d:.6}, // max_val
-            \\        @constCast({s}), // output = input (in-place)
+            \\        @constCast({s}), // output tensor
             \\        {s}.data[0], // output_scale
             \\        {s}.data[0], // output_zero_point
             \\    ) catch return -1;
@@ -323,7 +309,7 @@ pub const Fused_Dequant_Clip_Quant = struct {
             str_input_zero_point,
             min_val,
             max_val,
-            str_input_quantized,
+            str_output_quantized,
             str_output_scale,
             str_output_zero_point,
         });

@@ -28,6 +28,14 @@ pub const patterns = [_]PatternConfig{
         .fn_pattern_sobstitution = fused_operators.Fused_Dequant_Pad_Quant_QLinConv.fn_pattern_sobstitution,
     },
 
+    .{ //  2DequantizeLinear->Add->QuantizeLinear into "QLinearAdd"
+        .pattern = &[_][]const u8{ "DequantizeLinear", "DequantizeLinear", "Add", "QuantizeLinear" },
+        .name = "2DequantizeLinearAddQuantizeLinear",
+        .fn_pattern_detection = fused_operators.Fused_2Dequant_Add_Quant.fn_pattern_detection,
+        .fn_pattern_fusion = fused_operators.Fused_2Dequant_Add_Quant.fn_pattern_fusion,
+        .fn_pattern_sobstitution = fused_operators.Fused_2Dequant_Add_Quant.fn_pattern_sobstitution,
+    },
+
     .{ // "QuantizeLinear" -> "DequantizeLinear" into nothing
         .pattern = &[_][]const u8{ "QuantizeLinear", "DequantizeLinear" },
         .name = "QuantizeLinearDequantizeLinear",

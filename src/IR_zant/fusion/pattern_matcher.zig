@@ -36,9 +36,8 @@
 //!     - The pattern matching will fail (return null) if any middle node has multiple outgoing connections, preventing incorrect fusions that would lose graph topology information.
 
 const std = @import("std");
-const allocator = std.heap.page_allocator; // Use your allocator
-
-// --- Zant_IR ---
+const zant = @import("zant");
+const allocator = zant.utils.allocator.allocator; // Use project allocator so create/destroy match
 const IR_zant = @import("../IR_zant.zig");
 const GraphZant = IR_zant.GraphZant;
 const NodeZant = IR_zant.NodeZant;
@@ -60,9 +59,9 @@ pub fn fusePatterns(graph: *GraphZant, pattern_configs: []const PatternConfig) !
     for (pattern_configs) |config| {
         std.debug.print("\n\n ---------------------------------------------------------------- ", .{});
         std.debug.print("\n fusePatterns() with config ", .{});
+        for (config.pattern) |p| std.debug.print(" {s} -", .{p});
         std.debug.print("\n ---------------------------------------------------------------- ", .{});
 
-        for (config.pattern) |p| std.debug.print(" {s} -", .{p});
         try fusePatternsByConfig(graph, config);
     }
 }
@@ -71,14 +70,15 @@ pub fn fusePatterns(graph: *GraphZant, pattern_configs: []const PatternConfig) !
 fn fusePatternsByConfig(graph: *GraphZant, config: PatternConfig) !void {
     var i: usize = 0;
     var len = graph.nodes.items.len;
-    while (i < len) {
+    while (i < graph.nodes.items.len) {
         const node = graph.nodes.items[i];
         if (try findAndFusePattern(graph, node, config)) {
             // Pattern was found and fused, restart search since graph was modified
             std.debug.print("\n -----------------------------  Pattern was found and fused, restart search since graph was modified ", .{});
-
             i = 0;
             len = graph.nodes.items.len;
+
+            // try graph.print_linearized();
             continue;
         }
         i += 1;
@@ -87,24 +87,21 @@ fn fusePatternsByConfig(graph: *GraphZant, config: PatternConfig) !void {
 
 /// Core function that coordinates pattern detection, fusion, and substitution
 fn findAndFusePattern(graph: *GraphZant, root_node: *NodeZant, config: PatternConfig) !bool {
-    std.debug.print("\n findAndFusePattern() starting from node type :{s} name:{s}", .{ root_node.op_type, root_node.name.? });
 
     // Step 1: Try to detect the pattern starting from this root node
     const maybe_node_list = try config.fn_pattern_detection(graph, root_node);
 
     if (maybe_node_list) |node_list| {
-        // defer node_list.deinit();
-
-        std.debug.print("\n pattern detected! Found {} nodes in pattern", .{node_list.items.len});
-
+        std.debug.print("\n Detected:", .{});
         // Log the detected pattern
         for (node_list.items, 0..) |node, idx| {
-            std.debug.print("\n     Node[{}]: {s}", .{ idx, node.op_type });
+            std.debug.print("\n     Node[{}]: {s}", .{ idx, node.name.? });
         }
 
         // Step 2: Create the fused node
         const fused_node = try config.fn_pattern_fusion(graph, node_list);
         std.debug.print("\n     Fused node created: {s}", .{fused_node.op_type});
+        // fused_node.print(); // DEBUG
 
         // Step 3: Allocate the fused node on the heap to ensure it persists
         const fused_node_ptr = try allocator.create(NodeZant);
