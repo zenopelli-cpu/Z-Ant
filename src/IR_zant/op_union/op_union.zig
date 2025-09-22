@@ -83,6 +83,7 @@ pub const Op_union = union(enum) {
     fused_Dequant_Pad_Quant_QLinConv: fused_operators.Fused_Dequant_Pad_Quant_QLinConv,
     fused_Dequant_Quant: fused_operators.Fused_Dequant_Quant,
     fused_Quant_Dequant: fused_operators.Fused_Quant_Dequant,
+    fused_2Dequant_Add_Quant: fused_operators.Fused_2Dequant_Add_Quant,
 
     // ------------- others
     useless: operators.Useless,

@@ -131,11 +131,8 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
     pub fn fn_pattern_detection(graph: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
         _ = graph; // Not used in this sequential pattern
 
-        std.debug.print("\n  Checking 4-op pattern from node: {s}", .{root_node.op_type});
-
         // Only start detection from DequantizeLinear nodes
         if (!std.mem.eql(u8, root_node.op_type, "DequantizeLinear")) {
-            std.debug.print(" -> Not a DequantizeLinear node, skipping", .{});
             return null;
         }
 
@@ -143,52 +140,43 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         errdefer node_list.deinit();
 
         try node_list.append(root_node);
-        std.debug.print(" -> DequantizeLinear node found, checking for Pad successor", .{});
 
         // Check DequantizeLinear -> Pad
         if (root_node.next.items.len != 1) {
-            std.debug.print(" -> DequantizeLinear has {} successors (expected 1)", .{root_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const pad_node = root_node.next.items[0];
         if (!std.mem.eql(u8, pad_node.op_type, "Pad")) {
-            std.debug.print(" -> DequantizeLinear successor is {s} (expected Pad)", .{pad_node.op_type});
             node_list.deinit();
             return null;
         }
 
         try node_list.append(pad_node);
-        std.debug.print(" -> Found DequantizeLinear->Pad, checking for QuantizeLinear", .{});
 
         // Check Pad -> QuantizeLinear
         if (pad_node.next.items.len != 1) {
-            std.debug.print(" -> Pad has {} successors (expected 1)", .{pad_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const quant_node = pad_node.next.items[0];
         if (!std.mem.eql(u8, quant_node.op_type, "QuantizeLinear")) {
-            std.debug.print(" -> Pad successor is {s} (expected QuantizeLinear)", .{quant_node.op_type});
             node_list.deinit();
             return null;
         }
 
         try node_list.append(quant_node);
-        std.debug.print(" -> Found Pad->QuantizeLinear, checking for QLinearConv", .{});
 
         // Check QuantizeLinear -> QLinearConv
         if (quant_node.next.items.len != 1) {
-            std.debug.print(" -> QuantizeLinear has {} successors (expected 1)", .{quant_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const qlinearconv_node = quant_node.next.items[0];
         if (!std.mem.eql(u8, qlinearconv_node.op_type, "QLinearConv")) {
-            std.debug.print(" -> QuantizeLinear successor is {s} (expected QLinearConv)", .{qlinearconv_node.op_type});
             node_list.deinit();
             return null;
         }

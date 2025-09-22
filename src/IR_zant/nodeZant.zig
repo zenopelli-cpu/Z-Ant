@@ -44,8 +44,9 @@ pub const NodeZant = struct {
 
     /// Deinitializes a NodeZant instance, freeing allocated resources.
     pub fn deinit(self: *NodeZant) void {
-        const name = if (self.name) |n| n else "<unnamed>";
-        std.debug.print("\n    {s}.deinit()  ", .{name});
+        // dam
+        // const name = if (self.name) |n| n else "<unnamed>";
+        // std.debug.print("\n    {s}.deinit()  ", .{name});
         self.next.deinit();
     }
 
@@ -97,13 +98,12 @@ pub const NodeZant = struct {
 
         // Print next nodes count
         std.debug.print("  next: [{}] nodes\n", .{self.next.items.len});
+        // for (self.next.items) |next_node| {
+        //     next_node.print();
+        // }
 
         // Print fusion list info
-        if (self.is_fused) |fusion_list| {
-            std.debug.print("  fusion_list: [{}] nodes\n", .{fusion_list.items.len});
-        } else {
-            std.debug.print("  fusion_list: null\n", .{});
-        }
+        std.debug.print("  is_fused: {}\n", .{self.is_fused});
 
         // Print nodeProto status
         if (self.nodeProto) |_| {
