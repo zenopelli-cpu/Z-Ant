@@ -56,8 +56,13 @@ bool zant_stm32n6_conv_f32_ethos(
     size_t filters_per_group,
     size_t channels_per_group);
 
+bool zant_stm32n6_cmsis_s8_selftest(float *output, size_t output_len);
+
+void zant_stm32n6_mark_cmsis_used(void);
+
 void zant_stm32n6_reset_test_state(void);
 bool zant_stm32n6_cmsis_was_used(void);
+size_t zant_stm32n6_cmsis_invocation_count(void);
 bool zant_stm32n6_ethos_was_used(void);
 
 #ifdef __cplusplus

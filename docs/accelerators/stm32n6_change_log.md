@@ -15,9 +15,9 @@
 ## Convolution bridge implementation
 - Created `conv_kernels.h` as the shared header describing the exported C entry points and instrumentation APIs consumed by both Zig and the regression harness.【F:src/Core/Tensor/Accelerators/stm32n6/conv_kernels.h†L1-L47】
 - Implemented `conv_f32.c`, which now contains:
-  - A portable reference convolution that mirrors the previous Zig loop so numerical behaviour stays identical in all fallbacks.【F:src/Core/Tensor/Accelerators/stm32n6/conv_f32.c†L157-L248】
-  - A Helium/CMSIS pathway that repacks tensors into the NHWC/q7 layout expected by `arm_convolve_s8`, quantizes activations and biases, sizes the CMSIS workspace dynamically, and marks the CMSIS flag so tests can verify the accelerated code ran.【F:src/Core/Tensor/Accelerators/stm32n6/conv_f32.c†L27-L155】【F:src/Core/Tensor/Accelerators/stm32n6/conv_f32.c†L249-L305】
-  - Shared helpers for dot products, workspace management, and instrumentation used by both the reference and accelerated paths.【F:src/Core/Tensor/Accelerators/stm32n6/conv_f32.c†L17-L25】【F:src/Core/Tensor/Accelerators/stm32n6/conv_f32.c†L307-L339】
+  - A portable reference convolution that mirrors the previous Zig loop so numerical behaviour stays identical in all fallbacks.【F:src/Core/Tensor/Accelerators/stm32n6/conv_f32.c†L240-L358】
+  - A Helium entry point that currently falls back to the reference kernel for floating-point models while exposing a `cmsis_s8_selftest` helper so the host harness can exercise `arm_convolve_s8` with explicit quantized fixtures and mark the CMSIS instrumentation.【F:src/Core/Tensor/Accelerators/stm32n6/conv_f32.c†L118-L133】【F:src/Core/Tensor/Accelerators/stm32n6/conv_f32.c†L395-L466】
+  - Shared helpers for workspace reset and per-path instrumentation so the unit tests can check which backend executed.【F:src/Core/Tensor/Accelerators/stm32n6/conv_f32.c†L474-L483】
 - Added `ethos_stub.c` so Ethos-U builds can link cleanly even without the Arm driver; the stub raises a test flag and forwards to the reference kernel until a real Ethos implementation is provided.【F:src/Core/Tensor/Accelerators/stm32n6/ethos_stub.c†L1-L49】
 
 ## Tensor math integration

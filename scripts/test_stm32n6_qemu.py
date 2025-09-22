@@ -341,6 +341,38 @@ def detect_qemu(explicit: str | None) -> Path | None:
     return None
 
 
+def detect_fvp(explicit: str | None) -> Path | None:
+    if explicit:
+        resolved = shutil.which(explicit)
+        if resolved:
+            return Path(resolved)
+        return None
+    env_value = os.environ.get("FVP_BIN") or os.environ.get("ARM_FVP")
+    if env_value and shutil.which(env_value):
+        return Path(shutil.which(env_value))
+    candidates = (
+        "FVP_Corstone_SSE-300_Ethos-U55",
+        "FVP_Corstone_SSE-300",
+        "FVP_MPS3",
+        "FVP_Corstone_SSE-310",
+        "FVP_Corstone_SSE-200",
+    )
+    for cand in candidates:
+        resolved = shutil.which(cand)
+        if resolved:
+            return Path(resolved)
+    # Heuristic: common local install paths
+    likely_paths: list[Path] = []
+    home = Path.home()
+    likely_paths.append(home / "FVP_Corstone_SSE-300" / "models" / "Linux64_GCC-9.3" / "FVP_Corstone_SSE-300_Ethos-U55")
+    likely_paths.append(home / "FVP_Corstone_SSE-300" / "models" / "Linux64_GCC-9.3" / "FVP_Corstone_SSE-300")
+    likely_paths.append(home / "Arm" / "FVP_Corstone_SSE-300" / "models" / "Linux64_GCC-9.3" / "FVP_Corstone_SSE-300_Ethos-U55")
+    for p in likely_paths:
+        if p.exists() and p.is_file():
+            return p
+    return None
+
+
 def find_arm_math_header(explicit: str | None) -> Path:
     candidates: Iterable[Path]
     if explicit:
@@ -424,15 +456,26 @@ def get_cmsis_sources(convolve_source: Path, nn_include: Path) -> tuple[Path, ..
         cmsis_nn_source = nn_include.parent / "Source"
         if cmsis_nn_source.exists():
             additional_sources = [
-                # Buffer size functions
+                # Wrapper and buffer size helpers
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_wrapper_s8.c",
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_get_buffer_sizes_s8.c",
-                # Matrix multiplication kernels
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_depthwise_conv_get_buffer_sizes_s8.c",
+                # Common conv kernels the wrapper may dispatch to
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_1x1_s8.c",
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_1x1_s8_fast.c",
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_convolve_1_x_n_s8.c",
+                # Depthwise wrapper and variants
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_depthwise_conv_wrapper_s8.c",
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_depthwise_conv_s8.c",
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_depthwise_conv_s8_opt.c",
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_depthwise_conv_3x3_s8.c",
+                # MatMul kernels used by conv
+                cmsis_nn_source / "ConvolutionFunctions" / "arm_nn_mat_mult_s8.c",
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_nn_mat_mult_kernel_s8_s16.c",
                 cmsis_nn_source / "ConvolutionFunctions" / "arm_nn_mat_mult_kernel_row_offset_s8_s16.c",
                 # Support functions
                 cmsis_nn_source / "NNSupportFunctions" / "arm_s8_to_s16_unordered_with_offset.c",
                 cmsis_nn_source / "NNSupportFunctions" / "arm_nn_mat_mult_nt_t_s8.c",
-                # Additional support functions that might be needed
                 cmsis_nn_source / "NNSupportFunctions" / "arm_nn_vec_mat_mult_t_s8.c",
                 cmsis_nn_source / "NNSupportFunctions" / "arm_nn_mat_mult_nt_t_s8_s32.c",
             ]
@@ -587,6 +630,171 @@ def run_qemu(
         return subprocess.CompletedProcess(cmd, exit_code or 1, stdout_text, "")
 
     # Timed out or exited without explicit marker; treat as success but annotate return code.
+    if exit_code not in (0, None):
+        return subprocess.CompletedProcess(cmd, exit_code, stdout_text, "")
+    return subprocess.CompletedProcess(cmd, 0, stdout_text, "")
+
+
+def run_fvp(
+    fvp: Path,
+    elf_path: Path,
+    *,
+    verbose: bool,
+    success_marker: str | None,
+    timeout: float,
+) -> subprocess.CompletedProcess[str]:
+    # Prefer config file if present
+    cfg = REPO_ROOT / "build" / "beer_comparison" / "fvp_config.txt"
+    cmd: list[str] = [str(fvp)]
+    if cfg.exists():
+        cmd.extend(["-f", str(cfg)])
+    # Common flags to mirror QEMU behavior
+    cmd.extend(
+        [
+            "-a",
+            str(elf_path),
+            "-C",
+            "cpu0.semihosting-enable=1",
+            "-C",
+            "mps3_board.uart0.out_file=-",
+            "-C",
+            "mps3_board.telnetterminal0.start_telnet=0",
+            "-C",
+            "mps3_board.visualisation.disable-visualisation=1",
+        ]
+    )
+
+    # Ensure FVP can find its runtime libs (e.g., libpython3.9 from a Conda env)
+    env = os.environ.copy()
+    ld_paths: list[str] = []
+    conda_prefix = env.get("CONDA_PREFIX")
+    if conda_prefix:
+        ld_paths.append(str(Path(conda_prefix) / "lib"))
+    else:
+        # Fallback heuristics: common conda locations and env name fvp-py39
+        home = Path.home()
+        candidates = [
+            home / "anaconda3" / "envs" / "fvp-py39" / "lib",
+            home / "miniconda3" / "envs" / "fvp-py39" / "lib",
+            home / "anaconda3" / "lib",
+            home / "miniconda3" / "lib",
+            Path("/usr/lib"),
+            Path("/usr/lib64"),
+        ]
+        for c in candidates:
+            if c.exists():
+                ld_paths.append(str(c))
+        # Allow explicit override
+        if env.get("FVP_LIB_DIR"):
+            ld_paths.insert(0, env["FVP_LIB_DIR"]) 
+
+    # If we still couldn't guess, try to locate a directory that contains libpython3.9
+    def dir_contains_libpython39(p: Path) -> bool:
+        try:
+            for name in ("libpython3.9.so.1.0", "libpython3.9.so"):
+                if (p / name).exists():
+                    return True
+        except Exception:
+            pass
+        return False
+    if not any(dir_contains_libpython39(Path(p)) for p in ld_paths):
+        search_roots = [
+            Path.home() / "anaconda3" / "envs",
+            Path.home() / "miniconda3" / "envs",
+            Path.home(),
+            Path("/opt"),
+        ]
+        for root in search_roots:
+            try:
+                if not root.exists():
+                    continue
+                # only scan shallow for performance
+                for sub in list(root.iterdir())[:50]:
+                    libdir = sub / "lib"
+                    if libdir.exists() and dir_contains_libpython39(libdir):
+                        ld_paths.append(str(libdir))
+                        raise StopIteration
+            except StopIteration:
+                break
+    if ld_paths:
+        prev = env.get("LD_LIBRARY_PATH", "")
+        combined = ":".join(ld_paths + ([prev] if prev else []))
+        env["LD_LIBRARY_PATH"] = combined
+
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=env,
+    )
+
+    output_chunks: list[str] = []
+    marker_detected = False
+    failure_detected = False
+    fatal_detected = False
+    deadline = time.monotonic() + timeout
+
+    assert process.stdout is not None
+    while True:
+        if process.poll() is not None:
+            remainder = process.stdout.read()
+            if remainder:
+                output_chunks.append(remainder)
+                if verbose:
+                    sys.stdout.write(remainder)
+            break
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+
+        ready, _, _ = select.select([process.stdout], [], [], max(remaining, 0.0))
+        if not ready:
+            continue
+
+        line = process.stdout.readline()
+        if line == "" and process.poll() is not None:
+            break
+        if not line:
+            continue
+
+        output_chunks.append(line)
+        if verbose:
+            sys.stdout.write(line)
+
+        if success_marker and success_marker in line:
+            marker_detected = True
+            break
+        if "FAIL" in line:
+            failure_detected = True
+            break
+        if "fatal" in line.lower():
+            fatal_detected = True
+            break
+
+    if marker_detected:
+        process.terminate()
+        try:
+            process.wait(timeout=2.0)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=1.0)
+        return subprocess.CompletedProcess(cmd, 0, "".join(output_chunks), "")
+
+    process.terminate()
+    try:
+        stdout_tail, _ = process.communicate(timeout=2.0)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        stdout_tail, _ = process.communicate()
+    if stdout_tail:
+        output_chunks.append(stdout_tail)
+
+    stdout_text = "".join(output_chunks)
+    exit_code = process.returncode if process.returncode is not None else -1
+    if failure_detected or fatal_detected:
+        return subprocess.CompletedProcess(cmd, exit_code or 1, stdout_text, "")
     if exit_code not in (0, None):
         return subprocess.CompletedProcess(cmd, exit_code, stdout_text, "")
     return subprocess.CompletedProcess(cmd, 0, stdout_text, "")

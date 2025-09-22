@@ -266,35 +266,39 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
         // no-op: other inputs will be allocated below
     }
 
+    // Zero-copy input binding: view directly over caller's input pointer
+    // 1) compute runtime input_size from provided input_shape
     _ = try writer.print(
         \\  
-        \\    //computing the size of the input tensor
-        \\    var size: u32 = 1;
+        \\    //computing the size of the input tensor (runtime)
+        \\    var input_size: usize = 1;
         \\    for(0..shape_len) |dim_i| {{
-        \\        size *= input_shape[dim_i];
+        \\        input_size *= @as(usize, input_shape[dim_i]);
         \\    }}
-        \\     
-        \\    //allocating space in memory for the data
-        \\    const data = allocator.alloc(T_in, size) catch return {d};
-        \\    defer allocator.free(data);
-        \\    for (0..size) |i| {{
-        \\        data[i] = input[i]; // Copying input elements 
-        \\    }}
-        \\    
-        \\    //converting the shape from [*]u32 to []usize
-        \\    const usized_shape: []usize = utils.u32ToUsize(allocator, input_shape, shape_len) catch return {d};
-        \\    var tensor_{s} = Tensor(T_in).fromShape(&allocator, @constCast(usized_shape)) catch return {d};
-        \\    defer allocator.free(usized_shape);
-        \\    defer tensor_{s}.deinit();
-        \\    @memcpy(tensor_{s}.data, data);
-    , .{
-        templates.RC.INIT_ERROR,
-        templates.RC.INIT_ERROR,
-        try inputs[primary_index].getNameSanitized(),
-        templates.RC.INIT_ERROR,
-        try inputs[primary_index].getNameSanitized(),
-        try inputs[primary_index].getNameSanitized(),
-    });
+    , .{});
+
+    // 2) emit fixed input shape from model (already validated by checks)
+    const fixed_shape = inputs[primary_index].getShape();
+    _ = try writer.print(
+        \\
+        \\    // Fixed input shape (validated above)
+        \\    var input_shape_fixed: [{d}]usize = .{{ 
+    , .{fixed_shape.len});
+    for (fixed_shape, 0..) |dim, i| {
+        if (i > 0) try writer.print(", ", .{});
+        try writer.print("{d}", .{dim});
+    }
+    _ = try writer.print(
+        \\ }};
+        \\
+        \\    // Zero-copy tensor pointing directly to input data
+        \\    var tensor_{s} = Tensor(T_in){{
+        \\        .data = input[0..input_size],
+        \\        .shape = input_shape_fixed[0..],
+        \\        .size = input_size,
+        \\        .allocator = &allocator, // non-owning view
+        \\    }};
+    , .{try inputs[primary_index].getNameSanitized()});
 
     // For any additional non-initializer inputs, allocate zero-initialized tensors using their declared shapes
     for (inputs, 0..) |*tz, idx| {
