@@ -132,8 +132,14 @@ pub const MatMul = struct {
         if (b_width_bytes >= std.atomic.cache_line) { //B is large enough for the new mat mul to work;
             _ = try writer.print(
                 \\
-                \\    tensMath.blocked_mat_mul_lean(T, {s}, {s}, &tensor_{s}) catch return -1;
+                \\    tensMath.blocked_mat_mul_lean(
+                \\          {s}, 
+                \\          {s}, 
+                \\          {s},
+                \\          &tensor_{s},
+                \\    ) catch return -1;
             , .{
+                self.input_A.ty.toString(), // Input tensor type
                 tensor_A_string, // Input tensor A
                 tensor_B_string, // Input tensor B
                 try utils.getSanitizedName(self.output_C.name), // Output tensor C

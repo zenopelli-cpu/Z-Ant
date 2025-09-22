@@ -1,0 +1,313 @@
+--------------------------------------------------------------------------------
+Command:            ./zig-out/bin/main_profiling_target
+Massif arguments:   (none)
+ms_print arguments: massif.out.47762
+--------------------------------------------------------------------------------
+
+
+    MB
+18.76^ #                                                                      
+     | #                                                                      
+     | #                                                                      
+     | #                                                                      
+     | #                                                                      
+     | #                                                                      
+     | #                                                                      
+     | #                                                                      
+     | #                                                                      
+     | #    :                                                                 
+     | #    :                                                                 
+     | #::  :                                ::                               
+     | #    :::::::                      ::  :                                
+     | #    ::                         : :   :                                
+     | #    ::                         : :   :   : :    ::::::                
+     | #   :::       :        :        : :   :   : :    :                     
+     | #   :::       ::::::::::::::::@:::: :::   : :    :     :              :
+     | #  ::::       ::    : ::: ::::@:::: :::   : :    :     ::  ::  ::    ::
+     | #  ::::      :::    : ::: ::::@:::: ::: ::::::::::     ::::::::::::::@@
+     | #  ::::     ::::    : ::: ::::@:::: ::: : :::    :     ::: ::  ::: ::@@
+   0 +----------------------------------------------------------------------->Gi
+     0                                                                   452.3
+
+Number of snapshots: 83
+ Detailed snapshots: [1 (peak), 21, 57, 67, 77]
+
+--------------------------------------------------------------------------------
+  n        time(i)         total(B)   useful-heap(B) extra-heap(B)    stacks(B)
+--------------------------------------------------------------------------------
+  0              0                0                0             0            0
+  1  8,849,508,110       19,673,040       19,660,896        12,144            0
+99.94% (19,660,896B) (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+->99.94% (19,660,896B) 0x1E3D22A: heap.rawCAlloc (heap.zig:296)
+  ->99.94% (19,660,800B) 0x1AEAB8A: rawAlloc (Allocator.zig:129)
+  | ->99.94% (19,660,800B) 0x1AEAB8A: mem.Allocator.allocBytesWithAlignment__anon_23394 (Allocator.zig:269)
+  |   ->99.94% (19,660,800B) 0x1E044D2: mem.Allocator.allocWithSizeAndAlignment__anon_24289 (Allocator.zig:260)
+  |     ->99.94% (19,660,800B) 0x1AEB238: allocAdvancedWithRetAddr (Allocator.zig:254)
+  |       ->99.94% (19,660,800B) 0x1AEB238: mem.Allocator.alloc__anon_24092 (Allocator.zig:178)
+  |         ->99.94% (19,660,800B) 0x1E04BA9: Core.Tensor.tensor.Tensor(f32).fromShape (tensor.zig:273)
+  |           ->33.31% (6,553,600B) 0x1AEBD6D: lib_YOLOv11n.predict (lib_YOLOv11n.zig:61)
+  |           | ->33.31% (6,553,600B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->33.31% (6,553,600B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->33.31% (6,553,600B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->33.31% (6,553,600B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->33.31% (6,553,600B) 0x1AEBEED: lib_YOLOv11n.predict (lib_YOLOv11n.zig:81)
+  |           | ->33.31% (6,553,600B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->33.31% (6,553,600B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->33.31% (6,553,600B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->33.31% (6,553,600B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->33.31% (6,553,600B) 0x1AEC06A: lib_YOLOv11n.predict (lib_YOLOv11n.zig:93)
+  |             ->33.31% (6,553,600B) 0x1AEB603: main.main (main.zig:55)
+  |               ->33.31% (6,553,600B) 0x1E021F7: callMain (start.zig:656)
+  |                 ->33.31% (6,553,600B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |                   ->33.31% (6,553,600B) 0x1E021F7: main (start.zig:631)
+  |                     
+  ->00.00% (96B) in 1+ places, all below ms_print's threshold (01.00%)
+  
+--------------------------------------------------------------------------------
+  n        time(i)         total(B)   useful-heap(B) extra-heap(B)    stacks(B)
+--------------------------------------------------------------------------------
+  2  8,849,868,574        9,834,528        9,830,464         4,064            0
+  3 27,249,929,672        3,276,888        3,276,864            24            0
+  4 36,226,438,460        5,734,592        5,734,528            64            0
+  5 41,147,722,283       11,476,960       11,468,864         8,096            0
+  6 53,227,214,773        6,557,720        6,553,664         4,056            0
+  7 53,487,104,138        8,196,128        8,192,064         4,064            0
+  8 88,620,990,420        1,638,488        1,638,464            24            0
+  9 97,176,657,590        2,867,392        2,867,328            64            0
+ 10 101,767,934,110        5,734,496        5,734,464            32            0
+ 11 113,627,392,680        3,276,888        3,276,864            24            0
+ 12 113,760,200,558        4,096,096        4,096,064            32            0
+ 13 148,350,941,834        4,096,136        4,096,096            40            0
+ 14 155,545,579,714        4,915,536        4,915,424           112            0
+ 15 163,109,684,417        5,324,944        5,324,896            48            0
+ 16 169,016,966,906        4,505,744        4,505,696            48            0
+ 17 186,024,539,542        4,505,784        4,505,728            56            0
+ 18 193,031,376,931        4,915,584        4,915,456           128            0
+ 19 200,250,320,878        4,915,528        4,915,424           104            0
+ 20 206,097,735,560        4,505,784        4,505,728            56            0
+ 21 210,249,827,616        4,915,680        4,915,536           144            0
+100.00% (4,915,536B) (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+->100.00% (4,915,536B) 0x1E3D22A: heap.rawCAlloc (heap.zig:296)
+  ->99.99% (4,915,200B) 0x1AEAB8A: rawAlloc (Allocator.zig:129)
+  | ->99.99% (4,915,200B) 0x1AEAB8A: mem.Allocator.allocBytesWithAlignment__anon_23394 (Allocator.zig:269)
+  |   ->99.99% (4,915,200B) 0x1E044D2: mem.Allocator.allocWithSizeAndAlignment__anon_24289 (Allocator.zig:260)
+  |     ->99.99% (4,915,200B) 0x1AEB238: allocAdvancedWithRetAddr (Allocator.zig:254)
+  |       ->99.99% (4,915,200B) 0x1AEB238: mem.Allocator.alloc__anon_24092 (Allocator.zig:178)
+  |         ->99.99% (4,915,200B) 0x1E04BA9: Core.Tensor.tensor.Tensor(f32).fromShape (tensor.zig:273)
+  |           ->66.66% (3,276,800B) 0x1B13724: lib_YOLOv11n.predict (lib_YOLOv11n.zig:613)
+  |           | ->66.66% (3,276,800B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->66.66% (3,276,800B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->66.66% (3,276,800B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->66.66% (3,276,800B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->16.67% (819,200B) 0x1B45F4C: lib_YOLOv11n.predict (lib_YOLOv11n.zig:1109)
+  |           | ->16.67% (819,200B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->16.67% (819,200B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->16.67% (819,200B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->16.67% (819,200B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->04.17% (204,800B) 0x1B89071: lib_YOLOv11n.predict (lib_YOLOv11n.zig:1648)
+  |           | ->04.17% (204,800B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->04.17% (204,800B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->04.17% (204,800B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->04.17% (204,800B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->04.17% (204,800B) 0x1B89C73: lib_YOLOv11n.predict (lib_YOLOv11n.zig:1658)
+  |           | ->04.17% (204,800B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->04.17% (204,800B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->04.17% (204,800B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->04.17% (204,800B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->04.17% (204,800B) 0x1B8D1CF: lib_YOLOv11n.predict (lib_YOLOv11n.zig:1675)
+  |           | ->04.17% (204,800B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->04.17% (204,800B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->04.17% (204,800B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->04.17% (204,800B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->04.17% (204,800B) 0x1B8E68A: lib_YOLOv11n.predict (lib_YOLOv11n.zig:1692)
+  |           | ->04.17% (204,800B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->04.17% (204,800B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->04.17% (204,800B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->04.17% (204,800B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->00.00% (0B) in 1+ places, all below ms_print's threshold (01.00%)
+  |           
+  ->00.01% (336B) in 1+ places, all below ms_print's threshold (01.00%)
+  
+--------------------------------------------------------------------------------
+  n        time(i)         total(B)   useful-heap(B) extra-heap(B)    stacks(B)
+--------------------------------------------------------------------------------
+ 22 218,037,171,968        4,505,784        4,505,728            56            0
+ 23 225,923,956,294        7,475,904        7,475,712           192            0
+ 24 232,698,087,241        4,710,800        4,710,688           112            0
+ 25 238,084,385,819        8,601,960        8,601,856           104            0
+ 26 249,778,945,674        4,505,904        4,505,824            80            0
+ 27 258,472,439,351        4,915,600        4,915,488           112            0
+ 28 267,303,728,728        9,425,144        9,421,024         4,120            0
+ 29 282,933,078,498        2,867,504        2,867,424            80            0
+ 30 292,023,223,907        6,144,408        6,144,288           120            0
+ 31 297,953,159,160        2,867,504        2,867,424            80            0
+ 32 304,284,569,489        6,144,400        6,144,288           112            0
+ 33 308,401,266,590        2,893,152        2,893,056            96            0
+ 34 343,244,764,452        4,531,600        4,531,488           112            0
+ 35 343,310,601,945        6,170,048        6,169,920           128            0
+ 36 378,154,279,539        4,531,600        4,531,488           112            0
+ 37 382,211,170,672        4,531,592        4,531,472           120            0
+ 38 390,922,122,020        3,302,792        3,302,672           120            0
+ 39 396,813,609,989        2,893,144        2,893,040           104            0
+ 40 405,505,952,320        3,302,840        3,302,704           136            0
+ 41 413,928,370,046        3,302,792        3,302,672           120            0
+ 42 415,247,391,066        2,899,592        2,899,472           120            0
+ 43 432,254,989,280        3,309,240        3,309,104           136            0
+ 44 440,838,120,240        3,309,240        3,309,104           136            0
+ 45 441,852,327,381        3,309,240        3,309,104           136            0
+ 46 450,356,371,654        2,694,832        2,694,688           144            0
+ 47 459,294,614,053        2,899,824        2,899,616           208            0
+ 48 466,513,656,514        2,899,728        2,899,552           176            0
+ 49 472,640,668,941        3,309,280        3,309,120           160            0
+ 50 472,645,652,819        3,309,280        3,309,120           160            0
+ 51 473,622,538,413        2,592,432        2,592,288           144            0
+ 52 473,625,357,051        2,694,880        2,694,720           160            0
+ 53 473,626,604,129        2,694,880        2,694,720           160            0
+ 54 473,689,742,459        2,592,432        2,592,288           144            0
+ 55 473,692,512,258        2,694,880        2,694,720           160            0
+ 56 473,693,759,336        2,694,880        2,694,720           160            0
+ 57 473,943,161,730        2,592,432        2,592,288           144            0
+99.99% (2,592,288B) (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+->99.99% (2,592,288B) 0x1E3D22A: heap.rawCAlloc (heap.zig:296)
+  ->99.98% (2,592,000B) 0x1AEAB8A: rawAlloc (Allocator.zig:129)
+  | ->99.98% (2,592,000B) 0x1AEAB8A: mem.Allocator.allocBytesWithAlignment__anon_23394 (Allocator.zig:269)
+  |   ->99.98% (2,592,000B) 0x1E044D2: mem.Allocator.allocWithSizeAndAlignment__anon_24289 (Allocator.zig:260)
+  |     ->99.98% (2,592,000B) 0x1AEB238: allocAdvancedWithRetAddr (Allocator.zig:254)
+  |       ->99.98% (2,592,000B) 0x1AEB238: mem.Allocator.alloc__anon_24092 (Allocator.zig:178)
+  |         ->99.98% (2,592,000B) 0x1E04BA9: Core.Tensor.tensor.Tensor(f32).fromShape (tensor.zig:273)
+  |           ->64.19% (1,664,000B) 0x1C68B96: lib_YOLOv11n.predict (lib_YOLOv11n.zig:3020)
+  |           | ->64.19% (1,664,000B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->64.19% (1,664,000B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->64.19% (1,664,000B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->64.19% (1,664,000B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->16.05% (416,000B) 0x1CE0371: lib_YOLOv11n.predict (lib_YOLOv11n.zig:3627)
+  |           | ->16.05% (416,000B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->16.05% (416,000B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->16.05% (416,000B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->16.05% (416,000B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->15.80% (409,600B) 0x1D5AA96: lib_YOLOv11n.predict (lib_YOLOv11n.zig:4149)
+  |           | ->15.80% (409,600B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->15.80% (409,600B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->15.80% (409,600B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->15.80% (409,600B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->03.95% (102,400B) 0x1D7AEDD: lib_YOLOv11n.predict (lib_YOLOv11n.zig:4287)
+  |           | ->03.95% (102,400B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->03.95% (102,400B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->03.95% (102,400B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->03.95% (102,400B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->00.00% (0B) in 1+ places, all below ms_print's threshold (01.00%)
+  |           
+  ->00.01% (288B) in 1+ places, all below ms_print's threshold (01.00%)
+  
+--------------------------------------------------------------------------------
+  n        time(i)         total(B)   useful-heap(B) extra-heap(B)    stacks(B)
+--------------------------------------------------------------------------------
+ 58 473,945,968,557        2,694,880        2,694,720           160            0
+ 59 473,947,215,635        2,694,880        2,694,720           160            0
+ 60 473,951,128,183        2,491,632        2,491,488           144            0
+ 61 482,139,548,075        2,184,432        2,184,288           144            0
+ 62 482,142,487,574        2,286,880        2,286,720           160            0
+ 63 482,143,734,652        2,286,880        2,286,720           160            0
+ 64 484,214,292,886        2,184,432        2,184,288           144            0
+ 65 484,217,271,882        2,286,880        2,286,720           160            0
+ 66 484,218,518,960        2,286,880        2,286,720           160            0
+ 67 484,467,921,354        2,184,432        2,184,288           144            0
+99.99% (2,184,288B) (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+->99.99% (2,184,288B) 0x1E3D22A: heap.rawCAlloc (heap.zig:296)
+  ->99.98% (2,184,000B) 0x1AEAB8A: rawAlloc (Allocator.zig:129)
+  | ->99.98% (2,184,000B) 0x1AEAB8A: mem.Allocator.allocBytesWithAlignment__anon_23394 (Allocator.zig:269)
+  |   ->99.98% (2,184,000B) 0x1E044D2: mem.Allocator.allocWithSizeAndAlignment__anon_24289 (Allocator.zig:260)
+  |     ->99.98% (2,184,000B) 0x1AEB238: allocAdvancedWithRetAddr (Allocator.zig:254)
+  |       ->99.98% (2,184,000B) 0x1AEB238: mem.Allocator.alloc__anon_24092 (Allocator.zig:178)
+  |         ->99.98% (2,184,000B) 0x1E04BA9: Core.Tensor.tensor.Tensor(f32).fromShape (tensor.zig:273)
+  |           ->76.18% (1,664,000B) 0x1C68B96: lib_YOLOv11n.predict (lib_YOLOv11n.zig:3020)
+  |           | ->76.18% (1,664,000B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->76.18% (1,664,000B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->76.18% (1,664,000B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->76.18% (1,664,000B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->19.04% (416,000B) 0x1CE0371: lib_YOLOv11n.predict (lib_YOLOv11n.zig:3627)
+  |           | ->19.04% (416,000B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->19.04% (416,000B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->19.04% (416,000B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->19.04% (416,000B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->04.69% (102,400B) 0x1D9D8F1: lib_YOLOv11n.predict (lib_YOLOv11n.zig:4437)
+  |           | ->04.69% (102,400B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->04.69% (102,400B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->04.69% (102,400B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->04.69% (102,400B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->00.07% (1,600B) in 1+ places, all below ms_print's threshold (01.00%)
+  |           
+  ->00.01% (288B) in 1+ places, all below ms_print's threshold (01.00%)
+  
+--------------------------------------------------------------------------------
+  n        time(i)         total(B)   useful-heap(B) extra-heap(B)    stacks(B)
+--------------------------------------------------------------------------------
+ 68 484,468,444,128        4,368,432        4,368,264           168            0
+ 69 484,468,808,226        4,368,520        4,368,368           152            0
+ 70 484,470,138,166        2,184,376        2,184,240           136            0
+ 71 484,470,545,169        4,334,824        4,334,680           144            0
+ 72 484,900,986,112        4,335,064        4,334,880           184            0
+ 73 485,471,081,816        2,184,416        2,184,288           128            0
+ 74 485,559,787,782          168,416          168,288           128            0
+ 75 485,574,636,847          235,896          235,616           280            0
+ 76 485,575,616,948          235,704          235,520           184            0
+ 77 485,590,429,420          303,144          302,840           304            0
+99.90% (302,840B) (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+->99.90% (302,840B) 0x1E3D22A: heap.rawCAlloc (heap.zig:296)
+  ->99.75% (302,400B) 0x1AEAB8A: rawAlloc (Allocator.zig:129)
+  | ->99.75% (302,400B) 0x1AEAB8A: mem.Allocator.allocBytesWithAlignment__anon_23394 (Allocator.zig:269)
+  |   ->99.75% (302,400B) 0x1E044D2: mem.Allocator.allocWithSizeAndAlignment__anon_24289 (Allocator.zig:260)
+  |     ->99.75% (302,400B) 0x1AEB238: allocAdvancedWithRetAddr (Allocator.zig:254)
+  |       ->99.75% (302,400B) 0x1AEB238: mem.Allocator.alloc__anon_24092 (Allocator.zig:178)
+  |         ->99.75% (302,400B) 0x1E04BA9: Core.Tensor.tensor.Tensor(f32).fromShape (tensor.zig:273)
+  |           ->44.34% (134,400B) 0x1DC455C: lib_YOLOv11n.predict (lib_YOLOv11n.zig:4613)
+  |           | ->44.34% (134,400B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->44.34% (134,400B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->44.34% (134,400B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->44.34% (134,400B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->22.17% (67,200B) 0x1DCB7FD: lib_YOLOv11n.predict (lib_YOLOv11n.zig:4652)
+  |           | ->22.17% (67,200B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->22.17% (67,200B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->22.17% (67,200B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->22.17% (67,200B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->22.17% (67,200B) 0x1DCF0E6: lib_YOLOv11n.predict (lib_YOLOv11n.zig:4661)
+  |           | ->22.17% (67,200B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->22.17% (67,200B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->22.17% (67,200B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->22.17% (67,200B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->11.08% (33,600B) 0x1DB2856: lib_YOLOv11n.predict (lib_YOLOv11n.zig:4530)
+  |           | ->11.08% (33,600B) 0x1AEB603: main.main (main.zig:55)
+  |           |   ->11.08% (33,600B) 0x1E021F7: callMain (start.zig:656)
+  |           |     ->11.08% (33,600B) 0x1E021F7: callMainWithArgs (start.zig:616)
+  |           |       ->11.08% (33,600B) 0x1E021F7: main (start.zig:631)
+  |           |         
+  |           ->00.00% (0B) in 1+ places, all below ms_print's threshold (01.00%)
+  |           
+  ->00.15% (440B) in 1+ places, all below ms_print's threshold (01.00%)
+  
+--------------------------------------------------------------------------------
+  n        time(i)         total(B)   useful-heap(B) extra-heap(B)    stacks(B)
+--------------------------------------------------------------------------------
+ 78 485,591,311,844          168,504          168,320           184            0
+ 79 485,592,188,973          235,752          235,544           208            0
+ 80 485,593,181,382          235,752          235,544           208            0
+ 81 485,600,844,227          168,504          168,320           184            0
+ 82 485,629,634,940          168,456          168,296           160            0

@@ -56,12 +56,13 @@ pub const Resize = struct {
     nearest_mode: []const u8 = "round_prefer_floor",
 
     pub fn init(nodeProto: *NodeProto) !Resize {
+        nodeProto.print(null);
         const input_X = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_X_notFound;
 
         // ---- optional inputs
-        const input_roi: ?*TensorZant = if (nodeProto.input.len >= 2) if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_X_notFound else null;
-        const input_scales: ?*TensorZant = if (nodeProto.input.len >= 3) if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_roi_notFound else null;
-        const input_sizes: ?*TensorZant = if (nodeProto.input.len >= 4) if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[3])) |ptr| ptr else return error.input_sizes_notFound else null;
+        const input_roi: ?*TensorZant = if (nodeProto.input.len >= 2 and !std.mem.eql(u8, "", nodeProto.input[1])) if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_roi_notFound else null;
+        const input_scales: ?*TensorZant = if (nodeProto.input.len >= 3 and !std.mem.eql(u8, "", nodeProto.input[2])) if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_scales_notFound else null;
+        const input_sizes: ?*TensorZant = if (nodeProto.input.len >= 4 and !std.mem.eql(u8, "", nodeProto.input[3])) if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[3])) |ptr| ptr else return error.input_sizes_notFound else null;
 
         const output_Y = if (tensorZant_lib.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.output_Y_notFound;
 
