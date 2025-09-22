@@ -78,56 +78,225 @@ class ONNXNodeExtractor:
         """Get intermediate outputs for all nodes in the network"""
         logger.info("Computing intermediate outputs for all nodes...")
         
-        # Create a new model with all intermediate outputs
-        model_with_outputs = onnx.ModelProto()
-        model_with_outputs.CopyFrom(self.model)
-        
-        # Add all intermediate tensors as outputs
-        existing_outputs = {output.name for output in model_with_outputs.graph.output}
-        
-        for node in model_with_outputs.graph.node:
-            for output_name in node.output:
-                if output_name and output_name not in existing_outputs:
-                    # Find the value info for this tensor
-                    value_info = None
-                    for vi in model_with_outputs.graph.value_info:
-                        if vi.name == output_name:
-                            value_info = vi
-                            break
-                    
-                    if value_info is None:
-                        # Create a generic value info if not found
-                        value_info = onnx.helper.make_tensor_value_info(
-                            output_name, onnx.TensorProto.FLOAT, None
-                        )
-                    
-                    model_with_outputs.graph.output.append(value_info)
-        
-        # Save temporary model and run inference
-        temp_model_path = self.output_dir / "temp_model.onnx"
-        onnx.save(model_with_outputs, temp_model_path)
-        
         try:
-            temp_session = ort.InferenceSession(str(temp_model_path))
-            outputs = temp_session.run(None, input_data)
-            output_names = [output.name for output in temp_session.get_outputs()]
+            # For quantized models, we need to run inference node by node
+            # instead of trying to create a single model with all outputs
+            intermediate_outputs = {}
             
-            intermediate_outputs = dict(zip(output_names, outputs))
+            # First, get the final outputs normally
+            outputs = self.session.run(None, input_data)
+            output_names = [output.name for output in self.session.get_outputs()]
+            intermediate_outputs.update(dict(zip(output_names, outputs)))
+            
+            # Try the original approach first for non-quantized models
+            model_with_outputs = onnx.ModelProto()
+            model_with_outputs.CopyFrom(self.model)
+            
+            # Add all intermediate tensors as outputs
+            existing_outputs = {output.name for output in model_with_outputs.graph.output}
+            intermediate_tensors_added = []
+            
+            for node in model_with_outputs.graph.node:
+                for output_name in node.output:
+                    if output_name and output_name not in existing_outputs:
+                        # For quantized models, we need to preserve the correct types
+                        # Find the value info for this tensor with correct type
+                        value_info = None
+                        for vi in model_with_outputs.graph.value_info:
+                            if vi.name == output_name:
+                                value_info = vi
+                                break
+                        
+                        if value_info is None:
+                            # For quantized models, try to infer the type from the node
+                            inferred_type = self._infer_tensor_type(node, output_name)
+                            value_info = onnx.helper.make_tensor_value_info(
+                                output_name, inferred_type, None
+                            )
+                        
+                        model_with_outputs.graph.output.append(value_info)
+                        intermediate_tensors_added.append(output_name)
+            
+            # Save temporary model and run inference
+            temp_model_path = self.output_dir / "temp_model.onnx"
+            onnx.save(model_with_outputs, temp_model_path)
+            
+            temp_session = ort.InferenceSession(str(temp_model_path))
+            temp_outputs = temp_session.run(None, input_data)
+            temp_output_names = [output.name for output in temp_session.get_outputs()]
+            
+            intermediate_outputs.update(dict(zip(temp_output_names, temp_outputs)))
             logger.info(f"Successfully computed {len(intermediate_outputs)} intermediate outputs")
             
         except Exception as e:
-            logger.warning(f"Failed to get all intermediate outputs: {e}")
-            # Fallback: just get final outputs
-            outputs = self.session.run(None, input_data)
-            output_names = [output.name for output in self.session.get_outputs()]
-            intermediate_outputs = dict(zip(output_names, outputs))
+            logger.warning(f"Failed to get all intermediate outputs using unified approach: {e}")
+            logger.info("Falling back to cumulative execution for quantized model...")
+            
+            # Fallback: run cumulative models (slower but works for quantized models)
+            try:
+                intermediate_outputs = self._get_intermediate_outputs_cumulative(input_data)
+            except Exception as e2:
+                logger.warning(f"Cumulative approach also failed: {e2}")
+                # Final fallback: just get final outputs
+                outputs = self.session.run(None, input_data)
+                output_names = [output.name for output in self.session.get_outputs()]
+                intermediate_outputs = dict(zip(output_names, outputs))
         
         finally:
             # Clean up temporary file
+            temp_model_path = self.output_dir / "temp_model.onnx"
             if temp_model_path.exists():
                 temp_model_path.unlink()
         
         return intermediate_outputs
+
+    def _infer_tensor_type(self, node: onnx.NodeProto, output_name: str) -> int:
+        """Infer the tensor type for quantized operations"""
+        # Common quantized operations and their output types
+        quantized_ops_uint8 = {
+            'QuantizeLinear', 'QLinearConv', 'QLinearMatMul', 'QLinearAdd',
+            'QLinearMul', 'QLinearAveragePool', 'QLinearGlobalAveragePool',
+            'QLinearConcat'
+        }
+        
+        quantized_ops_int8 = {
+            # Usually outputs int8 or float depending on context
+        }
+        
+        if node.op_type in quantized_ops_uint8:
+            return onnx.TensorProto.UINT8
+        elif node.op_type in quantized_ops_int8:
+            return onnx.TensorProto.INT8
+        elif node.op_type == 'DequantizeLinear':
+            return onnx.TensorProto.FLOAT
+        else:
+            # Default to float for unknown operations
+            return onnx.TensorProto.FLOAT
+
+    def _get_intermediate_outputs_cumulative(self, input_data: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+        """Get intermediate outputs by creating cumulative models for quantized networks"""
+        intermediate_outputs = {}
+        
+        logger.info("Running cumulative execution for quantized model...")
+        
+        # For quantized models, we'll create cumulative models that include nodes up to each point
+        for target_node_idx in range(len(self.model.graph.node)):
+            try:
+                # Create a model that includes all nodes up to target_node_idx
+                cumulative_model = self._create_cumulative_model(target_node_idx)
+                
+                if cumulative_model is None:
+                    logger.warning(f"Skipping cumulative model up to node {target_node_idx}")
+                    continue
+                
+                # Save and run the cumulative model
+                temp_model_path = self.output_dir / f"temp_cumulative_{target_node_idx}.onnx"
+                onnx.save(cumulative_model, temp_model_path)
+                
+                try:
+                    cumulative_session = ort.InferenceSession(str(temp_model_path))
+                    
+                    # Run with original inputs
+                    outputs = cumulative_session.run(None, input_data)
+                    output_names = [output.name for output in cumulative_session.get_outputs()]
+                    
+                    # Store the final output of this cumulative model
+                    target_node = self.model.graph.node[target_node_idx]
+                    for output_name in target_node.output:
+                        if output_name in output_names:
+                            output_idx = output_names.index(output_name)
+                            actual_output = outputs[output_idx]
+                            intermediate_outputs[output_name] = actual_output
+                            
+                            # Debug: log the actual output type vs expected
+                            expected_type = self._infer_tensor_type(target_node, output_name)
+                            expected_type_name = {
+                                onnx.TensorProto.UINT8: "uint8",
+                                onnx.TensorProto.INT8: "int8", 
+                                onnx.TensorProto.FLOAT: "float32"
+                            }.get(expected_type, f"unknown({expected_type})")
+                            
+                            logger.debug(f"Node {target_node_idx} ({target_node.op_type}): "
+                                       f"output '{output_name}' - expected: {expected_type_name}, "
+                                       f"actual: {actual_output.dtype}")
+                    
+                    logger.debug(f"Successfully executed cumulative model up to node {target_node_idx} ({target_node.op_type})")
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to execute cumulative model up to node {target_node_idx}: {e}")
+                
+                finally:
+                    # Clean up temp file
+                    if temp_model_path.exists():
+                        temp_model_path.unlink()
+                        
+            except Exception as e:
+                logger.warning(f"Failed to create cumulative model up to node {target_node_idx}: {e}")
+                continue
+        
+        return intermediate_outputs
+
+    def _create_cumulative_model(self, target_node_idx: int) -> onnx.ModelProto:
+        """Create a model that includes all nodes up to and including target_node_idx"""
+        try:
+            # Create new graph with nodes up to target_node_idx
+            included_nodes = self.model.graph.node[:target_node_idx + 1]
+            target_node = self.model.graph.node[target_node_idx]
+            
+            # Create new graph
+            new_graph = onnx.helper.make_graph(
+                nodes=included_nodes,
+                name=f"cumulative_up_to_{target_node_idx}",
+                inputs=self.model.graph.input,  # Keep original inputs
+                outputs=[]
+            )
+            
+            # Add all original initializers
+            new_graph.initializer.extend(self.model.graph.initializer)
+            
+            # Add all original value_info
+            new_graph.value_info.extend(self.model.graph.value_info)
+            
+            # Set the target node's outputs as the graph outputs
+            for output_name in target_node.output:
+                if output_name:
+                    # Try to find existing value info first (most reliable)
+                    value_info = None
+                    for vi in self.model.graph.value_info:
+                        if vi.name == output_name:
+                            value_info = vi
+                            break
+                    
+                    # If not found in value_info, check the original graph outputs
+                    if value_info is None:
+                        for vi in self.model.graph.output:
+                            if vi.name == output_name:
+                                value_info = vi
+                                break
+                    
+                    if value_info is None:
+                        # Create value info with correct inferred type for quantized ops
+                        inferred_type = self._infer_tensor_type(target_node, output_name)
+                        value_info = onnx.helper.make_tensor_value_info(
+                            output_name, inferred_type, None
+                        )
+                        logger.debug(f"Created value_info for {output_name} with inferred type {inferred_type} for {target_node.op_type}")
+                    else:
+                        # Log the type we found in the original model
+                        tensor_type = value_info.type.tensor_type.elem_type
+                        logger.debug(f"Using existing value_info for {output_name} with type {tensor_type} for {target_node.op_type}")
+                    
+                    new_graph.output.append(value_info)
+            
+            # Create model
+            new_model = onnx.helper.make_model(new_graph)
+            new_model.opset_import.extend(self.model.opset_import)
+            
+            return new_model
+            
+        except Exception as e:
+            logger.error(f"Failed to create cumulative model up to node {target_node_idx}: {e}")
+            return None
     
     def extract_single_node(self, node_idx: int, node: onnx.NodeProto, input_data: Dict[str, np.ndarray], intermediate_outputs: Dict[str, np.ndarray]) -> Tuple[str, Dict[str, Any]]:
         """Extract a single node as an individual ONNX model"""
@@ -304,7 +473,6 @@ class ONNXNodeExtractor:
         
         for node_idx, node in enumerate(self.model.graph.node):
             node_data = {
-    
                 "name": node.name if node.name else "unnamed",
                 "type": "exact",
                 "input": [],
@@ -466,8 +634,8 @@ class ONNXNodeExtractor:
         }
 
         summary_path = self.output_dir / "extraction_summary.json"
-        # with open(summary_path, 'w') as f:
-        #     json.dump(summary, f, indent=2)
+        with open(summary_path, 'w') as f:
+            json.dump(summary, f, indent=2)
         
         logger.info(f"Extraction complete! Results saved to {self.output_dir}")
         logger.info(f"- Individual node models: {len(extracted_nodes)}")

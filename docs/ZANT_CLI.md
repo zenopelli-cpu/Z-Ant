@@ -184,7 +184,7 @@ zig build lib -Dtarget=aarch64-macos -Doptimize=ReleaseSafe
 ./zant infer_shape --path path/my_model.onnx #NOT recomended, input_setter is more robust
 
 # Generate test data
-./zant user_tests_gen --model my_model
+./zant user_tests_gen --model my_model [ --normalize ]
 
 # --- GENERATING THE Single Node lib and test it ---
 #For a N nodes model it creates N onnx models, one for each node with respective tests.

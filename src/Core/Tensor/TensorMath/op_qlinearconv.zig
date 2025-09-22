@@ -662,7 +662,7 @@ inline fn quantizeAccumulator(acc: i64, quant: QuantParams) i32 {
 
 /// Embedded-optimized version using fixed-point arithmetic (Q15.16)
 /// Reduces floating-point operations for better performance on embedded targets
-pub fn qlinearconv_embedded_lean(
+pub inline fn qlinearconv_embedded_lean(
     comptime InputType: anytype,
     comptime WeightType: anytype,
     comptime ScaleType: anytype,

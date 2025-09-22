@@ -63,46 +63,55 @@ def get_runtime_input_shapes_and_types(model_path):
         
     return input_info
 
-def generate_random_input(shape, dtype, input_name=""):
+def generate_random_input(shape, dtype, input_name="", normalize=False):
     """Generate random input data with correct dtype"""
     
     if dtype == np.uint8:
         # For uint8 quantized inputs, generate values in full range [0, 255]
-        return np.random.randint(0, 256, size=shape, dtype=np.uint8)
+        data = np.random.randint(0, 256, size=shape, dtype=np.uint8)
     
     elif dtype == np.int8:
         # For int8 quantized inputs, generate values in range [-128, 127]
-        return np.random.randint(-128, 128, size=shape, dtype=np.int8)
+        data = np.random.randint(-128, 128, size=shape, dtype=np.int8)
     
     elif dtype in [np.uint16, np.uint32]:
         # For unsigned integer types
         max_val = np.iinfo(dtype).max
-        return np.random.randint(0, min(max_val, 1000), size=shape, dtype=dtype)
+        data = np.random.randint(0, min(max_val, 1000), size=shape, dtype=dtype)
     
     elif dtype in [np.int16, np.int32]:
         # For signed integer types
         max_val = min(np.iinfo(dtype).max, 1000)
         min_val = max(np.iinfo(dtype).min, -1000)
-        return np.random.randint(min_val, max_val, size=shape, dtype=dtype)
+        data = np.random.randint(min_val, max_val, size=shape, dtype=dtype)
     
     elif dtype in [np.float16, np.float32, np.float64]:
         # For floating point types
         if "mnist" in input_name.lower() or any(dim == 28 for dim in shape):
             # For MNIST-like inputs, generate values in [0, 1] range
-            return np.random.rand(*shape).astype(dtype)
+            data = np.random.rand(*shape).astype(dtype)
         elif "image" in input_name.lower() or len(shape) == 4:
             # For image inputs, generate normalized values [0, 1]
-            return np.random.rand(*shape).astype(dtype)
+            data = np.random.rand(*shape).astype(dtype)
         else:
             # For other inputs, use standard normal distribution but clamp to reasonable range
             data = np.random.randn(*shape).astype(dtype)
-            return np.clip(data, -3.0, 3.0)
+            data = np.clip(data, -3.0, 3.0)
     
     else:
         print(f"Warning: Unsupported dtype {dtype}, using float32")
-        return np.random.rand(*shape).astype(np.float32)
+        data = np.random.rand(*shape).astype(np.float32)
+    
+    # Apply normalization if requested
+    if normalize and dtype in [np.float16, np.float32, np.float64]:
+        mean = np.mean(data)
+        std = np.std(data)
+        if std > 0:
+            data = (data - mean) / std
+    
+    return data
 
-def run_onnx_inference(model_path, input_info):
+def run_onnx_inference(model_path, input_info, normalize=False):
     """Run inference with the ONNX model"""
     try:
         sess_options = ort.SessionOptions()
@@ -121,7 +130,7 @@ def run_onnx_inference(model_path, input_info):
     for name, info in input_info.items():
         shape = info['shape']
         dtype = info['dtype']
-        inputs[name] = generate_random_input(shape, dtype, name)
+        inputs[name] = generate_random_input(shape, dtype, name, normalize)
         print(f"Generated input '{name}': shape={inputs[name].shape}, dtype={inputs[name].dtype}")
     
     try:
@@ -151,11 +160,13 @@ def main():
     parser = argparse.ArgumentParser(description="Run ONNX model multiple times with random inputs and save execution data.")
     parser.add_argument("--model", type=str, required=True, help="your ONNX model.")
     parser.add_argument("--iterations", type=int, default=1, help="Number of randomized inference runs.")
+    parser.add_argument("--normalize", action="store_true", help="Normalize the input fuzzing values.")
     args = parser.parse_args()
     
     model_name = args.model
     model_path = f"datasets/models/{model_name}/{model_name}.onnx"
     iterations = args.iterations
+    normalize = args.normalize
     
     if not os.path.exists(model_path):
         print(f"Model path does not exist: {model_path}")
@@ -184,7 +195,7 @@ def main():
     
     for i in range(iterations):
         try:
-            inputs, outputs = run_onnx_inference(model_path, input_info)
+            inputs, outputs = run_onnx_inference(model_path, input_info, normalize)
             
             # Create test case
             input_names = list(inputs.keys())
