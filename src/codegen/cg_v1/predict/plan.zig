@@ -17,16 +17,18 @@ pub const PlanTensor = struct {
     // Liveness information
     first_def_step: ?usize = null, // First step where tensor is defined/written
     last_use_step: ?usize = null, // Last step where tensor is used/read
+    alias_of: ?[]const u8 = null, // Canonical tensor name if this tensor is an in-place alias
 
     /// Returns true if this tensor should be allocated at the given step
     pub fn shouldAllocateAt(self: *const PlanTensor, step: usize) bool {
+        if (self.alias_of != null) return false;
         return self.first_def_step == step and
             (self.category == .LINK or self.category == .OUTPUT);
     }
 
     /// Returns true if this tensor should be deallocated after the given step
     pub fn shouldDeallocateAfter(self: *const PlanTensor, step: usize) bool {
-        return self.last_use_step == step and self.category == .LINK;
+        return self.alias_of == null and self.last_use_step == step and self.category == .LINK;
     }
 };
 
@@ -41,9 +43,13 @@ pub const PlanStep = struct {
     // Tensors to deallocate after this step
     frees: std.ArrayList(PlanTensor),
 
+    // Tensors that alias previously allocated buffers (in-place ops)
+    aliases: std.ArrayList(PlanTensor),
+
     pub fn deinit(self: *PlanStep) void {
         self.allocs.deinit();
         self.frees.deinit();
+        self.aliases.deinit();
     }
 };
 
@@ -83,6 +89,9 @@ pub fn buildExecutionPlan(allocator: std.mem.Allocator, linearizedGraph: std.Arr
     defer tensor_liveness.deinit();
 
     try computeLiveness(&tensor_liveness, linearizedGraph);
+
+    // Step 1.5: Detect in-place opportunities (alias tensors)
+    applyInPlaceOptimizations(&tensor_liveness, linearizedGraph);
 
     // Step 2: Build steps with allocation info
     try buildSteps(&plan, &tensor_liveness, linearizedGraph);
@@ -139,12 +148,17 @@ fn buildSteps(plan: *ExecutionPlan, tensor_liveness: *std.StringHashMap(PlanTens
             .node = node,
             .allocs = std.ArrayList(PlanTensor).init(plan.allocator),
             .frees = std.ArrayList(PlanTensor).init(plan.allocator),
+            .aliases = std.ArrayList(PlanTensor).init(plan.allocator),
         };
 
         // Find tensors to allocate before this step
         var iter = tensor_liveness.iterator();
         while (iter.next()) |entry| {
             const tensor = entry.value_ptr.*;
+
+            if (tensor.first_def_step == step_idx and tensor.alias_of != null) {
+                try step.aliases.append(tensor);
+            }
 
             if (tensor.shouldAllocateAt(step_idx)) {
                 try step.allocs.append(tensor);
@@ -156,5 +170,83 @@ fn buildSteps(plan: *ExecutionPlan, tensor_liveness: *std.StringHashMap(PlanTens
         }
 
         try plan.steps.append(step);
+    }
+}
+
+fn applyInPlaceOptimizations(
+    tensor_liveness: *std.StringHashMap(PlanTensor),
+    linearizedGraph: std.ArrayList(*NodeZant),
+) void {
+    for (linearizedGraph.items, 0..) |node, step_idx| {
+        switch (node.op) {
+            .clip => |clip_op| {
+                tryAliasTensorInPlace(tensor_liveness, clip_op.input, clip_op.output, step_idx);
+            },
+            .fused_Dequant_Clip_Quant => |fused_op| {
+                tryAliasTensorInPlace(
+                    tensor_liveness,
+                    fused_op.op_DequantizeLinear.x,
+                    fused_op.op_QuantizeLinear.y,
+                    step_idx,
+                );
+            },
+            else => {},
+        }
+    }
+}
+
+fn tryAliasTensorInPlace(
+    tensor_liveness: *std.StringHashMap(PlanTensor),
+    input_tensor: *TensorZant,
+    output_tensor: *TensorZant,
+    step_idx: usize,
+) void {
+    if (input_tensor == output_tensor) return;
+
+    // Only consider LINK tensors to avoid mutating graph inputs/initializers
+    if (input_tensor.tc != .LINK or output_tensor.tc != .LINK) return;
+
+    // Input and output must share type and shape
+    if (input_tensor.ty != output_tensor.ty) return;
+    const in_shape = input_tensor.getShape();
+    const out_shape = output_tensor.getShape();
+    if (in_shape.len != out_shape.len) return;
+    if (!std.mem.eql(usize, in_shape, out_shape)) return;
+
+    const input_plan = tensor_liveness.getPtr(input_tensor.name) orelse return;
+    const output_plan = tensor_liveness.getPtr(output_tensor.name) orelse return;
+
+    if (output_plan.alias_of != null) return; // Already aliased
+
+    // Safe in-place only when this node is the final consumer of the input buffer
+    if (input_plan.last_use_step == null or input_plan.last_use_step.? != step_idx) return;
+
+    output_plan.alias_of = input_plan.name;
+
+    // Extend the lifetime of the underlying buffer to cover the alias usage
+    const new_last = output_plan.last_use_step orelse step_idx;
+    extendAliasChainLastUse(tensor_liveness, input_plan.name, new_last);
+}
+
+fn extendAliasChainLastUse(
+    tensor_liveness: *std.StringHashMap(PlanTensor),
+    tensor_name: []const u8,
+    new_last: usize,
+) void {
+    var current_name = tensor_name;
+    while (tensor_liveness.getPtr(current_name)) |plan_tensor| {
+        if (plan_tensor.last_use_step) |*last| {
+            if (new_last > last.*) {
+                last.* = new_last;
+            }
+        } else {
+            plan_tensor.last_use_step = new_last;
+        }
+
+        if (plan_tensor.alias_of) |base_name| {
+            current_name = base_name;
+        } else {
+            break;
+        }
     }
 }
