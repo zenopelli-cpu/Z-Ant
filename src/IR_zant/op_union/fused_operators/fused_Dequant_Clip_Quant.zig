@@ -80,11 +80,8 @@ pub const Fused_Dequant_Clip_Quant = struct {
     pub fn fn_pattern_detection(graph: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
         _ = graph; // Not used in this sequential pattern
 
-        std.debug.print("\n  Checking 3-op DequantClipQuant pattern from node: {s}", .{root_node.op_type});
-
         // Only start detection from DequantizeLinear nodes
         if (!std.mem.eql(u8, root_node.op_type, "DequantizeLinear")) {
-            std.debug.print(" -> Not a DequantizeLinear node, skipping", .{});
             return null;
         }
 
@@ -92,35 +89,29 @@ pub const Fused_Dequant_Clip_Quant = struct {
         errdefer node_list.deinit();
 
         try node_list.append(root_node);
-        std.debug.print(" -> DequantizeLinear node found, checking for Clip successor", .{});
 
         // Check DequantizeLinear -> Clip
         if (root_node.next.items.len != 1) {
-            std.debug.print(" -> DequantizeLinear has {} successors (expected 1)", .{root_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const clip_node = root_node.next.items[0];
         if (!std.mem.eql(u8, clip_node.op_type, "Clip")) {
-            std.debug.print(" -> DequantizeLinear successor is {s} (expected Clip)", .{clip_node.op_type});
             node_list.deinit();
             return null;
         }
 
         try node_list.append(clip_node);
-        std.debug.print(" -> Found DequantizeLinear->Clip, checking for QuantizeLinear", .{});
 
         // Check Clip -> QuantizeLinear
         if (clip_node.next.items.len != 1) {
-            std.debug.print(" -> Clip has {} successors (expected 1)", .{clip_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const quant_node = clip_node.next.items[0];
         if (!std.mem.eql(u8, quant_node.op_type, "QuantizeLinear")) {
-            std.debug.print(" -> Clip successor is {s} (expected QuantizeLinear)", .{quant_node.op_type});
             node_list.deinit();
             return null;
         }

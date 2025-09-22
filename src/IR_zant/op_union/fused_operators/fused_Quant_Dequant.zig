@@ -30,7 +30,6 @@ pub const Fused_Quant_Dequant = struct {
 
         // Only start detection from DequantizeLinear nodes
         if (!std.mem.eql(u8, root_node.op_type, "QuantizeLinear")) {
-            std.debug.print(" -> Not a QuantizeLinear node, skipping", .{});
             return null;
         }
 
@@ -38,18 +37,15 @@ pub const Fused_Quant_Dequant = struct {
         errdefer node_list.deinit();
 
         try node_list.append(root_node);
-        std.debug.print(" -> QuantizeLinear node found, checking for DequantizeLinear successor", .{});
 
         // Check DequantizeLinear -> Pad
         if (root_node.next.items.len != 1) {
-            std.debug.print(" -> QuantizeLinear has {} successors (expected 1)", .{root_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const pad_node = root_node.next.items[0];
         if (!std.mem.eql(u8, pad_node.op_type, "DequantizeLinear")) {
-            std.debug.print(" -> QuantizeLinear successor is {s} (expected DequantizeLinear)", .{pad_node.op_type});
             node_list.deinit();
             return null;
         }
@@ -77,7 +73,7 @@ pub const Fused_Quant_Dequant = struct {
         }
 
         return NodeZant{
-            .name = try NodeZant_lib.getFusedOpsName(node_list),
+            .name = "Fused_Quant_Dequant",
             .op_type = try NodeZant_lib.getFusedOpsType(node_list),
             .op = Op_union{ .useless = operators.Useless{} },
             .next = cloned_next,
