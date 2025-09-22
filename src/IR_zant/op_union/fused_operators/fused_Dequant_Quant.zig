@@ -30,7 +30,6 @@ pub const Fused_Dequant_Quant = struct {
 
         // Only start detection from DequantizeLinear nodes
         if (!std.mem.eql(u8, root_node.op_type, "DequantizeLinear")) {
-            std.debug.print(" -> Not a DequantizeLinear node, skipping", .{});
             return null;
         }
 
@@ -38,23 +37,22 @@ pub const Fused_Dequant_Quant = struct {
         errdefer node_list.deinit();
 
         try node_list.append(root_node);
-        std.debug.print(" -> DequantizeLinear node found, checking for QuantizeLinear successor", .{});
 
         // Check DequantizeLinear -> QuantizeLinear
         if (root_node.next.items.len != 1) {
-            std.debug.print(" -> DequantizeLinear has {} successors (expected 1)", .{root_node.next.items.len});
             node_list.deinit();
             return null;
         }
 
         const quant_node = root_node.next.items[0];
         if (!std.mem.eql(u8, quant_node.op_type, "QuantizeLinear")) {
-            std.debug.print(" -> DequantizeLinear successor is {s} (expected QuantizeLinear)", .{quant_node.op_type});
             node_list.deinit();
             return null;
         }
 
         try node_list.append(quant_node);
+
+        std.debug.print(" -> Found complete DequantizeLinear->QuantizeLinear pattern!", .{});
 
         return node_list;
     }
