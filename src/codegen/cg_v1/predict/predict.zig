@@ -91,9 +91,9 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
         , .{});
     }
 
-    try write_checks(writer);
+    try write_checks(writer, linearizedGraph);
 
-    try write_predictInitialization(writer);
+    try write_predictInitialization(writer, linearizedGraph);
 
     // Allocate output tensors for dynamic mode (only when NOT using plan-based execution)
     if (codegen_options.dynamic) {
@@ -238,7 +238,7 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
 
 // -------------------------------- WRITE PREDICT() --------------------------------
 
-fn write_predictInitialization(writer: std.fs.File.Writer) !void {
+fn write_predictInitialization(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
     const inputs: []TensorZant = try IR_utils.getInputs(tensorZantMap);
 
     // if there are no external inputs (e.g., node extracted model with only initializers), skip input setup
@@ -257,6 +257,11 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
 
     if (primary_index == std.math.maxInt(usize)) {
         // No runtime-provided inputs needed
+        return;
+    }
+
+    // If the external input is not used by any node, skip emitting it to save memory
+    if (!isTensorUsedInGraph(linearizedGraph, inputs[primary_index])) {
         return;
     }
 
@@ -363,7 +368,7 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
 
 // -------------------------------- OTHER WRITE --------------------------------
 
-fn write_checks(writer: std.fs.File.Writer) !void {
+fn write_checks(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
     // Autogen a check for the input shape as arg VS input shape as codegen option
 
     const inputs: []TensorZant = try IR_utils.getInputs(tensorZantMap);
@@ -374,12 +379,24 @@ fn write_checks(writer: std.fs.File.Writer) !void {
     }
 
     // Allow multiple inputs; only validate against the first non-initializer input
-    var check_index: usize = 0;
+    var check_index: usize = std.math.maxInt(usize);
     for (inputs, 0..) |*tz, idx| {
         if (tz.tc != tensorZant_lib.TensorCategory.INITIALIZER) {
             check_index = idx;
             break;
         }
+    }
+
+    // If no suitable external input or it is not used by any node, skip checks and suppress args usage
+    if (check_index == std.math.maxInt(usize) or !isTensorUsedInGraph(linearizedGraph, inputs[check_index])) {
+        _ = try writer.print(
+            \\
+            \\    // No external input used by the graph; suppress unused args
+            \\    _ = input;
+            \\    _ = input_shape;
+            \\    _ = shape_len;
+        , .{});
+        return;
     }
 
     //check on the number of dims
@@ -397,6 +414,22 @@ fn write_checks(writer: std.fs.File.Writer) !void {
             \\    if( input_shape[{}] != {}) return {d};
         , .{ i, dim, templates.RC.INIT_ERROR });
     }
+}
+
+// Returns true if the given tensor is consumed as an input by any node in the linearized graph
+fn isTensorUsedInGraph(linearizedGraph: std.ArrayList(*NodeZant), tensor: TensorZant) bool {
+    // Iterate nodes and their input tensors; compare names
+    for (linearizedGraph.items) |node| {
+        const maybe_inputs = node.get_input_tensors() catch {
+            continue;
+        };
+        for (maybe_inputs) |t_in| {
+            if (std.mem.eql(u8, t_in.name, tensor.name)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 fn write_graphSerializationPlan(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
