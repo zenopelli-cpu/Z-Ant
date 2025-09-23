@@ -9,10 +9,11 @@
 <!-- BEER_TIMINGS_START -->
 Beer model timing (QEMU, Cortex-M55):
 
-- Reference: 1432.76 ms
-- CMSIS-NN: 834.13 ms
-- Improvement: 598.63 ms (41.8%)
+- Reference: 1136.12 ms
+- CMSIS-NN: 837.01 ms
+- Improvement: 299.11 ms (26.3%)
 <!-- BEER_TIMINGS_END -->
+
 
 
 
