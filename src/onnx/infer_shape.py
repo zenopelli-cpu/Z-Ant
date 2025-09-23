@@ -18,10 +18,9 @@ def main():
 
     if check:
         print("Simplified model is valid!")
+        onnx.save(model_simp, args.path)
     else:
         raise RuntimeError("Something went wrong in the onnx simplifier()")
-
-    onnx.save(model_simp, args.path)
 
     
 if __name__ == "__main__":

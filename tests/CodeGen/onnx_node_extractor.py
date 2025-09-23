@@ -574,8 +574,6 @@ class ONNXNodeExtractor:
                 "input": [],
                 "output": [],
                 "expected_class": 0,
-                "input_types": [],
-                "output_types": []
             }
             
             # Determine the kept input (first non-initializer), and save its data
@@ -589,16 +587,14 @@ class ONNXNodeExtractor:
             if kept_input_name:
                 if kept_input_name in input_data:
                     node_data["input"] = input_data[kept_input_name].flatten().tolist()
-                    node_data["input_types"] = [str(input_data[kept_input_name].dtype)]
                 elif kept_input_name in intermediate_outputs:
                     node_data["input"] = intermediate_outputs[kept_input_name].flatten().tolist()
-                    node_data["input_types"] = [str(intermediate_outputs[kept_input_name].dtype)]
                 else:
                     for initializer in self.model.graph.initializer:
                         if initializer.name == kept_input_name:
                             tensor_data = onnx.numpy_helper.to_array(initializer)
                             node_data["input"] = tensor_data.flatten().tolist()
-                            node_data["input_types"] = [str(tensor_data.dtype)]
+                            # node_data["input_types"] = [str(tensor_data.dtype)]
                             break
              
             # Collect output data with type information
@@ -606,7 +602,7 @@ class ONNXNodeExtractor:
                 if output_name and output_name in intermediate_outputs:
                     output_data = intermediate_outputs[output_name]
                     node_data["output"] = output_data.flatten().tolist()
-                    node_data["output_types"] = [str(output_data.dtype)]
+                    # node_data["output_types"] = [str(output_data.dtype)]
                     
                     # Verify QLinear operations output uint8
                     expected_type = self.tensor_type_cache.get(output_name, onnx.TensorProto.FLOAT)
