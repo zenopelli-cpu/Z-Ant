@@ -654,7 +654,8 @@ const ConvLayout = struct {
 inline fn quantizeAccumulator(acc: i64, quant: QuantParams) i32 {
     const acc_q16 = (acc * quant.output_inv_scale_i64) >> quant.scale_shift;
     const acc_with_zp = acc_q16 + quant.output_zero_point_q16;
-    var q = @as(i32, @intCast((acc_with_zp + quant.rounding) >> quant.scale_shift));
+    const rounding_bias = if (acc_with_zp >= 0) quant.rounding else -quant.rounding;
+    var q = @as(i32, @intCast((acc_with_zp + rounding_bias) >> quant.scale_shift));
     if (q < quant.q_min) q = quant.q_min;
     if (q > quant.q_max) q = quant.q_max;
     return q;
