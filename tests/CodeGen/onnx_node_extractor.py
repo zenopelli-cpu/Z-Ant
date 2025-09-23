@@ -6,6 +6,7 @@ This script takes an ONNX neural network and:
 1. Extracts each node as a separate ONNX model
 2. For a given input, computes and saves the input/output values for each node
 3. Saves everything in organized folders with JSON metadata
+4. Maintains proper types, especially for quantized operations (QLinearOps output uint8)
 """
 
 import onnx
@@ -35,6 +36,8 @@ class ONNXNodeExtractor:
         self.model = None
         self.session = None
         self.intermediate_values = {}
+        # Cache for tensor type information
+        self.tensor_type_cache = {}
         
     def sanitize_filename(self, name: str) -> str:
         """Sanitize a string to be safe for use as a filename"""
@@ -59,7 +62,7 @@ class ONNXNodeExtractor:
         return sanitized[:100]
     
     def load_model(self):
-        """Load the ONNX model"""
+        """Load the ONNX model and build tensor type cache"""
         logger.info(f"Loading ONNX model from {self.model_path}")
         self.model = onnx.load(str(self.model_path))
         onnx.checker.check_model(self.model)
@@ -68,6 +71,58 @@ class ONNXNodeExtractor:
         self.session = ort.InferenceSession(str(self.model_path))
         logger.info(f"Model loaded successfully. Found {len(self.model.graph.node)} nodes")
         
+        # Build tensor type cache from the original model
+        self._build_tensor_type_cache()
+        
+    def _build_tensor_type_cache(self):
+        """Build a cache of tensor names to their types from the original model"""
+        logger.info("Building tensor type cache...")
+        
+        # Add input types
+        for input_info in self.model.graph.input:
+            self.tensor_type_cache[input_info.name] = input_info.type.tensor_type.elem_type
+            
+        # Add output types  
+        for output_info in self.model.graph.output:
+            self.tensor_type_cache[output_info.name] = output_info.type.tensor_type.elem_type
+            
+        # Add value_info types
+        for value_info in self.model.graph.value_info:
+            self.tensor_type_cache[value_info.name] = value_info.type.tensor_type.elem_type
+            
+        # Add initializer types
+        for initializer in self.model.graph.initializer:
+            self.tensor_type_cache[initializer.name] = initializer.data_type
+            
+        # Infer types for node outputs based on operation types
+        for node in self.model.graph.node:
+            for output_name in node.output:
+                if output_name and output_name not in self.tensor_type_cache:
+                    inferred_type = self._infer_tensor_type_from_op(node, output_name)
+                    self.tensor_type_cache[output_name] = inferred_type
+                    logger.debug(f"Inferred type {self._type_to_string(inferred_type)} for tensor '{output_name}' from {node.op_type}")
+        
+        logger.info(f"Built tensor type cache with {len(self.tensor_type_cache)} entries")
+    
+    def _type_to_string(self, tensor_type: int) -> str:
+        """Convert ONNX tensor type to readable string"""
+        type_map = {
+            onnx.TensorProto.FLOAT: "float32",
+            onnx.TensorProto.UINT8: "uint8", 
+            onnx.TensorProto.INT8: "int8",
+            onnx.TensorProto.UINT16: "uint16",
+            onnx.TensorProto.INT16: "int16",
+            onnx.TensorProto.INT32: "int32",
+            onnx.TensorProto.INT64: "int64",
+            onnx.TensorProto.STRING: "string",
+            onnx.TensorProto.BOOL: "bool",
+            onnx.TensorProto.FLOAT16: "float16",
+            onnx.TensorProto.DOUBLE: "float64",
+            onnx.TensorProto.UINT32: "uint32",
+            onnx.TensorProto.UINT64: "uint64"
+        }
+        return type_map.get(tensor_type, f"unknown({tensor_type})")
+    
     def create_output_directories(self):
         """Create organized output directory structure"""
         self.output_dir.mkdir(exist_ok=True)
@@ -92,30 +147,24 @@ class ONNXNodeExtractor:
             model_with_outputs = onnx.ModelProto()
             model_with_outputs.CopyFrom(self.model)
             
-            # Add all intermediate tensors as outputs
+            # Add all intermediate tensors as outputs with correct types
             existing_outputs = {output.name for output in model_with_outputs.graph.output}
             intermediate_tensors_added = []
             
             for node in model_with_outputs.graph.node:
                 for output_name in node.output:
                     if output_name and output_name not in existing_outputs:
-                        # For quantized models, we need to preserve the correct types
-                        # Find the value info for this tensor with correct type
-                        value_info = None
-                        for vi in model_with_outputs.graph.value_info:
-                            if vi.name == output_name:
-                                value_info = vi
-                                break
+                        # Use cached type information to create proper value_info
+                        tensor_type = self.tensor_type_cache.get(output_name, onnx.TensorProto.FLOAT)
                         
-                        if value_info is None:
-                            # For quantized models, try to infer the type from the node
-                            inferred_type = self._infer_tensor_type(node, output_name)
-                            value_info = onnx.helper.make_tensor_value_info(
-                                output_name, inferred_type, None
-                            )
+                        # Create value_info with correct type
+                        value_info = onnx.helper.make_tensor_value_info(
+                            output_name, tensor_type, None
+                        )
                         
                         model_with_outputs.graph.output.append(value_info)
                         intermediate_tensors_added.append(output_name)
+                        logger.debug(f"Added intermediate output '{output_name}' with type {self._type_to_string(tensor_type)}")
             
             # Save temporary model and run inference
             temp_model_path = self.output_dir / "temp_model.onnx"
@@ -150,28 +199,51 @@ class ONNXNodeExtractor:
         
         return intermediate_outputs
 
-    def _infer_tensor_type(self, node: onnx.NodeProto, output_name: str) -> int:
-        """Infer the tensor type for quantized operations"""
-        # Common quantized operations and their output types
-        quantized_ops_uint8 = {
+    def _infer_tensor_type_from_op(self, node: onnx.NodeProto, output_name: str) -> int:
+        """Infer the tensor type for operations, especially quantized ones"""
+        # QLinear operations that output uint8
+        qlinear_ops_uint8 = {
             'QuantizeLinear', 'QLinearConv', 'QLinearMatMul', 'QLinearAdd',
             'QLinearMul', 'QLinearAveragePool', 'QLinearGlobalAveragePool',
-            'QLinearConcat'
+            'QLinearConcat', 'QLinearLeakyRelu', 'QLinearSigmoid'
         }
         
-        quantized_ops_int8 = {
-            # Usually outputs int8 or float depending on context
+        # Operations that typically output int8 (signed quantized)
+        qlinear_ops_int8 = {
+            # Add any specific ops that output int8 if needed
         }
         
-        if node.op_type in quantized_ops_uint8:
+        # Operations that output float32
+        float_ops = {
+            'DequantizeLinear', 'Conv', 'MatMul', 'Add', 'Mul', 'Relu', 'Sigmoid',
+            'AveragePool', 'GlobalAveragePool', 'MaxPool', 'BatchNormalization',
+            'Softmax', 'Reshape', 'Transpose', 'Concat', 'Split', 'Squeeze', 'Unsqueeze'
+        }
+        
+        if node.op_type in qlinear_ops_uint8:
             return onnx.TensorProto.UINT8
-        elif node.op_type in quantized_ops_int8:
+        elif node.op_type in qlinear_ops_int8:
             return onnx.TensorProto.INT8
-        elif node.op_type == 'DequantizeLinear':
+        elif node.op_type in float_ops:
             return onnx.TensorProto.FLOAT
+        elif node.op_type == 'Cast':
+            # For Cast operations, check the 'to' attribute
+            for attr in node.attribute:
+                if attr.name == 'to':
+                    return attr.i
+            return onnx.TensorProto.FLOAT  # Default if no 'to' attribute
         else:
-            # Default to float for unknown operations
-            return onnx.TensorProto.FLOAT
+            # For unknown operations, try to infer from input types
+            # If all inputs are quantized, output might be quantized too
+            input_types = []
+            for input_name in node.input:
+                if input_name in self.tensor_type_cache:
+                    input_types.append(self.tensor_type_cache[input_name])
+            
+            if all(t in [onnx.TensorProto.UINT8, onnx.TensorProto.INT8] for t in input_types):
+                return onnx.TensorProto.UINT8  # Default quantized output
+            else:
+                return onnx.TensorProto.FLOAT  # Default to float
 
     def _get_intermediate_outputs_cumulative(self, input_data: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
         """Get intermediate outputs by creating cumulative models for quantized networks"""
@@ -208,13 +280,9 @@ class ONNXNodeExtractor:
                             actual_output = outputs[output_idx]
                             intermediate_outputs[output_name] = actual_output
                             
-                            # Debug: log the actual output type vs expected
-                            expected_type = self._infer_tensor_type(target_node, output_name)
-                            expected_type_name = {
-                                onnx.TensorProto.UINT8: "uint8",
-                                onnx.TensorProto.INT8: "int8", 
-                                onnx.TensorProto.FLOAT: "float32"
-                            }.get(expected_type, f"unknown({expected_type})")
+                            # Verify the output type matches expected
+                            expected_type = self.tensor_type_cache.get(output_name, onnx.TensorProto.FLOAT)
+                            expected_type_name = self._type_to_string(expected_type)
                             
                             logger.debug(f"Node {target_node_idx} ({target_node.op_type}): "
                                        f"output '{output_name}' - expected: {expected_type_name}, "
@@ -257,10 +325,13 @@ class ONNXNodeExtractor:
             # Add all original value_info
             new_graph.value_info.extend(self.model.graph.value_info)
             
-            # Set the target node's outputs as the graph outputs
+            # Set the target node's outputs as the graph outputs with correct types
             for output_name in target_node.output:
                 if output_name:
-                    # Try to find existing value info first (most reliable)
+                    # Use cached type information
+                    tensor_type = self.tensor_type_cache.get(output_name, onnx.TensorProto.FLOAT)
+                    
+                    # Try to find existing value info first
                     value_info = None
                     for vi in self.model.graph.value_info:
                         if vi.name == output_name:
@@ -275,16 +346,16 @@ class ONNXNodeExtractor:
                                 break
                     
                     if value_info is None:
-                        # Create value info with correct inferred type for quantized ops
-                        inferred_type = self._infer_tensor_type(target_node, output_name)
+                        # Create value info with correct cached type
                         value_info = onnx.helper.make_tensor_value_info(
-                            output_name, inferred_type, None
+                            output_name, tensor_type, None
                         )
-                        logger.debug(f"Created value_info for {output_name} with inferred type {inferred_type} for {target_node.op_type}")
+                        logger.debug(f"Created value_info for {output_name} with cached type {self._type_to_string(tensor_type)} for {target_node.op_type}")
                     else:
-                        # Log the type we found in the original model
-                        tensor_type = value_info.type.tensor_type.elem_type
-                        logger.debug(f"Using existing value_info for {output_name} with type {tensor_type} for {target_node.op_type}")
+                        # Verify the type matches our cache
+                        existing_type = value_info.type.tensor_type.elem_type
+                        if existing_type != tensor_type:
+                            logger.debug(f"Type mismatch for {output_name}: existing={self._type_to_string(existing_type)}, cached={self._type_to_string(tensor_type)}")
                     
                     new_graph.output.append(value_info)
             
@@ -299,7 +370,7 @@ class ONNXNodeExtractor:
             return None
     
     def extract_single_node(self, node_idx: int, node: onnx.NodeProto, input_data: Dict[str, np.ndarray], intermediate_outputs: Dict[str, np.ndarray]) -> Tuple[str, Dict[str, Any]]:
-        """Extract a single node as an individual ONNX model"""
+        """Extract a single node as an individual ONNX model with correct types"""
         logger.info(f"Extracting node {node_idx}: {node.op_type}")
         
         # Create new graph with just this node
@@ -310,21 +381,21 @@ class ONNXNodeExtractor:
             outputs=[]  # Will be filled below
         )
         
-        # Find input and output value infos
+        # Find input and output value infos with correct types
         input_value_infos = []
         output_value_infos = []
         
-        # Get input value infos
+        # Get input value infos with proper types
         for input_name in node.input:
             if input_name:  # Skip empty strings
-                value_info = self._find_value_info(input_name)
+                value_info = self._find_value_info_with_type(input_name)
                 if value_info:
                     input_value_infos.append(value_info)
         
-        # Get output value infos
+        # Get output value infos with proper types
         for output_name in node.output:
             if output_name:  # Skip empty strings
-                value_info = self._find_value_info(output_name)
+                value_info = self._find_value_info_with_type(output_name)
                 if value_info:
                     output_value_infos.append(value_info)
         
@@ -336,7 +407,7 @@ class ONNXNodeExtractor:
                 kept_input_name = input_name
                 break
 
-        # Update graph outputs
+        # Update graph outputs with correct types
         new_graph.output.extend(output_value_infos)
 
         # Copy relevant initializers that are directly referenced
@@ -362,7 +433,7 @@ class ONNXNodeExtractor:
             elif inp_name in input_data:
                 arr = input_data[inp_name]
             else:
-                # Fallback: create zeros using value_info shape if available
+                # Fallback: create zeros using value_info shape and type if available
                 shape = []
                 tt = vi.type.tensor_type
                 if tt.shape.dim:
@@ -373,11 +444,35 @@ class ONNXNodeExtractor:
                             shape.append(1)
                 else:
                     shape = [1]
-                arr = np.zeros(shape, dtype=np.float32)
+                
+                # Use the correct dtype based on tensor type
+                tensor_type = tt.elem_type
+                if tensor_type == onnx.TensorProto.UINT8:
+                    arr = np.zeros(shape, dtype=np.uint8)
+                elif tensor_type == onnx.TensorProto.INT8:
+                    arr = np.zeros(shape, dtype=np.int8)
+                elif tensor_type == onnx.TensorProto.INT32:
+                    arr = np.zeros(shape, dtype=np.int32)
+                elif tensor_type == onnx.TensorProto.INT64:
+                    arr = np.zeros(shape, dtype=np.int64)
+                else:
+                    arr = np.zeros(shape, dtype=np.float32)
 
             try:
-                tensor_proto = numpy_helper.from_array(arr.astype(np.float32, copy=False), name=inp_name)
+                # Create tensor with correct type preservation
+                if arr.dtype == np.uint8:
+                    tensor_proto = numpy_helper.from_array(arr, name=inp_name)
+                elif arr.dtype == np.int8:
+                    tensor_proto = numpy_helper.from_array(arr, name=inp_name)
+                elif arr.dtype in [np.int32, np.int64]:
+                    tensor_proto = numpy_helper.from_array(arr, name=inp_name)
+                else:
+                    # For float types, ensure float32
+                    tensor_proto = numpy_helper.from_array(arr.astype(np.float32, copy=False), name=inp_name)
+                
                 new_graph.initializer.append(tensor_proto)
+                logger.debug(f"Created constant for '{inp_name}' with dtype {arr.dtype}")
+                
             except Exception as e:
                 logger.warning(f"Failed to bake constant for input '{inp_name}' of node {node_idx}: {e}. Leaving as graph input.")
                 new_graph.input.append(vi)
@@ -394,26 +489,26 @@ class ONNXNodeExtractor:
         try:
             onnx.save(new_model, node_path)
             
-            # Create metadata
+            # Create metadata with type information
             metadata = {
                 "node_index": node_idx,
                 "op_type": node.op_type,
                 "node_name": node.name if node.name else "unnamed",
-                "inputs": list(node.input),
-                "outputs": list(node.output),
+                "inputs": [{"name": inp, "type": self._type_to_string(self.tensor_type_cache.get(inp, onnx.TensorProto.FLOAT))} for inp in node.input if inp],
+                "outputs": [{"name": out, "type": self._type_to_string(self.tensor_type_cache.get(out, onnx.TensorProto.FLOAT))} for out in node.output if out],
                 "attributes": self._extract_attributes(node),
                 "model_path": str(node_path.relative_to(self.output_dir))
             }
             
-            logger.info(f"Successfully extracted node {node_idx}")
+            logger.info(f"Successfully extracted node {node_idx} with proper types")
             return node_filename, metadata
             
         except Exception as e:
             logger.error(f"Failed to extract node {node_idx}: {e}")
             return None, None
     
-    def _find_value_info(self, tensor_name: str) -> onnx.ValueInfoProto:
-        """Find value info for a tensor by name"""
+    def _find_value_info_with_type(self, tensor_name: str) -> onnx.ValueInfoProto:
+        """Find value info for a tensor by name, using cached type information"""
         # Check in graph inputs
         for value_info in self.model.graph.input:
             if value_info.name == tensor_name:
@@ -429,16 +524,17 @@ class ONNXNodeExtractor:
             if value_info.name == tensor_name:
                 return value_info
         
-        # Check in initializers and create generic value info
+        # Check in initializers and create value info with correct type
         for initializer in self.model.graph.initializer:
             if initializer.name == tensor_name:
                 return onnx.helper.make_tensor_value_info(
                     tensor_name, initializer.data_type, initializer.dims
                 )
         
-        # Create generic value info if not found
+        # Create value info with cached type or default to float
+        cached_type = self.tensor_type_cache.get(tensor_name, onnx.TensorProto.FLOAT)
         return onnx.helper.make_tensor_value_info(
-            tensor_name, onnx.TensorProto.FLOAT, None
+            tensor_name, cached_type, None
         )
     
     def _extract_attributes(self, node: onnx.NodeProto) -> Dict[str, Any]:
@@ -468,7 +564,7 @@ class ONNXNodeExtractor:
     
     def save_node_data(self, input_data: Dict[str, np.ndarray], 
                       intermediate_outputs: Dict[str, np.ndarray]):
-        """Save input/output data for each node"""
+        """Save input/output data for each node with proper type information"""
         logger.info("Saving node input/output data...")
         
         for node_idx, node in enumerate(self.model.graph.node):
@@ -478,6 +574,8 @@ class ONNXNodeExtractor:
                 "input": [],
                 "output": [],
                 "expected_class": 0,
+                "input_types": [],
+                "output_types": []
             }
             
             # Determine the kept input (first non-initializer), and save its data
@@ -491,20 +589,31 @@ class ONNXNodeExtractor:
             if kept_input_name:
                 if kept_input_name in input_data:
                     node_data["input"] = input_data[kept_input_name].flatten().tolist()
+                    node_data["input_types"] = [str(input_data[kept_input_name].dtype)]
                 elif kept_input_name in intermediate_outputs:
                     node_data["input"] = intermediate_outputs[kept_input_name].flatten().tolist()
+                    node_data["input_types"] = [str(intermediate_outputs[kept_input_name].dtype)]
                 else:
                     for initializer in self.model.graph.initializer:
                         if initializer.name == kept_input_name:
                             tensor_data = onnx.numpy_helper.to_array(initializer)
                             node_data["input"] = tensor_data.flatten().tolist()
+                            node_data["input_types"] = [str(tensor_data.dtype)]
                             break
              
-             
-            # Collect output data as arrays
+            # Collect output data with type information
             for output_name in node.output:
                 if output_name and output_name in intermediate_outputs:
-                    node_data["output"] = intermediate_outputs[output_name].flatten().tolist()
+                    output_data = intermediate_outputs[output_name]
+                    node_data["output"] = output_data.flatten().tolist()
+                    node_data["output_types"] = [str(output_data.dtype)]
+                    
+                    # Verify QLinear operations output uint8
+                    expected_type = self.tensor_type_cache.get(output_name, onnx.TensorProto.FLOAT)
+                    expected_dtype = self._onnx_type_to_numpy_dtype(expected_type)
+                    if expected_dtype != output_data.dtype:
+                        logger.warning(f"Type mismatch for {node.op_type} output '{output_name}': "
+                                     f"expected {expected_dtype}, got {output_data.dtype}")
 
             # Save node data
             sanitized_node_name = self.sanitize_filename(node.name if node.name else "unnamed")
@@ -515,6 +624,24 @@ class ONNXNodeExtractor:
                 json.dump([node_data], f, indent=2)
         
         logger.info(f"Saved data for {len(self.model.graph.node)} nodes")
+    
+    def _onnx_type_to_numpy_dtype(self, onnx_type: int) -> np.dtype:
+        """Convert ONNX tensor type to numpy dtype"""
+        type_map = {
+            onnx.TensorProto.FLOAT: np.float32,
+            onnx.TensorProto.UINT8: np.uint8,
+            onnx.TensorProto.INT8: np.int8,
+            onnx.TensorProto.UINT16: np.uint16,
+            onnx.TensorProto.INT16: np.int16,
+            onnx.TensorProto.INT32: np.int32,
+            onnx.TensorProto.INT64: np.int64,
+            onnx.TensorProto.BOOL: np.bool_,
+            onnx.TensorProto.FLOAT16: np.float16,
+            onnx.TensorProto.DOUBLE: np.float64,
+            onnx.TensorProto.UINT32: np.uint32,
+            onnx.TensorProto.UINT64: np.uint64
+        }
+        return type_map.get(onnx_type, np.float32)
     
     def generate_random_input(self) -> Dict[str, np.ndarray]:
         """Generate random input data based on model input specifications with correct data types"""
@@ -595,6 +722,9 @@ class ONNXNodeExtractor:
         # Get intermediate outputs
         intermediate_outputs = self.get_intermediate_outputs(input_data)
         
+        # Verify quantized operation outputs
+        self._verify_quantized_outputs(intermediate_outputs)
+        
         # Extract individual nodes
         extracted_nodes = []
         for node_idx, node in enumerate(self.model.graph.node):
@@ -624,12 +754,15 @@ class ONNXNodeExtractor:
                     serializable_node[key] = value
             json_serializable_nodes.append(serializable_node)
 
-        # Save summary
+        # Save summary with type information
         summary = {
             "original_model": str(self.model_path),
             "total_nodes": len(self.model.graph.node),
             "extracted_nodes": len(extracted_nodes),
             "input_shape": {name: list(data.shape) for name, data in input_data.items()},
+            "input_types": {name: str(data.dtype) for name, data in input_data.items()},
+            "tensor_type_cache_size": len(self.tensor_type_cache),
+            "quantized_operations": self._count_quantized_operations(),
             "nodes": json_serializable_nodes  # Use the serializable version
         }
 
@@ -641,15 +774,83 @@ class ONNXNodeExtractor:
         logger.info(f"- Individual node models: {len(extracted_nodes)}")
         logger.info(f"- Node data files: {len(self.model.graph.node)}")
         logger.info(f"- Summary: {summary_path}")
+        logger.info(f"- Quantized operations found: {summary['quantized_operations']}")
+    
+    def _verify_quantized_outputs(self, intermediate_outputs: Dict[str, np.ndarray]):
+        """Verify that QLinear operations output uint8 as expected"""
+        logger.info("Verifying quantized operation outputs...")
+        
+        qlinear_ops = {
+            'QuantizeLinear', 'QLinearConv', 'QLinearMatMul', 'QLinearAdd',
+            'QLinearMul', 'QLinearAveragePool', 'QLinearGlobalAveragePool',
+            'QLinearConcat', 'QLinearLeakyRelu', 'QLinearSigmoid'
+        }
+        
+        verification_results = []
+        
+        for node in self.model.graph.node:
+            if node.op_type in qlinear_ops:
+                for output_name in node.output:
+                    if output_name and output_name in intermediate_outputs:
+                        output_data = intermediate_outputs[output_name]
+                        expected_type = np.uint8
+                        actual_type = output_data.dtype
+                        
+                        result = {
+                            "node_type": node.op_type,
+                            "output_name": output_name,
+                            "expected_dtype": str(expected_type),
+                            "actual_dtype": str(actual_type),
+                            "matches": actual_type == expected_type
+                        }
+                        
+                        verification_results.append(result)
+                        
+                        if not result["matches"]:
+                            logger.warning(f"QLinear operation {node.op_type} output '{output_name}' "
+                                         f"has dtype {actual_type}, expected {expected_type}")
+                        else:
+                            logger.debug(f"✓ QLinear operation {node.op_type} output '{output_name}' "
+                                       f"correctly has dtype {actual_type}")
+        
+        # Save verification results
+        if verification_results:
+            verification_path = self.output_dir / "quantized_verification.json"
+            with open(verification_path, 'w') as f:
+                json.dump(verification_results, f, indent=2)
+            
+            passed = sum(1 for r in verification_results if r["matches"])
+            total = len(verification_results)
+            logger.info(f"Quantized operation verification: {passed}/{total} passed")
+    
+    def _count_quantized_operations(self) -> Dict[str, int]:
+        """Count quantized operations in the model"""
+        qlinear_ops = {
+            'QuantizeLinear', 'QLinearConv', 'QLinearMatMul', 'QLinearAdd',
+            'QLinearMul', 'QLinearAveragePool', 'QLinearGlobalAveragePool',
+            'QLinearConcat', 'QLinearLeakyRelu', 'QLinearSigmoid', 'DequantizeLinear'
+        }
+        
+        op_counts = {}
+        for node in self.model.graph.node:
+            if node.op_type in qlinear_ops:
+                op_counts[node.op_type] = op_counts.get(node.op_type, 0) + 1
+        
+        return op_counts
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract individual nodes from ONNX neural network")
+    parser = argparse.ArgumentParser(description="Extract individual nodes from ONNX neural network with proper type handling")
     parser.add_argument("--path", help="Path to the input ONNX model")
     parser.add_argument("-o", "--output", help="Output directory (default: same folder as model)")
     parser.add_argument("--input-data", help="Path to numpy file with input data (optional)")
+    parser.add_argument("--verify-types", action="store_true", help="Enable extra type verification logging")
     
     args = parser.parse_args()
+    
+    # Set debug logging if verification requested
+    if args.verify_types:
+        logging.getLogger(__name__).setLevel(logging.DEBUG)
     
     # Load custom input data if provided
     input_data = None
