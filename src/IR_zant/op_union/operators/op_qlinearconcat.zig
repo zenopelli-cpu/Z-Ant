@@ -39,23 +39,41 @@ pub const QLinearConcat = struct {
     axis: i64, // default = 0
 
     pub fn init(nodeProto: *NodeProto) !QLinearConcat {
-        // QLinearConcat has variable inputs: N input tensors + N scales + N zero_points + output_scale + output_zero_point
-        // Total inputs = 3*N + 2
+        // QLinearConcat wires its inputs as:
+        //   [x0_scale, x0_zero_point, x0_tensor, y_scale, y_zero_point, x1_tensor, x1_scale, x1_zero_point, ...]
+        // After the initial five entries, every remaining input group follows the
+        //   [tensor_i, scale_i, zero_point_i] pattern.
+        // Total inputs therefore equal 3 * N + 2, where N is the number of tensors.
         if (nodeProto.input.len < 5 or (nodeProto.input.len - 2) % 3 != 0) {
             return error.QLinearConcatInvalidInputCount;
         }
 
         const num_inputs = (nodeProto.input.len - 2) / 3;
+        if (num_inputs == 0) {
+            return error.QLinearConcatInvalidInputCount;
+        }
 
         var inputs = std.ArrayList(*TensorZant).init(allocator);
         var input_scales = std.ArrayList(*TensorZant).init(allocator);
         var input_zero_points = std.ArrayList(*TensorZant).init(allocator);
 
-        // Parse input tensors, scales, and zero points
-        for (0..num_inputs) |i| {
-            // The model provides inputs interleaved per input: [tensor_i, scale_i, zero_point_i]
-            // followed by output scale and output zero point.
-            const base = 3 * i;
+        // First tensor uses the leading three entries in ONNX order.
+        const first_scale = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_scale_notFound;
+        const first_zero_point = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_zero_point_notFound;
+        const first_tensor = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_tensor_notFound;
+
+        try inputs.append(first_tensor);
+        try input_scales.append(first_scale);
+        try input_zero_points.append(first_zero_point);
+
+        // Output quantization parameters follow immediately after the first tensor group.
+        const output_scale = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[3])) |ptr| ptr else return error.output_scale_notFound;
+        const output_zero_point = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[4])) |ptr| ptr else return error.output_zero_point_notFound;
+
+        // Remaining tensors use the compact [tensor, scale, zero_point] layout.
+        const remaining_inputs = num_inputs - 1;
+        for (0..remaining_inputs) |i| {
+            const base = 5 + (3 * i);
             const input_tensor = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[base + 0])) |ptr| ptr else return error.input_tensor_notFound;
             const input_scale = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[base + 1])) |ptr| ptr else return error.input_scale_notFound;
             const input_zero_point = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[base + 2])) |ptr| ptr else return error.input_zero_point_notFound;
@@ -64,10 +82,6 @@ pub const QLinearConcat = struct {
             try input_scales.append(input_scale);
             try input_zero_points.append(input_zero_point);
         }
-
-        // Parse output scale and zero point
-        const output_scale = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[3 * num_inputs + 0])) |ptr| ptr else return error.output_scale_notFound;
-        const output_zero_point = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[3 * num_inputs + 1])) |ptr| ptr else return error.output_zero_point_notFound;
 
         const concat_result = if (tensorZant_lib.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.concat_result_notFound;
 
