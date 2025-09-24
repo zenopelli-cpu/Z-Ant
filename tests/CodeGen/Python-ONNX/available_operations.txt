@@ -3,21 +3,21 @@
 Add  
 AveragePool
 BatchNormalization  
-Cast
+# Cast <<<<<<<<<<<<<<<< BUGGED
 Ceil  
 Clip
 Concat
 # Constant <<<<<<<<<<<>>>>>>>>>>> often useless if the onnx graph is simplified
 Conv   
-ConvInteger
+# ConvInteger <<<<<<<<<<<not supported by ORT
 DequantizeLinear
 Div  
-DynamicQuantizeLinear
+# DynamicQuantizeLinear <<<<<<<<<< error: MoreThanOneOutput
 Elu  
 Flatten
 Floor
-Gather  
-Gelu
+# Gather  <<<<<<<<<< codegen error
+# Gelu <<<<<<<<<<<< why the fuck it loops
 Gemm
 GlobalAveragePool  
 Identity  
@@ -33,7 +33,7 @@ QLinearConv
 QLinearAdd
 QLinearMatMul
 QLinearGlobalAveragePool
-ReduceMean
+# ReduceMean <<<<<<<<<<<not supported by ORT
 Relu  
 Reshape
 # Resize: error: UnsupportedDataType

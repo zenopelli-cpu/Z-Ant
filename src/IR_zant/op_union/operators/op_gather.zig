@@ -140,17 +140,33 @@ pub const Gather = struct {
             });
         }
 
+        // output_C
+        var output_C_string: []u8 = undefined;
+        defer allocator.free(output_C_string);
+        if (self.output_C.tc == tensorZant_lib.TensorCategory.INITIALIZER) {
+            output_C_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try utils.getSanitizedName(self.output_C.name),
+                ")",
+            });
+        } else {
+            output_C_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "&tensor_",
+                try utils.getSanitizedName(self.output_C.name),
+            });
+        }
+
         _ = try writer.print(
             \\    
             \\
-            \\    const array_usize_{s}_{s}= utils.sliceToUsizeSlice(allocator, tensor_{s}.data);
+            \\    const array_usize_{s}_{s}= utils.sliceToUsizeSlice(allocator, {s}.data);
             \\    defer allocator.free(array_usize_{s}_{s});
         , .{
             try self.input_B.getNameSanitized(), //array_usize_{s}_
             try utils.getSanitizedName(self.output_C.name), //{s}
             try utils.getSanitizedName(self.input_B.name), //tensor_{s}.data
             try self.input_B.getNameSanitized(), //defer allocator.free(array_usize_{s}
-            try utils.getSanitizedName(self.output_C.name), //{s});
+            output_C_string, //{s}.data);
         });
 
         _ = try writer.print(

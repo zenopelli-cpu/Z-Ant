@@ -249,11 +249,11 @@ zig build lib -Dtarget=x86_64-windows -Doptimize=ReleaseSmall
 ### 5. Complete Testing Workflow
 ```bash
 # Generate test models for multiple operations
-./zant onnx_gen --iterations 10 --seed 42 --output-dir ./test_models
+./zant onnx_gen [ --op NameOfTheOperator ( default tests all ops inside available_operations.txt ) ]
 
 # Test specific operations
-zig build op-codegen-gen -Dop=Conv
-zig build op-codegen-test -Dop=Conv
+zig build op-codegen-gen [ -Dop="Conv" ]
+zig build op-codegen-test [ -Dop="Conv" ]
 
 # Test node extraction
 zig build extractor-gen -Dmodel=test-model

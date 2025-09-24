@@ -175,7 +175,7 @@ pub const MaxPool = struct {
         if (self.pads != null) {
             pads_string = try utils.i64SliceToUsizeArrayString(self.pads.?);
         } else {
-            return error.PadsNotFound;
+            pads_string = "&[_]usize{0,0,0,0}";
         }
 
         _ = try writer.print(
