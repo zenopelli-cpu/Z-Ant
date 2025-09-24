@@ -53,12 +53,12 @@ pub const QLinearConcat = struct {
 
         // Parse input tensors, scales, and zero points
         for (0..num_inputs) |i| {
-            // The model provides inputs interleaved per input: [scale_i, zero_point_i, tensor_i]
+            // The model provides inputs interleaved per input: [tensor_i, scale_i, zero_point_i]
             // followed by output scale and output zero point.
             const base = 3 * i;
-            const input_scale = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[base + 0])) |ptr| ptr else return error.input_scale_notFound;
-            const input_zero_point = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[base + 1])) |ptr| ptr else return error.input_zero_point_notFound;
-            const input_tensor = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[base + 2])) |ptr| ptr else return error.input_tensor_notFound;
+            const input_tensor = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[base + 0])) |ptr| ptr else return error.input_tensor_notFound;
+            const input_scale = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[base + 1])) |ptr| ptr else return error.input_scale_notFound;
+            const input_zero_point = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[base + 2])) |ptr| ptr else return error.input_zero_point_notFound;
 
             try inputs.append(input_tensor);
             try input_scales.append(input_scale);
