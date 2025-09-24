@@ -392,8 +392,7 @@ pub fn loadUserTests(comptime T_in: type, comptime T_out: type, user_tests_path:
     const user_tests_content: []const u8 = try user_tests_file.readToEndAlloc(allocator, 20 * 1024 * 1024);
     defer allocator.free(user_tests_content);
 
-    const parsed_user_tests = try std.json.parseFromSlice([]testWriter.UserTest(T_in, T_out), allocator, user_tests_content, .{});
-
+    const parsed_user_tests = try std.json.parseFromSlice([]testWriter.UserTest(T_in, T_out), allocator, user_tests_content, .{ .ignore_unknown_fields = true });
     return parsed_user_tests;
 }
 
