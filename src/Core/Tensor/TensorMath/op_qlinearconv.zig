@@ -221,7 +221,7 @@ pub fn qlinearconv_lean(
     auto_pad: []const u8,
 ) !void {
     // DEBUG: Print which function is being called
-    std.debug.print("QLINEAR_DEBUG: using qlinearconv_lean (floating point)\n", .{});
+    // std.debug.print("QLINEAR_DEBUG: using qlinearconv_lean (floating point)\n", .{});
     _ = auto_pad; // non gestito: usare pads espliciti
 
     // Check tensor shapes
@@ -766,7 +766,7 @@ pub inline fn qlinearconv_embedded_lean(
 
     if (!isInt(InputType) or !isInt(WeightType)) {
         // DEBUG: fallback to floating-point
-        std.debug.print("QLINEAR_DEBUG: embedded_lean fallback to qlinearconv_lean because InputType={s} isInt={}\n", .{ @typeName(InputType), isInt(InputType) });
+        // std.debug.print("QLINEAR_DEBUG: embedded_lean fallback to qlinearconv_lean because InputType={s} isInt={}\n", .{ @typeName(InputType), isInt(InputType) });
         return qlinearconv_lean(InputType, WeightType, ScaleType, void, BiasType, x, x_scale, x_zero_point, w, w_scale, w_zero_point, output, y_scale, y_zero_point, bias, stride, pads, dilations, group, auto_pad);
     }
 
