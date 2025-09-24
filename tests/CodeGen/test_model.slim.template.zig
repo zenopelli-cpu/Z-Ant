@@ -102,7 +102,10 @@ test "Static Library - Inputs Prediction Test" {
 
     var input_shape = model.input_shape;
     var error_counter: i32 = 0;
+    var value_error_counter: i32 = 0;
     var input_data_len: u32 = 0;
+    var no_error_found: bool = true;
+
     if (model.has_inputs) {
         input_data_len = 1;
         for (input_shape) |dim| {
@@ -142,10 +145,14 @@ test "Static Library - Inputs Prediction Test" {
         for (0.., user_test.output) |i, expected_output| {
             const result_value = result[i];
 
-            const big_diff: bool = @abs(expected_output - result_value) > marginFor(model.output_data_type);
-            if (big_diff) {
-                std.debug.print("\n\n  >>>>>>>ERROR!!<<<<<< \nTest failed for input: {d} expected: {} got: {}, margin: {}\n", .{ i, expected_output, result_value, marginFor(model.output_data_type) });
+            // SAFE DIFF
+            const diff = if (expected_output > result_value) expected_output - result_value else result_value - expected_output;
 
+            const big_diff: bool = diff > marginFor(model.output_data_type);
+            if (big_diff) {
+                if (value_error_counter < 5) std.debug.print("\n\n  >>>>>>>ERROR!!<<<<<< \nTest failed for input: {d} expected: {} got: {}, margin: {}\n", .{ i, expected_output, result_value, marginFor(model.output_data_type) });
+                value_error_counter += 1;
+                no_error_found = false;
                 // UNCOMMENT FOR DEBUG, pay attention with huge datasets
                 // std.debug.print("\n expected: {any} ", .{user_test.output});
                 // std.debug.print("\n obtained: {{", .{});
@@ -155,9 +162,10 @@ test "Static Library - Inputs Prediction Test" {
                 // }
                 // std.debug.print(" }}", .{});
             }
-
-            try std.testing.expect(!big_diff);
         }
+
+        if (value_error_counter < 5) std.debug.print("\n\n ... and many other ... \n  >>>>>>> {} values are wrong!!<<<<<< ", .{value_error_counter});
+        try std.testing.expect(no_error_found);
 
         // UNCOMMENT FOR DEBUG, pay attention with huge datasets
         // std.debug.print("\n expected: {any} ", .{user_test.output});

@@ -1,0 +1,275 @@
+[
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "model_1/Conv1_relu/Relu6;model_1/bn_Conv1/FusedBatchNormV3;model_1/expanded_conv_depthwise_BN/FusedBatchNormV3;model_1/expanded_conv_depthwise/depthwise;model_1/block_5_project/Conv2D;model_1/Conv1/Conv2D__40_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/Conv1_relu/Relu6;model_1/bn_Conv1/FusedBatchNormV3;model_1/expanded_conv_depthwise_BN/FusedBatchNormV3;model_1/expanded_conv_depthwise/depthwise;model_1/block_5_project/Conv2D;model_1/Conv1/Conv2D_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__5_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/expanded_conv_depthwise_relu/Relu6;model_1/expanded_conv_depthwise_BN/FusedBatchNormV3;model_1/expanded_conv_depthwise/depthwise;model_1/block_5_project/Conv2D_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__7_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/expanded_conv_project_BN/FusedBatchNormV3;model_1/block_2_project/Conv2D;model_1/expanded_conv_project/Conv2D1_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_1_expand_relu/Relu6;model_1/block_1_expand_BN/FusedBatchNormV3;model_1/block_3_depthwise_BN/FusedBatchNormV3;model_1/block_3_depthwise/depthwise;model_1/block_1_expand/Conv2D_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__10_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_1_depthwise_relu/Relu6;model_1/block_1_depthwise_BN/FusedBatchNormV3;model_1/block_3_depthwise_BN/FusedBatchNormV3;model_1/block_3_depthwise/depthwise;model_1/block_1_depthwise/depthwise_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__12_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_1_project_BN/FusedBatchNormV3;model_1/block_2_project/Conv2D;model_1/block_1_project/Conv2D1_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_2_expand_relu/Relu6;model_1/block_2_expand_BN/FusedBatchNormV3;model_1/block_3_depthwise_BN/FusedBatchNormV3;model_1/block_3_depthwise/depthwise;model_1/block_2_expand/Conv2D_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__15_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_2_depthwise_relu/Relu6;model_1/block_2_depthwise_BN/FusedBatchNormV3;model_1/block_3_depthwise_BN/FusedBatchNormV3;model_1/block_3_depthwise/depthwise;model_1/block_2_depthwise/depthwise_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__17_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_2_project_BN/FusedBatchNormV3;model_1/block_2_project/Conv2D1_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "model_1/block_2_add/add_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_3_expand_relu/Relu6;model_1/block_3_expand_BN/FusedBatchNormV3;model_1/block_3_depthwise_BN/FusedBatchNormV3;model_1/block_3_depthwise/depthwise;model_1/block_3_expand/Conv2D_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__20_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_3_depthwise_relu/Relu6;model_1/block_3_depthwise_BN/FusedBatchNormV3;model_1/block_3_depthwise/depthwise_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__22_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_3_project_BN/FusedBatchNormV3;model_1/block_5_project/Conv2D;model_1/block_3_project/Conv2D1_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_4_expand_relu/Relu6;model_1/block_4_expand_BN/FusedBatchNormV3;model_1/block_5_depthwise_BN/FusedBatchNormV3;model_1/block_5_depthwise/depthwise;model_1/block_6_expand/Conv2D;model_1/block_4_expand/Conv2D_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__25_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_4_depthwise_relu/Relu6;model_1/block_4_depthwise_BN/FusedBatchNormV3;model_1/block_5_depthwise_BN/FusedBatchNormV3;model_1/block_5_depthwise/depthwise;model_1/block_6_expand/Conv2D;model_1/block_4_depthwise/depthwise_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__27_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_4_project_BN/FusedBatchNormV3;model_1/block_5_project/Conv2D;model_1/block_4_project/Conv2D1_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "model_1/block_4_add/add_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_5_expand_relu/Relu6;model_1/block_5_expand_BN/FusedBatchNormV3;model_1/block_5_depthwise_BN/FusedBatchNormV3;model_1/block_5_depthwise/depthwise;model_1/block_6_expand/Conv2D;model_1/block_5_expand/Conv2D_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__30_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_5_depthwise_relu/Relu6;model_1/block_5_depthwise_BN/FusedBatchNormV3;model_1/block_5_depthwise/depthwise;model_1/block_6_expand/Conv2D_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__32_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_5_project_BN/FusedBatchNormV3;model_1/block_5_project/Conv2D1_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "model_1/block_5_add/add_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/block_6_expand_relu/Relu6;model_1/block_6_expand_BN/FusedBatchNormV3;model_1/block_5_depthwise_BN/FusedBatchNormV3;model_1/block_5_depthwise/depthwise;model_1/block_6_expand/Conv2D_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu6__35_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/head/Relu;model_1/head/BiasAdd;model_1/head/Conv2D;head/bias_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QuantizeLinear",
+    "output_name": "Relu__37_0_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  },
+  {
+    "node_type": "QLinearConv",
+    "output_name": "model_1/logits/BiasAdd;model_1/logits/Conv2D;logits/bias1_quantized",
+    "expected_dtype": "<class 'numpy.uint8'>",
+    "actual_dtype": "uint8",
+    "matches": true
+  }
+]
