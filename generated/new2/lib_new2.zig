@@ -47,17 +47,13 @@ pub  fn predict (
     for(0..shape_len) |dim_i| {
         input_size *= @as(usize, input_shape[dim_i]);
     }
-    // Build runtime input shape from caller (u32 -> usize)
-    var input_shape_runtime = allocator.alloc(usize, shape_len) catch return -2;
-    defer allocator.free(input_shape_runtime);
-    for (0..shape_len) |i| {
-        input_shape_runtime[i] = @as(usize, input_shape[i]);
-    }
+    // Fixed input shape (validated above)
+    var input_shape_fixed: [4]usize = .{ 1, 3, 96, 96 };
 
     // Zero-copy tensor pointing directly to input data
     var tensor_images = Tensor(T_in){
         .data = input[0..input_size],
-        .shape = input_shape_runtime[0..],
+        .shape = input_shape_fixed[0..],
         .size = input_size,
         .allocator = &allocator, // non-owning view
     };
@@ -323,14 +319,10 @@ var shape_tensor__model_backbone_features_2_concat_output_0_quantized : [4]usize
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_2_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_2_skip_averagepool_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_2_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_2_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_2_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_2_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_2_skip_averagepool_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_2_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_2_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_2_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_2_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_2_skip_averagepool_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_2_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_2_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_2_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_2_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -339,11 +331,11 @@ var shape_tensor__model_backbone_features_2_concat_output_0_quantized : [4]usize
         &qlinearconcat_inputs__model_backbone_features_2_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_2_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_2_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_2_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_2_skip_averagepool_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_2_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_2_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_2_conv_list_2_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_2_conv_list_2_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_2_skip_averagepool_output_0_quantized.deinit();
     tensor__model_backbone_features_2_conv_list_1_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_2_conv_list_3_conv_conv_output_0_quantized.deinit();
@@ -471,14 +463,10 @@ var shape_tensor__model_backbone_features_3_concat_output_0_quantized : [4]usize
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_3_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_3_conv_list_0_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_3_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_3_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_3_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_3_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_3_conv_list_0_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_3_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_3_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_3_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_3_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_3_conv_list_0_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_3_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_3_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_3_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_3_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -487,11 +475,11 @@ var shape_tensor__model_backbone_features_3_concat_output_0_quantized : [4]usize
         &qlinearconcat_inputs__model_backbone_features_3_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_3_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_3_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_3_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_3_conv_list_0_conv_conv_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_3_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_3_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_3_conv_list_2_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_3_conv_list_2_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_3_conv_list_3_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_3_conv_list_1_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_3_conv_list_0_conv_conv_output_0_quantized.deinit();
@@ -619,14 +607,10 @@ var shape_tensor__model_backbone_features_4_concat_output_0_quantized : [4]usize
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_4_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_4_conv_list_0_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_4_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_4_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_4_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_4_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_4_conv_list_0_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_4_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_4_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_4_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_4_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_4_conv_list_0_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_4_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_4_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_4_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_4_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -635,11 +619,11 @@ var shape_tensor__model_backbone_features_4_concat_output_0_quantized : [4]usize
         &qlinearconcat_inputs__model_backbone_features_4_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_4_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_4_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_4_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_4_conv_list_0_conv_conv_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_4_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_4_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_4_conv_list_3_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_4_conv_list_3_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_4_conv_list_1_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_4_conv_list_2_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_4_conv_list_0_conv_conv_output_0_quantized.deinit();
@@ -767,14 +751,10 @@ var shape_tensor__model_backbone_features_5_concat_output_0_quantized : [4]usize
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_5_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_5_conv_list_0_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_5_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_5_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_5_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_5_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_5_conv_list_0_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_5_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_5_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_5_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_5_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_5_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_5_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_5_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_5_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_5_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -783,11 +763,11 @@ var shape_tensor__model_backbone_features_5_concat_output_0_quantized : [4]usize
         &qlinearconcat_inputs__model_backbone_features_5_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_5_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_5_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_5_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_5_conv_list_0_conv_conv_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_5_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_5_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_5_conv_list_3_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_5_conv_list_3_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_5_conv_list_2_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_5_conv_list_0_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_5_conv_list_1_conv_conv_output_0_quantized.deinit();
@@ -978,14 +958,10 @@ var shape_tensor__model_backbone_features_6_concat_output_0_quantized : [4]usize
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_6_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_6_skip_averagepool_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_6_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_6_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_6_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_6_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_6_skip_averagepool_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_6_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_6_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_6_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_6_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_6_skip_averagepool_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_6_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_6_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_6_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_6_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -994,11 +970,11 @@ var shape_tensor__model_backbone_features_6_concat_output_0_quantized : [4]usize
         &qlinearconcat_inputs__model_backbone_features_6_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_6_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_6_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_6_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_6_skip_averagepool_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_6_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_6_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_6_conv_list_3_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_6_conv_list_3_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_6_conv_list_1_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_6_conv_list_2_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_6_skip_averagepool_output_0_quantized.deinit();
@@ -1126,14 +1102,10 @@ var shape_tensor__model_backbone_features_7_concat_output_0_quantized : [4]usize
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_7_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_7_conv_list_0_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_7_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_7_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_7_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_7_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_7_conv_list_0_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_7_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_7_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_7_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_7_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_7_conv_list_0_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_7_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_7_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_7_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_7_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -1142,11 +1114,11 @@ var shape_tensor__model_backbone_features_7_concat_output_0_quantized : [4]usize
         &qlinearconcat_inputs__model_backbone_features_7_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_7_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_7_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_7_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_7_conv_list_0_conv_conv_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_7_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_7_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_7_conv_list_2_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_7_conv_list_2_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_7_conv_list_3_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_7_conv_list_0_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_7_conv_list_1_conv_conv_output_0_quantized.deinit();
@@ -1274,14 +1246,10 @@ var shape_tensor__model_backbone_features_8_concat_output_0_quantized : [4]usize
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_8_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_8_conv_list_0_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_8_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_8_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_8_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_8_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_8_conv_list_0_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_8_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_8_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_8_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_8_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_8_conv_list_0_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_8_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_8_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_8_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_8_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -1290,11 +1258,11 @@ var shape_tensor__model_backbone_features_8_concat_output_0_quantized : [4]usize
         &qlinearconcat_inputs__model_backbone_features_8_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_8_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_8_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_8_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_8_conv_list_0_conv_conv_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_8_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_8_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_8_conv_list_2_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_8_conv_list_2_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_8_conv_list_0_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_8_conv_list_3_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_8_conv_list_1_conv_conv_output_0_quantized.deinit();
@@ -1422,14 +1390,10 @@ var shape_tensor__model_backbone_features_9_concat_output_0_quantized : [4]usize
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_9_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_9_conv_list_0_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_9_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_9_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_9_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_9_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_9_conv_list_0_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_9_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_9_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_9_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_9_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_9_conv_list_0_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_9_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_9_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_9_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_9_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -1438,11 +1402,11 @@ var shape_tensor__model_backbone_features_9_concat_output_0_quantized : [4]usize
         &qlinearconcat_inputs__model_backbone_features_9_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_9_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_9_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_9_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_9_conv_list_0_conv_conv_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_9_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_9_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_9_conv_list_3_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_9_conv_list_3_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_9_conv_list_1_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_9_conv_list_0_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_9_conv_list_2_conv_conv_output_0_quantized.deinit();
@@ -1570,14 +1534,10 @@ var shape_tensor__model_backbone_features_10_concat_output_0_quantized : [4]usiz
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_10_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_10_conv_list_0_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_10_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_10_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_10_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_10_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_10_conv_list_0_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_10_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_10_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_10_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_10_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_10_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_10_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_10_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_10_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_10_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -1586,11 +1546,11 @@ var shape_tensor__model_backbone_features_10_concat_output_0_quantized : [4]usiz
         &qlinearconcat_inputs__model_backbone_features_10_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_10_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_10_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_10_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_10_conv_list_0_conv_conv_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_10_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_10_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_10_conv_list_3_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_10_conv_list_3_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_10_conv_list_2_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_10_conv_list_1_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_10_conv_list_0_conv_conv_output_0_quantized.deinit();
@@ -1781,14 +1741,10 @@ var shape_tensor__model_backbone_features_11_concat_output_0_quantized : [4]usiz
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_11_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_11_skip_averagepool_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_11_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_11_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_11_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_11_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_11_skip_averagepool_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_11_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_11_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_11_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_11_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_11_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_11_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_11_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_11_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_11_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -1797,11 +1753,11 @@ var shape_tensor__model_backbone_features_11_concat_output_0_quantized : [4]usiz
         &qlinearconcat_inputs__model_backbone_features_11_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_11_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_11_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_11_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_11_skip_averagepool_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_11_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_11_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_11_conv_list_1_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_11_conv_list_1_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_11_skip_averagepool_output_0_quantized.deinit();
     tensor__model_backbone_features_11_conv_list_2_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_11_conv_list_3_conv_conv_output_0_quantized.deinit();
@@ -1929,14 +1885,10 @@ var shape_tensor__model_backbone_features_12_concat_output_0_quantized : [4]usiz
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_12_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_12_conv_list_0_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_12_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_12_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_12_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_12_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_12_conv_list_0_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_12_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_12_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_12_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_12_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_12_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_12_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_12_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_12_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_12_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -1945,11 +1897,11 @@ var shape_tensor__model_backbone_features_12_concat_output_0_quantized : [4]usiz
         &qlinearconcat_inputs__model_backbone_features_12_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_12_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_12_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_12_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_12_conv_list_0_conv_conv_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_12_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_12_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_12_conv_list_0_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_12_conv_list_0_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_12_conv_list_1_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_12_conv_list_2_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_12_conv_list_3_conv_conv_output_0_quantized.deinit();
@@ -2077,14 +2029,10 @@ var shape_tensor__model_backbone_features_13_concat_output_0_quantized : [4]usiz
     // Create arrays for QLinearConcat inputs
     var qlinearconcat_inputs__model_backbone_features_13_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_13_conv_list_0_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_13_conv_list_1_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_13_conv_list_2_conv_conv_output_0_quantized))), @as(*const Tensor(u8), @ptrCast(@constCast(&tensor__model_backbone_features_13_conv_list_3_conv_conv_output_0_quantized)))};
 
-    var qlinearconcat_scales__model_backbone_features_13_concat_output_0_quantized = [_]*const Tensor(f32){
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_13_conv_list_0_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_13_conv_list_1_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_13_conv_list_2_conv_conv_output_0_scale))),
-        @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_13_conv_list_3_conv_conv_output_0_scale)))
-    };
+    var qlinearconcat_scales__model_backbone_features_13_concat_output_0_quantized = [_]*const Tensor(f32){@as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_13_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_13_conv_list_1_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_13_conv_list_2_conv_conv_output_0_scale))), @as(*const Tensor(f32), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_13_conv_list_3_conv_conv_output_0_scale)))};
 
     var qlinearconcat_zero_points__model_backbone_features_13_concat_output_0_quantized = [_]*const Tensor(u8){@as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))), @as(*const Tensor(u8), @ptrCast(@constCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point)))};
+
     // Perform QLinearConcat
     tensMath.lean_qlinearconcat(
         u8,
@@ -2093,11 +2041,11 @@ var shape_tensor__model_backbone_features_13_concat_output_0_quantized : [4]usiz
         &qlinearconcat_inputs__model_backbone_features_13_concat_output_0_quantized,
         &qlinearconcat_scales__model_backbone_features_13_concat_output_0_quantized,
         &qlinearconcat_zero_points__model_backbone_features_13_concat_output_0_quantized,
-        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_13_conv_list_3_conv_conv_output_0_scale))),
+        @constCast(@as(*const Tensor(f32), @ptrCast(&param_lib.tensor__model_backbone_features_13_conv_list_0_conv_conv_output_0_scale))),
         @constCast(@as(*const Tensor(u8), @ptrCast(&param_lib.tensor__model_backbone_features_0_conv_conv_output_0_zero_point))),
         1,
         &tensor__model_backbone_features_13_concat_output_0_quantized,
-    ) catch { tensor__model_backbone_features_13_concat_output_0_quantized.deinit(); return -1; };    tensor__model_backbone_features_13_conv_list_2_conv_conv_output_0_quantized.deinit();
+    ) catch return -1;    tensor__model_backbone_features_13_conv_list_2_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_13_conv_list_1_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_13_conv_list_0_conv_conv_output_0_quantized.deinit();
     tensor__model_backbone_features_13_conv_list_3_conv_conv_output_0_quantized.deinit();
