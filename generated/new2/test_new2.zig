@@ -122,10 +122,7 @@ test "Static Library - Random data Prediction Test" {
     if (model.is_dynamic and return_code == 0) {
         defer allocator.free(result[0..model.output_data_len]);
     }
-    if (return_code != 0) {
-        std.debug.print("\nPrediction failed with code {} (skipping validate)", .{return_code});
-        return;
-    }
+
     try std.testing.expectEqual(0, return_code);
     std.debug.print("\nPrediction done without errors", .{});
 }
@@ -290,10 +287,7 @@ test "Static Library - User data Prediction Test" {
     for (user_tests) |user_test| {
         std.debug.print("\n\tRunning user test: {s}\n\n", .{user_test.name});
 
-        if (user_test.input.len != input_data_len) {
-            std.debug.print("\n  - Skipping user test '{s}': input len {} != expected {} (shape mismatch)", .{ user_test.name, user_test.input.len, input_data_len });
-            continue;
-        }
+        try std.testing.expectEqual(user_test.input.len, input_data_len);
 
         var result: [*]model.output_data_type = undefined;
 
