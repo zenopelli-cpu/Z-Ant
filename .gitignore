@@ -57,6 +57,11 @@ massif*.*
 !datasets/models/beer/
 !datasets/models/beer/**
 
+!datasets/models/new2/**
+!datasets/models/new2/
+
+!generated/new2/**
+!generated/new2/
 
 /benchmarks/output
 
