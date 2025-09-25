@@ -694,30 +694,26 @@ const ConvLayout = struct {
 };
 
 inline fn quantizeAccumulator(acc: i64, quant: QuantParams) i32 {
-    // Calcolo originale ma con rounding corretto
-    const acc_q16 = (acc * quant.output_inv_scale_i64) >> quant.scale_shift;
-    const acc_with_zp = acc_q16 + quant.output_zero_point_q16;
+    // Step 1: scale by 1/y_scale keeping Q16
+    const tmp_q16 = (acc * quant.output_inv_scale_i64) >> @as(u6, @intCast(quant.scale_shift));
+    // Step 2: add zero point in Q16
+    const with_zp_q16 = tmp_q16 + quant.output_zero_point_q16;
 
-    // Il problema è nel rounding. Proviamo una implementazione più precisa
-    // che corrisponde meglio al comportamento ONNX
-    const mask = (@as(i64, 1) << @as(u6, @intCast(quant.scale_shift))) - 1;
-    const remainder = acc_with_zp & mask;
-    const half_threshold = @as(i64, 1) << @as(u6, @intCast(quant.scale_shift - 1));
+    // Step 3: round-to-nearest-even from Q16 to integer
+    const denom: i64 = @as(i64, 1) << @as(u6, @intCast(quant.scale_shift));
+    const half: i64 = denom >> 1;
+    var q64 = @divTrunc(with_zp_q16, denom); // toward zero
+    const rem = with_zp_q16 - q64 * denom; // remainder with sign of with_zp_q16
+    const sign: i64 = if (with_zp_q16 >= 0) 1 else -1;
+    const abs_rem = if (rem >= 0) rem else -rem;
 
-    var q = @as(i32, @intCast(acc_with_zp >> quant.scale_shift));
-
-    // Round half away from zero: se remainder >= half_threshold, round up
-    const tolerance = 1000; // Empirical tolerance
-    if (remainder >= (half_threshold - tolerance)) {
-        if (acc_with_zp >= 0) {
-            q += 1;
-        } else {
-            q -= 1;
-        }
+    if (abs_rem > half) {
+        q64 += sign;
+    } else if (abs_rem == half) {
+        if ((q64 & 1) != 0) q64 += sign;
     }
 
-    // Fixed rounding issue that caused ±1 error compared to ONNX Runtime
-
+    var q = @as(i32, @intCast(q64));
     if (q < quant.q_min) q = quant.q_min;
     if (q > quant.q_max) q = quant.q_max;
     return q;
