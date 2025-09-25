@@ -8,12 +8,12 @@ test "qlinearconv embedded rounding matches float path for negative accumulation
     const allocator = std.testing.allocator;
 
     var input_shape = [_]usize{ 1, 1, 1, 1 };
-    var input_data: [1][1][1][1]i8 = .{ .{ .{ .{ 1 } } } };
+    var input_data: [1][1][1][1]i8 = .{.{.{.{1}}}};
     var input = try Tensor(i8).fromArray(&allocator, &input_data, &input_shape);
     defer input.deinit();
 
     var weight_shape = [_]usize{ 1, 1, 1, 1 };
-    var weight_data: [1][1][1][1]i8 = .{ .{ .{ .{ -1 } } } };
+    var weight_data: [1][1][1][1]i8 = .{.{.{.{-1}}}};
     var weight = try Tensor(i8).fromArray(&allocator, &weight_data, &weight_shape);
     defer weight.deinit();
 
@@ -23,38 +23,38 @@ test "qlinearconv embedded rounding matches float path for negative accumulation
     var reference_output = try Tensor(i8).fromShape(&allocator, &output_shape);
     defer reference_output.deinit();
 
-    var scalar_shape = [_]usize{ 1 };
+    var scalar_shape = [_]usize{1};
 
-    var x_scale_data: [1]f32 = .{ 1.0 };
+    var x_scale_data: [1]f32 = .{1.0};
     var x_scale = try Tensor(f32).fromArray(&allocator, &x_scale_data, &scalar_shape);
     defer x_scale.deinit();
 
-    var w_scale_data: [1]f32 = .{ 1.0 };
+    var w_scale_data: [1]f32 = .{1.0};
     var w_scale = try Tensor(f32).fromArray(&allocator, &w_scale_data, &scalar_shape);
     defer w_scale.deinit();
 
-    var y_scale_data: [1]f32 = .{ 1.0 };
+    var y_scale_data: [1]f32 = .{1.0};
     var y_scale = try Tensor(f32).fromArray(&allocator, &y_scale_data, &scalar_shape);
     defer y_scale.deinit();
 
-    var x_zp_data: [1]i8 = .{ 0 };
+    var x_zp_data: [1]i8 = .{0};
     var x_zp = try Tensor(i8).fromArray(&allocator, &x_zp_data, &scalar_shape);
     defer x_zp.deinit();
 
-    var w_zp_data: [1]i8 = .{ 0 };
+    var w_zp_data: [1]i8 = .{0};
     var w_zp = try Tensor(i8).fromArray(&allocator, &w_zp_data, &scalar_shape);
     defer w_zp.deinit();
 
-    var y_zp_data: [1]i8 = .{ 0 };
+    var y_zp_data: [1]i8 = .{0};
     var y_zp = try Tensor(i8).fromArray(&allocator, &y_zp_data, &scalar_shape);
     defer y_zp.deinit();
 
-    var bias_shape = [_]usize{ 1 };
-    var bias_data: [1]f32 = .{ -0.5 };
+    var bias_shape = [_]usize{1};
+    var bias_data: [1]f32 = .{-0.5};
     var bias = try Tensor(f32).fromArray(&allocator, &bias_data, &bias_shape);
     defer bias.deinit();
 
-    const auto_pad = std.mem.span("NOTSET");
+    const auto_pad: []const u8 = "NOTSET";
 
     try tensor_math.qlinearconv_embedded_lean(
         i8,
