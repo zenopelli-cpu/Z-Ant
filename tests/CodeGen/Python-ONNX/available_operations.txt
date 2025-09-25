@@ -17,7 +17,7 @@ Elu
 Flatten
 Floor
 # Gather  <<<<<<<<<< codegen error
-# Gelu <<<<<<<<<<<< why the fuck it loops
+Gelu
 Gemm
 GlobalAveragePool  
 Identity  
@@ -33,7 +33,7 @@ QLinearConv
 QLinearAdd
 QLinearMatMul
 QLinearGlobalAveragePool
-# ReduceMean <<<<<<<<<<<not supported by ORT
+ReduceMean 
 Relu  
 Reshape
 # Resize: error: UnsupportedDataType

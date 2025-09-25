@@ -10,7 +10,7 @@ def generate_cast_model(input_names, output_names):
     initializers = []
     
     # Cast operator: converts tensor from one type to another
-    shape = [1, random.randint(1,4), random.randint(10,50), random.randint(10,50)]
+    shape = [1, random.randint(1,4), random.randint(5,25), random.randint(5,25)]
     
     # Choose input and output types
     input_types = [
@@ -46,7 +46,7 @@ def generate_cast_model(input_names, output_names):
     init_tensor = helper.make_tensor(input_names[0], input_proto_type, shape, data.flatten().tolist())
     initializers.append(init_tensor)
     
-    input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, shape)
+    input_info = helper.make_tensor_value_info("useless_input", input_proto_type, shape)
     output_info = helper.make_tensor_value_info(output_names[0], output_proto_type, shape)
     
     node = helper.make_node(

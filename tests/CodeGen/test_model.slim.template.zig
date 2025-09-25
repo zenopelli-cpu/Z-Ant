@@ -153,6 +153,7 @@ test "Static Library - Inputs Prediction Test" {
                 if (value_error_counter < 5) std.debug.print("\n\n  >>>>>>>ERROR!!<<<<<< \nTest failed for input: {d} expected: {} got: {}, margin: {}\n", .{ i, expected_output, result_value, marginFor(model.output_data_type) });
                 value_error_counter += 1;
                 no_error_found = false;
+
                 // UNCOMMENT FOR DEBUG, pay attention with huge datasets
                 // std.debug.print("\n expected: {any} ", .{user_test.output});
                 // std.debug.print("\n obtained: {{", .{});
@@ -161,6 +162,7 @@ test "Static Library - Inputs Prediction Test" {
                 //     std.debug.print(" {}", .{result[j]});
                 // }
                 // std.debug.print(" }}", .{});
+
             }
         }
 
