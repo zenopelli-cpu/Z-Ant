@@ -3,13 +3,13 @@
 Add  
 AveragePool
 BatchNormalization  
-# Cast <<<<<<<<<<<<<<<< BUGGED
-Ceil  
+Cast 
+Ceil
 Clip
 Concat
 # Constant <<<<<<<<<<<>>>>>>>>>>> often useless if the onnx graph is simplified
 Conv   
-# ConvInteger <<<<<<<<<<<not supported by ORT
+# ConvInteger <<<<<<<<<<< not supported by ORT
 DequantizeLinear
 Div  
 # DynamicQuantizeLinear <<<<<<<<<< error: MoreThanOneOutput

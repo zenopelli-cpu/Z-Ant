@@ -164,7 +164,7 @@ test "Static Library - Inputs Prediction Test" {
             }
         }
 
-        if (value_error_counter < 5) std.debug.print("\n\n ... and many other ... \n  >>>>>>> {} values are wrong!!<<<<<< ", .{value_error_counter});
+        if (value_error_counter > 5) std.debug.print("\n\n ... and many other ... \n  >>>>>>> {} values are wrong!!<<<<<< ", .{value_error_counter});
         try std.testing.expect(no_error_found);
 
         // UNCOMMENT FOR DEBUG, pay attention with huge datasets

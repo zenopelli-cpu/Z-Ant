@@ -213,10 +213,10 @@ zig build lib -Dmodel="my_model" [-Dtarget=... -Dcpu=...]
 ./zant onnx_gen --op Add --iterations 5
 
 # Generate code for one-op models
-zig build op-codegen-gen -Dop=Add
+zig build op-codegen-gen -Dop="Add"
 
 # Test the generated operations
-zig build op-codegen-test -Dop=Add
+zig build op-codegen-test -Dop="Add"
 ```
 
 ### 3. Prepare ONNX Models

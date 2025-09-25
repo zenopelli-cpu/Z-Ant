@@ -3,6 +3,7 @@ import random
 from onnx import helper, TensorProto
 
 
+# this generates the mini model used by Zant, 
 def generate_convinteger_model(input_names, output_names):
     """
     Generates a ConvInteger operator model.
@@ -26,10 +27,16 @@ def generate_convinteger_model(input_names, output_names):
     input_shape = [batch_size, in_channels, input_height, input_width]
     weight_shape = [out_channels, in_channels // group, kernel_size, kernel_size]
     
-    # Calculate output dimensions
-    pad = kernel_size // 2  # Same padding
-    output_height = input_height  # Same padding
-    output_width = input_width
+    # Convolution parameters
+    stride = 1
+    dilation = 1
+    pad = kernel_size // 2  # This creates "same-ish" padding
+    
+    # Calculate CORRECT output dimensions using convolution formula
+    # output_size = (input_size + 2*pad - dilation*(kernel_size-1) - 1) / stride + 1
+    output_height = (input_height + 2*pad - dilation*(kernel_size-1) - 1) // stride + 1
+    output_width = (input_width + 2*pad - dilation*(kernel_size-1) - 1) // stride + 1
+    
     output_shape = [batch_size, out_channels, output_height, output_width]
     
     # Generate quantized input data (uint8)
@@ -54,12 +61,12 @@ def generate_convinteger_model(input_names, output_names):
         "ConvInteger",
         inputs=[input_names[0], input_names[1], input_names[2], input_names[3]],  # x, w, x_zero_point, w_zero_point
         outputs=[output_names[0]],
-        name=f"ConvInteger_node",
-        dilations=[1, 1],
+        name="ConvInteger_node",
+        dilations=[dilation, dilation],
         group=group,
         kernel_shape=[kernel_size, kernel_size],
-        pads=[pad, pad, pad, pad],
-        strides=[1, 1]
+        pads=[pad, pad, pad, pad],  # [top, left, bottom, right]
+        strides=[stride, stride]
     )
     
     # Dummy input info
@@ -72,6 +79,9 @@ def generate_convinteger_model(input_names, output_names):
         "w_zero_point": int(w_zero_point),
         "kernel_size": kernel_size,
         "group": group,
+        "stride": stride,
+        "dilation": dilation,
+        "padding": pad,
         "output_type": "int32"
     }
     
