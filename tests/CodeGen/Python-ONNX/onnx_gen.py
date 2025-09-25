@@ -313,8 +313,8 @@ def main():
                 try:
                     data = run_model(filename)
                 except Exception as e:
-                    print(f"---------------------> Skipping runtime for {op}: not implemented in ORT")
-                    continue
+                    print(f"----------------------ERROR----------------------")
+                    raise e
 
                 model_info = {
                     "operation": op,
