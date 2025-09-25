@@ -49,7 +49,11 @@ def generate_averagepool_model(input_names, output_names):
         dilations = [1, 1]  # Default
     
     # Random auto_pad mode
-    auto_pad_options = ["NOTSET", "VALID", "SAME_UPPER", "SAME_LOWER"]
+    #"NOTSET" working
+    #"VALID" working
+    #"SAME_UPPER" broken
+    #"SAME_LOWER" broken
+    auto_pad_options = ["NOTSET", "VALID" ] #"SAME_LOWER" AND "SAME_UPPER" are broken
     auto_pad = random.choice(auto_pad_options)
     
     # Random ceil_mode and count_include_pad

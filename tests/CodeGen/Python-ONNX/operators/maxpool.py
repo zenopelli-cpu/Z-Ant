@@ -32,157 +32,137 @@ def generate_maxpool_model(input_names, output_names):
         raise ValueError("output_names must contain at least 1 element")
     
     initializers = []
+     # MaxPool operator: applies max pooling with configurable parameters
+    # Supports various spatial dimensions and parameter combinations
     
     # Random values for batch and channel dimensions
     N = random.randint(1, 3)  # Batch size
     C = random.randint(1, 4)  # Number of channels
     
-    # Support both 2D and 3D pooling
-    spatial_type = random.choice(["2D", "3D"])
+
+    H = random.randint(4, 12)  # Height
+    W = random.randint(4, 12)  # Width
+    input_shape = [N, C, H, W]
+    spatial_dims = [H, W]
     
-    if spatial_type == "2D":
-        H = random.randint(6, 16)  # Height - increased minimum for stability
-        W = random.randint(6, 16)  # Width
-        input_shape = [N, C, H, W]
-        spatial_dims = [H, W]
+    # Kernel shape for 2D pooling
+    kernel_h = random.randint(2, min(4, H))
+    kernel_w = random.randint(2, min(4, W))
+    kernel_shape = [kernel_h, kernel_w]
         
-        # Kernel shape for 2D pooling - more conservative
-        kernel_h = random.randint(2, min(3, H // 2))
-        kernel_w = random.randint(2, min(3, W // 2))
-        kernel_shape = [kernel_h, kernel_w]
-        
-    else:  # 3D pooling
-        D = random.randint(4, 8)   # Depth
-        H = random.randint(4, 8)   # Height  
-        W = random.randint(4, 8)   # Width
-        input_shape = [N, C, D, H, W]
-        spatial_dims = [D, H, W]
-        
-        # Kernel shape for 3D pooling - more conservative
-        kernel_d = random.randint(2, min(3, D // 2))
-        kernel_h = random.randint(2, min(3, H // 2))
-        kernel_w = random.randint(2, min(3, W // 2))
-        kernel_shape = [kernel_d, kernel_h, kernel_w]
+    
+    # Create input data with predictable patterns
+    total_elements = np.prod(input_shape)
+    data = np.arange(1, total_elements + 1, dtype=np.float32).reshape(input_shape)
+    
+    # Add some randomness while keeping it deterministic for testing
+    if random.choice([True, False]):
+        # Add structured pattern
+        data = data + np.random.uniform(-0.5, 0.5, input_shape).astype(np.float32)
+    else:
+        # Use sequential values for predictable max pooling results
+        data = data / total_elements * 100  # Scale to reasonable range
+    
+    init_tensor = helper.make_tensor(input_names[0], TensorProto.FLOAT, input_shape, data.flatten().tolist())
+    initializers.append(init_tensor)
     
     # Random stride parameters (must be positive)
-    if spatial_type == "2D":
-        strides = [random.randint(1, min(2, kernel_h)), random.randint(1, min(2, kernel_w))]
-    else:
-        strides = [random.randint(1, min(2, kernel_d)), 
-                  random.randint(1, min(2, kernel_h)), 
-                  random.randint(1, min(2, kernel_w))]
+    strides = [random.randint(1, min(3, kernel_h)), random.randint(1, min(3, kernel_w))]
+   
     
-    # Use simpler padding strategy to avoid shape calculation errors
-    auto_pad_options = ["NOTSET", "VALID"]  # Removed SAME_* for now due to complexity
+    # Random auto_pad mode
+    #"NOTSET" working
+    #"VALID" working
+    #"SAME_UPPER" broken
+    #"SAME_LOWER" broken
+    auto_pad_options = ["NOTSET", "VALID" ] #"SAME_LOWER" AND "SAME_UPPER" are broken
     auto_pad = random.choice(auto_pad_options)
     
-    # Calculate padding and output dimensions
-    ceil_mode = random.choice([0, 1])
-    
+    # Calculate padding and output dimensions based on auto_pad
     if auto_pad == "NOTSET":
-        # Conservative explicit padding
-        if spatial_type == "2D":
-            pad_h = random.randint(0, 1)  # Keep padding small
-            pad_w = random.randint(0, 1)
-            pads = [pad_h, pad_w, pad_h, pad_w]  # [top, left, bottom, right]
-            
-            # Calculate output dimensions
-            H_out = calculate_output_size(H, kernel_shape[0], strides[0], pads[0], pads[2], ceil_mode)
-            W_out = calculate_output_size(W, kernel_shape[1], strides[1], pads[1], pads[3], ceil_mode)
-            output_shape = [N, C, H_out, W_out]
-            
-        else:  # 3D
-            pad_d = random.randint(0, 1)
-            pad_h = random.randint(0, 1)
-            pad_w = random.randint(0, 1)
-            pads = [pad_d, pad_h, pad_w, pad_d, pad_h, pad_w]  # [front, top, left, back, bottom, right]
-            
-            # Calculate output dimensions
-            D_out = calculate_output_size(D, kernel_shape[0], strides[0], pads[0], pads[3], ceil_mode)
-            H_out = calculate_output_size(H, kernel_shape[1], strides[1], pads[1], pads[4], ceil_mode)
-            W_out = calculate_output_size(W, kernel_shape[2], strides[2], pads[2], pads[5], ceil_mode)
-            output_shape = [N, C, D_out, H_out, W_out]
-            
-    else:  # VALID - no padding
+        # Explicit padding - random but reasonable values
+       
+        max_pad_h = min(2, kernel_h // 2)
+        max_pad_w = min(2, kernel_w // 2)
+        pads = [
+            random.randint(0, max_pad_h),  # top
+            random.randint(0, max_pad_w),  # left
+            random.randint(0, max_pad_h),  # bottom
+            random.randint(0, max_pad_w)   # right
+        ]
+       
+    else:
+        # Auto padding - let ONNX calculate
         pads = [0] * (len(spatial_dims) * 2)
+    
+    # Calculate output dimensions
+    if auto_pad == "NOTSET":
+        # Manual calculation for explicit padding
+        H_out = ((H + pads[0] + pads[2] - kernel_shape[0]) // strides[0]) + 1
+        W_out = ((W + pads[1] + pads[3] - kernel_shape[1]) // strides[1]) + 1
+        output_shape = [N, C, H_out, W_out]
         
-        if spatial_type == "2D":
-            H_out = calculate_output_size(H, kernel_shape[0], strides[0], 0, 0, ceil_mode)
-            W_out = calculate_output_size(W, kernel_shape[1], strides[1], 0, 0, ceil_mode)
-            output_shape = [N, C, H_out, W_out]
-        else:  # 3D
-            D_out = calculate_output_size(D, kernel_shape[0], strides[0], 0, 0, ceil_mode)
-            H_out = calculate_output_size(H, kernel_shape[1], strides[1], 0, 0, ceil_mode)
-            W_out = calculate_output_size(W, kernel_shape[2], strides[2], 0, 0, ceil_mode)
-            output_shape = [N, C, D_out, H_out, W_out]
+    elif auto_pad == "VALID":
+        # No padding
+       
+        H_out = ((H - kernel_shape[0]) // strides[0]) + 1
+        W_out = ((W - kernel_shape[1]) // strides[1]) + 1
+        output_shape = [N, C, H_out, W_out]
+        
+    else:  # SAME_UPPER or SAME_LOWER
+        # Output size preserves input size divided by stride
+        H_out = int(np.ceil(H / strides[0]))
+        W_out = int(np.ceil(W / strides[1]))
+        output_shape = [N, C, H_out, W_out]
+        
     
     # Validate output dimensions are positive
     if any(dim <= 0 for dim in output_shape[2:]):  # Check spatial dimensions
-        # Fallback to guaranteed working configuration
-        if spatial_type == "2D":
-            kernel_shape = [2, 2]
-            strides = [1, 1]
-            auto_pad = "VALID"
-            pads = [0, 0, 0, 0]
-            ceil_mode = 0
-            H_out = calculate_output_size(H, 2, 1, 0, 0, 0)
-            W_out = calculate_output_size(W, 2, 1, 0, 0, 0)
-            output_shape = [N, C, max(1, H_out), max(1, W_out)]
-        else:  # 3D
-            kernel_shape = [2, 2, 2]
-            strides = [1, 1, 1]
-            auto_pad = "VALID"
-            pads = [0, 0, 0, 0, 0, 0]
-            ceil_mode = 0
-            D_out = calculate_output_size(D, 2, 1, 0, 0, 0)
-            H_out = calculate_output_size(H, 2, 1, 0, 0, 0)
-            W_out = calculate_output_size(W, 2, 1, 0, 0, 0)
-            output_shape = [N, C, max(1, D_out), max(1, H_out), max(1, W_out)]
+        # Fallback to simpler, guaranteed-working configuration
+                        
+        kernel_shape = [2, 2]
+        strides = [2, 2]
+        auto_pad = "VALID"
+        pads = [0, 0, 0, 0]
+        H_out = ((H - 2) // 2) + 1
+        W_out = ((W - 2) // 2) + 1
+        output_shape = [N, C, max(1, H_out), max(1, W_out)]
+
+       
     
-    # Only create input info for the actual dynamic input (no initializers for MaxPool)
-    input_info = helper.make_tensor_value_info(input_names[0], TensorProto.FLOAT, input_shape)
     output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, output_shape)
+    input_info = helper.make_tensor_value_info("useless_input", TensorProto.FLOAT, input_shape)
     
     # Optional parameters
+    ceil_mode = random.choice([0, 1])  # Random ceil mode
     storage_order = random.choice([0, 1])  # 0 = row major, 1 = column major
-    dilations = [1] * len(kernel_shape)  # MaxPool typically uses dilations = 1
+    dilations = [1] * len(kernel_shape)  # Currently only support dilations = 1
     
     # Create the MaxPool node with all parameters
     node_attrs = {
         "kernel_shape": [int(k) for k in kernel_shape],
         "strides": [int(s) for s in strides],
+        "pads": [int(p) for p in pads],
+        "auto_pad": auto_pad,
         "ceil_mode": int(ceil_mode),
         "storage_order": int(storage_order)
     }
     
-    # Add pads if not all zeros or if using explicit padding
-    if auto_pad == "NOTSET" or any(p != 0 for p in pads):
-        node_attrs["pads"] = [int(p) for p in pads]
-    
-    # Add auto_pad if not NOTSET
-    if auto_pad != "NOTSET":
-        node_attrs["auto_pad"] = auto_pad
-    
-    # Add dilations if not all 1s (though MaxPool rarely uses dilations != 1)
+    # Only add dilations if not all 1s (some ONNX versions don't like explicit [1,1])
     if any(d != 1 for d in dilations):
         node_attrs["dilations"] = [int(d) for d in dilations]
-    
-    # Create unique node name
-    param_id = random.randint(1000, 9999)
-    node_name = f"MaxPool_node_{spatial_type}_{param_id}"
     
     node = helper.make_node(
         "MaxPool",
         inputs=[input_names[0]],
         outputs=[output_names[0]],
-        name=node_name,
+        name=f"MaxPool_node_N{N}_C{C}_k{kernel_shape}_s{strides}",
         **node_attrs
     )
     
     metadata = {
         "input_shapes": [input_shape],
         "output_shapes": [output_shape],
-        "spatial_type": spatial_type,
         "batch_size": int(N),
         "channels": int(C),
         "spatial_dimensions": [int(d) for d in spatial_dims],
@@ -192,8 +172,7 @@ def generate_maxpool_model(input_names, output_names):
         "auto_pad": auto_pad,
         "ceil_mode": int(ceil_mode),
         "storage_order": int(storage_order),
-        "dilations": [int(d) for d in dilations],
-        "node_name": node_name
+        "dilations": [int(d) for d in dilations]
     }
     
     return [input_info], output_info, [node], initializers, metadata

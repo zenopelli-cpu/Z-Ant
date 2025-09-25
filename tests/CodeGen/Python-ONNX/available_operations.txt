@@ -39,7 +39,7 @@ Reshape
 # Resize: error: UnsupportedDataType :bugged -> error: UnsupportedDataType probably related to protoTensor2AnyTensor
 Shape
 Sigmoid
-#Slice: missing codegeneration inside op_slice.zig, complete all the node's methods
+Slice
 Softmax
 #Split: standardMath not respecting onnx standard and incomplete node initialization
 Sqrt
