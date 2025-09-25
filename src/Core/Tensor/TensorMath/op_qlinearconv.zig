@@ -102,7 +102,15 @@ fn readPerChannelZPInternal(zp_any: anytype, m: usize) i32 {
 
 const SHIFT: u5 = 16;
 inline fn q16(x: f32) i32 {
-    return @as(i32, @intFromFloat(x * @as(f32, @floatFromInt(@as(u32, 1) << SHIFT))));
+    const scaled = x * @as(f32, @floatFromInt(@as(u32, 1) << SHIFT));
+    // Clamp to i32 bounds to prevent overflow
+    if (scaled > @as(f32, @floatFromInt(std.math.maxInt(i32)))) {
+        return std.math.maxInt(i32);
+    }
+    if (scaled < @as(f32, @floatFromInt(std.math.minInt(i32)))) {
+        return std.math.minInt(i32);
+    }
+    return @as(i32, @intFromFloat(scaled));
 }
 
 inline fn rshift_round_s64(x: i64, comptime shift_bits: u5) i64 {
