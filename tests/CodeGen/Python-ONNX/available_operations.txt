@@ -37,8 +37,8 @@ ReduceMean
 Relu  
 Reshape
 # Resize: error: UnsupportedDataType :bugged -> error: UnsupportedDataType probably related to protoTensor2AnyTensor
-#Shape: error in python3 tests/CodeGen/Python-ONNX/onnx_gen.py Error running model for Shape (ID: 0): [ONNXRuntimeError] : 1 : FAIL : Load model from datasets/oneOpModels/Shape_0.onnx failed:Type Error: Type (tensor(float)) of output arg (Shape_param_out_0) of node (Shape_node) does not match expected type (tensor(int64)).
-Sigmoid  
+Shape
+Sigmoid
 #Slice: missing codegeneration inside op_slice.zig, complete all the node's methods
 Softmax
 #Split: standardMath not respecting onnx standard and incomplete node initialization

@@ -2,13 +2,11 @@ import numpy as np
 import random
 from onnx import helper, TensorProto
 
-
 def generate_reducemean_model(input_names, output_names):
     """
     Generates a ReduceMean operator model.
     """
     initializers = []
-    
     # Generate input tensor with 4D shape for typical use case
     shape = [random.randint(2, 6) for _ in range(4)]  # Ensure shape has values > 1 for meaningful reduction
     data = np.random.randn(*shape).astype(np.float32)
@@ -49,12 +47,14 @@ def generate_reducemean_model(input_names, output_names):
             else:
                 out_shape.append(dim)
     
-    # Create axes tensor as initializer if axes is not empty
+    # Create node inputs - only add axes if it's not empty
     node_inputs = [input_names[0]]
+    
+    # Only create axes tensor if axes is not empty
     if len(axes) > 0:
-        axes_tensor = helper.make_tensor(input_names[1], TensorProto.INT64, [len(axes)], axes)
+        axes_tensor = helper.make_tensor(f"axes_{random.randint(1000,9999)}", TensorProto.INT64, [len(axes)], axes)
         initializers.append(axes_tensor)
-        node_inputs.append(input_names[1])
+        node_inputs.append(axes_tensor.name)
     
     # Create output info
     output_info = helper.make_tensor_value_info(output_names[0], TensorProto.FLOAT, out_shape)

@@ -146,9 +146,23 @@ test "Static Library - Inputs Prediction Test" {
             const result_value = result[i];
 
             // SAFE DIFF
-            const diff = if (expected_output > result_value) expected_output - result_value else result_value - expected_output;
+            // Convert to f64 for safe difference calculation
+            const expected_f64: f64 = switch (@typeInfo(@TypeOf(expected_output))) {
+                .float => expected_output,
+                .int => @floatFromInt(expected_output),
+                else => @panic("Unsupported output type"),
+            };
 
-            const big_diff: bool = diff > marginFor(model.output_data_type);
+            const result_f64: f64 = switch (@typeInfo(@TypeOf(result_value))) {
+                .float => result_value,
+                .int => @floatFromInt(result_value),
+                else => @panic("Unsupported result type"),
+            };
+
+            const diff = @abs(expected_f64 - result_f64);
+            const margin_f64: f64 = marginFor(model.output_data_type);
+
+            const big_diff: bool = diff > margin_f64;
             if (big_diff) {
                 if (value_error_counter < 5) std.debug.print("\n\n  >>>>>>>ERROR!!<<<<<< \nTest failed for input: {d} expected: {} got: {}, margin: {}\n", .{ i, expected_output, result_value, marginFor(model.output_data_type) });
                 value_error_counter += 1;
@@ -195,10 +209,10 @@ fn isInteger(comptime T: type) bool {
 }
 
 /// Returns `0` (of type `T`) for non-float `T`, otherwise `0.001` (of type `T`).
-fn marginFor(comptime T: type) T {
+fn marginFor(comptime T: type) f64 {
     return if (@typeInfo(T) == .int)
         // integer types: zero tolerance
-        1
+        1.0
     else
         // floating‑point (or any other type): tiny tolerance
         0.001;

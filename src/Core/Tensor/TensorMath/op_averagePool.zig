@@ -32,7 +32,7 @@ pub fn lean_onnx_averagepool(
     kernel_shape: []const usize,
     strides: []const usize,
     dilations: []const usize,
-    pads: []const usize,
+    pads: []const usize, // IGNORED when auto_pad != NOTSET
     auto_pad: AutoPadType,
     count_include_pad: bool,
 ) !void {
@@ -67,7 +67,8 @@ pub fn lean_onnx_averagepool(
             @memset(effective_pads, 0);
         },
         .SAME_UPPER, .SAME_LOWER => {
-            // Calculate padding using ONNX formula:
+            // IMPORTANT: Ignore the pads parameter completely when auto_pad is SAME_*
+            // Calculate padding using ONNX v22 formula:
             // pad_shape[i] = (output_spatial_shape[i] - 1) * strides[i] + ((kernel_shape[i] - 1) * dilations[i] + 1) - input_spatial_shape[i]
             for (0..spatial_dims) |i| {
                 const input_size = @as(isize, @intCast(input.shape[2 + i]));
@@ -79,7 +80,7 @@ pub fn lean_onnx_averagepool(
                 // Effective kernel size with dilation: (kernel_shape[i] - 1) * dilations[i] + 1
                 const effective_kernel_size = (kernel_size - 1) * dilation + 1;
 
-                // ONNX formula for SAME padding
+                // ONNX v22 formula for SAME padding
                 const total_pad = @max(0, (output_size - 1) * stride + effective_kernel_size - input_size);
 
                 if (auto_pad == .SAME_UPPER) {
@@ -94,6 +95,8 @@ pub fn lean_onnx_averagepool(
             }
         },
     }
+
+    // ... rest of your pooling implementation remains the same
 
     // Calculate strides for efficient indexing
     var input_strides = try pkg_allocator.alloc(usize, input_rank);
@@ -363,50 +366,61 @@ pub fn get_onnx_averagepool_output_shape(
         const stride = strides[i];
         const dilation = dilations[i];
 
-        var pad_begin: usize = 0;
-        var pad_end: usize = 0;
+        var output_size: usize = 0;
 
         switch (auto_pad) {
             .NOTSET => {
                 // Explicit padding: ONNX format [x1_begin, x2_begin, ..., x1_end, x2_end, ...]
+                var pad_begin: usize = 0;
+                var pad_end: usize = 0;
                 if (i < pads.len) pad_begin = pads[i];
                 if (i + spatial_dims < pads.len) pad_end = pads[i + spatial_dims];
+
+                // ONNX formula with dilations:
+                // output_spatial_shape[i] = floor((input_spatial_shape[i] + pad_shape[i] - dilation[i] * (kernel_shape[i] - 1) - 1) / strides_spatial_shape[i] + 1)
+                const effective_kernel_size = dilation * (kernel_size - 1) + 1;
+                const total_pad = pad_begin + pad_end;
+                const padded_input_size = input_size + total_pad;
+
+                if (padded_input_size >= effective_kernel_size) {
+                    const numerator = padded_input_size - effective_kernel_size;
+                    if (ceil_mode) {
+                        output_size = (numerator + stride) / stride; // Ceiling division
+                    } else {
+                        output_size = (numerator / stride) + 1;
+                    }
+                } else {
+                    output_size = 1; // Minimum output size
+                }
             },
             .VALID => {
-                // No padding
+                // No padding - ONNX formula for VALID:
+                // output_spatial_shape[i] = floor((input_spatial_shape[i] - ((kernel_spatial_shape[i] - 1) * dilations[i] + 1)) / strides_spatial_shape[i]) + 1
+                const effective_kernel_size = (kernel_size - 1) * dilation + 1;
+                if (input_size >= effective_kernel_size) {
+                    const numerator = input_size - effective_kernel_size;
+                    if (ceil_mode) {
+                        output_size = (numerator + stride) / stride + 1; // ceil((input - effective_kernel + 1) / stride)
+                    } else {
+                        output_size = (numerator / stride) + 1;
+                    }
+                } else {
+                    output_size = 1;
+                }
             },
             .SAME_UPPER, .SAME_LOWER => {
-                // For SAME, calculate output size first, then determine padding
-                var output_size: usize = undefined;
+                // For SAME padding, output size is calculated first using ONNX formula:
+                // SAME_UPPER or SAME_LOWER: output_spatial_shape[i] = ceil(input_spatial_shape[i] / strides_spatial_shape[i])
+                // When ceil_mode is disabled: output_spatial_shape[i] = floor((input_spatial_shape[i] - 1) / strides_spatial_shape[i]) + 1
+
                 if (ceil_mode) {
-                    output_size = (input_size + stride - 1) / stride; // Ceiling division
-                } else {
+                    // ceil(input_size / stride) = (input_size + stride - 1) / stride
                     output_size = (input_size + stride - 1) / stride;
+                } else {
+                    // floor((input_size - 1) / stride) + 1
+                    output_size = if (input_size > 0) ((input_size - 1) / stride) + 1 else 1;
                 }
-
-                output_shape[2 + i] = output_size;
-                continue; // Skip the general calculation below
             },
-        }
-
-        // ONNX formulas for explicit and VALID padding
-        // Effective kernel size: (kernel_size - 1) * dilation + 1
-        const effective_kernel_size = (kernel_size - 1) * dilation + 1;
-        const total_pad = pad_begin + pad_end;
-        const padded_input_size = input_size + total_pad;
-
-        var output_size: usize = 0;
-        if (padded_input_size >= effective_kernel_size) {
-            // ONNX formula: output_size = floor((padded_input - effective_kernel) / stride) + 1
-            const numerator = padded_input_size - effective_kernel_size;
-
-            if (ceil_mode) {
-                output_size = (numerator + stride) / stride; // Ceiling division
-            } else {
-                output_size = (numerator / stride) + 1;
-            }
-        } else {
-            output_size = 1; // Minimum output size
         }
 
         output_shape[2 + i] = output_size;
