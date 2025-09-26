@@ -1356,7 +1356,6 @@ pub fn qlinearconv_cmsis_accelerated(
     // std.debug.print("CMSIS DEBUG: qlinearconv_cmsis_accelerated called\n", .{});
 
     // Suppress unused parameter warnings
-    // w_zero_point_any is actually used later when packing weights (readPerChannelZP)
 
     // Basic validation
     if (x.shape.len != 4 or w.shape.len != 4 or output.shape.len != 4) {
@@ -1401,10 +1400,11 @@ pub fn qlinearconv_cmsis_accelerated(
     const in_channels = x.shape[1];
     var in_height = x.shape[2];
     var in_width = x.shape[3];
-    const out_channels = w.shape[0];
-    const weight_in_channels = w.shape[1];
-    const kernel_height = w.shape[2];
-    const kernel_width = w.shape[3];
+    const out_channels = output.shape[1];
+    const weight_dim0 = w.shape[0];
+    const kernel_height = w.shape[1];
+    const kernel_width = w.shape[2];
+    const weight_last_dim = w.shape[3];
     const out_height = output.shape[2];
     const out_width = output.shape[3];
 
@@ -1442,12 +1442,34 @@ pub fn qlinearconv_cmsis_accelerated(
     if (group_val == 0) {
         return TensorMathError.InvalidDimensions;
     }
+    const is_depthwise = group_val == in_channels;
+    const weight_in_channels = if (is_depthwise) 1 else weight_last_dim;
+
+    if (is_depthwise) {
+        if (weight_dim0 != 1 or weight_last_dim != out_channels) {
+            return TensorMathError.InvalidDimensions;
+        }
+    } else {
+        if (weight_dim0 != out_channels) {
+            return TensorMathError.InvalidDimensions;
+        }
+    }
+
     if (weight_in_channels * group_val != in_channels or out_channels % group_val != 0) {
         return TensorMathError.InvalidDimensions;
     }
 
     const group_in_channels = weight_in_channels;
     const group_out_channels = out_channels / group_val;
+
+    const expected_weights: usize = out_channels * group_in_channels * kernel_height * kernel_width;
+    if (w.data.len != expected_weights) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    if (@sizeOf(WeightType) != 1) {
+        return TensorMathError.InvalidDataType;
+    }
 
     // DEBUG: Print tensor dimensions
     // std.debug.print("CMSIS DEBUG: Input dims: {}x{}x{}x{}\n", .{ batch_size, in_channels, in_height, in_width });
@@ -1579,62 +1601,13 @@ pub fn qlinearconv_cmsis_accelerated(
         bias_ptr = @ptrCast(bias_slice.ptr);
     }
 
-    // Pack weights depending on conv kind:
-    // - Regular/grouped conv: OHWI (out, kh, kw, in)
-    // - Depthwise conv: [1, kh, kw, C_out] per CMSIS DW wrapper
-    const per_channel_w_zp = try pkg_allocator.alloc(i32, out_channels);
-    defer pkg_allocator.free(per_channel_w_zp);
-    for (0..out_channels) |ch| {
-        per_channel_w_zp[ch] = readPerChannelZP(w_zero_point_any, ch, out_channels);
-    }
-
-    const total_weights: usize = out_channels * weight_in_channels * kernel_height * kernel_width;
-    var w_packed: []i8 = try pkg_allocator.alloc(i8, total_weights);
-    defer pkg_allocator.free(w_packed);
-
-    if (group_val == in_channels) {
-        // Depthwise: expect C_out = in_channels * channel_multiplier and layout [1, kh, kw, C_out]
-        const kernel_size = kernel_height * kernel_width;
-        var wp: usize = 0;
-        var spatial: usize = 0;
-        while (spatial < kernel_size) : (spatial += 1) {
-            var src_idx = spatial;
-            var m: usize = 0;
-            while (m < out_channels) : (m += 1) {
-                const w_q_i32 = @as(i32, @intCast(w.data[src_idx]));
-                w_packed[wp] = clampToI8(w_q_i32 - per_channel_w_zp[m]);
-                src_idx += kernel_size; // next output channel's element at same spatial pos
-                wp += 1;
-            }
-        }
-    } else {
-        // Regular and grouped convolution: pack weights in OHWI order (out, h, w, in)
-        const kernel_size = kernel_height * kernel_width;
-        const channel_stride = kernel_size;
-        const output_stride = weight_in_channels * kernel_size;
-        var wp: usize = 0;
-        for (0..out_channels) |m| {
-            const base_idx = m * output_stride;
-            const w_zp = per_channel_w_zp[m];
-            var spatial: usize = 0;
-            while (spatial < kernel_size) : (spatial += 1) {
-                var channel_idx = base_idx + spatial;
-                var c: usize = 0;
-                while (c < weight_in_channels) : (c += 1) {
-                    const w_q_i32 = @as(i32, @intCast(w.data[channel_idx]));
-                    w_packed[wp] = clampToI8(w_q_i32 - w_zp);
-                    channel_idx += channel_stride;
-                    wp += 1;
-                }
-            }
-        }
-    }
+    const weight_ptr_s8: [*]const i8 = @ptrCast(w.data.ptr);
 
     // Allocate buffer required by CMSIS-NN wrapper (regular or depthwise)
     var filter_dims = cmsis_nn.Dims{ .n = @intCast(out_channels), .h = @intCast(kernel_height), .w = @intCast(kernel_width), .c = @intCast(weight_in_channels) };
     var filter_group_dims = cmsis_nn.Dims{ .n = @intCast(group_out_channels), .h = @intCast(kernel_height), .w = @intCast(kernel_width), .c = @intCast(group_in_channels) };
     var buffer_size: i32 = 0;
-    if (group_val == in_channels) {
+    if (is_depthwise) {
         buffer_size = cmsis_nn.conv.arm_depthwise_conv_wrapper_s8_get_buffer_size(&.{
             .input_offset = cmsis_input_offset,
             .output_offset = cmsis_output_offset,
@@ -1740,7 +1713,7 @@ pub fn qlinearconv_cmsis_accelerated(
             &input_dims,
             input_ptr_s8,
             &dw_filter_dims,
-            w_packed.ptr,
+            weight_ptr_s8,
             &bias_dims,
             if (bias_ptr) |ptr| @ptrCast(ptr) else null,
             &output_dims,
@@ -1754,7 +1727,7 @@ pub fn qlinearconv_cmsis_accelerated(
             &input_dims,
             input_ptr_s8,
             &filter_dims,
-            w_packed.ptr,
+            weight_ptr_s8,
             &bias_dims,
             if (bias_ptr) |ptr| @ptrCast(ptr) else null,
             &output_dims,
@@ -1779,7 +1752,7 @@ pub fn qlinearconv_cmsis_accelerated(
                 &input_dims,
                 input_ptr_s8,
                 &filter_dims,
-                w_packed.ptr,
+                weight_ptr_s8,
                 &bias_dims,
                 if (bias_ptr) |ptr| @ptrCast(ptr) else null,
                 null,
@@ -1810,7 +1783,7 @@ pub fn qlinearconv_cmsis_accelerated(
                 .shift = shifts_buf[group_channel_offset .. group_channel_offset + group_out_channels].ptr,
             };
             const weights_offset = g * group_out_channels * group_in_channels * kernel_height * kernel_width;
-            const group_weights_ptr = w_packed.ptr + weights_offset;
+            const group_weights_ptr = weight_ptr_s8 + weights_offset;
             const bias_group_ptr = if (bias_ptr) |ptr| ptr + group_channel_offset else null;
 
             status = cmsis_nn.conv.arm_convolve_wrapper_s8(

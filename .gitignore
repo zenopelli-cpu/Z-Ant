@@ -64,6 +64,8 @@ massif*.*
 !generated/new2/
 !generated/beer/**
 !generated/beer/
+!generated/beer_oh/**
+!generated/beer_oh/
 /benchmarks/output
 
 datasets/oneOpModels/results.json
