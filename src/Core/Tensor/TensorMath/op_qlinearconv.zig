@@ -645,7 +645,7 @@ fn conv1x1Optimized(x: anytype, w: anytype, output: anytype, batch_size: usize, 
 }
 
 const ChannelParams = struct {
-    weight_scale_q16: i32,
+    combined_scale_q16: i64,
     weight_zero_point: i32,
     bias_q16: i64,
 };
@@ -653,12 +653,24 @@ const ChannelParams = struct {
 const QuantParams = struct {
     scale_shift: u5,
     input_zero_point: i32,
-    input_scale_i64: i64,
     output_inv_scale_i64: i64,
     output_zero_point_q16: i64,
     q_min: i32,
     q_max: i32,
 };
+
+inline fn saturateI128ToI64(value: i128) i64 {
+    const max_i64_as_i128 = @as(i128, std.math.maxInt(i64));
+    const min_i64_as_i128 = @as(i128, std.math.minInt(i64));
+
+    if (value > max_i64_as_i128) {
+        return std.math.maxInt(i64);
+    }
+    if (value < min_i64_as_i128) {
+        return std.math.minInt(i64);
+    }
+    return @intCast(value);
+}
 
 const ConvDims = struct {
     batch: usize,
@@ -812,6 +824,7 @@ pub inline fn qlinearconv_embedded_lean(
     const SCALE_SHIFT: u5 = 16;
     const scale_factor = @as(f32, @floatFromInt(@as(u32, 1) << SCALE_SHIFT));
     const x_scale_val = asF32(ScaleType, x_scale.data[0]);
+    const x_scale_q16 = @as(i64, q16(x_scale_val));
     const y_scale_val = asF32(ScaleType, y_scale.data[0]);
     const input_zero_point = if (@typeInfo(@TypeOf(x_zero_point)) == .pointer and x_zero_point.data.len == 0)
         0
@@ -825,7 +838,6 @@ pub inline fn qlinearconv_embedded_lean(
     const quant = QuantParams{
         .scale_shift = SCALE_SHIFT,
         .input_zero_point = input_zero_point,
-        .input_scale_i64 = @as(i64, q16(x_scale_val)),
         .output_inv_scale_i64 = @as(i64, q16(1.0 / y_scale_val)),
         .output_zero_point_q16 = @as(i64, output_zero_point) << SCALE_SHIFT,
         .q_min = @as(i32, @intCast(std.math.minInt(InputType))),
@@ -877,7 +889,8 @@ pub inline fn qlinearconv_embedded_lean(
         else
             asF32(ScaleType, w_scale.data[0]);
 
-        const weight_scale_q16 = q16(w_scale_val);
+        const weight_scale_q16 = @as(i64, q16(w_scale_val));
+        const combined_scale_q16 = saturateI128ToI64((@as(i128, x_scale_q16) * @as(i128, weight_scale_q16)) >> SCALE_SHIFT);
         const weight_zero_point = if (@typeInfo(@TypeOf(w_zero_point)) == .pointer and w_zero_point.data.len == 0)
             0
         else
@@ -894,7 +907,7 @@ pub inline fn qlinearconv_embedded_lean(
         } else 0;
 
         channel_params[m] = .{
-            .weight_scale_q16 = weight_scale_q16,
+            .combined_scale_q16 = combined_scale_q16,
             .weight_zero_point = weight_zero_point,
             .bias_q16 = bias_q16,
         };
@@ -925,9 +938,7 @@ inline fn conv3x3EmbeddedOptimized(
     quant: QuantParams,
     channel_params: []const ChannelParams,
 ) void {
-    const shift = quant.scale_shift;
     const input_zp = quant.input_zero_point;
-    const x_scale_i64 = quant.input_scale_i64;
     const in_height_isize = @as(isize, @intCast(dims.in_height));
     const in_width_isize = @as(isize, @intCast(dims.in_width));
 
@@ -942,7 +953,6 @@ inline fn conv3x3EmbeddedOptimized(
             for (0..dims.group_out_channels) |oc| {
                 const m = out_group_base + oc;
                 const channel = channel_params[m];
-                const weight_scale_i64 = @as(i64, channel.weight_scale_q16);
                 const weight_base = m * layout.weight_out_stride;
                 const output_channel_base = output_batch_base + m * layout.output_channel_stride;
 
@@ -952,7 +962,7 @@ inline fn conv3x3EmbeddedOptimized(
 
                     for (0..dims.out_width) |ow| {
                         const iw_origin = @as(isize, @intCast(ow * dims.stride_w)) - @as(isize, @intCast(dims.pad_w));
-                        var acc: i64 = channel.bias_q16;
+                        var acc_raw: i64 = 0;
 
                         for (0..dims.group_in_channels) |ic| {
                             const c = in_group_base + ic;
@@ -977,16 +987,20 @@ inline fn conv3x3EmbeddedOptimized(
                                         const w_q = @as(i32, @intCast(w_data[weight_index]));
                                         const x_diff = x_q - input_zp;
                                         const w_diff = w_q - channel.weight_zero_point;
-                                        const x_q16 = @as(i64, x_diff) * x_scale_i64;
-                                        const w_q16 = @as(i64, w_diff) * weight_scale_i64;
-                                        acc += (x_q16 * w_q16) >> shift;
+                                        acc_raw += @as(i64, x_diff) * @as(i64, w_diff);
                                     }
                                     weight_index += 1;
                                 }
                             }
                         }
 
-                        const q = quantizeAccumulator(acc, quant);
+                        const scaled = saturateI128ToI64(@as(i128, acc_raw) * @as(i128, channel.combined_scale_q16));
+                        const sum = @addWithOverflow(channel.bias_q16, scaled);
+                        var acc_q16: i64 = sum[0];
+                        if (sum[1] != 0) {
+                            acc_q16 = if (scaled >= 0) std.math.maxInt(i64) else std.math.minInt(i64);
+                        }
+                        const q = quantizeAccumulator(acc_q16, quant);
                         out_data[output_row_base + ow] = @as(InputType, @intCast(q));
                     }
                 }
@@ -1006,9 +1020,7 @@ inline fn conv1x1EmbeddedOptimized(
     quant: QuantParams,
     channel_params: []const ChannelParams,
 ) void {
-    const shift = quant.scale_shift;
     const input_zp = quant.input_zero_point;
-    const x_scale_i64 = quant.input_scale_i64;
     const in_height_isize = @as(isize, @intCast(dims.in_height));
     const in_width_isize = @as(isize, @intCast(dims.in_width));
 
@@ -1023,7 +1035,6 @@ inline fn conv1x1EmbeddedOptimized(
             for (0..dims.group_out_channels) |oc| {
                 const m = out_group_base + oc;
                 const channel = channel_params[m];
-                const weight_scale_i64 = @as(i64, channel.weight_scale_q16);
                 const weight_base = m * layout.weight_out_stride;
                 const output_channel_base = output_batch_base + m * layout.output_channel_stride;
 
@@ -1033,7 +1044,7 @@ inline fn conv1x1EmbeddedOptimized(
 
                     for (0..dims.out_width) |ow| {
                         const iw_origin = @as(isize, @intCast(ow * dims.stride_w)) - @as(isize, @intCast(dims.pad_w));
-                        var acc: i64 = channel.bias_q16;
+                        var acc_raw: i64 = 0;
 
                         if (ih_origin >= 0 and ih_origin < in_height_isize and iw_origin >= 0 and iw_origin < in_width_isize) {
                             const ih = @as(usize, @intCast(ih_origin));
@@ -1049,13 +1060,17 @@ inline fn conv1x1EmbeddedOptimized(
                                 const w_q = @as(i32, @intCast(w_data[weight_index]));
                                 const x_diff = x_q - input_zp;
                                 const w_diff = w_q - channel.weight_zero_point;
-                                const x_q16 = @as(i64, x_diff) * x_scale_i64;
-                                const w_q16 = @as(i64, w_diff) * weight_scale_i64;
-                                acc += (x_q16 * w_q16) >> shift;
+                                acc_raw += @as(i64, x_diff) * @as(i64, w_diff);
                             }
                         }
 
-                        const q = quantizeAccumulator(acc, quant);
+                        const scaled = saturateI128ToI64(@as(i128, acc_raw) * @as(i128, channel.combined_scale_q16));
+                        const sum = @addWithOverflow(channel.bias_q16, scaled);
+                        var acc_q16: i64 = sum[0];
+                        if (sum[1] != 0) {
+                            acc_q16 = if (scaled >= 0) std.math.maxInt(i64) else std.math.minInt(i64);
+                        }
+                        const q = quantizeAccumulator(acc_q16, quant);
                         out_data[output_row_base + ow] = @as(InputType, @intCast(q));
                     }
                 }
@@ -1075,9 +1090,7 @@ inline fn convGenericEmbeddedOptimized(
     quant: QuantParams,
     channel_params: []const ChannelParams,
 ) void {
-    const shift = quant.scale_shift;
     const input_zp = quant.input_zero_point;
-    const x_scale_i64 = quant.input_scale_i64;
     const in_height_isize = @as(isize, @intCast(dims.in_height));
     const in_width_isize = @as(isize, @intCast(dims.in_width));
 
@@ -1092,7 +1105,6 @@ inline fn convGenericEmbeddedOptimized(
             for (0..dims.group_out_channels) |oc| {
                 const m = out_group_base + oc;
                 const channel = channel_params[m];
-                const weight_scale_i64 = @as(i64, channel.weight_scale_q16);
                 const weight_base = m * layout.weight_out_stride;
                 const output_channel_base = output_batch_base + m * layout.output_channel_stride;
 
@@ -1102,7 +1114,7 @@ inline fn convGenericEmbeddedOptimized(
 
                     for (0..dims.out_width) |ow| {
                         const iw_origin = @as(isize, @intCast(ow * dims.stride_w)) - @as(isize, @intCast(dims.pad_w));
-                        var acc: i64 = channel.bias_q16;
+                        var acc_raw: i64 = 0;
 
                         for (0..dims.group_in_channels) |ic| {
                             const c = in_group_base + ic;
@@ -1131,14 +1143,18 @@ inline fn convGenericEmbeddedOptimized(
                                     const w_q = @as(i32, @intCast(w_data[weight_index]));
                                     const x_diff = x_q - input_zp;
                                     const w_diff = w_q - channel.weight_zero_point;
-                                    const x_q16 = @as(i64, x_diff) * x_scale_i64;
-                                    const w_q16 = @as(i64, w_diff) * weight_scale_i64;
-                                    acc += (x_q16 * w_q16) >> shift;
+                                    acc_raw += @as(i64, x_diff) * @as(i64, w_diff);
                                 }
                             }
                         }
 
-                        const q = quantizeAccumulator(acc, quant);
+                        const scaled = saturateI128ToI64(@as(i128, acc_raw) * @as(i128, channel.combined_scale_q16));
+                        const sum = @addWithOverflow(channel.bias_q16, scaled);
+                        var acc_q16: i64 = sum[0];
+                        if (sum[1] != 0) {
+                            acc_q16 = if (scaled >= 0) std.math.maxInt(i64) else std.math.minInt(i64);
+                        }
+                        const q = quantizeAccumulator(acc_q16, quant);
 
                         // Fixed point quantization now matches ONNX Runtime behavior
 
