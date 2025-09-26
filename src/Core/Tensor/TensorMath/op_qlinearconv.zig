@@ -2,9 +2,28 @@ const std = @import("std");
 const zant = @import("../../../zant.zig");
 
 const Tensor = zant.core.tensor.Tensor;
+const tensor_module = zant.core.tensor;
 const pkg_allocator = zant.utils.allocator.allocator;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 const tensMath = zant.core.tensor.math_standard;
+
+pub var log_functionC: ?*const fn ([*c]u8) callconv(.C) void = null;
+
+pub export fn setLogFunctionC(func: ?*const fn ([*c]u8) callconv(.C) void) void {
+    log_functionC = func;
+}
+
+inline fn logDebug(comptime fmt: []const u8, args: anytype) void {
+    var log_ptr: ?*const fn ([*c]u8) callconv(.C) void = log_functionC;
+    if (log_ptr == null) {
+        log_ptr = tensor_module.log_function;
+    }
+    if (log_ptr) |log| {
+        var buffer: [512:0]u8 = undefined;
+        const msg = std.fmt.bufPrintZ(&buffer, fmt, args) catch return;
+        log(@constCast(msg.ptr));
+    }
+}
 
 // Import existing conv operation to reuse shape calculation and structure
 const conv = @import("op_convolution.zig");
@@ -16,21 +35,38 @@ const WeightLayout = enum {
 
 fn detectWeightLayout(weight_shape: []const usize, in_channels: usize, group: usize) !WeightLayout {
     if (weight_shape.len != 4) {
+        logDebug("[ZANT][qlinearconv] invalid weight rank={d}\n", .{weight_shape.len});
         return TensorMathError.InvalidDimensions;
     }
 
     if (group == 0 or in_channels == 0 or in_channels % group != 0) {
+        logDebug(
+            "[ZANT][qlinearconv] invalid group/in_channels configuration weight_shape={any} in_channels={d} group={d}\n",
+            .{ weight_shape, in_channels, group },
+        );
         return TensorMathError.InvalidDimensions;
     }
 
     if (weight_shape[1] * group == in_channels) {
+        logDebug(
+            "[ZANT][qlinearconv] detected standard weight layout shape={any} group={d}\n",
+            .{ weight_shape, group },
+        );
         return .standard;
     }
 
     if (weight_shape[3] * group == in_channels) {
+        logDebug(
+            "[ZANT][qlinearconv] detected OHWI weight layout shape={any} group={d}\n",
+            .{ weight_shape, group },
+        );
         return .ohwi;
     }
 
+    logDebug(
+        "[ZANT][qlinearconv] unsupported weight layout shape={any} in_channels={d} group={d}\n",
+        .{ weight_shape, in_channels, group },
+    );
     return TensorMathError.InvalidDimensions;
 }
 
@@ -57,6 +93,10 @@ fn ensureWeightTensorLayout(
     const layout = try detectWeightLayout(weight.shape, in_channels, group);
 
     if (layout == .standard) {
+        logDebug(
+            "[ZANT][qlinearconv] using standard weight tensor shape={any}\n",
+            .{weight.shape},
+        );
         return .{
             .layout = layout,
             .tensor = weight,
@@ -64,12 +104,21 @@ fn ensureWeightTensorLayout(
         };
     }
 
+    logDebug(
+        "[ZANT][qlinearconv] transposing OHWI weights original_shape={any}\n",
+        .{weight.shape},
+    );
     var transposed_shape = [_]usize{ weight.shape[0], weight.shape[3], weight.shape[1], weight.shape[2] };
     var transposed = try Tensor(WeightType).fromShape(&pkg_allocator, &transposed_shape);
     errdefer transposed.deinit();
 
     const perm = [_]usize{ 0, 3, 1, 2 };
     try tensMath.transpose_onnx_lean(WeightType, @constCast(weight), perm[0..], &transposed, pkg_allocator);
+
+    logDebug(
+        "[ZANT][qlinearconv] transposed weights normalized_shape={any}\n",
+        .{transposed_shape},
+    );
 
     return .{
         .layout = layout,
@@ -324,6 +373,12 @@ pub fn qlinearconv(
 
     // Calculate output shape using existing conv calculation
     const output_shape = try conv.calculateOutputShape(InputType, &input_shape, weight_shape_slice, stride, pads, dilations, auto_pad);
+
+    const auto_pad_slice = auto_pad orelse "<null>";
+    logDebug(
+        "[ZANT][qlinearconv] qlinearconv entry x_shape={any} w_shape={any} y_shape={any} group={d} auto_pad={s}\n",
+        .{ input_ptr.shape, w.shape, output_shape, actual_group, auto_pad_slice },
+    );
 
     // Create output tensor
     var output = try Tensor(InputType).fromShape(&pkg_allocator, &output_shape);
@@ -1362,6 +1417,7 @@ pub fn qlinearconv_dispatch(
 ) !void {
     const actual_group = group orelse 1;
     if (x.shape.len < 2) {
+        logDebug("[ZANT][qlinearconv] dispatch invalid input rank={d}\n", .{x.shape.len});
         return TensorMathError.InvalidDimensions;
     }
 
@@ -1370,9 +1426,14 @@ pub fn qlinearconv_dispatch(
     defer if (normalized_weight.owned) |*tmp| tmp.deinit();
 
     const weight_ptr = normalized_weight.tensor;
+    logDebug(
+        "[ZANT][qlinearconv] dispatch config x_shape={any} w_shape={any} y_shape={any} group={d} auto_pad={s}\n",
+        .{ x.shape, weight_ptr.shape, output.shape, actual_group, auto_pad },
+    );
 
     const accelerators = @import("../Accelerators/mod.zig");
     if (!accelerators.canUseCmsisHelium()) {
+        logDebug("[ZANT][qlinearconv] dispatch selecting embedded implementation\n", .{});
         // Reference build: force embedded fixed-point implementation
         // DEBUG: dispatch to embedded
         // std.debug.print("QLINEAR_DEBUG: dispatch -> qlinearconv_embedded_lean, input[0]={}\n", .{x.data[0]});
@@ -1401,6 +1462,7 @@ pub fn qlinearconv_dispatch(
     }
 
     // CMSIS path
+    logDebug("[ZANT][qlinearconv] dispatch selecting CMSIS implementation\n", .{});
     return qlinearconv_cmsis_accelerated(
         InputType,
         WeightType,
@@ -1471,6 +1533,10 @@ pub fn qlinearconv_cmsis_accelerated(
     // Guard: CMSIS-NN conv s8 path (generic and wrappers) does not support dilation != 1 on many kernels.
     // Fallback to embedded reference when dilation is used to avoid runtime errors (rc=-1).
     if (dilation_h != 1 or dilation_w != 1) {
+        logDebug(
+            "[ZANT][qlinearconv] CMSIS fallback to embedded due to dilation h={d} w={d}\n",
+            .{ dilation_h, dilation_w },
+        );
         return qlinearconv_embedded_lean(
             InputType,
             WeightType,
@@ -1501,10 +1567,11 @@ pub fn qlinearconv_cmsis_accelerated(
     var in_height = x.shape[2];
     var in_width = x.shape[3];
     const out_channels = output.shape[1];
-    const weight_dim0 = w.shape[0];
-    const kernel_height = w.shape[1];
-    const kernel_width = w.shape[2];
-    const weight_last_dim = w.shape[3];
+    const weight_shape = w.shape;
+    const weight_dim0 = weight_shape[0];
+    const weight_channel_dim = weight_shape[1];
+    const kernel_height = weight_shape[2];
+    const kernel_width = weight_shape[3];
     const out_height = output.shape[2];
     const out_width = output.shape[3];
 
@@ -1524,6 +1591,15 @@ pub fn qlinearconv_cmsis_accelerated(
 
     const input_zero_point = readScalarZP(InputType, x_zero_point);
     const output_zero_point = readScalarZP(InputType, y_zero_point);
+    logDebug(
+        "[ZANT][qlinearconv] CMSIS zero points input={d} output={d}\n",
+        .{ input_zero_point, output_zero_point },
+    );
+
+    logDebug(
+        "[ZANT][qlinearconv] CMSIS config x_shape={any} w_shape={any} y_shape={any} stride={d}x{d} pads={d},{d},{d},{d} group={d} auto_pad={s}\n",
+        .{ x.shape, w.shape, output.shape, stride_h, stride_w, pad_h, pad_w, pad_bottom, pad_right, group_val, auto_pad },
+    );
 
     var padded_input: ?Tensor(InputType) = null;
     defer if (padded_input) |*tensor| tensor.deinit();
@@ -1540,34 +1616,48 @@ pub fn qlinearconv_cmsis_accelerated(
     const effective_input: *const Tensor(InputType) = if (padded_input) |*tensor| tensor else x;
 
     if (group_val == 0) {
+        logDebug("[ZANT][qlinearconv] CMSIS invalid group 0\n", .{});
         return TensorMathError.InvalidDimensions;
     }
     const is_depthwise = group_val == in_channels;
-    const weight_in_channels = if (is_depthwise) 1 else weight_last_dim;
-
-    if (is_depthwise) {
-        if (weight_dim0 != 1 or weight_last_dim != out_channels) {
-            return TensorMathError.InvalidDimensions;
-        }
-    } else {
-        if (weight_dim0 != out_channels) {
-            return TensorMathError.InvalidDimensions;
-        }
-    }
-
-    if (weight_in_channels * group_val != in_channels or out_channels % group_val != 0) {
+    if (weight_dim0 != out_channels) {
+        logDebug(
+            "[ZANT][qlinearconv] CMSIS mismatch weight_dim0={d} out_channels={d}\n",
+            .{ weight_dim0, out_channels },
+        );
         return TensorMathError.InvalidDimensions;
     }
 
-    const group_in_channels = weight_in_channels;
+    if (out_channels % group_val != 0) {
+        logDebug(
+            "[ZANT][qlinearconv] CMSIS mismatch out_channels={d} group={d}\n",
+            .{ out_channels, group_val },
+        );
+        return TensorMathError.InvalidDimensions;
+    }
+
+    const group_in_channels = weight_channel_dim;
+    const weight_in_channels = weight_channel_dim;
+    if (group_in_channels * group_val != in_channels) {
+        logDebug(
+            "[ZANT][qlinearconv] CMSIS mismatch group_in_channels={d} group={d} in_channels={d}\n",
+            .{ group_in_channels, group_val, in_channels },
+        );
+        return TensorMathError.InvalidDimensions;
+    }
     const group_out_channels = out_channels / group_val;
 
     const expected_weights: usize = out_channels * group_in_channels * kernel_height * kernel_width;
     if (w.data.len != expected_weights) {
+        logDebug(
+            "[ZANT][qlinearconv] CMSIS weight size mismatch have={d} expected={d}\n",
+            .{ w.data.len, expected_weights },
+        );
         return TensorMathError.InvalidDimensions;
     }
 
     if (@sizeOf(WeightType) != 1) {
+        logDebug("[ZANT][qlinearconv] CMSIS unsupported weight type size={d}\n", .{@sizeOf(WeightType)});
         return TensorMathError.InvalidDataType;
     }
 
@@ -1596,6 +1686,10 @@ pub fn qlinearconv_cmsis_accelerated(
     const y_scale_val = asF32(ScaleType, _y_scale.data[0]);
     const w_scale_data = _w_scale.data;
     const has_per_channel_w_scale = w_scale_data.len == out_channels;
+    logDebug(
+        "[ZANT][qlinearconv] CMSIS scales x={d:.6} y={d:.6} weight_count={d}\n",
+        .{ x_scale_val, y_scale_val, w_scale_data.len },
+    );
 
     // CMSIS expects shifts within [-31, 31] and multiplier in Q31. We'll compute robustly.
     const multipliers_buf = try pkg_allocator.alloc(i32, out_channels);
@@ -1834,6 +1928,10 @@ pub fn qlinearconv_cmsis_accelerated(
             output_ptr_s8,
         );
         if (status != cmsis_nn.ARM_CMSIS_NN_SUCCESS) {
+            logDebug(
+                "[ZANT][qlinearconv] CMSIS wrapper_s8 failed status={d} attempting direct kernel\n",
+                .{status},
+            );
             // Try direct (non-wrapper) kernel as a fallback while still using CMSIS
             var direct_buf_size = cmsis_nn.conv.arm_convolve_s8_get_buffer_size(&input_dims, &filter_dims);
             if (direct_buf_size < 0) direct_buf_size = 0;
@@ -1900,6 +1998,10 @@ pub fn qlinearconv_cmsis_accelerated(
                 grouped_out_ptr,
             );
             if (status != cmsis_nn.ARM_CMSIS_NN_SUCCESS) {
+                logDebug(
+                    "[ZANT][qlinearconv] CMSIS group wrapper failed status={d} attempting direct kernel\n",
+                    .{status},
+                );
                 // Try direct group call
                 var direct_buf_size_g = cmsis_nn.conv.arm_convolve_s8_get_buffer_size(&input_group_dims, &filter_group_dims);
                 if (direct_buf_size_g < 0) direct_buf_size_g = 0;
@@ -1937,6 +2039,10 @@ pub fn qlinearconv_cmsis_accelerated(
     }
 
     if (status != cmsis_nn.ARM_CMSIS_NN_SUCCESS) {
+        logDebug(
+            "[ZANT][qlinearconv] CMSIS kernels failed status={d} -> fallback to embedded\n",
+            .{status},
+        );
         // Fallback to embedded implementation on unsupported CMSIS-NN configurations
         return qlinearconv_embedded_lean(
             InputType,
@@ -1993,6 +2099,8 @@ pub fn qlinearconv_cmsis_accelerated(
             dst_batch_base += batch_stride;
         }
     }
+
+    logDebug("[ZANT][qlinearconv] CMSIS execution completed successfully\n", .{});
 }
 
 /// Calculate output shape for QLinearConv - same as regular Conv

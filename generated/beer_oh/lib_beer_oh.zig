@@ -26,6 +26,8 @@ var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
 
 pub export fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {
     log_function = func;
+    zant.core.tensor.setLogFunction(func);
+    tensMath.setQLinearConvLogFunctionC(func);
 }
 
  const T_in : type = f32;

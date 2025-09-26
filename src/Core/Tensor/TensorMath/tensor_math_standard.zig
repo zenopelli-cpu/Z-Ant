@@ -346,6 +346,7 @@ pub const qlinearconv_cmsis_accelerated = qlinearconv_math_lib.qlinearconv_cmsis
 pub const qlinearconv_dispatch = qlinearconv_math_lib.qlinearconv_dispatch;
 pub const qlinearconv_simd_lean = qlinearconv_simd_lib.qlinearconv_simd_lean;
 pub const qlinearconv_onnx_v10 = qlinearconv_simd_lib.qlinearconv_onnx_v10;
+pub const setQLinearConvLogFunctionC = qlinearconv_math_lib.setLogFunctionC;
 
 pub const get_qlinearconv_output_shape = qlinearconv_math_lib.get_qlinearconv_output_shape;
 
