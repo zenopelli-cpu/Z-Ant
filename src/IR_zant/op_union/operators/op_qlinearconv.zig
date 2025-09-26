@@ -313,7 +313,7 @@ pub const QLinearConv = struct {
     pub fn compute_output_shape(self: QLinearConv) ![]usize {
         var output_shape: []usize = undefined;
         const input_shape = self.input_x.getShape();
-        const kernel_shape = self.input_w.getShape();
+        const kernel_shape_raw = self.input_w.getShape();
 
         // Check if input shape is placeholder (common for intermediate tensors)
         if (input_shape.len == 1 and input_shape[0] == 1) {
@@ -322,7 +322,7 @@ pub const QLinearConv = struct {
         }
 
         // Check if kernel shape is valid
-        if (kernel_shape.len != 4) {
+        if (kernel_shape_raw.len != 4) {
             return error.InvalidKernelShape;
         }
 
@@ -352,11 +352,12 @@ pub const QLinearConv = struct {
         const pads = self.pads;
         const dilations = self.dilations;
         const auto_pad = self.auto_pad;
+        const kernel_shape = try self.buildKernelShape(normalized_input[1], kernel_shape_raw);
         output_shape = try tensorMath.get_convolution_output_shape(
             u8, // Type parameter
             allocator, // Allocator parameter
             normalized_input[0..],
-            kernel_shape,
+            kernel_shape[0..],
             try utils.i64SliceToUsizeSlice(stride.?),
             if (pads != null) try utils.i64SliceToUsizeSlice(pads.?) else null,
             try utils.i64SliceToUsizeSlice(dilations.?),
@@ -368,8 +369,8 @@ pub const QLinearConv = struct {
 
     /// Infer output shape from operation parameters when input shape is placeholder
     fn inferOutputShapeFromParams(self: QLinearConv) ![]usize {
-        const kernel_shape = self.input_w.getShape();
-        if (kernel_shape.len != 4) {
+        const kernel_shape_raw = self.input_w.getShape();
+        if (kernel_shape_raw.len != 4) {
             return error.InvalidKernelShape;
         }
 
@@ -377,14 +378,23 @@ pub const QLinearConv = struct {
         const stride = self.strides;
         const group = self.group;
 
-        std.debug.print("QLinearConv: Mathematical inference - weight={any}, group={}, stride={any}\n", .{ kernel_shape, group, stride });
+        std.debug.print("QLinearConv: Mathematical inference - weight={any}, group={}, stride={any}\n", .{ kernel_shape_raw, group, stride });
 
         // Calculate input channels mathematically based on weight and group
         var inferred_input_shape: [4]usize = undefined;
         inferred_input_shape[0] = 1; // batch size
 
         // MATHEMATICAL CALCULATION: in_channels = weight_in_channels * group
-        const weight_in_channels = kernel_shape[1];
+        var weight_in_channels = kernel_shape_raw[1];
+        if (self.kernel_shape) |ks_attr| {
+            if (ks_attr.len >= 2) {
+                const kh_attr = @as(usize, @intCast(ks_attr[0]));
+                const kw_attr = @as(usize, @intCast(ks_attr[1]));
+                if (kernel_shape_raw[1] == kh_attr and kernel_shape_raw[2] == kw_attr and kernel_shape_raw[3] != 0) {
+                    weight_in_channels = kernel_shape_raw[3];
+                }
+            }
+        }
         const calculated_in_channels = weight_in_channels * @as(usize, @intCast(group));
         inferred_input_shape[1] = calculated_in_channels;
 
@@ -427,13 +437,14 @@ pub const QLinearConv = struct {
         const auto_pad = self.auto_pad;
 
         const input_shape_slice = inferred_input_shape[0..];
+        const kernel_shape = try self.buildKernelShape(inferred_input_shape[1], kernel_shape_raw);
         std.debug.print("QLinearConv: About to call get_convolution_output_shape with input={any} kernel={any}\n", .{ input_shape_slice, kernel_shape });
 
         const output_shape = tensorMath.get_convolution_output_shape(
             u8, // Type parameter
             allocator, // Allocator parameter
             input_shape_slice,
-            kernel_shape,
+            kernel_shape[0..],
             try utils.i64SliceToUsizeSlice(stride.?),
             if (pads != null) try utils.i64SliceToUsizeSlice(pads.?) else null,
             try utils.i64SliceToUsizeSlice(dilations.?),
@@ -447,6 +458,55 @@ pub const QLinearConv = struct {
 
         self.output_y.shape = output_shape;
         return output_shape;
+    }
+
+    fn buildKernelShape(self: QLinearConv, input_channels: usize, kernel_shape_raw: []const usize) ![4]usize {
+        if (kernel_shape_raw.len != 4) {
+            return error.InvalidKernelShape;
+        }
+
+        const group = @as(usize, @intCast(self.group));
+        if (group == 0) {
+            return error.InvalidGroupSize;
+        }
+
+        if (input_channels % group != 0) {
+            return error.InvalidGroupSize;
+        }
+
+        const expected_in_channels_per_group = input_channels / group;
+
+        var kernel_shape: [4]usize = undefined;
+        kernel_shape[0] = kernel_shape_raw[0];
+
+        var is_standard_layout = true;
+        if (kernel_shape_raw[1] == expected_in_channels_per_group) {
+            kernel_shape[1] = kernel_shape_raw[1];
+        } else if (kernel_shape_raw[3] == expected_in_channels_per_group) {
+            is_standard_layout = false;
+            kernel_shape[1] = kernel_shape_raw[3];
+        } else {
+            // Fallback to assuming standard layout if no clear match is found
+            kernel_shape[1] = kernel_shape_raw[1];
+        }
+
+        if (self.kernel_shape) |ks_attr| {
+            if (ks_attr.len < 2) {
+                return error.InvalidKernelShape;
+            }
+
+            kernel_shape[2] = @as(usize, @intCast(ks_attr[0]));
+            kernel_shape[3] = @as(usize, @intCast(ks_attr[1]));
+        } else if (is_standard_layout) {
+            kernel_shape[2] = kernel_shape_raw[2];
+            kernel_shape[3] = kernel_shape_raw[3];
+        } else {
+            // Layout is [M, kH, kW, C]
+            kernel_shape[2] = kernel_shape_raw[1];
+            kernel_shape[3] = kernel_shape_raw[2];
+        }
+
+        return kernel_shape;
     }
 
     pub fn print(self: QLinearConv) !void {

@@ -4,9 +4,79 @@ const zant = @import("../../../zant.zig");
 const Tensor = zant.core.tensor.Tensor;
 const pkg_allocator = zant.utils.allocator.allocator;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
+const tensMath = zant.core.tensor.math_standard;
 
 // Import existing conv operation to reuse shape calculation and structure
 const conv = @import("op_convolution.zig");
+
+const WeightLayout = enum {
+    standard,
+    ohwi,
+};
+
+fn detectWeightLayout(weight_shape: []const usize, in_channels: usize, group: usize) !WeightLayout {
+    if (weight_shape.len != 4) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    if (group == 0 or in_channels == 0 or in_channels % group != 0) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    if (weight_shape[1] * group == in_channels) {
+        return .standard;
+    }
+
+    if (weight_shape[3] * group == in_channels) {
+        return .ohwi;
+    }
+
+    return TensorMathError.InvalidDimensions;
+}
+
+fn normalizedWeightShape(
+    layout: WeightLayout,
+    weight_shape: []const usize,
+) [4]usize {
+    return switch (layout) {
+        .standard => .{ weight_shape[0], weight_shape[1], weight_shape[2], weight_shape[3] },
+        .ohwi => .{ weight_shape[0], weight_shape[3], weight_shape[1], weight_shape[2] },
+    };
+}
+
+fn ensureWeightTensorLayout(
+    comptime WeightType: type,
+    weight: *const Tensor(WeightType),
+    in_channels: usize,
+    group: usize,
+) !struct {
+    layout: WeightLayout,
+    tensor: *const Tensor(WeightType),
+    owned: ?Tensor(WeightType),
+} {
+    const layout = try detectWeightLayout(weight.shape, in_channels, group);
+
+    if (layout == .standard) {
+        return .{
+            .layout = layout,
+            .tensor = weight,
+            .owned = null,
+        };
+    }
+
+    var transposed_shape = [_]usize{ weight.shape[0], weight.shape[3], weight.shape[1], weight.shape[2] };
+    var transposed = try Tensor(WeightType).fromShape(&pkg_allocator, &transposed_shape);
+    errdefer transposed.deinit();
+
+    const perm = [_]usize{ 0, 3, 1, 2 };
+    try tensMath.transpose_onnx_lean(WeightType, @constCast(weight), perm[0..], &transposed, pkg_allocator);
+
+    return .{
+        .layout = layout,
+        .tensor = &transposed,
+        .owned = transposed,
+    };
+}
 
 // HELPER FUNCTIONS FOR CORRECT QUANTIZATION
 inline fn readScalarZP(comptime T: type, zp_any: anytype) i32 {
@@ -244,8 +314,16 @@ pub fn qlinearconv(
     }
     defer if (temp_input) |*t| t.deinit();
 
+    const actual_group = group orelse 1;
+    const layout = try detectWeightLayout(w.shape, input_shape[1], actual_group);
+    const normalized_weight_shape = normalizedWeightShape(layout, w.shape);
+    const weight_shape_slice: []const usize = switch (layout) {
+        .standard => w.shape,
+        .ohwi => normalized_weight_shape[0..],
+    };
+
     // Calculate output shape using existing conv calculation
-    const output_shape = try conv.calculateOutputShape(InputType, &input_shape, w.shape, stride, pads, dilations, auto_pad);
+    const output_shape = try conv.calculateOutputShape(InputType, &input_shape, weight_shape_slice, stride, pads, dilations, auto_pad);
 
     // Create output tensor
     var output = try Tensor(InputType).fromShape(&pkg_allocator, &output_shape);
@@ -290,6 +368,14 @@ pub fn qlinearconv_lean(
         return TensorMathError.InvalidDimensions;
     }
 
+    const actual_group = group orelse 1;
+    const in_channels = x.shape[1];
+    var normalized_weight = try ensureWeightTensorLayout(WeightType, w, in_channels, actual_group);
+    defer if (normalized_weight.owned) |*tmp| tmp.deinit();
+    const weight_tensor = normalized_weight.tensor;
+    const weight_shape = weight_tensor.shape;
+    const weight_data = weight_tensor.data;
+
     const isInt = struct {
         fn call(comptime T: type) bool {
             return switch (@typeInfo(T)) {
@@ -317,20 +403,19 @@ pub fn qlinearconv_lean(
 
     // Estrai dimensioni
     const batch_size = x.shape[0]; // N
-    const in_channels = x.shape[1]; // C
     const in_height = x.shape[2]; // H
     const in_width = x.shape[3]; // W
 
-    const out_channels = w.shape[0]; // M
-    const weight_in_channels = w.shape[1]; // C/group
-    const kernel_height = w.shape[2]; // kH
-    const kernel_width = w.shape[3]; // kW
+    const out_channels = weight_shape[0]; // M
+    const weight_in_channels = weight_shape[1]; // C/group
+    const kernel_height = weight_shape[2]; // kH
+    const kernel_width = weight_shape[3]; // kW
 
     const out_height = output.shape[2]; // oH
     const out_width = output.shape[3]; // oW
 
     // Parametri
-    const actual_group = group orelse 1;
+    // actual_group already computed above
     const stride_h = if (stride) |s| (if (s.len > 0) s[0] else 1) else 1;
     const stride_w = if (stride) |s| (if (s.len > 1) s[1] else stride_h) else stride_h;
     const dilation_h = if (dilations) |d| (if (d.len > 0) d[0] else 1) else 1;
@@ -409,10 +494,10 @@ pub fn qlinearconv_lean(
     // ===== OTTIMIZZAZIONE 2: Specialized paths per kernel comuni =====
     if (kernel_height == 3 and kernel_width == 3 and dilation_h == 1 and dilation_w == 1) {
         // Ottimizzato per 3x3 (MobileNet style)
-        try conv3x3Optimized(x, w, output, batch_size, actual_group, in_channels, out_channels, weight_in_channels, in_height, in_width, out_height, out_width, stride_h, stride_w, pad_h_begin, pad_w_begin, x_scale_val, x_zp_f, channel_scales.items, channel_zps.items, channel_bias.items, y_scale_val, y_zp_f, q_min, q_max, InputType, WeightType);
+        try conv3x3Optimized(x, weight_tensor, output, batch_size, actual_group, in_channels, out_channels, weight_in_channels, in_height, in_width, out_height, out_width, stride_h, stride_w, pad_h_begin, pad_w_begin, x_scale_val, x_zp_f, channel_scales.items, channel_zps.items, channel_bias.items, y_scale_val, y_zp_f, q_min, q_max, InputType, WeightType);
     } else if (kernel_height == 1 and kernel_width == 1) {
         // Ottimizzato per 1x1 (pointwise)
-        try conv1x1Optimized(x, w, output, batch_size, actual_group, in_channels, out_channels, weight_in_channels, in_height, in_width, out_height, out_width, x_scale_val, x_zp_f, channel_scales.items, channel_zps.items, channel_bias.items, y_scale_val, y_zp_f, q_min, q_max, InputType, WeightType);
+        try conv1x1Optimized(x, weight_tensor, output, batch_size, actual_group, in_channels, out_channels, weight_in_channels, in_height, in_width, out_height, out_width, x_scale_val, x_zp_f, channel_scales.items, channel_zps.items, channel_bias.items, y_scale_val, y_zp_f, q_min, q_max, InputType, WeightType);
     } else {
         // ===== OTTIMIZZAZIONE 3: Loop originale con pre-calcoli =====
         for (0..batch_size) |n| {
@@ -462,9 +547,9 @@ pub fn qlinearconv_lean(
                                             } else asF32(InputType, x.data[input_idx]);
 
                                             const w_real: f32 = if (isInt(WeightType)) blk: {
-                                                const qw = asF32(WeightType, w.data[weight_idx]);
+                                                const qw = asF32(WeightType, weight_data[weight_idx]);
                                                 break :blk w_scale_val * (qw - w_zp_f);
-                                            } else asF32(WeightType, w.data[weight_idx]);
+                                            } else asF32(WeightType, weight_data[weight_idx]);
 
                                             acc += x_real * w_real;
                                         }
@@ -844,15 +929,21 @@ pub inline fn qlinearconv_embedded_lean(
         return TensorMathError.InvalidDimensions;
     }
 
-    const batch_size = x.shape[0];
+    const actual_group = group orelse 1;
     const in_channels = x.shape[1];
+    var normalized_weight = try ensureWeightTensorLayout(WeightType, w, in_channels, actual_group);
+    defer if (normalized_weight.owned) |*tmp| tmp.deinit();
+    const weight_shape = normalized_weight.tensor.shape;
+    const weight_data = normalized_weight.tensor.data;
+
+    const batch_size = x.shape[0];
     const in_height = x.shape[2];
     const in_width = x.shape[3];
 
-    const out_channels = w.shape[0];
-    const weight_in_channels = w.shape[1];
-    const kernel_height = w.shape[2];
-    const kernel_width = w.shape[3];
+    const out_channels = weight_shape[0];
+    const weight_in_channels = weight_shape[1];
+    const kernel_height = weight_shape[2];
+    const kernel_width = weight_shape[3];
 
     const out_height = output.shape[2];
     const out_width = output.shape[3];
@@ -864,8 +955,6 @@ pub inline fn qlinearconv_embedded_lean(
     const pad_w_begin = pads_arr[1];
     const dilation_h = if (dilations) |d| d[0] else 1;
     const dilation_w = if (dilations) |d| (if (d.len > 1) d[1] else d[0]) else 1;
-    const actual_group = group orelse 1;
-
     if (in_channels % actual_group != 0 or out_channels % actual_group != 0) {
         return TensorMathError.InvalidDimensions;
     }
@@ -969,13 +1058,13 @@ pub inline fn qlinearconv_embedded_lean(
     // std.debug.print("QLINEAR_DEBUG: kernel={}x{} dilation={}x{}\n", .{kernel_height, kernel_width, dilation_h, dilation_w});
     if (kernel_height == 3 and kernel_width == 3 and dilation_h == 1 and dilation_w == 1) {
         // std.debug.print("QLINEAR_DEBUG: using conv3x3EmbeddedOptimized\n", .{});
-        conv3x3EmbeddedOptimized(InputType, WeightType, x.data, w.data, output.data, dims, layout, quant, channel_params);
+        conv3x3EmbeddedOptimized(InputType, WeightType, x.data, weight_data, output.data, dims, layout, quant, channel_params);
     } else if (kernel_height == 1 and kernel_width == 1) {
         // std.debug.print("QLINEAR_DEBUG: using conv1x1EmbeddedOptimized\n", .{});
-        conv1x1EmbeddedOptimized(InputType, WeightType, x.data, w.data, output.data, dims, layout, quant, channel_params);
+        conv1x1EmbeddedOptimized(InputType, WeightType, x.data, weight_data, output.data, dims, layout, quant, channel_params);
     } else {
         // std.debug.print("QLINEAR_DEBUG: using convGenericEmbeddedOptimized\n", .{});
-        convGenericEmbeddedOptimized(InputType, WeightType, x.data, w.data, output.data, dims, layout, quant, channel_params);
+        convGenericEmbeddedOptimized(InputType, WeightType, x.data, weight_data, output.data, dims, layout, quant, channel_params);
     }
 }
 
@@ -1271,6 +1360,17 @@ pub fn qlinearconv_dispatch(
     group: ?usize,
     auto_pad: []const u8,
 ) !void {
+    const actual_group = group orelse 1;
+    if (x.shape.len < 2) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    const in_channels = x.shape[1];
+    var normalized_weight = try ensureWeightTensorLayout(WeightType, w, in_channels, actual_group);
+    defer if (normalized_weight.owned) |*tmp| tmp.deinit();
+
+    const weight_ptr = normalized_weight.tensor;
+
     const accelerators = @import("../Accelerators/mod.zig");
     if (!accelerators.canUseCmsisHelium()) {
         // Reference build: force embedded fixed-point implementation
@@ -1285,7 +1385,7 @@ pub fn qlinearconv_dispatch(
             x,
             x_scale,
             x_zero_point,
-            w,
+            weight_ptr,
             w_scale,
             w_zero_point,
             output,
@@ -1310,7 +1410,7 @@ pub fn qlinearconv_dispatch(
         x,
         x_scale,
         x_zero_point,
-        w,
+        weight_ptr,
         w_scale,
         w_zero_point,
         output,
@@ -1905,5 +2005,20 @@ pub fn get_qlinearconv_output_shape(
     dilations: ?[]const usize,
     auto_pad: ?[]const u8,
 ) ![]usize {
-    return conv.calculateOutputShape(T, input_shape, weight_shape, stride, pads, dilations, auto_pad);
+    var normalized_shape_storage: [4]usize = undefined;
+    const effective_weight_shape: []const usize = blk: {
+        if (weight_shape.len == 4 and input_shape.len >= 2) {
+            const in_channels = input_shape[1];
+            if (weight_shape[1] == in_channels) {
+                break :blk weight_shape;
+            }
+            if (weight_shape[3] == in_channels) {
+                normalized_shape_storage = .{ weight_shape[0], weight_shape[3], weight_shape[1], weight_shape[2] };
+                break :blk normalized_shape_storage[0..];
+            }
+        }
+        break :blk weight_shape;
+    };
+
+    return conv.calculateOutputShape(T, input_shape, effective_weight_shape, stride, pads, dilations, auto_pad);
 }
