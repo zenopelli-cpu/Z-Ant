@@ -79,8 +79,16 @@ pub fn reshape_lean_f32(comptime T: anytype, input: *Tensor(T), newShape: []f32,
     _ = allowZero;
 
     // Create a copy of newShape that we can modify
-    var modified_shape = try pkg_allocator.alloc(usize, newShape.len);
-    defer pkg_allocator.free(modified_shape);
+    var stack_storage: [8]usize = undefined; // small stack buffer avoids heap usage on freestanding targets
+    var modified_shape: []usize = undefined;
+    var heap_allocated = false;
+    if (newShape.len <= stack_storage.len) {
+        modified_shape = stack_storage[0..newShape.len];
+    } else {
+        modified_shape = try pkg_allocator.alloc(usize, newShape.len);
+        heap_allocated = true;
+    }
+    defer if (heap_allocated) pkg_allocator.free(modified_shape);
 
     // Track if we have a -1 dimension and its position
     var neg_one_index: ?usize = null;
@@ -121,8 +129,16 @@ pub fn reshape_lean(comptime T: anytype, input: *Tensor(T), newShape: []const is
     _ = allowZero;
 
     // Create a copy of newShape that we can modify
-    var modified_shape = try pkg_allocator.alloc(usize, newShape.len);
-    defer pkg_allocator.free(modified_shape);
+    var stack_storage: [8]usize = undefined; // small stack buffer avoids heap usage on freestanding targets
+    var modified_shape: []usize = undefined;
+    var heap_allocated = false;
+    if (newShape.len <= stack_storage.len) {
+        modified_shape = stack_storage[0..newShape.len];
+    } else {
+        modified_shape = try pkg_allocator.alloc(usize, newShape.len);
+        heap_allocated = true;
+    }
+    defer if (heap_allocated) pkg_allocator.free(modified_shape);
 
     // Track if we have a -1 dimension and its position
     var neg_one_index: ?usize = null;

@@ -1,10 +1,16 @@
 const build_options = @import("build_options");
 
-/// Indicates whether CMSIS Helium kernels are enabled for the current build.
-const accel_requested = @hasDecl(build_options, "stm32n6_accel") and build_options.stm32n6_accel;
-const cmsis_requested = @hasDecl(build_options, "stm32n6_use_cmsis") and build_options.stm32n6_use_cmsis;
-const force_native = @hasDecl(build_options, "stm32n6_force_native") and build_options.stm32n6_force_native;
-pub const is_enabled = accel_requested and cmsis_requested and !force_native;
+// Generalized enablement: true if either STM32N6+CMSIS is enabled or Cortex-M7+CMSIS is enabled
+const n6_accel = @hasDecl(build_options, "stm32n6_accel") and build_options.stm32n6_accel;
+const n6_cmsis = @hasDecl(build_options, "stm32n6_use_cmsis") and build_options.stm32n6_use_cmsis;
+const n6_force_native = @hasDecl(build_options, "stm32n6_force_native") and build_options.stm32n6_force_native;
+
+const m7_accel = @hasDecl(build_options, "cortexm7_accel") and build_options.cortexm7_accel;
+const m7_cmsis = @hasDecl(build_options, "cortexm7_use_cmsis") and build_options.cortexm7_use_cmsis;
+const m7_force_native = @hasDecl(build_options, "cortexm7_force_native") and build_options.cortexm7_force_native;
+
+/// Indicates whether CMSIS-NN kernels are enabled for the current build (N6 Helium or plain M7)
+pub const is_enabled = ((n6_accel and n6_cmsis and !n6_force_native) or (m7_accel and m7_cmsis and !m7_force_native));
 
 /// Common CMSIS-NN structures mirrored from the C headers.
 /// Keeping them in a shared module makes it easier to add new Helium bindings
