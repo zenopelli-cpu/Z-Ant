@@ -31,6 +31,7 @@ const conv = @import("op_convolution.zig");
 const WeightLayout = enum {
     standard,
     ohwi,
+    depthwise_khwc,
 };
 
 fn detectWeightLayout(weight_shape: []const usize, in_channels: usize, group: usize) !WeightLayout {
@@ -63,6 +64,14 @@ fn detectWeightLayout(weight_shape: []const usize, in_channels: usize, group: us
         return .ohwi;
     }
 
+    if (group == in_channels and weight_shape[3] == in_channels) {
+        logDebug(
+            "[ZANT][qlinearconv] detected depthwise KHWC weight layout shape={any} group={d}\n",
+            .{ weight_shape, group },
+        );
+        return .depthwise_khwc;
+    }
+
     logDebug(
         "[ZANT][qlinearconv] unsupported weight layout shape={any} in_channels={d} group={d}\n",
         .{ weight_shape, in_channels, group },
@@ -77,7 +86,41 @@ fn normalizedWeightShape(
     return switch (layout) {
         .standard => .{ weight_shape[0], weight_shape[1], weight_shape[2], weight_shape[3] },
         .ohwi => .{ weight_shape[0], weight_shape[3], weight_shape[1], weight_shape[2] },
+        .depthwise_khwc => .{ weight_shape[0] * weight_shape[3], 1, weight_shape[1], weight_shape[2] },
     };
+}
+
+fn inferWeightLayout(
+    weight_shape: []const usize,
+    in_channels: usize,
+    group_hint: ?usize,
+) !WeightLayout {
+    if (weight_shape.len != 4 or in_channels == 0) {
+        return TensorMathError.InvalidDimensions;
+    }
+
+    if (group_hint) |g| blk: {
+        if (g == 0 or in_channels % g != 0) break :blk;
+        if (detectWeightLayout(weight_shape, in_channels, g)) |layout| {
+            return layout;
+        } else |err| switch (err) {
+            TensorMathError.InvalidDimensions => {},
+            else => return err,
+        }
+    }
+
+    var candidate: usize = 1;
+    while (candidate <= in_channels) : (candidate += 1) {
+        if (in_channels % candidate != 0) continue;
+        if (detectWeightLayout(weight_shape, in_channels, candidate)) |layout| {
+            return layout;
+        } else |err| switch (err) {
+            TensorMathError.InvalidDimensions => continue,
+            else => return err,
+        }
+    }
+
+    return TensorMathError.InvalidDimensions;
 }
 
 fn ensureWeightTensorLayout(
@@ -90,7 +133,37 @@ fn ensureWeightTensorLayout(
     tensor: *const Tensor(WeightType),
     owned: ?Tensor(WeightType),
 } {
-    const layout = try detectWeightLayout(weight.shape, in_channels, group);
+    const layout = detectWeightLayout(weight.shape, in_channels, group) catch |err| switch (err) {
+        TensorMathError.InvalidDimensions => blk: {
+            if (group == in_channels and weight.shape.len == 4) {
+                const fallback: ?WeightLayout = inferWeightLayout(weight.shape, in_channels, null) catch |infer_err| switch (infer_err) {
+                    TensorMathError.InvalidDimensions => null,
+                    else => return infer_err,
+                };
+
+                if (fallback) |layout_guess| switch (layout_guess) {
+                    .depthwise_khwc => {
+                        logDebug(
+                            "[ZANT][qlinearconv] inferring depthwise layout from fallback detection shape={any}\n",
+                            .{weight.shape},
+                        );
+                        break :blk WeightLayout.depthwise_khwc;
+                    },
+                    .ohwi => if (weight.shape[0] == 1 and weight.shape[3] == in_channels) {
+                        logDebug(
+                            "[ZANT][qlinearconv] interpreting OHWI fallback as depthwise layout shape={any}\n",
+                            .{weight.shape},
+                        );
+                        break :blk WeightLayout.depthwise_khwc;
+                    },
+                    else => {},
+                };
+            }
+
+            return err;
+        },
+        else => return err,
+    };
 
     if (layout == .standard) {
         logDebug(
@@ -104,27 +177,75 @@ fn ensureWeightTensorLayout(
         };
     }
 
-    logDebug(
-        "[ZANT][qlinearconv] transposing OHWI weights original_shape={any}\n",
-        .{weight.shape},
-    );
-    var transposed_shape = [_]usize{ weight.shape[0], weight.shape[3], weight.shape[1], weight.shape[2] };
-    var transposed = try Tensor(WeightType).fromShape(&pkg_allocator, &transposed_shape);
-    errdefer transposed.deinit();
+    switch (layout) {
+        .ohwi => {
+            logDebug(
+                "[ZANT][qlinearconv] transposing OHWI weights original_shape={any}\n",
+                .{weight.shape},
+            );
+            var transposed_shape = [_]usize{ weight.shape[0], weight.shape[3], weight.shape[1], weight.shape[2] };
+            var transposed = try Tensor(WeightType).fromShape(&pkg_allocator, &transposed_shape);
+            errdefer transposed.deinit();
 
-    const perm = [_]usize{ 0, 3, 1, 2 };
-    try tensMath.transpose_onnx_lean(WeightType, @constCast(weight), perm[0..], &transposed, pkg_allocator);
+            const perm = [_]usize{ 0, 3, 1, 2 };
+            try tensMath.transpose_onnx_lean(WeightType, @constCast(weight), perm[0..], &transposed, pkg_allocator);
 
-    logDebug(
-        "[ZANT][qlinearconv] transposed weights normalized_shape={any}\n",
-        .{transposed_shape},
-    );
+            logDebug(
+                "[ZANT][qlinearconv] transposed weights normalized_shape={any}\n",
+                .{transposed_shape},
+            );
 
-    return .{
-        .layout = layout,
-        .tensor = &transposed,
-        .owned = transposed,
-    };
+            return .{
+                .layout = layout,
+                .tensor = &transposed,
+                .owned = transposed,
+            };
+        },
+        .depthwise_khwc => {
+            logDebug(
+                "[ZANT][qlinearconv] reordering depthwise KHWC weights original_shape={any}\n",
+                .{weight.shape},
+            );
+
+            const channel_multiplier = weight.shape[0];
+            const kernel_h = weight.shape[1];
+            const kernel_w = weight.shape[2];
+            const input_channels = weight.shape[3];
+
+            var normalized_shape = [_]usize{ channel_multiplier * input_channels, 1, kernel_h, kernel_w };
+            var reordered = try Tensor(WeightType).fromShape(&pkg_allocator, &normalized_shape);
+            errdefer reordered.deinit();
+
+            var in_channel: usize = 0;
+            while (in_channel < input_channels) : (in_channel += 1) {
+                var multiplier: usize = 0;
+                while (multiplier < channel_multiplier) : (multiplier += 1) {
+                    const out_channel = in_channel * channel_multiplier + multiplier;
+                    var h: usize = 0;
+                    while (h < kernel_h) : (h += 1) {
+                        var w: usize = 0;
+                        while (w < kernel_w) : (w += 1) {
+                            const src_index = ((((multiplier * kernel_h) + h) * kernel_w) + w) * input_channels + in_channel;
+                            const dst_index = (((out_channel * kernel_h) + h) * kernel_w) + w;
+                            reordered.data[dst_index] = weight.data[src_index];
+                        }
+                    }
+                }
+            }
+
+            logDebug(
+                "[ZANT][qlinearconv] reordered depthwise weights normalized_shape={any}\n",
+                .{normalized_shape},
+            );
+
+            return .{
+                .layout = layout,
+                .tensor = &reordered,
+                .owned = reordered,
+            };
+        },
+        else => unreachable,
+    }
 }
 
 // HELPER FUNCTIONS FOR CORRECT QUANTIZATION
@@ -368,7 +489,7 @@ pub fn qlinearconv(
     const normalized_weight_shape = normalizedWeightShape(layout, w.shape);
     const weight_shape_slice: []const usize = switch (layout) {
         .standard => w.shape,
-        .ohwi => normalized_weight_shape[0..],
+        .ohwi, .depthwise_khwc => normalized_weight_shape[0..],
     };
 
     // Calculate output shape using existing conv calculation
@@ -2115,14 +2236,23 @@ pub fn get_qlinearconv_output_shape(
 ) ![]usize {
     var normalized_shape_storage: [4]usize = undefined;
     const effective_weight_shape: []const usize = blk: {
-        if (weight_shape.len == 4 and input_shape.len >= 2) {
+        if (weight_shape.len == 4 and input_shape.len >= 2 and input_shape[1] != 0) {
             const in_channels = input_shape[1];
-            if (weight_shape[1] == in_channels) {
-                break :blk weight_shape;
-            }
-            if (weight_shape[3] == in_channels) {
-                normalized_shape_storage = .{ weight_shape[0], weight_shape[3], weight_shape[1], weight_shape[2] };
-                break :blk normalized_shape_storage[0..];
+            const layout = inferWeightLayout(weight_shape, in_channels, null) catch |err| switch (err) {
+                TensorMathError.InvalidDimensions => break :blk weight_shape,
+                else => return err,
+            };
+
+            switch (layout) {
+                .standard => break :blk weight_shape,
+                .ohwi => {
+                    normalized_shape_storage = .{ weight_shape[0], weight_shape[3], weight_shape[1], weight_shape[2] };
+                    break :blk normalized_shape_storage[0..];
+                },
+                .depthwise_khwc => {
+                    normalized_shape_storage = .{ weight_shape[0] * weight_shape[3], 1, weight_shape[1], weight_shape[2] };
+                    break :blk normalized_shape_storage[0..];
+                },
             }
         }
         break :blk weight_shape;
