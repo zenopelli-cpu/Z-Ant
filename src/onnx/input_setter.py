@@ -321,13 +321,16 @@ def clean_model(model_path, input_shape, output_path=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Fix and simplify ResNet ONNX models")
-    parser.add_argument("--path", type=str, required=True, help="Path to ONNX model")
+    parser.add_argument("--model", type=str, required=True, help=" Name of your model. Automatic path is datasets/models/my_model/my_model.onnx ")
     parser.add_argument("--shape", type=str, required=True, 
                        help="Input shape as comma-separated values (e.g., 1,3,224,224)")
     parser.add_argument("--output", type=str, help="Output path (optional)")
     
     args = parser.parse_args()
-    
+
+    model_name = args.model
+    model_path = f"datasets/models/{model_name}/{model_name}.onnx"
+
     # Parse shape
     try:
         input_shape = [int(x) for x in args.shape.split(",")]
@@ -336,7 +339,7 @@ def main():
         return
     
     # Process model
-    success = clean_model(args.path, input_shape, args.output)
+    success = clean_model(model_path, input_shape, args.output)
     
     if success:
         print("\n🎉 Model processing completed successfully!")

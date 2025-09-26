@@ -46,47 +46,6 @@ ln -s $(pwd)/zant /usr/local/bin/zant
 
 See [zant_CLI](docs/ZANT_CLI.md) for more details!
 
-### ONNX Generation
-```bash
-# Generate 5 models with seed 42
-./zant onnx_gen --iterations 5 --seed 42
-
-# Generate models for specific operation
-./zant onnx_gen --op Conv --iterations 3 --output-dir ./my_models
-
-# Generate with all available flags
-./zant onnx_gen --iterations 10 --seed 123 --output-dir ./output --metadata-file ./results.json --op Add
-```
-
-### ONNX Extraction
-For a N nodes model it creates N onnx models, one for each node with respective tests.
-```bash
-./zant onnx_extract --path path/model.onnx 
-```
-
-### User Tests Generation
-```bash
-# Basic usage with required model flag
-./zant user_tests_gen --model my_model
-
-# Multiple iterations
-./zant user_tests_gen --model my_model --iterations 10
-```
-
-### Shape Inference
-```bash
-# Infer shapes for a model
-./zant infer_shape --path model.onnx
-```
-
-### Input Shape Setting
-```bash
-# Set input shape to 1x3x224x224
-./zant input_setter --path path/model.onnx --shape 1,3,224,224
-
-# Set input shape to batch size 4
-./zant input_setter --path model.onnx --shape 4,3,256,256
-```
 
 ## Script Details
 

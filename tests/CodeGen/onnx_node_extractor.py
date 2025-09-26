@@ -837,12 +837,15 @@ class ONNXNodeExtractor:
 
 def main():
     parser = argparse.ArgumentParser(description="Extract individual nodes from ONNX neural network with proper type handling")
-    parser.add_argument("--path", help="Path to the input ONNX model")
+    parser.add_argument("--model", help=" Name of your model. Automatic path is datasets/models/my_model/my_model.onnx")
     parser.add_argument("-o", "--output", help="Output directory (default: same folder as model)")
     parser.add_argument("--input-data", help="Path to numpy file with input data (optional)")
     parser.add_argument("--verify-types", action="store_true", help="Enable extra type verification logging")
-    
+
     args = parser.parse_args()
+
+    model_name = args.model
+    model_path = f"datasets/models/{model_name}/{model_name}.onnx"
     
     # Set debug logging if verification requested
     if args.verify_types:
@@ -855,7 +858,7 @@ def main():
         logger.info(f"Loaded custom input data from {args.input_data}")
     
     # Run extraction
-    extractor = ONNXNodeExtractor(args.path, args.output)
+    extractor = ONNXNodeExtractor(model_path, args.output)
     extractor.run_extraction(input_data)
 
 

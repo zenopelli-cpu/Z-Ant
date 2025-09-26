@@ -1,0 +1,5005 @@
+{
+  "original_model": "datasets/models/new2/new2.onnx",
+  "total_nodes": 73,
+  "extracted_nodes": 73,
+  "input_shape": {
+    "images": [
+      1,
+      3,
+      96,
+      96
+    ]
+  },
+  "input_types": {
+    "images": "float32"
+  },
+  "tensor_type_cache_size": 302,
+  "quantized_operations": {
+    "QuantizeLinear": 1,
+    "QLinearConv": 54,
+    "QLinearAveragePool": 3,
+    "QLinearConcat": 12,
+    "QLinearGlobalAveragePool": 1,
+    "DequantizeLinear": 1
+  },
+  "nodes": [
+    {
+      "node_index": 0,
+      "op_type": "QuantizeLinear",
+      "node_name": "images_QuantizeLinear",
+      "inputs": [
+        {
+          "name": "images",
+          "type": "float32"
+        },
+        {
+          "name": "images_scale",
+          "type": "float32"
+        },
+        {
+          "name": "images_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {},
+      "model_path": "individual_nodes/node_000_QuantizeLinear_images_QuantizeLinear.onnx"
+    },
+    {
+      "node_index": 1,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "images_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "images_scale",
+          "type": "float32"
+        },
+        {
+          "name": "images_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_497_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_497_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_498_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          2,
+          2
+        ]
+      },
+      "model_path": "individual_nodes/node_001_QLinearConv_model_backbone_features_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 2,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_500_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_500_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_501_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          2,
+          2
+        ]
+      },
+      "model_path": "individual_nodes/node_002_QLinearConv_model_backbone_features_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 3,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.2/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_503_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_503_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_504_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.2/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_003_QLinearConv_model_backbone_features_2_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 4,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.2/avd_layer/avd_layer.0/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.2/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_506_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_506_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.2/avd_layer/avd_layer.0/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.2/avd_layer/avd_layer.0/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_507_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.2/avd_layer/avd_layer.0/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 128,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          2,
+          2
+        ]
+      },
+      "model_path": "individual_nodes/node_004_QLinearConv_model_backbone_features_2_avd_layer_avd_layer_0_Conv_quant.onnx"
+    },
+    {
+      "node_index": 5,
+      "op_type": "QLinearAveragePool",
+      "node_name": "/model/backbone/features.2/skip/AveragePool_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.2/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/skip/AveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.2/skip/AveragePool_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "ceil_mode": 0,
+        "count_include_pad": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          2,
+          2
+        ]
+      },
+      "model_path": "individual_nodes/node_005_QLinearAveragePool_model_backbone_features_2_skip_AveragePool_quant.onnx"
+    },
+    {
+      "node_index": 6,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.2/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.2/avd_layer/avd_layer.0/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/avd_layer/avd_layer.0/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.2/avd_layer/avd_layer.0/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_509_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_509_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_510_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.2/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_006_QLinearConv_model_backbone_features_2_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 7,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.2/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.2/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_512_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_512_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_513_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.2/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_007_QLinearConv_model_backbone_features_2_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 8,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.2/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.2/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_515_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_515_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_516_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.2/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_008_QLinearConv_model_backbone_features_2_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 9,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.2/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.2/skip/AveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/skip/AveragePool_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/skip/AveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.2/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_009_QLinearConcat_model_backbone_features_2_Concat_quant.onnx"
+    },
+    {
+      "node_index": 10,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.3/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.2/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.2/skip/AveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_518_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_518_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_519_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.3/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_010_QLinearConv_model_backbone_features_3_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 11,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.3/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.3/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_521_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_521_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_522_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.3/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_011_QLinearConv_model_backbone_features_3_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 12,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.3/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.3/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_524_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_524_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_525_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.3/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_012_QLinearConv_model_backbone_features_3_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 13,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.3/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.3/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_527_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_527_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_528_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.3/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_013_QLinearConv_model_backbone_features_3_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 14,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.3/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.3/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.3/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_014_QLinearConcat_model_backbone_features_3_Concat_quant.onnx"
+    },
+    {
+      "node_index": 15,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.4/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.3/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.3/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_530_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_530_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_531_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.4/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_015_QLinearConv_model_backbone_features_4_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 16,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.4/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.4/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_533_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_533_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_534_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.4/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_016_QLinearConv_model_backbone_features_4_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 17,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.4/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.4/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_536_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_536_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_537_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.4/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_017_QLinearConv_model_backbone_features_4_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 18,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.4/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.4/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_539_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_539_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_540_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.4/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_018_QLinearConv_model_backbone_features_4_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 19,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.4/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.4/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.4/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_019_QLinearConcat_model_backbone_features_4_Concat_quant.onnx"
+    },
+    {
+      "node_index": 20,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.5/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.4/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.4/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_542_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_542_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_543_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.5/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_020_QLinearConv_model_backbone_features_5_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 21,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.5/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.5/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_545_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_545_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_546_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.5/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_021_QLinearConv_model_backbone_features_5_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 22,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.5/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.5/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_548_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_548_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_549_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.5/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_022_QLinearConv_model_backbone_features_5_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 23,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.5/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.5/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_551_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_551_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_552_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.5/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_023_QLinearConv_model_backbone_features_5_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 24,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.5/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.5/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.5/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_024_QLinearConcat_model_backbone_features_5_Concat_quant.onnx"
+    },
+    {
+      "node_index": 25,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.6/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.5/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.5/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_554_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_554_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_555_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.6/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_025_QLinearConv_model_backbone_features_6_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 26,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.6/avd_layer/avd_layer.0/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.6/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_557_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_557_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.6/avd_layer/avd_layer.0/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.6/avd_layer/avd_layer.0/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_558_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.6/avd_layer/avd_layer.0/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 256,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          2,
+          2
+        ]
+      },
+      "model_path": "individual_nodes/node_026_QLinearConv_model_backbone_features_6_avd_layer_avd_layer_0_Conv_quant.onnx"
+    },
+    {
+      "node_index": 27,
+      "op_type": "QLinearAveragePool",
+      "node_name": "/model/backbone/features.6/skip/AveragePool_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.6/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/skip/AveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.6/skip/AveragePool_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "ceil_mode": 0,
+        "count_include_pad": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          2,
+          2
+        ]
+      },
+      "model_path": "individual_nodes/node_027_QLinearAveragePool_model_backbone_features_6_skip_AveragePool_quant.onnx"
+    },
+    {
+      "node_index": 28,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.6/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.6/avd_layer/avd_layer.0/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/avd_layer/avd_layer.0/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.6/avd_layer/avd_layer.0/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_560_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_560_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_561_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.6/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_028_QLinearConv_model_backbone_features_6_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 29,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.6/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.6/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_563_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_563_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_564_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.6/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_029_QLinearConv_model_backbone_features_6_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 30,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.6/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.6/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_566_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_566_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_567_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.6/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_030_QLinearConv_model_backbone_features_6_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 31,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.6/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.6/skip/AveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/skip/AveragePool_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/skip/AveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.6/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_031_QLinearConcat_model_backbone_features_6_Concat_quant.onnx"
+    },
+    {
+      "node_index": 32,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.7/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.6/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.6/skip/AveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_569_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_569_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_570_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.7/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_032_QLinearConv_model_backbone_features_7_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 33,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.7/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.7/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_572_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_572_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_573_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.7/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_033_QLinearConv_model_backbone_features_7_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 34,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.7/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.7/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_575_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_575_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_576_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.7/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_034_QLinearConv_model_backbone_features_7_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 35,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.7/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.7/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_578_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_578_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_579_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.7/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_035_QLinearConv_model_backbone_features_7_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 36,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.7/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.7/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.7/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_036_QLinearConcat_model_backbone_features_7_Concat_quant.onnx"
+    },
+    {
+      "node_index": 37,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.8/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.7/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.7/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_581_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_581_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_582_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.8/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_037_QLinearConv_model_backbone_features_8_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 38,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.8/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.8/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_584_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_584_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_585_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.8/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_038_QLinearConv_model_backbone_features_8_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 39,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.8/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.8/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_587_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_587_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_588_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.8/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_039_QLinearConv_model_backbone_features_8_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 40,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.8/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.8/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_590_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_590_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_591_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.8/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_040_QLinearConv_model_backbone_features_8_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 41,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.8/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.8/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.8/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_041_QLinearConcat_model_backbone_features_8_Concat_quant.onnx"
+    },
+    {
+      "node_index": 42,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.9/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.8/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.8/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_593_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_593_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_594_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.9/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_042_QLinearConv_model_backbone_features_9_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 43,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.9/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.9/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_596_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_596_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_597_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.9/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_043_QLinearConv_model_backbone_features_9_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 44,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.9/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.9/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_599_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_599_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_600_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.9/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_044_QLinearConv_model_backbone_features_9_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 45,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.9/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.9/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_602_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_602_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_603_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.9/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_045_QLinearConv_model_backbone_features_9_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 46,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.9/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.9/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.9/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_046_QLinearConcat_model_backbone_features_9_Concat_quant.onnx"
+    },
+    {
+      "node_index": 47,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.10/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.9/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.9/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_605_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_605_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_606_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.10/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_047_QLinearConv_model_backbone_features_10_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 48,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.10/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.10/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_608_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_608_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_609_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.10/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_048_QLinearConv_model_backbone_features_10_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 49,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.10/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.10/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_611_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_611_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_612_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.10/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_049_QLinearConv_model_backbone_features_10_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 50,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.10/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.10/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_614_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_614_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_615_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.10/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_050_QLinearConv_model_backbone_features_10_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 51,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.10/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.10/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.10/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_051_QLinearConcat_model_backbone_features_10_Concat_quant.onnx"
+    },
+    {
+      "node_index": 52,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.11/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.10/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.10/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_617_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_617_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_618_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.11/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_052_QLinearConv_model_backbone_features_11_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 53,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.11/avd_layer/avd_layer.0/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.11/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_620_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_620_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.11/avd_layer/avd_layer.0/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.11/avd_layer/avd_layer.0/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_621_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.11/avd_layer/avd_layer.0/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 512,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          2,
+          2
+        ]
+      },
+      "model_path": "individual_nodes/node_053_QLinearConv_model_backbone_features_11_avd_layer_avd_layer_0_Conv_quant.onnx"
+    },
+    {
+      "node_index": 54,
+      "op_type": "QLinearAveragePool",
+      "node_name": "/model/backbone/features.11/skip/AveragePool_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.11/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/skip/AveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.11/skip/AveragePool_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "ceil_mode": 0,
+        "count_include_pad": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          2,
+          2
+        ]
+      },
+      "model_path": "individual_nodes/node_054_QLinearAveragePool_model_backbone_features_11_skip_AveragePool_quant.onnx"
+    },
+    {
+      "node_index": 55,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.11/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.11/avd_layer/avd_layer.0/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/avd_layer/avd_layer.0/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.11/avd_layer/avd_layer.0/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_623_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_623_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_624_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.11/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_055_QLinearConv_model_backbone_features_11_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 56,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.11/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.11/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_626_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_626_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_627_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.11/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_056_QLinearConv_model_backbone_features_11_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 57,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.11/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.11/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_629_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_629_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_630_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.11/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_057_QLinearConv_model_backbone_features_11_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 58,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.11/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.11/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/skip/AveragePool_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/skip/AveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.11/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_058_QLinearConcat_model_backbone_features_11_Concat_quant.onnx"
+    },
+    {
+      "node_index": 59,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.12/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.11/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.11/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_632_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_632_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_633_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.12/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_059_QLinearConv_model_backbone_features_12_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 60,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.12/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.12/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_635_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_635_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_636_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.12/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_060_QLinearConv_model_backbone_features_12_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 61,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.12/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.12/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_638_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_638_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_639_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.12/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_061_QLinearConv_model_backbone_features_12_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 62,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.12/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.12/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_641_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_641_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_642_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.12/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_062_QLinearConv_model_backbone_features_12_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 63,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.12/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.12/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.12/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_063_QLinearConcat_model_backbone_features_12_Concat_quant.onnx"
+    },
+    {
+      "node_index": 64,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.13/conv_list.0/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.12/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.12/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_644_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_644_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_645_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.13/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_064_QLinearConv_model_backbone_features_13_conv_list_0_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 65,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.13/conv_list.1/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.13/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_647_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_647_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_648_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.13/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_065_QLinearConv_model_backbone_features_13_conv_list_1_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 66,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.13/conv_list.2/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.13/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_650_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_650_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_651_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.13/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_066_QLinearConv_model_backbone_features_13_conv_list_2_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 67,
+      "op_type": "QLinearConv",
+      "node_name": "/model/backbone/features.13/conv_list.3/conv/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.13/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_653_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "onnx::Conv_653_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "onnx::Conv_654_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.13/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          3,
+          3
+        ],
+        "pads": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_067_QLinearConv_model_backbone_features_13_conv_list_3_conv_Conv_quant.onnx"
+    },
+    {
+      "node_index": 68,
+      "op_type": "QLinearConcat",
+      "node_name": "/model/backbone/features.13/Concat_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.13/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.0/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.0/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.1/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.1/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.2/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.3/conv/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.3/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/backbone/features.13/Concat_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_068_QLinearConcat_model_backbone_features_13_Concat_quant.onnx"
+    },
+    {
+      "node_index": 69,
+      "op_type": "QLinearGlobalAveragePool",
+      "node_name": "/model/cls_head/classifier/classifier.0/GlobalAveragePool_quant",
+      "inputs": [
+        {
+          "name": "/model/backbone/features.13/Concat_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/backbone/features.13/conv_list.2/conv/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/cls_head/classifier/classifier.0/GlobalAveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/cls_head/classifier/classifier.0/GlobalAveragePool_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "channels_last": 0
+      },
+      "model_path": "individual_nodes/node_069_QLinearGlobalAveragePool_model_cls_head_classifier_classifier_0_GlobalAveragePool_quant.onnx"
+    },
+    {
+      "node_index": 70,
+      "op_type": "QLinearConv",
+      "node_name": "/model/cls_head/classifier/classifier.2/Conv_quant",
+      "inputs": [
+        {
+          "name": "/model/cls_head/classifier/classifier.0/GlobalAveragePool_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/cls_head/classifier/classifier.0/GlobalAveragePool_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/backbone/features.0/conv/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "model.cls_head.classifier.2.weight_quantized",
+          "type": "int8"
+        },
+        {
+          "name": "model.cls_head.classifier.2.weight_scale",
+          "type": "float32"
+        },
+        {
+          "name": "onnx::Conv_497_zero_point",
+          "type": "int8"
+        },
+        {
+          "name": "/model/cls_head/classifier/classifier.2/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/cls_head/classifier/classifier.2/Conv_output_0_zero_point",
+          "type": "uint8"
+        },
+        {
+          "name": "model.cls_head.classifier.2.bias_quantized",
+          "type": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/cls_head/classifier/classifier.2/Conv_output_0_quantized",
+          "type": "uint8"
+        }
+      ],
+      "attributes": {
+        "dilations": [
+          1,
+          1
+        ],
+        "group": 1,
+        "kernel_shape": [
+          1,
+          1
+        ],
+        "pads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "strides": [
+          1,
+          1
+        ]
+      },
+      "model_path": "individual_nodes/node_070_QLinearConv_model_cls_head_classifier_classifier_2_Conv_quant.onnx"
+    },
+    {
+      "node_index": 71,
+      "op_type": "DequantizeLinear",
+      "node_name": "/model/cls_head/classifier/classifier.2/Conv_output_0_DequantizeLinear",
+      "inputs": [
+        {
+          "name": "/model/cls_head/classifier/classifier.2/Conv_output_0_quantized",
+          "type": "uint8"
+        },
+        {
+          "name": "/model/cls_head/classifier/classifier.2/Conv_output_0_scale",
+          "type": "float32"
+        },
+        {
+          "name": "/model/cls_head/classifier/classifier.2/Conv_output_0_zero_point",
+          "type": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "/model/cls_head/classifier/classifier.2/Conv_output_0",
+          "type": "float32"
+        }
+      ],
+      "attributes": {},
+      "model_path": "individual_nodes/node_071_DequantizeLinear_model_cls_head_classifier_classifier_2_Conv_output_0_DequantizeLinear.onnx"
+    },
+    {
+      "node_index": 72,
+      "op_type": "Flatten",
+      "node_name": "/model/cls_head/Flatten",
+      "inputs": [
+        {
+          "name": "/model/cls_head/classifier/classifier.2/Conv_output_0",
+          "type": "float32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "logits",
+          "type": "float32"
+        }
+      ],
+      "attributes": {
+        "axis": 1
+      },
+      "model_path": "individual_nodes/node_072_Flatten_model_cls_head_Flatten.onnx"
+    }
+  ]
+}

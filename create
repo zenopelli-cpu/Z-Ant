@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Zant Create - Model Pipeline Script
-# Usage: ./zant_create.sh <model_name> [options]
-# Example: ./zant_create.sh mnist-8
-# Example: ./zant_create.sh resnet50 --target=aarch64-linux --cpu=generic
+# Usage: ./create.sh <model_name> [options]
+# Example: ./create.sh mnist-8
+# Example: ./create.sh resnet50 --target=aarch64-linux --cpu=generic
 
 set -e  # Exit on any error
 
@@ -76,8 +76,8 @@ shift
 TARGET=""
 CPU=""
 OPTIMIZE=""
-SKIP_EXTRACT=false
-SKIP_USER_TESTS=false
+DO_EXTRACT=false
+DO_USER_TESTS=false
 
 # Parse options
 while [[ $# -gt 0 ]]; do
@@ -94,12 +94,12 @@ while [[ $# -gt 0 ]]; do
             OPTIMIZE="${1#*=}"
             shift
             ;;
-        --skip-extract)
-            SKIP_EXTRACT=true
+        --do-extract)
+            DO_EXTRACT=true
             shift
             ;;
-        --skip-user-tests)
-            SKIP_USER_TESTS=true
+        --do-user-tests)
+            DO_USER_TESTS=true
             shift
             ;;
         --help|-h)
@@ -152,7 +152,7 @@ echo "Build arguments: $BUILD_ARGS"
 echo "======================================"
 
 # Step 1: Generate user test data
-if [ "$SKIP_USER_TESTS" = false ]; then
+if [ "$DO_USER_TESTS" = true ]; then
     print_step "Generating user test data..."
     ./zant user_tests_gen --model "$MODEL_NAME"
     print_success "User test data generated"
@@ -162,10 +162,10 @@ else
 fi
 
 # Step 2: Node extraction and testing
-if [ "$SKIP_EXTRACT" = false ]; then
+if [ "$DO_EXTRACT" = true ]; then
     print_step "Extracting individual nodes..."
     
-    ./zant onnx_extract --path "$MODEL_PATH"
+    ./zant onnx_extract --model "$MODEL_NAME"
     print_success "Node extraction completed"
     
     print_step "Generating libraries for extracted nodes..."
@@ -183,7 +183,7 @@ fi
 # Step 3: Generate main library
 print_step "Generating main library code..."
 
-if [ "$SKIP_USER_TESTS" = false ]; then
+if [ "$DO_USER_TESTS" = true ]; then
     zig build lib-gen $BUILD_ARGS -Denable_user_tests=true
 else
     zig build lib-gen $BUILD_ARGS
@@ -195,7 +195,7 @@ sleep 2s
 # Step 4: Test the generated library
 print_step "Testing generated library..."
 
-if [ "$SKIP_USER_TESTS" = false ]; then
+if [ "$DO_USER_TESTS" = true ]; then
     zig build lib-test $BUILD_ARGS -Denable_user_tests=true
 else
     zig build lib-test $BUILD_ARGS

@@ -36,13 +36,13 @@ Zant is a tensor computation framework with ONNX support. This document provides
 zig build lib-gen
 
 # Generate with custom model
-zig build lib-gen -Dmodel=resnet50 
+zig build lib-gen -Dmodel="resnet50 "
 
 # Generate with specific configuration
-zig build lib-gen -Dmodel=custom -Ddynamic-Dcomm=true
+zig build lib-gen -Dmodel="custom" -Ddynamic -Dcomm=true
 
 # Run generated executable
-zig build lib-exe -Dmodel=mnist-8 -Dlog
+zig build lib-exe -Dmodel="mnist-8" -Dlog
 ```
 
 ## Extractor Commands
@@ -63,10 +63,10 @@ zig build lib-exe -Dmodel=mnist-8 -Dlog
 zig build extractor-gen
 
 # Generate extractor tests for specific model
-zig build extractor-gen -Dmodel=resnet50
+zig build extractor-gen -Dmodel="resnet50"
 
 # Run extractor tests
-zig build extractor-test -Dmodel=mnist-8
+zig build extractor-test -Dmodel="mnist-8"
 ```
 
 ## OneOp Commands
@@ -88,13 +88,13 @@ Remember to fist generate the onnx with the onnx_generator.py see [here](#2-test
 zig build op-codegen-gen
 
 # Generate tests for specific operation
-zig build op-codegen-gen -Dop=Add
+zig build op-codegen-gen -Dop="Add"
 
 # Run all operation tests
 zig build op-codegen-test
 
 # Run specific operation test
-zig build op-codegen-test -Dop=Conv
+zig build op-codegen-test -Dop="Conv"
 ```
 
 ## Testing Commands
@@ -119,7 +119,7 @@ zig build test
 zig build test -Dheavy=true
 
 # Run specific test
-zig build test -Dtest_name=tensor_operations
+zig build test -Dtest_name="tensor_operations"
 
 # Test ONNX parser
 zig build onnx-parser
@@ -163,10 +163,10 @@ These flags can be used with any build command:
 ### Global Usage Examples
 ```bash
 # Cross-compile for ARM Cortex-M
-zig build lib-gen -Dmodel=my_model -Dtarget=thumb-freestanding-eabi -Dcpu=cortex_m33
+zig build lib-gen -Dmodel="my_model" -Dtarget=thumb-freestanding-eabi -Dcpu=cortex_m33
 
 # Build with optimization
-zig build lib -Dmodel=my_model -Doptimize=ReleaseFast
+zig build lib -Dmodel="my_model" -Doptimize=ReleaseFast
 
 # Build for different platforms
 zig build lib -Dtarget=x86_64-windows -Doptimize=ReleaseSmall
@@ -179,16 +179,16 @@ zig build lib -Dtarget=aarch64-macos -Doptimize=ReleaseSafe
 ### 1. MOST IMPORTANT - Generate and Test a Model 
 ```bash
 
-./zant input_setter --path path/my_model.onnx --shape 1,3,224,224
+./zant input_setter --model my_model --shape 1,3,224,224
 # or, if the model input is already well defined you can run this:
-./zant infer_shape --path path/my_model.onnx #NOT recomended, input_setter is more robust
+./zant infer_shape --model my_model #NOT recomended, input_setter is more robust
 
 # Generate test data
 ./zant user_tests_gen --model my_model [ --normalize ]
 
 # --- GENERATING THE Single Node lib and test it ---
 #For a N nodes model it creates N onnx models, one for each node with respective tests.
-./zant onnx_extract --path path/my_model.onnx
+./zant onnx_extract --model my_model
 
 #generate libs for extracted nodes
 zig build extractor-gen -Dmodel="my_model"
@@ -222,10 +222,10 @@ zig build op-codegen-test -Dop="Add"
 ### 3. Prepare ONNX Models
 ```bash
 # Set input shape and infer intermediate shapes
-./zant input_setter --path model.onnx --shape 1,3,224,224
+./zant input_setter --model my_model --shape 1,3,224,224
 
 # Generate additional shape information
-./zant infer_shape --path model.onnx
+./zant infer_shape --model my_model
 
 # Generate test data
 ./zant user_tests_gen --model model.onnx --iterations 10
@@ -234,8 +234,8 @@ zig build op-codegen-test -Dop="Add"
 ### 4. Production Workflow
 ```bash
 # Prepare model with proper shapes
-./zant input_setter --path production_model.onnx --shape 1,3,224,224
-./zant infer_shape --path production_model.onnx
+./zant input_setter --model my_model --shape 1,3,224,224
+./zant infer_shape --model my_model
 
 # Generate optimized library
 zig build lib-gen -Dmodel=production-model -Dv=v2 -Ddo_export=true
@@ -269,8 +269,8 @@ zig build test -Dheavy=true
 ### 6. Cross-Platform Development
 ```bash
 # Prepare model
-./zant input_setter --path embedded_model.onnx --shape 1,1,28,28
-./zant infer_shape --path embedded_model.onnx
+./zant input_setter --model my_model --shape 1,1,28,28
+./zant infer_shape --model my_model
 
 # Generate for ARM Cortex-M
 zig build lib-gen -Dmodel=embedded_model -Ddo_export -Dtarget=thumb-freestanding -Dcpu=cortex_m33 [-Dxip]
@@ -297,11 +297,11 @@ The workflows above use the `zant` wrapper script for ONNX model preparation. He
 ### Model Preparation
 ```bash
 # Set input shapes
-./zant input_setter --path model.onnx --shape 1,3,224,224
-./zant input_setter --path model.onnx --shape 4,3,256,256
+./zant input_setter --model my_model--shape 1,3,224,224
+./zant input_setter --model my_model--shape 4,3,256,256
 
 # Infer intermediate shapes
-./zant infer_shape --path model.onnx
+./zant infer_shape --model my_model
 
 # Generate user test data
 ./zant user_tests_gen --model model.onnx --iterations 10
