@@ -108,9 +108,18 @@ pub const PlanEmitter = struct {
             // Comment with operation info
             try writer.print(
                 \\
-               \\   // Step {d}: {s} operation
+                \\   // Step {d}: {s} operation
                 \\
             , .{ step_idx, sanitizeName(step.node.*.op_type) });
+
+            // Optional debug log per operation when -Dlog is enabled
+            if (codegen_options.log) {
+                try writer.print(
+                    \\
+                    \\    logMsg("Running {s} operation...\\n");
+                    \\
+                , .{sanitizeName(step.node.*.op_type)});
+            }
 
             // Execute the operation using the node's write_op method
             try step.node.*.write_op(writer);
