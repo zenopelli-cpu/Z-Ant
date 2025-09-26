@@ -122,7 +122,7 @@ pub const QLinearAveragePool = struct {
         };
 
         // Force shape computation during initialization
-        _ = qlinear_avgpool.compute_output_shape() catch {};
+        _ = try qlinear_avgpool.compute_output_shape();
 
         return qlinear_avgpool;
     }
@@ -309,6 +309,7 @@ pub const QLinearAveragePool = struct {
     }
 
     pub fn compute_output_shape(self: QLinearAveragePool) ![]usize {
+
         // QLinearAveragePool output shape calculation is same as regular AveragePool
         const input_shape = self.input_X.getShape();
 
@@ -384,6 +385,7 @@ pub const QLinearAveragePool = struct {
         );
 
         self.output_Y.shape = output_shape;
+
         return output_shape;
     }
 
