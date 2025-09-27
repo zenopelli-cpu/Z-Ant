@@ -190,7 +190,7 @@ jobs:
       - name: Prepare model for cross-platform test
         run: |
           ./zant input_setter --model mnist-8 --shape 1,1,28,28
-          ./zant infer_shape --model mnist-8 datasets/models/mnist-8/mnist-8.onnx
+          ./zant shape_thief --model mnist-8 datasets/models/mnist-8/mnist-8.onnx
 
       - name: Generate test data for cross-platform test
         run: ./zant user_tests_gen --model mnist-8

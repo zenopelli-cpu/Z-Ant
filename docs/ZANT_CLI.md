@@ -181,7 +181,7 @@ zig build lib -Dtarget=aarch64-macos -Doptimize=ReleaseSafe
 
 ./zant input_setter --model my_model --shape 1,3,224,224
 # or, if the model input is already well defined you can run this:
-./zant infer_shape --model my_model #NOT recomended, input_setter is more robust
+./zant shape_thief --model my_model #NOT recomended, input_setter is more robust
 
 # Generate test data
 ./zant user_tests_gen --model my_model [ --normalize ]
@@ -225,7 +225,7 @@ zig build op-codegen-test -Dop="Add"
 ./zant input_setter --model my_model --shape 1,3,224,224
 
 # Generate additional shape information
-./zant infer_shape --model my_model
+./zant shape_thief --model my_model
 
 # Generate test data
 ./zant user_tests_gen --model model.onnx --iterations 10
@@ -235,7 +235,7 @@ zig build op-codegen-test -Dop="Add"
 ```bash
 # Prepare model with proper shapes
 ./zant input_setter --model my_model --shape 1,3,224,224
-./zant infer_shape --model my_model
+./zant shape_thief --model my_model
 
 # Generate optimized library
 zig build lib-gen -Dmodel=production-model -Dv=v2 -Ddo_export=true
@@ -270,7 +270,7 @@ zig build test -Dheavy=true
 ```bash
 # Prepare model
 ./zant input_setter --model my_model --shape 1,1,28,28
-./zant infer_shape --model my_model
+./zant shape_thief --model my_model
 
 # Generate for ARM Cortex-M
 zig build lib-gen -Dmodel=embedded_model -Ddo_export -Dtarget=thumb-freestanding -Dcpu=cortex_m33 [-Dxip]
@@ -301,7 +301,7 @@ The workflows above use the `zant` wrapper script for ONNX model preparation. He
 ./zant input_setter --model my_model--shape 4,3,256,256
 
 # Infer intermediate shapes
-./zant infer_shape --model my_model
+./zant shape_thief --model my_model
 
 # Generate user test data
 ./zant user_tests_gen --model model.onnx --iterations 10
@@ -320,7 +320,7 @@ ms_print massif.out.* > out_profiling.txt
 ### Zant Script Locations
 - **onnx_gen**: `tests/CodeGen/Python-ONNX/onnx_gen.py`
 - **user_tests_gen**: `tests/CodeGen/user_tests_gen.py`  
-- **infer_shape**: `src/onnx/infer_shape.py`
+- **shape_thief**: `src/onnx/shape_thief.py`
 - **input_setter**: `src/onnx/input_setter.py`
 
 ## Getting Help

@@ -29,7 +29,7 @@ ln -s $(pwd)/zant /usr/local/bin/zant
 - **onnx_gen** - Generate fuzzed ONNX models and save execution data in JSON
 - **onnx_extract** - For a N nodes model it creates N onnx models, one for each node with respective tests.  
 - **user_tests_gen** - Run ONNX model multiple times with random inputs and save execution data  
-- **infer_shape** - Upgrade your model with all intermediate tensor's shapes
+- **shape_thief** - Upgrade your model with all intermediate tensor's shapes
 - **input_setter** - Set input shape and infer shapes of the ONNX model
 
 ### Getting Help
@@ -66,8 +66,8 @@ See [zant_CLI](docs/ZANT_CLI.md) for more details!
 - `--model` - Your ONNX model (required)
 - `--iterations` - Number of randomized inference runs (default: 1)
 
-### infer_shape
-**Location:** `src/onnx/infer_shape.py`
+### shape_thief
+**Location:** `src/onnx/shape_thief.py`
 
 ### input_setter
 **Location:** `src/onnx/input_setter.py`
@@ -99,6 +99,6 @@ project/
 ├── tests/CodeGen/Python-ONNX/onnx_gen.py
 ├── tests/CodeGen/user_tests_gen.py
 └── src/onnx/
-    ├── infer_shape.py
+    ├── shape_thief.py
     └── input_setter.py
 ```
