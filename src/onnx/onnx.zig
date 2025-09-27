@@ -106,7 +106,7 @@ pub fn parseFromFile(allocator: std.mem.Allocator, file_path: []const u8) !Model
 
     if (model.graph.?.value_info.len == 0 and model.graph.?.nodes.len > 1) {
         std.debug.print("\n\n\n+-------------------------------------------+ ", .{});
-        std.debug.print("\n   Your model do not contains intermediate tensor shapes,\n   run ' python3 src/onnx/shape_thief.py --model modelName '", .{file_path});
+        std.debug.print("\n   Your model do not contains intermediate tensor shapes,\n   run ' python3 src/onnx/shape_thief.py --model modelName '", .{});
         std.debug.print("\n+-------------------------------------------+ \n\n", .{});
 
         std.debug.print("\n\n+-------------------------------------------+ ", .{});
