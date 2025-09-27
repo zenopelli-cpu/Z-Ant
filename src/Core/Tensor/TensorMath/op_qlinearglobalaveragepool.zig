@@ -276,8 +276,7 @@ fn tryAcceleratedQLinearGlobalAveragePool(
         shift -= 1;
     }
 
-    const spatial_size_u32 = @as(u32, @intCast(spatial_size));
-    const zp_term = @as(i32, @intCast(spatial_size)) * x_zero_point;
+    // Use direct sum path (avoids per-channel alloc and double pass)
 
     var output_index: usize = 0;
     for (0..batch_size) |n| {
@@ -286,49 +285,28 @@ fn tryAcceleratedQLinearGlobalAveragePool(
             if (start + spatial_size > x.data.len) return false;
             if (output_index >= output.data.len) return false;
 
-            // Compute mean in integer domain
-            var mean_q7: i8 = 0;
-            if (InputType == i8 and cmsis_dsp.supportsMeanQ7()) {
-                cmsis_dsp.stats.arm_mean_q7(x_data_i8 + start, spatial_size_u32, &mean_q7);
-                if (n == 0 and c_idx == 0) logDebug("[ZANT][qlinearglobalavgpool] path=i8+dsp mean\n", .{});
-            } else if (InputType == u8 and cmsis_dsp.supportsMeanQ7()) {
-                // shift u8 -> i8: (x - 128), mean back-conversion later
-                var tmp: []i8 = pkg_allocator.alloc(i8, spatial_size) catch &[_]i8{};
-                if (tmp.len == spatial_size) {
-                    var j: usize = 0;
-                    while (j < spatial_size) : (j += 1) tmp[j] = @as(i8, @intCast(@as(i32, x_data_u8[start + j]) - 128));
-                    cmsis_dsp.stats.arm_mean_q7(@as([*]const i8, @ptrCast(tmp.ptr)), spatial_size_u32, &mean_q7);
-                    pkg_allocator.free(tmp);
-                    if (n == 0 and c_idx == 0) logDebug("[ZANT][qlinearglobalavgpool] path=u8+dsp mean via shift-128\n", .{});
-                } else {
-                    // fallback manual mean (u8)
-                    var acc_u32: u32 = 0;
-                    for (0..spatial_size) |i| acc_u32 += x_data_u8[start + i];
-                    // mean_u8: (acc_u32 / spatial_size), then shift to q7 by -128
-                    const mean_u8_i32: i32 = @as(i32, @intCast(@divTrunc(acc_u32, @as(u32, @intCast(spatial_size)))));
-                    mean_q7 = @as(i8, @intCast(mean_u8_i32 - 128));
-                    if (n == 0 and c_idx == 0) logDebug("[ZANT][qlinearglobalavgpool] path=u8+manual mean (alloc fail)\n", .{});
-                }
+            // Compute sum in integer domain (single pass)
+            var sum_i64: i64 = 0;
+            if (InputType == i8) {
+                var acc_i32: i32 = 0;
+                var j: usize = 0;
+                while (j < spatial_size) : (j += 1) acc_i32 += x_data_i8[start + j];
+                sum_i64 = acc_i32;
+                if (n == 0 and c_idx == 0) logDebug("[ZANT][qlinearglobalavgpool] path=i8+sum32\n", .{});
             } else {
-                // Manual mean (i8)
-                if (InputType == i8) {
-                    var acc_i32: i32 = 0;
-                    for (0..spatial_size) |i| acc_i32 += x_data_i8[start + i];
-                    mean_q7 = @as(i8, @intCast(@divTrunc(acc_i32, @as(i32, @intCast(spatial_size)))));
-                    if (n == 0 and c_idx == 0) logDebug("[ZANT][qlinearglobalavgpool] path=i8+manual mean\n", .{});
-                } else {
-                    var acc_u32_m: u32 = 0;
-                    for (0..spatial_size) |i| acc_u32_m += x_data_u8[start + i];
-                    const mean_u8_i32_m: i32 = @as(i32, @intCast(@divTrunc(acc_u32_m, @as(u32, @intCast(spatial_size)))));
-                    mean_q7 = @as(i8, @intCast(mean_u8_i32_m - 128));
-                    if (n == 0 and c_idx == 0) logDebug("[ZANT][qlinearglobalavgpool] path=u8+manual mean\n", .{});
-                }
+                var acc_u32: u32 = 0;
+                var j: usize = 0;
+                while (j < spatial_size) : (j += 1) acc_u32 +%= x_data_u8[start + j];
+                sum_i64 = @as(i64, @intCast(acc_u32));
+                if (n == 0 and c_idx == 0) logDebug("[ZANT][qlinearglobalavgpool] path=u8+sum32 no-alloc\n", .{});
             }
 
-            // Now mean_q7 is the average in signed q7 domain of (x - x_zp), but we need to adjust zp
-            // Compute adjusted sum equivalent: (mean_q7 * spatial_size) - zp_term, but we can scale directly from mean
-            const mean_minus_zp: i32 = @as(i32, mean_q7) * @as(i32, @intCast(spatial_size)) - zp_term;
-            const prod: i64 = @as(i64, mean_minus_zp) * @as(i64, multiplier_i32);
+            // Adjust by zero-point: sum(x - x_zp)
+            const zp_sum_i64: i64 = @as(i64, @intCast(@as(i32, @intCast(spatial_size)) * x_zero_point));
+            const sum_minus_zp_i64: i64 = sum_i64 - zp_sum_i64;
+
+            // Requantize
+            const prod: i64 = sum_minus_zp_i64 * @as(i64, multiplier_i32);
             const rounding: i64 = @as(i64, 1) << @as(u6, @intCast(@max(0, shift - 1)));
             const scaled_i32: i32 = @as(i32, @intCast((prod + rounding) >> @as(u6, @intCast(shift))));
             var with_zp: i32 = scaled_i32 + y_zero_point;
