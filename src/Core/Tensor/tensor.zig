@@ -25,6 +25,14 @@ pub fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {
     log_function = func;
 }
 
+inline fn logDebug(comptime fmt: []const u8, args: anytype) void {
+    if (log_function) |log| {
+        var buffer: [256:0]u8 = undefined;
+        const msg = std.fmt.bufPrintZ(&buffer, fmt, args) catch return;
+        log(@constCast(msg.ptr));
+    }
+}
+
 pub const AnyTensor = union(enum) {
     i64: *Tensor(i64),
     f64: *Tensor(f64),
@@ -219,11 +227,19 @@ pub fn Tensor(comptime T: type) type {
             }
 
             // Allocate memory for tensor shape
-            const tensorShape = try allocator.alloc(usize, shape.len);
+            logDebug("[ZANT][tensor] fromArray alloc shape entries={d}\n", .{shape.len});
+            const tensorShape = allocator.alloc(usize, shape.len) catch |err| {
+                logDebug("[ZANT][tensor] OOM shape entries={d}\n", .{shape.len});
+                return err;
+            };
             @memcpy(tensorShape, shape);
 
             // Allocate memory for tensor data
-            const tensorData = try allocator.alloc(T, total_size);
+            logDebug("[ZANT][tensor] fromArray alloc data bytes={d}\n", .{total_size * @sizeOf(T)});
+            const tensorData = allocator.alloc(T, total_size) catch |err| {
+                logDebug("[ZANT][tensor] OOM data bytes={d}\n", .{total_size * @sizeOf(T)});
+                return err;
+            };
 
             // Flatten the input array into tensor data
             _ = flattenArray(T, inputArray, tensorData, 0);
@@ -267,10 +283,18 @@ pub fn Tensor(comptime T: type) type {
                 total_size *= dim;
             }
 
-            const tensorShape = try allocator.alloc(usize, shape.len);
+            logDebug("[ZANT][tensor] fromShape alloc shape entries={d}\n", .{shape.len});
+            const tensorShape = allocator.alloc(usize, shape.len) catch |err| {
+                logDebug("[ZANT][tensor] OOM shape entries={d}\n", .{shape.len});
+                return err;
+            };
             @memcpy(tensorShape, shape);
 
-            const tensorData = try allocator.alloc(T, total_size);
+            logDebug("[ZANT][tensor] fromShape alloc data bytes={d}\n", .{total_size * @sizeOf(T)});
+            const tensorData = allocator.alloc(T, total_size) catch |err| {
+                logDebug("[ZANT][tensor] OOM data bytes={d}\n", .{total_size * @sizeOf(T)});
+                return err;
+            };
             if (T == bool) {
                 @memset(tensorData, false);
             } else {

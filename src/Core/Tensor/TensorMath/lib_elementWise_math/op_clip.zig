@@ -2,10 +2,19 @@ const std = @import("std");
 const zant = @import("../../../../zant.zig");
 
 const Tensor = zant.core.tensor.Tensor;
+const tensor_module = zant.core.tensor;
 const pkg_allocator = zant.utils.allocator.allocator;
 const error_handler = zant.utils.error_handler;
 const TensorMathError = error_handler.TensorMathError;
 const TensorError = error_handler.TensorError;
+inline fn logDebug(fmt: []const u8, args: anytype) void {
+    const log_ptr: ?*const fn ([*c]u8) callconv(.C) void = tensor_module.log_function;
+    if (log_ptr) |log| {
+        var buffer: [256:0]u8 = undefined;
+        const msg = std.fmt.bufPrintZ(&buffer, fmt, args) catch return;
+        log(@constCast(msg.ptr));
+    }
+}
 
 const Uops = zant.uops;
 const UOpBuilder = Uops.UOpBuilder;
@@ -33,6 +42,7 @@ pub inline fn lean_clip(
     maxTensor: ?*const Tensor(T),
     outputTensor: *Tensor(T),
 ) !void {
+    logDebug("[ZANT][clip] lean_clip start T={s} size={d}\n", .{ @typeName(T), inputTensor.size });
     // Get default min/max values based on type
     const min_val = if (minTensor) |t| t.data[0] else switch (@typeInfo(T)) {
         .int => std.math.minInt(T),
@@ -68,6 +78,7 @@ pub inline fn lean_clip(
     while (i < inputTensor.size) : (i += 1) {
         outputTensor.data[i] = @min(@max(inputTensor.data[i], min_val), max_val);
     }
+    logDebug("[ZANT][clip] lean_clip end\n", .{});
 }
 
 /// Clips tensor elements element-wise into the range [min_val, max_val].
@@ -79,6 +90,7 @@ pub fn clip(
     minTensor: ?*const Tensor(T),
     maxTensor: ?*const Tensor(T),
 ) !Tensor(T) {
+    logDebug("[ZANT][clip] clip alloc start T={s} in_size={d}\n", .{ @typeName(T), inputTensor.size });
     // --- Checks ---
     if (inputTensor.size == 0) {
         return TensorError.EmptyTensor;
@@ -99,6 +111,7 @@ pub fn clip(
     errdefer result.deinit();
 
     // Allocate memory for shape and data
+    logDebug("[ZANT][clip] alloc shape entries={d}\n", .{inputTensor.shape.len});
     result.shape = try allocator.alloc(usize, inputTensor.shape.len);
     @memcpy(result.shape, inputTensor.shape);
 
@@ -109,11 +122,13 @@ pub fn clip(
     }
 
     // Allocate data
+    logDebug("[ZANT][clip] alloc data bytes={d}\n", .{total_size * @sizeOf(T)});
     result.data = try allocator.alloc(T, total_size);
     result.size = total_size;
 
     // Perform the clip operation
     try lean_clip(T, inputTensor, minTensor, maxTensor, &result);
+    logDebug("[ZANT][clip] clip alloc end\n", .{});
 
     return result;
 }
@@ -181,6 +196,7 @@ pub fn clip_quantized_lean(
     output_scale: f32,
     output_zero_point: InputType,
 ) !void {
+    logDebug("[ZANT][clip] clip_q_lean start size={d} in_s={d:.6} out_s={d:.6}\n", .{ inputTensor.size, input_scale, output_scale });
     // Convert floating-point clip bounds to quantized domain
     // For input: quantized_value = real_value / scale + zero_point
     // So: real_value = (quantized_value - zero_point) * scale
@@ -252,4 +268,5 @@ pub fn clip_quantized_lean(
             outputTensor.data[i] = @intFromFloat(@round(output_quantized_clamped));
         }
     }
+    logDebug("[ZANT][clip] clip_q_lean end\n", .{});
 }
