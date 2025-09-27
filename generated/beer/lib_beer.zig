@@ -1269,6 +1269,9 @@ pub export fn predict(
     const output_zant_slice = allocator.alloc(T_out, tensor_statefulpartitionedcall_0.size) catch return -3;
     @memcpy(output_zant_slice, tensor_statefulpartitionedcall_0.data[0..tensor_statefulpartitionedcall_0.size]);
 
+    // Track allocation so zant_free_result can release it later
+    last_result_size = tensor_statefulpartitionedcall_0.size;
+
     // Deallocate the output tensor after copying its data
     tensor_statefulpartitionedcall_0.deinit();
 

@@ -367,17 +367,20 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
 
     if (codegen_options.dynamic) {
         _ = try writer.print(
-            \\     
+            \\
             \\     const output_zant_slice = allocator.alloc(T_out, tensor_{s}.size) catch return {d};
             \\     @memcpy(output_zant_slice, tensor_{s}.data[0..tensor_{s}.size]);
-            \\     
+            \\
+            \\     // Track allocation so zant_free_result can release it later
+            \\     last_result_size = tensor_{s}.size;
+            \\
             \\     // Deallocate the output tensor after copying its data
             \\     tensor_{s}.deinit();
-            \\      
+            \\
             \\     //The Caller must handle the memory of output_zant_slice
             \\     result.* = output_zant_slice.ptr;
             \\
-        , .{ try outputs[0].getNameSanitized(), templates.RC.RETURN_ERROR, try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized() });
+        , .{ try outputs[0].getNameSanitized(), templates.RC.RETURN_ERROR, try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized(), try outputs[0].getNameSanitized() });
     } else {
         _ = try writer.print(
             \\

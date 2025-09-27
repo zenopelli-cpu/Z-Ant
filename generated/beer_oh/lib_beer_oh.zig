@@ -935,13 +935,16 @@ var shape_tensor_statefulpartitionedcall_0 : [4]usize = [_]usize{ 1, 12, 12, 3} 
         &tensor_statefulpartitionedcall_0, // output 
         allocator,
     ) catch return -1;    tensor_statefulpartitionedcall_0_raw_output___3_0.deinit();
-     
+
      const output_zant_slice = allocator.alloc(T_out, tensor_statefulpartitionedcall_0.size) catch return -3;
      @memcpy(output_zant_slice, tensor_statefulpartitionedcall_0.data[0..tensor_statefulpartitionedcall_0.size]);
-     
+
+     // Track allocation so zant_free_result can release it later
+     last_result_size = tensor_statefulpartitionedcall_0.size;
+
      // Deallocate the output tensor after copying its data
      tensor_statefulpartitionedcall_0.deinit();
-      
+
      //The Caller must handle the memory of output_zant_slice
      result.* = output_zant_slice.ptr;
 
