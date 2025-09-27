@@ -22,22 +22,8 @@ pub export fn zant_free_result(ptr: ?[*]T_out) callconv(.C) void {
     }
 }
 
-var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
-
-pub export fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {
-    log_function = func;
-    zant.core.tensor.setLogFunction(func);
-    tensMath.setQLinearConvLogFunctionC(func);
-}
-
  const T_in : type = f32;
  const T_out : type = f32;
-inline fn logMsg(comptime msg: []const u8) void {
-    if (log_function) |log| {
-        log(@constCast(@ptrCast(msg)));
-    }
-}
-
  // return codes:
  //  0 : everything good
  // -1 : something went wrong in the mathematical operations
@@ -48,8 +34,7 @@ pub export fn predict (
     input_shape: [*]u32,
     shape_len: u32,
     result: *[*]T_out,
-) callconv(.C) i32 {
-    logMsg("Starting prediction...\\n"); 
+) callconv(.C) i32 { 
     //checks on the input parameters
     if (shape_len == 0) return -2;
     if(shape_len != 4) return -2;
@@ -72,15 +57,12 @@ pub export fn predict (
         .size = input_size,
         .allocator = &allocator, // non-owning view
     };
-    logMsg("Using plan-based execution with 37 steps\\n");
 
 var shape_tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0 : [4]usize = [_]usize{ 1, 1, 96, 96} ;
     var tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0 = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0) catch return -2;
     defer tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0.deinit();
 
    // Step 0: reshape operation
-
-    logMsg("Running reshape operation...\\n");
 
 
     // Reshape Operation 
@@ -103,8 +85,6 @@ var shape_tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_mode
 
    // Step 1: quantizelinear operation
 
-    logMsg("Running quantizelinear operation...\\n");
-
 
     tensMath.quantizeLinear_lean(f32, // InputType
                                  u8, // OutputType
@@ -123,8 +103,6 @@ var shape_tensor_relu6__5_0_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
     defer tensor_relu6__5_0_quantized.deinit();
 
    // Step 2: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -154,8 +132,6 @@ var shape_tensor_relu6__7_0_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
     defer tensor_relu6__7_0_quantized.deinit();
 
    // Step 3: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -185,8 +161,6 @@ var shape_tensor_model_1_expanded_conv_project_bn_fusedbatchnormv3_model_1_block
     defer tensor_model_1_expanded_conv_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_expanded_conv_project_conv2d1_quantized.deinit();
 
    // Step 4: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -216,8 +190,6 @@ var shape_tensor_relu6__10_0_quantized : [4]usize = [_]usize{ 1, 48, 48, 48} ;
     defer tensor_relu6__10_0_quantized.deinit();
 
    // Step 5: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -247,8 +219,6 @@ var shape_tensor_relu6__12_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
     defer tensor_relu6__12_0_quantized.deinit();
 
    // Step 6: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -278,8 +248,6 @@ var shape_tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_pro
     defer tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_block_1_project_conv2d1_quantized.deinit();
 
    // Step 7: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -309,8 +277,6 @@ var shape_tensor_relu6__15_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
     defer tensor_relu6__15_0_quantized.deinit();
 
    // Step 8: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -339,8 +305,6 @@ var shape_tensor_relu6__17_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
     defer tensor_relu6__17_0_quantized.deinit();
 
    // Step 9: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -370,8 +334,6 @@ var shape_tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_pro
     defer tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d1_quantized.deinit();
 
    // Step 10: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -402,8 +364,6 @@ var shape_tensor_model_1_block_2_add_add_quantized : [4]usize = [_]usize{ 1, 8, 
 
    // Step 11: fused_dequantizelinear_dequantizelinear_add_quantizelinear operation
 
-    logMsg("Running fused_dequantizelinear_dequantizelinear_add_quantizelinear operation...\\n");
-
     tensMath.qlinearadd_lean(
         @constCast(&tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_block_1_project_conv2d1_quantized),
         @constCast(&param_lib.tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_block_1_project_conv2d1_scale),
@@ -424,8 +384,6 @@ var shape_tensor_relu6__20_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
     defer tensor_relu6__20_0_quantized.deinit();
 
    // Step 12: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -455,8 +413,6 @@ var shape_tensor_relu6__22_0_quantized : [4]usize = [_]usize{ 1, 48, 12, 12} ;
     defer tensor_relu6__22_0_quantized.deinit();
 
    // Step 13: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -486,8 +442,6 @@ var shape_tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_pro
     defer tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1_quantized.deinit();
 
    // Step 14: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -518,8 +472,6 @@ var shape_tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_pro
 
    // Step 15: dequantizelinear operation
 
-    logMsg("Running dequantizelinear operation...\\n");
-
 
     tensMath.dequantizeLinear_lean(u8, // InputType
                                  f32, // OutputType
@@ -537,8 +489,6 @@ var shape_tensor_relu6__25_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
     defer tensor_relu6__25_0_quantized.deinit();
 
    // Step 16: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -568,8 +518,6 @@ var shape_tensor_relu6__27_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
     defer tensor_relu6__27_0_quantized.deinit();
 
    // Step 17: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -599,8 +547,6 @@ var shape_tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_pro
     defer tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1_quantized.deinit();
 
    // Step 18: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -631,8 +577,6 @@ var shape_tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_pro
 
    // Step 19: dequantizelinear operation
 
-    logMsg("Running dequantizelinear operation...\\n");
-
 
     tensMath.dequantizeLinear_lean(u8, // InputType
                                  f32, // OutputType
@@ -652,8 +596,6 @@ var shape_tensor_model_1_block_4_add_add : [4]usize = [_]usize{ 1, 16, 12, 12} ;
 
    // Step 20: add operation
 
-    logMsg("Running add operation...\\n");
-
 
     tensMath.sum_tensors_lean(f32, f32, &tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1, &tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1, &tensor_model_1_block_4_add_add) catch return -1;    tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1.deinit();
     tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1.deinit();
@@ -664,8 +606,6 @@ var shape_tensor_model_1_block_4_add_add_quantized : [4]usize = [_]usize{ 1, 16,
     defer tensor_model_1_block_4_add_add_quantized.deinit();
 
    // Step 21: quantizelinear operation
-
-    logMsg("Running quantizelinear operation...\\n");
 
 
     tensMath.quantizeLinear_lean(f32, // InputType
@@ -684,8 +624,6 @@ var shape_tensor_relu6__30_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
     defer tensor_relu6__30_0_quantized.deinit();
 
    // Step 22: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -715,8 +653,6 @@ var shape_tensor_relu6__32_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
     defer tensor_relu6__32_0_quantized.deinit();
 
    // Step 23: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -746,8 +682,6 @@ var shape_tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_pro
     defer tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1_quantized.deinit();
 
    // Step 24: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -778,8 +712,6 @@ var shape_tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_pro
 
    // Step 25: dequantizelinear operation
 
-    logMsg("Running dequantizelinear operation...\\n");
-
 
     tensMath.dequantizeLinear_lean(u8, // InputType
                                  f32, // OutputType
@@ -799,8 +731,6 @@ var shape_tensor_model_1_block_5_add_add : [4]usize = [_]usize{ 1, 16, 12, 12} ;
 
    // Step 26: add operation
 
-    logMsg("Running add operation...\\n");
-
 
     tensMath.sum_tensors_lean(f32, f32, &tensor_model_1_block_4_add_add, &tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1, &tensor_model_1_block_5_add_add) catch return -1;    tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1.deinit();
     tensor_model_1_block_4_add_add.deinit();
@@ -811,8 +741,6 @@ var shape_tensor_model_1_block_5_add_add_quantized : [4]usize = [_]usize{ 1, 16,
     defer tensor_model_1_block_5_add_add_quantized.deinit();
 
    // Step 27: quantizelinear operation
-
-    logMsg("Running quantizelinear operation...\\n");
 
 
     tensMath.quantizeLinear_lean(f32, // InputType
@@ -832,8 +760,6 @@ var shape_tensor_relu6__35_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
     defer tensor_relu6__35_0_quantized.deinit();
 
    // Step 28: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -863,8 +789,6 @@ var shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head
     defer tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized.deinit();
 
    // Step 29: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -895,8 +819,6 @@ var shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head
 
    // Step 30: dequantizelinear operation
 
-    logMsg("Running dequantizelinear operation...\\n");
-
 
     tensMath.dequantizeLinear_lean(u8, // InputType
                                  f32, // OutputType
@@ -916,8 +838,6 @@ var shape_tensor_relu__37_0 : [4]usize = [_]usize{ 1, 32, 12, 12} ;
 
    // Step 31: relu operation
 
-    logMsg("Running relu operation...\\n");
-
 
     tensMath.ReLU_lean(f32, &tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias, &tensor_relu__37_0) catch return -1;    tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias.deinit();
 
@@ -927,8 +847,6 @@ var shape_tensor_relu__37_0_quantized : [4]usize = [_]usize{ 1, 32, 12, 12} ;
     defer tensor_relu__37_0_quantized.deinit();
 
    // Step 32: quantizelinear operation
-
-    logMsg("Running quantizelinear operation...\\n");
 
 
     tensMath.quantizeLinear_lean(f32, // InputType
@@ -948,8 +866,6 @@ var shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_quant
     defer tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_quantized.deinit();
 
    // Step 33: qlinearconv operation
-
-    logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
         u8, // InputType
         i8, // WeightType
@@ -980,8 +896,6 @@ var shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1 : [4]
 
    // Step 34: dequantizelinear operation
 
-    logMsg("Running dequantizelinear operation...\\n");
-
 
     tensMath.dequantizeLinear_lean(u8, // InputType
                                  f32, // OutputType
@@ -1001,8 +915,6 @@ var shape_tensor_statefulpartitionedcall_0_raw_output___3_0 : [4]usize = [_]usiz
 
    // Step 35: softmax operation
 
-    logMsg("Running softmax operation...\\n");
-
     tensMath.softmax_lean(
         f32, //Type
         &tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1, // input tensor
@@ -1016,8 +928,6 @@ var shape_tensor_statefulpartitionedcall_0 : [4]usize = [_]usize{ 1, 12, 12, 3} 
     var tensor_statefulpartitionedcall_0 = Tensor(f32).fromShape(&allocator, &shape_tensor_statefulpartitionedcall_0) catch return -2;
 
    // Step 36: transpose operation
-
-    logMsg("Running transpose operation...\\n");
     tensMath.transpose_onnx_lean(
         f32, //input type 
         &tensor_statefulpartitionedcall_0_raw_output___3_0, // input tensor
@@ -1035,7 +945,6 @@ var shape_tensor_statefulpartitionedcall_0 : [4]usize = [_]usize{ 1, 12, 12, 3} 
      //The Caller must handle the memory of output_zant_slice
      result.* = output_zant_slice.ptr;
 
-    logMsg("Prediction completed.\\n");
     return 0;
 
 }

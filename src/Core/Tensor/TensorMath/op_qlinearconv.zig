@@ -2253,6 +2253,133 @@ fn qlinearconv_cmsis_accelerated_impl(
         .shift = shifts_buf.ptr,
     };
 
+    // Depthwise streaming path to minimize memory (no full NHWC staging)
+    if (group_val == in_channels and dilation_h == 1 and dilation_w == 1) {
+        // Prepare filter pointer as [1, kH, kW, C_out]
+        var dw_filter_ptr: [*]const i8 = undefined;
+        var dw_transpose_dyn: ?[]i8 = null;
+        defer if (dw_transpose_dyn) |b| alloc.free(b);
+
+        if (weight_shape[0] == 1 and weight_shape[3] == out_channels) {
+            const weight_ptr_s8: [*]const i8 = @ptrCast(w.data.ptr);
+            dw_filter_ptr = weight_ptr_s8;
+        } else if (weight_shape[3] == 1 and weight_shape[0] == out_channels) {
+            const dw_elems = kernel_height * kernel_width * out_channels;
+            const dw_buf = try alloc.alloc(i8, dw_elems);
+            dw_transpose_dyn = dw_buf;
+            logDebug("[ZANT][qlinearconv][CMSIS][alloc] dw_transpose_i8={d} bytes\n", .{dw_elems * @sizeOf(i8)});
+            var m_t: usize = 0;
+            while (m_t < out_channels) : (m_t += 1) {
+                var kh_t: usize = 0;
+                while (kh_t < kernel_height) : (kh_t += 1) {
+                    var kw_t: usize = 0;
+                    while (kw_t < kernel_width) : (kw_t += 1) {
+                        const src_index = ((m_t * kernel_height + kh_t) * kernel_width + kw_t) * 1;
+                        const dst_index = (kh_t * kernel_width + kw_t) * out_channels + m_t;
+                        dw_buf[dst_index] = @as(i8, @intCast(w.data[src_index]));
+                    }
+                }
+            }
+            dw_filter_ptr = dw_buf.ptr;
+        } else {
+            // Unsupported depthwise layout
+            return TensorMathError.InvalidDimensions;
+        }
+
+        var dw_params_row = cmsis_nn.DwConvParams{
+            .input_offset = cmsis_input_offset,
+            .output_offset = cmsis_output_offset,
+            .ch_mult = @intCast(group_out_channels),
+            .stride = .{ .h = 1, .w = @intCast(stride_w) },
+            .padding = .{ .h = 0, .w = @intCast(conv_pad_w) },
+            .dilation = .{ .h = 1, .w = 1 },
+            .activation = .{ .min = -128, .max = 127 },
+        };
+        var ctx_row = cmsis_nn.Context{ .buf = null, .size = 0 };
+        var dw_filter_dims = cmsis_nn.Dims{ .n = 1, .h = @intCast(kernel_height), .w = @intCast(kernel_width), .c = @intCast(out_channels) };
+        var input_dims_row = cmsis_nn.Dims{ .n = 1, .h = @intCast(kernel_height), .w = @intCast(in_width), .c = @intCast(in_channels) };
+        var output_dims_row = cmsis_nn.Dims{ .n = 1, .h = 1, .w = @intCast(out_width), .c = @intCast(out_channels) };
+
+        const band_len = kernel_height * in_width * in_channels;
+        const band_buf = try alloc.alloc(i8, band_len);
+        defer alloc.free(band_buf);
+        const row_out_len = out_width * out_channels;
+        const row_out_buf = try alloc.alloc(i8, row_out_len);
+        defer alloc.free(row_out_buf);
+
+        const zero_adjust_stream: i32 = if (is_u8_input) 128 else 0;
+        const zero_restore_stream: i32 = if (is_u8_input) 128 else 0;
+
+        var n_dw: usize = 0;
+        while (n_dw < batch_size) : (n_dw += 1) {
+            var oh: usize = 0;
+            while (oh < out_height) : (oh += 1) {
+                const in_h_origin = @as(isize, @intCast(oh * stride_h)) - @as(isize, @intCast(conv_pad_h));
+                var write_idx: usize = 0;
+                var kh_i: usize = 0;
+                while (kh_i < kernel_height) : (kh_i += 1) {
+                    const ih = in_h_origin + @as(isize, @intCast(kh_i));
+                    var w_copy: usize = 0;
+                    while (w_copy < in_width) : (w_copy += 1) {
+                        var c_copy: usize = 0;
+                        while (c_copy < in_channels) : (c_copy += 1) {
+                            const dst = write_idx * in_channels + c_copy;
+                            if (ih < 0 or ih >= @as(isize, @intCast(in_height))) {
+                                band_buf[dst] = @as(i8, @intCast(-zero_adjust_stream));
+                            } else {
+                                const ihz = @as(usize, @intCast(ih));
+                                const src_idx = ((n_dw * in_channels + c_copy) * in_height + ihz) * in_width + w_copy;
+                                const raw = @as(i32, @intCast(effective_input.data[src_idx]));
+                                const centered = raw - zero_adjust_stream;
+                                band_buf[dst] = @as(i8, @intCast(std.math.clamp(centered, -128, 127)));
+                            }
+                        }
+                        write_idx += 1;
+                    }
+                }
+
+                // Depthwise for this band → one output row
+                const status = cmsis_nn.conv.arm_depthwise_conv_wrapper_s8(
+                    &ctx_row,
+                    &dw_params_row,
+                    &quant_params,
+                    &input_dims_row,
+                    band_buf.ptr,
+                    &dw_filter_dims,
+                    dw_filter_ptr,
+                    &bias_dims,
+                    null,
+                    &output_dims_row,
+                    row_out_buf.ptr,
+                );
+                if (status != cmsis_nn.ARM_CMSIS_NN_SUCCESS) {
+                    logDebug("[ZANT][qlinearconv][CMSIS][dw-stream] row conv failed status={d}\n", .{status});
+                    return TensorMathError.InvalidDimensions;
+                }
+
+                // Write back row to NCHW
+                var ow: usize = 0;
+                while (ow < out_width) : (ow += 1) {
+                    var m: usize = 0;
+                    while (m < out_channels) : (m += 1) {
+                        const src_idx = ow * out_channels + m;
+                        const v_i32 = @as(i32, @intCast(row_out_buf[src_idx]));
+                        const adjusted = v_i32 + zero_restore_stream;
+                        const dst_idx = ((n_dw * out_channels + m) * out_height + oh) * out_width + ow;
+                        if (is_u8_input) {
+                            output.data[dst_idx] = @as(u8, @intCast(std.math.clamp(adjusted, 0, 255)));
+                        } else {
+                            output.data[dst_idx] = @as(InputType, @intCast(adjusted));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Finished depthwise streaming
+        return;
+    }
+
     // Convert bias to i32 format as expected by CMSIS-NN
     var bias_converted: ?[]i32 = null;
     var bias_ptr: ?[*]const i32 = null;
@@ -2526,7 +2653,7 @@ fn qlinearconv_cmsis_accelerated_impl(
         var dw_params = cmsis_nn.DwConvParams{
             .input_offset = cmsis_input_offset,
             .output_offset = cmsis_output_offset,
-            .ch_mult = 1, // depthwise: ch_mult=1 when group==Cin and Cout==Cin
+            .ch_mult = @intCast(group_out_channels),
             .stride = .{ .h = @intCast(stride_h), .w = @intCast(stride_w) },
             .padding = .{ .h = @intCast(conv_pad_h), .w = @intCast(conv_pad_w) },
             .dilation = .{ .h = @intCast(dilation_h), .w = @intCast(dilation_w) },
