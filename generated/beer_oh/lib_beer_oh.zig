@@ -168,7 +168,7 @@ var shape_tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_mode
     ) catch return -1;
 
 
-var shape_tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized : [4]usize = [_]usize{ 1, 1, 48, 48} ;
+var shape_tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
     var tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized) catch return -2;
     defer tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized.deinit();
 
@@ -197,11 +197,8 @@ var shape_tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_con
         16, // group
         "NOTSET", // auto_pad
     ) catch return -1;    tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_quantized.deinit();
-
-
-var shape_tensor_relu6__7_0_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
-    var tensor_relu6__7_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__7_0_quantized) catch return -2;
-    defer tensor_relu6__7_0_quantized.deinit();
+    // In-place alias: relu6__7_0_quantized -> model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized
+    var tensor_relu6__7_0_quantized = tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized;
 
    // Step 5: fused_dequantizelinear_clip_quantizelinear operation
 
@@ -219,7 +216,6 @@ var shape_tensor_relu6__7_0_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
         @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
         @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
     ) catch return -1;
-    tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized.deinit();
 
 
 var shape_tensor_model_1_expanded_conv_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_expanded_conv_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 8, 48, 48} ;
@@ -250,7 +246,7 @@ var shape_tensor_model_1_expanded_conv_project_bn_fusedbatchnormv3_model_1_block
         &[_]usize{1,1}, // dilations
         1, // group
         "NOTSET", // auto_pad
-    ) catch return -1;    tensor_relu6__7_0_quantized.deinit();
+    ) catch return -1;    tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized.deinit();
 
 
 var shape_tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized : [4]usize = [_]usize{ 1, 48, 48, 48} ;
@@ -303,7 +299,7 @@ var shape_tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fus
     ) catch return -1;
 
 
-var shape_tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 1, 24, 24} ;
+var shape_tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
     var tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized) catch return -2;
     defer tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized.deinit();
 
@@ -332,11 +328,8 @@ var shape_tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_
         48, // group
         "NOTSET", // auto_pad
     ) catch return -1;    tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized.deinit();
-
-
-var shape_tensor_relu6__12_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
-    var tensor_relu6__12_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__12_0_quantized) catch return -2;
-    defer tensor_relu6__12_0_quantized.deinit();
+    // In-place alias: relu6__12_0_quantized -> model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized
+    var tensor_relu6__12_0_quantized = tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized;
 
    // Step 10: fused_dequantizelinear_clip_quantizelinear operation
 
@@ -354,7 +347,6 @@ var shape_tensor_relu6__12_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
         @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
         @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
     ) catch return -1;
-    tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized.deinit();
 
 
 var shape_tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_block_1_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 8, 24, 24} ;
@@ -385,7 +377,7 @@ var shape_tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_pro
         &[_]usize{1,1}, // dilations
         1, // group
         "NOTSET", // auto_pad
-    ) catch return -1;    tensor_relu6__12_0_quantized.deinit();
+    ) catch return -1;    tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized.deinit();
 
 
 var shape_tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
@@ -437,7 +429,7 @@ var shape_tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fus
     ) catch return -1;
 
 
-var shape_tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 1, 24, 24} ;
+var shape_tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
     var tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized) catch return -2;
     defer tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized.deinit();
 
@@ -466,11 +458,8 @@ var shape_tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_
         48, // group
         "NOTSET", // auto_pad
     ) catch return -1;    tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized.deinit();
-
-
-var shape_tensor_relu6__17_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
-    var tensor_relu6__17_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__17_0_quantized) catch return -2;
-    defer tensor_relu6__17_0_quantized.deinit();
+    // In-place alias: relu6__17_0_quantized -> model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized
+    var tensor_relu6__17_0_quantized = tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized;
 
    // Step 15: fused_dequantizelinear_clip_quantizelinear operation
 
@@ -488,7 +477,6 @@ var shape_tensor_relu6__17_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
         @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
         @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
     ) catch return -1;
-    tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized.deinit();
 
 
 var shape_tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 8, 24, 24} ;
@@ -519,7 +507,7 @@ var shape_tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_pro
         &[_]usize{1,1}, // dilations
         1, // group
         "NOTSET", // auto_pad
-    ) catch return -1;    tensor_relu6__17_0_quantized.deinit();
+    ) catch return -1;    tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized.deinit();
 
 
 var shape_tensor_model_1_block_2_add_add_quantized : [4]usize = [_]usize{ 1, 8, 24, 24} ;
@@ -595,7 +583,7 @@ var shape_tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fus
     ) catch return -1;
 
 
-var shape_tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 1, 12, 12} ;
+var shape_tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 48, 12, 12} ;
     var tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized) catch return -2;
     defer tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized.deinit();
 
@@ -624,11 +612,8 @@ var shape_tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_
         48, // group
         "NOTSET", // auto_pad
     ) catch return -1;    tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_quantized.deinit();
-
-
-var shape_tensor_relu6__22_0_quantized : [4]usize = [_]usize{ 1, 48, 12, 12} ;
-    var tensor_relu6__22_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__22_0_quantized) catch return -2;
-    defer tensor_relu6__22_0_quantized.deinit();
+    // In-place alias: relu6__22_0_quantized -> model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized
+    var tensor_relu6__22_0_quantized = tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized;
 
    // Step 21: fused_dequantizelinear_clip_quantizelinear operation
 
@@ -646,7 +631,6 @@ var shape_tensor_relu6__22_0_quantized : [4]usize = [_]usize{ 1, 48, 12, 12} ;
         @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
         @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
     ) catch return -1;
-    tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized.deinit();
 
 
 var shape_tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 16, 12, 12} ;
@@ -677,7 +661,7 @@ var shape_tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_pro
         &[_]usize{1,1}, // dilations
         1, // group
         "NOTSET", // auto_pad
-    ) catch return -1;    tensor_relu6__22_0_quantized.deinit();
+    ) catch return -1;    tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized.deinit();
 
 
 var shape_tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1 : [4]usize = [_]usize{ 1, 16, 12, 12} ;
@@ -750,7 +734,7 @@ var shape_tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fus
     ) catch return -1;
 
 
-var shape_tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 1, 12, 12} ;
+var shape_tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
     var tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized) catch return -2;
     defer tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized.deinit();
 
@@ -779,11 +763,8 @@ var shape_tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_
         96, // group
         "NOTSET", // auto_pad
     ) catch return -1;    tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_quantized.deinit();
-
-
-var shape_tensor_relu6__27_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
-    var tensor_relu6__27_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__27_0_quantized) catch return -2;
-    defer tensor_relu6__27_0_quantized.deinit();
+    // In-place alias: relu6__27_0_quantized -> model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized
+    var tensor_relu6__27_0_quantized = tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized;
 
    // Step 27: fused_dequantizelinear_clip_quantizelinear operation
 
@@ -801,7 +782,6 @@ var shape_tensor_relu6__27_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
         @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
     ) catch return -1;
-    tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized.deinit();
 
 
 var shape_tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 16, 12, 12} ;
@@ -832,7 +812,7 @@ var shape_tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_pro
         &[_]usize{1,1}, // dilations
         1, // group
         "NOTSET", // auto_pad
-    ) catch return -1;    tensor_relu6__27_0_quantized.deinit();
+    ) catch return -1;    tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized.deinit();
 
 
 var shape_tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1 : [4]usize = [_]usize{ 1, 16, 12, 12} ;
@@ -939,7 +919,7 @@ var shape_tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fus
     ) catch return -1;
 
 
-var shape_tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized : [4]usize = [_]usize{ 1, 1, 12, 12} ;
+var shape_tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
     var tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized) catch return -2;
     defer tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized.deinit();
 
@@ -968,11 +948,8 @@ var shape_tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_
         96, // group
         "NOTSET", // auto_pad
     ) catch return -1;    tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_quantized.deinit();
-
-
-var shape_tensor_relu6__32_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
-    var tensor_relu6__32_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__32_0_quantized) catch return -2;
-    defer tensor_relu6__32_0_quantized.deinit();
+    // In-place alias: relu6__32_0_quantized -> model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized
+    var tensor_relu6__32_0_quantized = tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized;
 
    // Step 35: fused_dequantizelinear_clip_quantizelinear operation
 
@@ -990,7 +967,6 @@ var shape_tensor_relu6__32_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
         @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
     ) catch return -1;
-    tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized.deinit();
 
 
 var shape_tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 16, 12, 12} ;
@@ -1021,7 +997,7 @@ var shape_tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_pro
         &[_]usize{1,1}, // dilations
         1, // group
         "NOTSET", // auto_pad
-    ) catch return -1;    tensor_relu6__32_0_quantized.deinit();
+    ) catch return -1;    tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized.deinit();
 
 
 var shape_tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1 : [4]usize = [_]usize{ 1, 16, 12, 12} ;
