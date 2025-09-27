@@ -85,14 +85,14 @@ export PATH="$(pwd)/.zig-toolchain/current:$PATH"
 # - put your onnx model inside /datasets/models in a folder with the same of the model to to have: /datasets/models/my_model/my_model.onnx
 
 # - simplify and prepare the model for zant inference engine
-./zant input_setter --path /datasets/models/my_model/my_model.onnx --shape "your,model,sha,pe"
+./zant input_setter --model my_model --shape "your,model,sha,pe"
 
 # - Generate test data
 ./zant user_tests_gen --model my_model
 
 # --- GENERATING THE Single Node lib and test it ---
 #For a N nodes model it creates N onnx models, one for each node with respective tests.
-./zant onnx_extract --path /datasets/models/my_model/my_model.onnx
+./zant onnx_extract  --model my_model
 
 #generate libs for extracted nodes
 zig build extractor-gen -Dmodel="my_model"
@@ -185,10 +185,10 @@ Z-Ant includes Python scripts for ONNX model preparation:
 
 ```bash
 # Prepare your model: set input shapes and infer all tensor shapes
-./zant input_setter --path model.onnx --shape 1,3,224,224
+./zant input_setter  --model model --shape 1,3,224,224
 
 # Generate test data for validation
-./zant user_tests_gen --model model.onnx --iterations 10
+./zant user_tests_gen --model model --iterations 10
 
 # Create operator test models
 ./zant onnx_gen --op Conv --iterations 5

@@ -69,14 +69,11 @@ See [zant_CLI](docs/ZANT_CLI.md) for more details!
 ### infer_shape
 **Location:** `src/onnx/infer_shape.py`
 
-**Flags:**
-- `--path` - Path of your model (required)
-
 ### input_setter
 **Location:** `src/onnx/input_setter.py`
 
 **Flags:**
-- `--path` - Path of your model (required)
+- `--model` - Name of your model (required)
 - `--shape` - Input shape as comma-separated values, e.g., 1,3,34,34 (required)
 
 ## Requirements

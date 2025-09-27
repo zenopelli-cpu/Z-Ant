@@ -144,7 +144,7 @@ jobs:
       - name: Extract nodes from ${{ matrix.model }}
         run: |
           sleep 5
-          ./zant onnx_extract --path datasets/models/${{ matrix.model }}/${{ matrix.model }}.onnx
+          ./zant onnx_extract --model ${{ matrix.model }}
 
       - name: Generate extractor tests for ${{ matrix.model }}
         run: |
@@ -189,8 +189,8 @@ jobs:
 
       - name: Prepare model for cross-platform test
         run: |
-          ./zant input_setter --path datasets/models/mnist-8/mnist-8.onnx --shape 1,1,28,28
-          ./zant infer_shape --path datasets/models/mnist-8/mnist-8.onnx
+          ./zant input_setter --model mnist-8 --shape 1,1,28,28
+          ./zant infer_shape --model mnist-8 datasets/models/mnist-8/mnist-8.onnx
 
       - name: Generate test data for cross-platform test
         run: ./zant user_tests_gen --model mnist-8
