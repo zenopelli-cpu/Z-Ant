@@ -645,9 +645,28 @@ fn configureStm32n6Support(
             }
         }
 
+        // CMSIS-NN Pooling (AveragePool s8)
+        if (std.fs.cwd().access("third_party/CMSIS-NN/Source/PoolingFunctions/arm_avgpool_s8.c", .{})) |_| {
+            step.addCSourceFile(.{
+                .file = b.path("third_party/CMSIS-NN/Source/PoolingFunctions/arm_avgpool_s8.c"),
+                .flags = c_flags,
+            });
+        } else |err| {
+            if (err != error.FileNotFound) @panic("unexpected error probing arm_avgpool_s8.c");
+        }
+        if (std.fs.cwd().access("third_party/CMSIS-NN/Source/PoolingFunctions/arm_avgpool_get_buffer_sizes_s8.c", .{})) |_| {
+            step.addCSourceFile(.{
+                .file = b.path("third_party/CMSIS-NN/Source/PoolingFunctions/arm_avgpool_get_buffer_sizes_s8.c"),
+                .flags = c_flags,
+            });
+        } else |err| {
+            if (err != error.FileNotFound) @panic("unexpected error probing arm_avgpool_get_buffer_sizes_s8.c");
+        }
+
         // Add CMSIS-DSP source files
         const cmsis_dsp_sources = [_][]const u8{
             "third_party/CMSIS-DSP/Source/BasicMathFunctions/arm_dot_prod_f32.c",
+            "third_party/CMSIS-DSP/Source/StatisticsFunctions/arm_sum_q7.c",
         };
 
         for (cmsis_dsp_sources) |source_path| {
@@ -684,7 +703,7 @@ fn configureCortexm7Support(
     if (force_native) def_buf.append("-DZANT_CORTEXM7_FORCE_NATIVE=1") catch unreachable;
     if (use_cmsis) def_buf.append("-DZANT_HAS_CMSIS_DSP=1") catch unreachable; // enables CMSIS headers
     if (use_cmsis) def_buf.append("-DARM_MATH_DSP=1") catch unreachable; // enable CMSIS-DSP codepaths for M7
-    var flags_buf = std.BoundedArray([]const u8, 24).init(0) catch unreachable;
+    var flags_buf = std.BoundedArray([]const u8, 28).init(0) catch unreachable;
     // base defs
     for (def_buf.constSlice()) |f| flags_buf.append(f) catch unreachable;
 
@@ -724,6 +743,9 @@ fn configureCortexm7Support(
         } else |err| {
             if (err != error.FileNotFound) @panic("unexpected error probing CMSIS-DSP path");
         }
+
+        // Match Arduino toolchain enum size policy to avoid psABI enum size warnings
+        flags_buf.append("-fshort-enums") catch unreachable;
 
         // Standard library headers for arm-none-eabi toolchain
         if (std.fs.cwd().access("/usr/lib/arm-none-eabi/include", .{})) |_| {
@@ -825,5 +847,15 @@ fn configureCortexm7Support(
                 if (err != error.FileNotFound) @panic("unexpected error probing CMSIS file");
             }
         }
+
+        // CMSIS-DSP sources needed by accelerated paths (e.g., arm_sum_q7)
+        // Prefer mean_q7 (present in your tree) instead of sum_q7
+        if (std.fs.cwd().access("third_party/CMSIS-DSP/Source/StatisticsFunctions/arm_mean_q7.c", .{})) |_| {
+            step.addCSourceFile(.{ .file = b.path("third_party/CMSIS-DSP/Source/StatisticsFunctions/arm_mean_q7.c"), .flags = c_flags });
+        } else |err| {
+            if (err != error.FileNotFound) @panic("unexpected error probing CMSIS-DSP arm_mean_q7.c");
+        }
+
+        // Remove weak sum fallback now that we link mean_q7 properly
     }
 }

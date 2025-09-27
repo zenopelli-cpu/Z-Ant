@@ -248,3 +248,59 @@ pub inline fn isEnabled() bool {
 pub inline fn supportsConvolveS8() bool {
     return is_enabled;
 }
+
+/// Pooling parameter struct and s8 Average Pool externs
+pub const PoolParams = extern struct {
+    stride: extern struct { h: i32, w: i32 },
+    padding: extern struct { h: i32, w: i32 },
+    activation: extern struct { min: i32, max: i32 },
+};
+
+pub const pool = if (is_enabled) struct {
+    pub extern fn arm_avgpool_s8(
+        ctx: *const Context,
+        pool_params: *const PoolParams,
+        input_dims: *const Dims,
+        input_data: [*]const i8,
+        filter_dims: *const Dims,
+        output_dims: *const Dims,
+        output_data: [*]i8,
+    ) callconv(.C) i32;
+
+    pub extern fn arm_avgpool_s8_get_buffer_size(
+        dim_dst_width: i32,
+        ch_src: i32,
+    ) callconv(.C) i32;
+} else struct {
+    pub fn arm_avgpool_s8(
+        ctx: *const Context,
+        pool_params: *const PoolParams,
+        input_dims: *const Dims,
+        input_data: [*]const i8,
+        filter_dims: *const Dims,
+        output_dims: *const Dims,
+        output_data: [*]i8,
+    ) callconv(.C) i32 {
+        _ = ctx;
+        _ = pool_params;
+        _ = input_dims;
+        _ = input_data;
+        _ = filter_dims;
+        _ = output_dims;
+        _ = output_data;
+        return 0;
+    }
+
+    pub fn arm_avgpool_s8_get_buffer_size(
+        dim_dst_width: i32,
+        ch_src: i32,
+    ) callconv(.C) i32 {
+        _ = dim_dst_width;
+        _ = ch_src;
+        return 0;
+    }
+};
+
+pub inline fn supportsAvgPoolS8() bool {
+    return is_enabled;
+}
