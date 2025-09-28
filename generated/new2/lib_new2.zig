@@ -12,7 +12,7 @@
 var last_result_size: usize = 0;
 
 // Deallocator function for external C usage
-pub  fn zant_free_result(ptr: ?[*]T_out) callconv(.C) void {
+pub export fn zant_free_result(ptr: ?[*]T_out) callconv(.C) void {
     if (ptr) |valid_ptr| {
         if (last_result_size > 0) {
             const slice = valid_ptr[0..last_result_size];
@@ -29,12 +29,12 @@ pub  fn zant_free_result(ptr: ?[*]T_out) callconv(.C) void {
  // -1 : something went wrong in the mathematical operations
  // -2 : something went wrong in the initialization phase
  // -3 : something went wrong in the output/return phase
-pub  fn predict (
+pub export fn predict (
     input: [*]T_in,
     input_shape: [*]u32,
     shape_len: u32,
     result: *[*]T_out,
-)  i32 { 
+) callconv(.C) i32 { 
     //checks on the input parameters
     if (shape_len == 0) return -2;
     if(shape_len != 4) return -2;
