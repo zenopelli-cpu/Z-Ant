@@ -346,7 +346,67 @@ def _fuse_clip_into_qlinearconv(model: onnx.ModelProto) -> None:
         # QLinearConv inputs: x, x_scale, x_zp, w, w_scale, w_zp, y_scale, y_zp, bias?
         if len(conv.input) < 8:
             continue
-        conv.input[6] = qlin.input[1]
+
+        old_y_scale_name = conv.input[6]
+        new_y_scale_name = qlin.input[1]
+
+        if old_y_scale_name not in inits or new_y_scale_name not in inits:
+            continue
+
+        old_scale_arr = numpy_helper.to_array(inits[old_y_scale_name]).astype(np.float32)
+        new_scale_arr = numpy_helper.to_array(inits[new_y_scale_name]).astype(np.float32)
+
+        if old_scale_arr.size != 1 or new_scale_arr.size != 1:
+            continue
+
+        old_scale = float(old_scale_arr.reshape(()))
+        new_scale = float(new_scale_arr.reshape(()))
+
+        if old_scale <= 0.0 or new_scale <= 0.0:
+            continue
+
+        scale_ratio = new_scale / old_scale
+
+        # Adjust per-channel weight scales so that the effective rescale factor
+        # (x_scale * w_scale / y_scale) remains identical after swapping the
+        # output quantization parameters. This preserves the dequantized output
+        # range even when the fused QuantizeLinear introduces a much larger
+        # y_scale.
+        w_scale_name = conv.input[4]
+        if w_scale_name not in inits:
+            continue
+        w_scale_arr = numpy_helper.to_array(inits[w_scale_name]).astype(np.float32)
+        w_scale_arr *= scale_ratio
+
+        # Bias tensors (if present) are quantized with x_scale * w_scale. When
+        # we expand w_scale we must shrink the bias values by the reciprocal to
+        # keep the floating-point bias identical.
+        if len(conv.input) >= 9:
+            bias_name = conv.input[8]
+            if bias_name in inits:
+                bias_arr = numpy_helper.to_array(inits[bias_name]).astype(np.float64)
+                bias_arr *= (old_scale / new_scale)
+                bias_arr = np.round(bias_arr)
+                bias_arr = np.clip(
+                    bias_arr,
+                    np.iinfo(np.int32).min,
+                    np.iinfo(np.int32).max,
+                ).astype(np.int32)
+                inits[bias_name] = numpy_helper.from_array(bias_arr, bias_name)
+                for idx, init in enumerate(model.graph.initializer):
+                    if init.name == bias_name:
+                        del model.graph.initializer[idx]
+                        model.graph.initializer.insert(idx, inits[bias_name])
+                        break
+
+        inits[w_scale_name] = numpy_helper.from_array(w_scale_arr, w_scale_name)
+        for idx, init in enumerate(model.graph.initializer):
+            if init.name == w_scale_name:
+                del model.graph.initializer[idx]
+                model.graph.initializer.insert(idx, inits[w_scale_name])
+                break
+
+        conv.input[6] = new_y_scale_name
         conv.input[7] = qlin.input[2]
 
         # Rewire outputs: conv output now feeds where qlin output was used
