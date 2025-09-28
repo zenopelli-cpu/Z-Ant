@@ -36,9 +36,69 @@ inline fn logDebug(comptime fmt: []const u8, args: anytype) void {
         log_ptr = tensor_module.log_function;
     }
     if (log_ptr) |log| {
-        var buffer: [512:0]u8 = undefined;
+        var buffer: [1024:0]u8 = undefined;
         const msg = std.fmt.bufPrintZ(&buffer, fmt, args) catch return;
         log(@constCast(msg.ptr));
+        return;
+    }
+
+    // If no external logger is connected, fall back to the default debug output
+    // Only use std.debug.print on hosted targets (not freestanding)
+    if (@import("builtin").os.tag != .freestanding) {
+        std.debug.print(fmt, args);
+    }
+}
+
+fn logTensorDebugInfo(comptime T: type, label: []const u8, tensor: *const Tensor(T)) void {
+    const s0 = if (tensor.shape.len > 0) tensor.shape[0] else 0;
+    const s1 = if (tensor.shape.len > 1) tensor.shape[1] else 0;
+    const s2 = if (tensor.shape.len > 2) tensor.shape[2] else 0;
+    const s3 = if (tensor.shape.len > 3) tensor.shape[3] else 0;
+
+    if (tensor.size == 0) {
+        logDebug(
+            "[ZANT] [conv] {s} shape={{ {d} , {d} , {d} , {d} }} size=0 min=0 max=0 mean=0 zeros=0\n",
+            .{ label, s0, s1, s2, s3 },
+        );
+        return;
+    }
+
+    var min_val = valueAsF32(T, tensor.data[0]);
+    var max_val = min_val;
+    var zero_count: usize = 0;
+    var sum_val: f64 = 0.0;
+
+    var idx: usize = 0;
+    while (idx < tensor.size) : (idx += 1) {
+        const current_f32 = valueAsF32(T, tensor.data[idx]);
+        if (current_f32 < min_val) min_val = current_f32;
+        if (current_f32 > max_val) max_val = current_f32;
+        if (current_f32 == 0) zero_count += 1;
+        sum_val += @floatCast(current_f32);
+    }
+
+    const mean_val: f32 = @floatCast(sum_val / @as(f64, @floatFromInt(tensor.size)));
+
+    logDebug(
+        "[ZANT] [conv] {s} shape={{ {d} , {d} , {d} , {d} }} size={d} min={e} max={e} mean={e} zeros={d}\n",
+        .{ label, s0, s1, s2, s3, tensor.size, min_val, max_val, mean_val, zero_count },
+    );
+
+    const sample_count = @min(tensor.size, 8);
+    if (sample_count > 0) {
+        var sample_buf: [192]u8 = undefined;
+        var stream = std.io.fixedBufferStream(&sample_buf);
+        var w = stream.writer();
+        var idx_sample: usize = 0;
+        while (idx_sample < sample_count) : (idx_sample += 1) {
+            if (idx_sample != 0) w.print(", ", .{}) catch break;
+            const value = valueAsF32(T, tensor.data[idx_sample]);
+            w.print("{e}", .{value}) catch break;
+        }
+        const written = stream.getWritten();
+        logDebug("[ZANT] [conv] {s} samples=[{s}]\n", .{ label, written });
+    } else {
+        logDebug("[ZANT] [conv] {s} samples=[]\n", .{label});
     }
 }
 
@@ -1999,6 +2059,18 @@ pub fn qlinearconv_dispatch(
     if (x.shape.len < 2) {
         logDebug("[ZANT][qlinearconv] dispatch invalid input rank={d}\n", .{x.shape.len});
         return TensorMathError.InvalidDimensions;
+    }
+
+    logTensorDebugInfo(InputType, "input", x);
+    logTensorDebugInfo(WeightType, "weights", w);
+    logTensorDebugInfo(InputType, "output_pre", output);
+    logTensorDebugInfo(ScaleType, "x_scale", x_scale);
+    logTensorDebugInfo(ScaleType, "w_scale", w_scale);
+    logTensorDebugInfo(ScaleType, "y_scale", y_scale);
+    if (bias) |b| {
+        logTensorDebugInfo(BiasType, "bias", b);
+    } else {
+        logDebug("[ZANT] [conv] bias tensor absent\n", .{});
     }
 
     const accelerators = @import("../Accelerators/mod.zig");

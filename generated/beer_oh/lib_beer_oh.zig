@@ -25,7 +25,7 @@ pub export fn zant_free_result(ptr: ?[*]T_out) callconv(.C) void {
 var log_function: ?*const fn ([*c]const u8) callconv(.C) void = null;
 var log_buffer: [512]u8 = undefined;
 
-fn safe_log_forwarder(c_msg: [*c]const u8) callconv(.C) void {
+fn forward_log(c_msg: [*c]const u8) void {
     if (log_function) |user_log| {
         var i: usize = 0;
         while (i < log_buffer.len - 1 and c_msg[i] != 0) : (i += 1) {
@@ -36,11 +36,23 @@ fn safe_log_forwarder(c_msg: [*c]const u8) callconv(.C) void {
     }
 }
 
+fn safe_log_forwarder(c_msg: [*c]const u8) callconv(.C) void {
+    forward_log(c_msg);
+}
+
+fn safe_log_forwarder_qconv(c_msg: [*c]u8) callconv(.C) void {
+    forward_log(@ptrCast(c_msg));
+}
+
 pub export fn setLogFunction(func: ?*const fn ([*c]const u8) callconv(.C) void) void {
     // Keep only our own logging; disable verbose internal logs
     log_function = func;
     zant.core.tensor.setLogFunction(null);
-    tensMath.setQLinearConvLogFunctionC(null);
+    if (func != null) {
+        tensMath.setQLinearConvLogFunctionC(@ptrCast(&safe_log_forwarder_qconv));
+    } else {
+        tensMath.setQLinearConvLogFunctionC(null);
+    }
 }
 
  const T_in : type = f32;
@@ -120,7 +132,7 @@ pub export fn predict (
         .size = input_size,
         .allocator = &allocator, // non-owning view
     };
-    logMsg("Using plan-based execution with 37 steps\\n");
+    logMsg("Using plan-based execution with 50 steps\\n");
 
 var shape_tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0 : [4]usize = [_]usize{ 1, 1, 96, 96} ;
     var tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0 = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0) catch return -2;
@@ -166,9 +178,9 @@ var shape_tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_mode
     ) catch return -1;    tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0.deinit();
 
 
-var shape_tensor_relu6__5_0_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
-    var tensor_relu6__5_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__5_0_quantized) catch return -2;
-    defer tensor_relu6__5_0_quantized.deinit();
+var shape_tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
+    var tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_quantized) catch return -2;
+    defer tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_quantized.deinit();
 
    // Step 2: qlinearconv operation
 
@@ -185,9 +197,9 @@ var shape_tensor_relu6__5_0_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
         @constCast(&param_lib.tensor_const_fold_opt__159_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__159_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__159_zero_point), // w_zero_point
-        &tensor_relu6__5_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__5_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_quantized, // output
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_bn_conv1_fusedbatchnormv3_quantized), // bias
         &[_]usize{2,2}, // stride
         &[_]usize{1,1,1,1}, // pads
@@ -196,15 +208,34 @@ var shape_tensor_relu6__5_0_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__5_0_quantized);
+        logTensorStatsU8("qconv", &tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_quantized);
     }    tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_quantized.deinit();
+    // In-place alias: relu6__5_0_quantized -> model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_quantized
+    var tensor_relu6__5_0_quantized = tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_quantized;
+
+   // Step 3: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__5_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
-var shape_tensor_relu6__7_0_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
-    var tensor_relu6__7_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__7_0_quantized) catch return -2;
-    defer tensor_relu6__7_0_quantized.deinit();
+var shape_tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
+    var tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized) catch return -2;
+    defer tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized.deinit();
 
-   // Step 3: qlinearconv operation
+   // Step 4: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -219,9 +250,9 @@ var shape_tensor_relu6__7_0_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
         @constCast(&param_lib.tensor_const_fold_opt__190_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__190_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__159_zero_point), // w_zero_point
-        &tensor_relu6__7_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__5_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized, // output
+        @constCast(&param_lib.tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{1,1}, // stride
         &[_]usize{1,1,1,1}, // pads
@@ -230,15 +261,34 @@ var shape_tensor_relu6__7_0_quantized : [4]usize = [_]usize{ 1, 16, 48, 48} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__7_0_quantized);
-    }    tensor_relu6__5_0_quantized.deinit();
+        logTensorStatsU8("qconv", &tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized);
+    }    tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d_quantized.deinit();
+    // In-place alias: relu6__7_0_quantized -> model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized
+    var tensor_relu6__7_0_quantized = tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized;
+
+   // Step 5: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__7_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
 var shape_tensor_model_1_expanded_conv_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_expanded_conv_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 8, 48, 48} ;
     var tensor_model_1_expanded_conv_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_expanded_conv_project_conv2d1_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_expanded_conv_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_expanded_conv_project_conv2d1_quantized) catch return -2;
     defer tensor_model_1_expanded_conv_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_expanded_conv_project_conv2d1_quantized.deinit();
 
-   // Step 4: qlinearconv operation
+   // Step 6: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -265,14 +315,14 @@ var shape_tensor_model_1_expanded_conv_project_bn_fusedbatchnormv3_model_1_block
     ) catch return -1;
     if (log_function != null) {
         logTensorStatsU8("qconv", &tensor_model_1_expanded_conv_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_expanded_conv_project_conv2d1_quantized);
-    }    tensor_relu6__7_0_quantized.deinit();
+    }    tensor_model_1_expanded_conv_depthwise_relu_relu6_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_quantized.deinit();
 
 
-var shape_tensor_relu6__10_0_quantized : [4]usize = [_]usize{ 1, 48, 48, 48} ;
-    var tensor_relu6__10_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__10_0_quantized) catch return -2;
-    defer tensor_relu6__10_0_quantized.deinit();
+var shape_tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized : [4]usize = [_]usize{ 1, 48, 48, 48} ;
+    var tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized) catch return -2;
+    defer tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized.deinit();
 
-   // Step 5: qlinearconv operation
+   // Step 7: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -287,9 +337,9 @@ var shape_tensor_relu6__10_0_quantized : [4]usize = [_]usize{ 1, 48, 48, 48} ;
         @constCast(&param_lib.tensor_const_fold_opt__181_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__181_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__181_zero_point), // w_zero_point
-        &tensor_relu6__10_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__5_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized, // output
+        @constCast(&param_lib.tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_block_1_expand_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{1,1}, // stride
         &[_]usize{0,0,0,0}, // pads
@@ -298,15 +348,34 @@ var shape_tensor_relu6__10_0_quantized : [4]usize = [_]usize{ 1, 48, 48, 48} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__10_0_quantized);
+        logTensorStatsU8("qconv", &tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized);
     }    tensor_model_1_expanded_conv_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_expanded_conv_project_conv2d1_quantized.deinit();
+    // In-place alias: relu6__10_0_quantized -> model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized
+    var tensor_relu6__10_0_quantized = tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized;
+
+   // Step 8: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__10_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
-var shape_tensor_relu6__12_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
-    var tensor_relu6__12_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__12_0_quantized) catch return -2;
-    defer tensor_relu6__12_0_quantized.deinit();
+var shape_tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
+    var tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized) catch return -2;
+    defer tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized.deinit();
 
-   // Step 6: qlinearconv operation
+   // Step 9: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -321,9 +390,9 @@ var shape_tensor_relu6__12_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
         @constCast(&param_lib.tensor_const_fold_opt__187_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__187_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__181_zero_point), // w_zero_point
-        &tensor_relu6__12_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__5_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized, // output
+        @constCast(&param_lib.tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_block_1_depthwise_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{2,2}, // stride
         &[_]usize{0,0,1,1}, // pads
@@ -332,15 +401,34 @@ var shape_tensor_relu6__12_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__12_0_quantized);
-    }    tensor_relu6__10_0_quantized.deinit();
+        logTensorStatsU8("qconv", &tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized);
+    }    tensor_model_1_block_1_expand_relu_relu6_model_1_block_1_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_expand_conv2d_quantized.deinit();
+    // In-place alias: relu6__12_0_quantized -> model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized
+    var tensor_relu6__12_0_quantized = tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized;
+
+   // Step 10: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__12_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
 var shape_tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_block_1_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 8, 24, 24} ;
     var tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_block_1_project_conv2d1_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_block_1_project_conv2d1_quantized) catch return -2;
     defer tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_block_1_project_conv2d1_quantized.deinit();
 
-   // Step 7: qlinearconv operation
+   // Step 11: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -367,14 +455,14 @@ var shape_tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_pro
     ) catch return -1;
     if (log_function != null) {
         logTensorStatsU8("qconv", &tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_block_1_project_conv2d1_quantized);
-    }    tensor_relu6__12_0_quantized.deinit();
+    }    tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_quantized.deinit();
 
 
-var shape_tensor_relu6__15_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
-    var tensor_relu6__15_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__15_0_quantized) catch return -2;
-    defer tensor_relu6__15_0_quantized.deinit();
+var shape_tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
+    var tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized) catch return -2;
+    defer tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized.deinit();
 
-   // Step 8: qlinearconv operation
+   // Step 12: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -389,9 +477,9 @@ var shape_tensor_relu6__15_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
         @constCast(&param_lib.tensor_const_fold_opt__173_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__173_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__181_zero_point), // w_zero_point
-        &tensor_relu6__15_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__5_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized, // output
+        @constCast(&param_lib.tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_block_2_expand_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{1,1}, // stride
         &[_]usize{0,0,0,0}, // pads
@@ -400,14 +488,33 @@ var shape_tensor_relu6__15_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__15_0_quantized);
-    }
+        logTensorStatsU8("qconv", &tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized);
+    }    // In-place alias: relu6__15_0_quantized -> model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized
+    var tensor_relu6__15_0_quantized = tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized;
 
-var shape_tensor_relu6__17_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
-    var tensor_relu6__17_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__17_0_quantized) catch return -2;
-    defer tensor_relu6__17_0_quantized.deinit();
+   // Step 13: fused_dequantizelinear_clip_quantizelinear operation
 
-   // Step 9: qlinearconv operation
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__15_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
+
+
+var shape_tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
+    var tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized) catch return -2;
+    defer tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized.deinit();
+
+   // Step 14: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -422,9 +529,9 @@ var shape_tensor_relu6__17_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
         @constCast(&param_lib.tensor_const_fold_opt__184_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__184_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__181_zero_point), // w_zero_point
-        &tensor_relu6__17_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__5_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized, // output
+        @constCast(&param_lib.tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_block_2_depthwise_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{1,1}, // stride
         &[_]usize{1,1,1,1}, // pads
@@ -433,15 +540,34 @@ var shape_tensor_relu6__17_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__17_0_quantized);
-    }    tensor_relu6__15_0_quantized.deinit();
+        logTensorStatsU8("qconv", &tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized);
+    }    tensor_model_1_block_2_expand_relu_relu6_model_1_block_2_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_expand_conv2d_quantized.deinit();
+    // In-place alias: relu6__17_0_quantized -> model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized
+    var tensor_relu6__17_0_quantized = tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized;
+
+   // Step 15: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__17_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
 var shape_tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 8, 24, 24} ;
     var tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d1_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d1_quantized) catch return -2;
     defer tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d1_quantized.deinit();
 
-   // Step 10: qlinearconv operation
+   // Step 16: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -468,14 +594,14 @@ var shape_tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_pro
     ) catch return -1;
     if (log_function != null) {
         logTensorStatsU8("qconv", &tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d1_quantized);
-    }    tensor_relu6__17_0_quantized.deinit();
+    }    tensor_model_1_block_2_depthwise_relu_relu6_model_1_block_2_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_2_depthwise_depthwise_quantized.deinit();
 
 
 var shape_tensor_model_1_block_2_add_add_quantized : [4]usize = [_]usize{ 1, 8, 24, 24} ;
     var tensor_model_1_block_2_add_add_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_2_add_add_quantized) catch return -2;
     defer tensor_model_1_block_2_add_add_quantized.deinit();
 
-   // Step 11: fused_dequantizelinear_dequantizelinear_add_quantizelinear operation
+   // Step 17: fused_dequantizelinear_dequantizelinear_add_quantizelinear operation
 
     logMsg("Running fused_dequantizelinear_dequantizelinear_add_quantizelinear operation...\\n");
 
@@ -494,11 +620,11 @@ var shape_tensor_model_1_block_2_add_add_quantized : [4]usize = [_]usize{ 1, 8, 
     tensor_model_1_block_1_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d_model_1_block_1_project_conv2d1_quantized.deinit();
 
 
-var shape_tensor_relu6__20_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
-    var tensor_relu6__20_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__20_0_quantized) catch return -2;
-    defer tensor_relu6__20_0_quantized.deinit();
+var shape_tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
+    var tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_quantized) catch return -2;
+    defer tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_quantized.deinit();
 
-   // Step 12: qlinearconv operation
+   // Step 18: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -513,9 +639,9 @@ var shape_tensor_relu6__20_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
         @constCast(&param_lib.tensor_const_fold_opt__162_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__162_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__181_zero_point), // w_zero_point
-        &tensor_relu6__20_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__5_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_quantized, // output
+        @constCast(&param_lib.tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d1_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_block_3_expand_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{1,1}, // stride
         &[_]usize{0,0,0,0}, // pads
@@ -524,15 +650,34 @@ var shape_tensor_relu6__20_0_quantized : [4]usize = [_]usize{ 1, 48, 24, 24} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__20_0_quantized);
+        logTensorStatsU8("qconv", &tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_quantized);
     }    tensor_model_1_block_2_add_add_quantized.deinit();
+    // In-place alias: relu6__20_0_quantized -> model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_quantized
+    var tensor_relu6__20_0_quantized = tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_quantized;
+
+   // Step 19: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d1_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__20_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
-var shape_tensor_relu6__22_0_quantized : [4]usize = [_]usize{ 1, 48, 12, 12} ;
-    var tensor_relu6__22_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__22_0_quantized) catch return -2;
-    defer tensor_relu6__22_0_quantized.deinit();
+var shape_tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 48, 12, 12} ;
+    var tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized) catch return -2;
+    defer tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized.deinit();
 
-   // Step 13: qlinearconv operation
+   // Step 20: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -547,9 +692,9 @@ var shape_tensor_relu6__22_0_quantized : [4]usize = [_]usize{ 1, 48, 12, 12} ;
         @constCast(&param_lib.tensor_const_fold_opt__180_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__180_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__181_zero_point), // w_zero_point
-        &tensor_relu6__22_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__5_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized, // output
+        @constCast(&param_lib.tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_block_3_depthwise_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{2,2}, // stride
         &[_]usize{0,0,1,1}, // pads
@@ -558,15 +703,34 @@ var shape_tensor_relu6__22_0_quantized : [4]usize = [_]usize{ 1, 48, 12, 12} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__22_0_quantized);
-    }    tensor_relu6__20_0_quantized.deinit();
+        logTensorStatsU8("qconv", &tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized);
+    }    tensor_model_1_block_3_expand_relu_relu6_model_1_block_3_expand_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_3_expand_conv2d_quantized.deinit();
+    // In-place alias: relu6__22_0_quantized -> model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized
+    var tensor_relu6__22_0_quantized = tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized;
+
+   // Step 21: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_block_1_depthwise_relu_relu6_model_1_block_1_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_model_1_block_1_depthwise_depthwise_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__22_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
 var shape_tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 16, 12, 12} ;
     var tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1_quantized) catch return -2;
     defer tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1_quantized.deinit();
 
-   // Step 14: qlinearconv operation
+   // Step 22: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -593,14 +757,14 @@ var shape_tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_pro
     ) catch return -1;
     if (log_function != null) {
         logTensorStatsU8("qconv", &tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1_quantized);
-    }    tensor_relu6__22_0_quantized.deinit();
+    }    tensor_model_1_block_3_depthwise_relu_relu6_model_1_block_3_depthwise_bn_fusedbatchnormv3_model_1_block_3_depthwise_depthwise_quantized.deinit();
 
 
 var shape_tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1 : [4]usize = [_]usize{ 1, 16, 12, 12} ;
     var tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1 = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1) catch return -2;
     defer tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1.deinit();
 
-   // Step 15: dequantizelinear operation
+   // Step 23: dequantizelinear operation
 
     logMsg("Running dequantizelinear operation...\\n");
 
@@ -616,11 +780,11 @@ var shape_tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_pro
                                  &tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1, // y: output tensor
     ) catch return -1;
 
-var shape_tensor_relu6__25_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
-    var tensor_relu6__25_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__25_0_quantized) catch return -2;
-    defer tensor_relu6__25_0_quantized.deinit();
+var shape_tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
+    var tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_quantized) catch return -2;
+    defer tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_quantized.deinit();
 
-   // Step 16: qlinearconv operation
+   // Step 24: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -635,9 +799,9 @@ var shape_tensor_relu6__25_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         @constCast(&param_lib.tensor_const_fold_opt__203_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__203_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__203_zero_point), // w_zero_point
-        &tensor_relu6__25_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__5_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_quantized, // output
+        @constCast(&param_lib.tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_block_4_expand_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{1,1}, // stride
         &[_]usize{0,0,0,0}, // pads
@@ -646,15 +810,34 @@ var shape_tensor_relu6__25_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__25_0_quantized);
+        logTensorStatsU8("qconv", &tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_quantized);
     }    tensor_model_1_block_3_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_3_project_conv2d1_quantized.deinit();
+    // In-place alias: relu6__25_0_quantized -> model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_quantized
+    var tensor_relu6__25_0_quantized = tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_quantized;
+
+   // Step 25: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__25_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
-var shape_tensor_relu6__27_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
-    var tensor_relu6__27_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__27_0_quantized) catch return -2;
-    defer tensor_relu6__27_0_quantized.deinit();
+var shape_tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
+    var tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized) catch return -2;
+    defer tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized.deinit();
 
-   // Step 17: qlinearconv operation
+   // Step 26: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -669,9 +852,9 @@ var shape_tensor_relu6__27_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         @constCast(&param_lib.tensor_const_fold_opt__164_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__164_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__203_zero_point), // w_zero_point
-        &tensor_relu6__27_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__5_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized, // output
+        @constCast(&param_lib.tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_block_4_depthwise_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{1,1}, // stride
         &[_]usize{1,1,1,1}, // pads
@@ -680,15 +863,34 @@ var shape_tensor_relu6__27_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__27_0_quantized);
-    }    tensor_relu6__25_0_quantized.deinit();
+        logTensorStatsU8("qconv", &tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized);
+    }    tensor_model_1_block_4_expand_relu_relu6_model_1_block_4_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_expand_conv2d_quantized.deinit();
+    // In-place alias: relu6__27_0_quantized -> model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized
+    var tensor_relu6__27_0_quantized = tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized;
+
+   // Step 27: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__27_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
 var shape_tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 16, 12, 12} ;
     var tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1_quantized) catch return -2;
     defer tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1_quantized.deinit();
 
-   // Step 18: qlinearconv operation
+   // Step 28: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -715,14 +917,14 @@ var shape_tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_pro
     ) catch return -1;
     if (log_function != null) {
         logTensorStatsU8("qconv", &tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1_quantized);
-    }    tensor_relu6__27_0_quantized.deinit();
+    }    tensor_model_1_block_4_depthwise_relu_relu6_model_1_block_4_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_4_depthwise_depthwise_quantized.deinit();
 
 
 var shape_tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1 : [4]usize = [_]usize{ 1, 16, 12, 12} ;
     var tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1 = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1) catch return -2;
     defer tensor_model_1_block_4_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d_model_1_block_4_project_conv2d1.deinit();
 
-   // Step 19: dequantizelinear operation
+   // Step 29: dequantizelinear operation
 
     logMsg("Running dequantizelinear operation...\\n");
 
@@ -743,7 +945,7 @@ var shape_tensor_model_1_block_4_add_add : [4]usize = [_]usize{ 1, 16, 12, 12} ;
     var tensor_model_1_block_4_add_add = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_block_4_add_add) catch return -2;
     defer tensor_model_1_block_4_add_add.deinit();
 
-   // Step 20: add operation
+   // Step 30: add operation
 
     logMsg("Running add operation...\\n");
 
@@ -756,7 +958,7 @@ var shape_tensor_model_1_block_4_add_add_quantized : [4]usize = [_]usize{ 1, 16,
     var tensor_model_1_block_4_add_add_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_4_add_add_quantized) catch return -2;
     defer tensor_model_1_block_4_add_add_quantized.deinit();
 
-   // Step 21: quantizelinear operation
+   // Step 31: quantizelinear operation
 
     logMsg("Running quantizelinear operation...\\n");
 
@@ -772,11 +974,11 @@ var shape_tensor_model_1_block_4_add_add_quantized : [4]usize = [_]usize{ 1, 16,
                                  &tensor_model_1_block_4_add_add_quantized, // y: output tensor
     ) catch return -1;
 
-var shape_tensor_relu6__30_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
-    var tensor_relu6__30_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__30_0_quantized) catch return -2;
-    defer tensor_relu6__30_0_quantized.deinit();
+var shape_tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
+    var tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_quantized) catch return -2;
+    defer tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_quantized.deinit();
 
-   // Step 22: qlinearconv operation
+   // Step 32: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -791,9 +993,9 @@ var shape_tensor_relu6__30_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         @constCast(&param_lib.tensor_const_fold_opt__197_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__197_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__203_zero_point), // w_zero_point
-        &tensor_relu6__30_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__30_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_quantized, // output
+        @constCast(&param_lib.tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_block_5_expand_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{1,1}, // stride
         &[_]usize{0,0,0,0}, // pads
@@ -802,15 +1004,34 @@ var shape_tensor_relu6__30_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__30_0_quantized);
+        logTensorStatsU8("qconv", &tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_quantized);
     }    tensor_model_1_block_4_add_add_quantized.deinit();
+    // In-place alias: relu6__30_0_quantized -> model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_quantized
+    var tensor_relu6__30_0_quantized = tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_quantized;
+
+   // Step 33: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__30_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__30_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
-var shape_tensor_relu6__32_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
-    var tensor_relu6__32_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__32_0_quantized) catch return -2;
-    defer tensor_relu6__32_0_quantized.deinit();
+var shape_tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
+    var tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized) catch return -2;
+    defer tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized.deinit();
 
-   // Step 23: qlinearconv operation
+   // Step 34: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -825,9 +1046,9 @@ var shape_tensor_relu6__32_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         @constCast(&param_lib.tensor_const_fold_opt__201_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__201_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__203_zero_point), // w_zero_point
-        &tensor_relu6__32_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__5_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized, // output
+        @constCast(&param_lib.tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_block_5_depthwise_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{1,1}, // stride
         &[_]usize{1,1,1,1}, // pads
@@ -836,15 +1057,34 @@ var shape_tensor_relu6__32_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__32_0_quantized);
-    }    tensor_relu6__30_0_quantized.deinit();
+        logTensorStatsU8("qconv", &tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized);
+    }    tensor_model_1_block_5_expand_relu_relu6_model_1_block_5_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_model_1_block_5_expand_conv2d_quantized.deinit();
+    // In-place alias: relu6__32_0_quantized -> model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized
+    var tensor_relu6__32_0_quantized = tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized;
+
+   // Step 35: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__32_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__5_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
 var shape_tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1_quantized : [4]usize = [_]usize{ 1, 16, 12, 12} ;
     var tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1_quantized) catch return -2;
     defer tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1_quantized.deinit();
 
-   // Step 24: qlinearconv operation
+   // Step 36: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -871,14 +1111,14 @@ var shape_tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_pro
     ) catch return -1;
     if (log_function != null) {
         logTensorStatsU8("qconv", &tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1_quantized);
-    }    tensor_relu6__32_0_quantized.deinit();
+    }    tensor_model_1_block_5_depthwise_relu_relu6_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized.deinit();
 
 
 var shape_tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1 : [4]usize = [_]usize{ 1, 16, 12, 12} ;
     var tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1 = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1) catch return -2;
     defer tensor_model_1_block_5_project_bn_fusedbatchnormv3_model_1_block_5_project_conv2d1.deinit();
 
-   // Step 25: dequantizelinear operation
+   // Step 37: dequantizelinear operation
 
     logMsg("Running dequantizelinear operation...\\n");
 
@@ -899,7 +1139,7 @@ var shape_tensor_model_1_block_5_add_add : [4]usize = [_]usize{ 1, 16, 12, 12} ;
     var tensor_model_1_block_5_add_add = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_block_5_add_add) catch return -2;
     defer tensor_model_1_block_5_add_add.deinit();
 
-   // Step 26: add operation
+   // Step 38: add operation
 
     logMsg("Running add operation...\\n");
 
@@ -912,7 +1152,7 @@ var shape_tensor_model_1_block_5_add_add_quantized : [4]usize = [_]usize{ 1, 16,
     var tensor_model_1_block_5_add_add_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_5_add_add_quantized) catch return -2;
     defer tensor_model_1_block_5_add_add_quantized.deinit();
 
-   // Step 27: quantizelinear operation
+   // Step 39: quantizelinear operation
 
     logMsg("Running quantizelinear operation...\\n");
 
@@ -929,11 +1169,11 @@ var shape_tensor_model_1_block_5_add_add_quantized : [4]usize = [_]usize{ 1, 16,
     ) catch return -1;    tensor_model_1_block_5_add_add.deinit();
 
 
-var shape_tensor_relu6__35_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
-    var tensor_relu6__35_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu6__35_0_quantized) catch return -2;
-    defer tensor_relu6__35_0_quantized.deinit();
+var shape_tensor_model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
+    var tensor_model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized) catch return -2;
+    defer tensor_model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized.deinit();
 
-   // Step 28: qlinearconv operation
+   // Step 40: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -948,9 +1188,9 @@ var shape_tensor_relu6__35_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         @constCast(&param_lib.tensor_const_fold_opt__199_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__199_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__203_zero_point), // w_zero_point
-        &tensor_relu6__35_0_quantized, // output
-        @constCast(&param_lib.tensor_relu6__35_0_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
+        &tensor_model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized, // output
+        @constCast(&param_lib.tensor_model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d1_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_model_1_block_6_expand_bn_fusedbatchnormv3_quantized), // bias
         &[_]usize{1,1}, // stride
         &[_]usize{0,0,0,0}, // pads
@@ -959,15 +1199,34 @@ var shape_tensor_relu6__35_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
         "NOTSET", // auto_pad
     ) catch return -1;
     if (log_function != null) {
-        logTensorStatsU8("qconv", &tensor_relu6__35_0_quantized);
+        logTensorStatsU8("qconv", &tensor_model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized);
     }    tensor_model_1_block_5_add_add_quantized.deinit();
+    // In-place alias: relu6__35_0_quantized -> model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized
+    var tensor_relu6__35_0_quantized = tensor_model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized;
+
+   // Step 41: fused_dequantizelinear_clip_quantizelinear operation
+
+    logMsg("Running fused_dequantizelinear_clip_quantizelinear operation...\\n");
+
+    // Fused DequantizeLinear->Clip->QuantizeLinear optimization
+    tensMath.clip_quantized_lean(
+        u8, // InputType
+        &tensor_model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized, // input tensor
+        @constCast(&param_lib.tensor_model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_scale).data[0], // input_scale
+        @constCast(&param_lib.tensor_model_1_block_2_project_bn_fusedbatchnormv3_model_1_block_2_project_conv2d1_zero_point).data[0], // input_zero_point
+        0.000000, // min_val
+        6.000000, // max_val
+        @constCast(&tensor_relu6__35_0_quantized), // output tensor
+        @constCast(&param_lib.tensor_relu6__35_0_scale).data[0], // output_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point).data[0], // output_zero_point
+    ) catch return -1;
 
 
 var shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized : [4]usize = [_]usize{ 1, 32, 12, 12} ;
     var tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized) catch return -2;
     defer tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized.deinit();
 
-   // Step 29: qlinearconv operation
+   // Step 42: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -994,14 +1253,14 @@ var shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head
     ) catch return -1;
     if (log_function != null) {
         logTensorStatsU8("qconv", &tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized);
-    }    tensor_relu6__35_0_quantized.deinit();
+    }    tensor_model_1_block_6_expand_relu_relu6_model_1_block_6_expand_bn_fusedbatchnormv3_model_1_block_5_depthwise_bn_fusedbatchnormv3_model_1_block_5_depthwise_depthwise_model_1_block_6_expand_conv2d_quantized.deinit();
 
 
 var shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias : [4]usize = [_]usize{ 1, 32, 12, 12} ;
     var tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias) catch return -2;
     defer tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias.deinit();
 
-   // Step 30: dequantizelinear operation
+   // Step 43: dequantizelinear operation
 
     logMsg("Running dequantizelinear operation...\\n");
 
@@ -1022,7 +1281,7 @@ var shape_tensor_relu__37_0 : [4]usize = [_]usize{ 1, 32, 12, 12} ;
     var tensor_relu__37_0 = Tensor(f32).fromShape(&allocator, &shape_tensor_relu__37_0) catch return -2;
     defer tensor_relu__37_0.deinit();
 
-   // Step 31: relu operation
+   // Step 44: relu operation
 
     logMsg("Running relu operation...\\n");
 
@@ -1034,7 +1293,7 @@ var shape_tensor_relu__37_0_quantized : [4]usize = [_]usize{ 1, 32, 12, 12} ;
     var tensor_relu__37_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu__37_0_quantized) catch return -2;
     defer tensor_relu__37_0_quantized.deinit();
 
-   // Step 32: quantizelinear operation
+   // Step 45: quantizelinear operation
 
     logMsg("Running quantizelinear operation...\\n");
 
@@ -1055,7 +1314,7 @@ var shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_quant
     var tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_quantized) catch return -2;
     defer tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_quantized.deinit();
 
-   // Step 33: qlinearconv operation
+   // Step 46: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -1089,7 +1348,7 @@ var shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1 : [4]
     var tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1 = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1) catch return -2;
     defer tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1.deinit();
 
-   // Step 34: dequantizelinear operation
+   // Step 47: dequantizelinear operation
 
     logMsg("Running dequantizelinear operation...\\n");
 
@@ -1110,7 +1369,7 @@ var shape_tensor_statefulpartitionedcall_0_raw_output___3_0 : [4]usize = [_]usiz
     var tensor_statefulpartitionedcall_0_raw_output___3_0 = Tensor(f32).fromShape(&allocator, &shape_tensor_statefulpartitionedcall_0_raw_output___3_0) catch return -2;
     defer tensor_statefulpartitionedcall_0_raw_output___3_0.deinit();
 
-   // Step 35: softmax operation
+   // Step 48: softmax operation
 
     logMsg("Running softmax operation...\\n");
 
@@ -1126,7 +1385,7 @@ var shape_tensor_statefulpartitionedcall_0_raw_output___3_0 : [4]usize = [_]usiz
 var shape_tensor_statefulpartitionedcall_0 : [4]usize = [_]usize{ 1, 12, 12, 3} ;
     var tensor_statefulpartitionedcall_0 = Tensor(f32).fromShape(&allocator, &shape_tensor_statefulpartitionedcall_0) catch return -2;
 
-   // Step 36: transpose operation
+   // Step 49: transpose operation
 
     logMsg("Running transpose operation...\\n");
     tensMath.transpose_onnx_lean(

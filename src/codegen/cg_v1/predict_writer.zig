@@ -102,7 +102,7 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
         \\var log_function: ?*const fn ([*c]const u8) callconv(.C) void = null;
         \\var log_buffer: [512]u8 = undefined;
         \\
-        \\fn safe_log_forwarder(c_msg: [*c]const u8) callconv(.C) void {{
+        \\fn forward_log(c_msg: [*c]const u8) void {{
         \\    if (log_function) |user_log| {{
         \\        var i: usize = 0;
         \\        while (i < log_buffer.len - 1 and c_msg[i] != 0) : (i += 1) {{
@@ -113,11 +113,23 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
         \\    }}
         \\}}
         \\
+        \\fn safe_log_forwarder(c_msg: [*c]const u8) callconv(.C) void {{
+        \\    forward_log(c_msg);
+        \\}}
+        \\
+        \\fn safe_log_forwarder_qconv(c_msg: [*c]u8) callconv(.C) void {{
+        \\    forward_log(@ptrCast(c_msg));
+        \\}}
+        \\
         \\pub {s} fn setLogFunction(func: ?*const fn ([*c]const u8) callconv(.C) void) void {{
         \\    // Keep only our own logging; disable verbose internal logs
         \\    log_function = func;
         \\    zant.core.tensor.setLogFunction(null);
-        \\    tensMath.setQLinearConvLogFunctionC(null);
+        \\    if (func != null) {{
+        \\        tensMath.setQLinearConvLogFunctionC(@ptrCast(&safe_log_forwarder_qconv));
+        \\    }} else {{
+        \\        tensMath.setQLinearConvLogFunctionC(null);
+        \\    }}
         \\}}
         \\
     , .{if (codegen_options.do_export == true) "export" else ""});

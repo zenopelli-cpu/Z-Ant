@@ -100,9 +100,35 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
         \\var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
+        \\var log_buffer: [512]u8 = undefined;
+        \\
+        \\fn forward_log(c_msg: [*c]const u8) void {{
+        \\    if (log_function) |user_log| {{
+        \\        var i: usize = 0;
+        \\        while (i < log_buffer.len - 1 and c_msg[i] != 0) : (i += 1) {{
+        \\            log_buffer[i] = c_msg[i];
+        \\        }}
+        \\        log_buffer[i] = 0;
+        \\        user_log(@ptrCast(&log_buffer));
+        \\    }}
+        \\}}
+        \\
+        \\fn safe_log_forwarder_const(c_msg: [*c]const u8) callconv(.C) void {{
+        \\    forward_log(c_msg);
+        \\}}
+        \\
+        \\fn safe_log_forwarder_qconv(c_msg: [*c]u8) callconv(.C) void {{
+        \\    forward_log(@ptrCast(c_msg));
+        \\}}
         \\
         \\pub export fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {{
         \\    log_function = func;
+        \\    zant.core.tensor.setLogFunction(null);
+        \\    if (func != null) {{
+        \\        tensMath.setQLinearConvLogFunctionC(@ptrCast(&safe_log_forwarder_qconv));
+        \\    }} else {{
+        \\        tensMath.setQLinearConvLogFunctionC(null);
+        \\    }}
         \\}}
         \\
     , .{});
