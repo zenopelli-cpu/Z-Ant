@@ -8,5 +8,5 @@ pub const output_data_type = f32;
 pub const has_inputs = true;
 pub const user_tests: bool = false;
 pub const user_tests_path = "generated/beer_oh/user_tests.json";
-pub const have_log: bool = false;
+pub const have_log: bool = true;
 pub const is_dynamic: bool =true;

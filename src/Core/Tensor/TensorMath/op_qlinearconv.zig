@@ -2315,9 +2315,11 @@ fn qlinearconv_cmsis_accelerated_impl(
     const y_scale_val = asF32(ScaleType, _y_scale.data[0]);
     const w_scale_data = _w_scale.data;
     const has_per_channel_w_scale = w_scale_data.len == out_channels;
+    const x_scale_micro = std.math.lossyCast(i64, @as(f64, x_scale_val) * 1_000_000.0);
+    const y_scale_micro = std.math.lossyCast(i64, @as(f64, y_scale_val) * 1_000_000.0);
     logDebug(
-        "[ZANT][qlinearconv] CMSIS scales x={d:.6} y={d:.6} weight_count={d}\n",
-        .{ x_scale_val, y_scale_val, w_scale_data.len },
+        "[ZANT][qlinearconv] CMSIS scales x_micro={d} y_micro={d} weight_count={d}\n",
+        .{ x_scale_micro, y_scale_micro, w_scale_data.len },
     );
 
     // CMSIS expects shifts within [-31, 31] and multiplier in Q31. We'll compute robustly.
@@ -2454,12 +2456,21 @@ fn qlinearconv_cmsis_accelerated_impl(
 
         const zero_adjust_stream: i32 = if (is_u8_input) 128 else 0;
         const zero_restore_stream: i32 = if (is_u8_input) 128 else 0;
+        const pad_val_s8: i8 = if (is_u8_input)
+            @as(i8, @intCast(input_zero_point_s8))
+        else
+            0;
 
         var n_dw: usize = 0;
         while (n_dw < batch_size) : (n_dw += 1) {
             var oh: usize = 0;
             while (oh < out_height) : (oh += 1) {
                 const in_h_origin = @as(isize, @intCast(oh * stride_h)) - @as(isize, @intCast(conv_pad_h));
+                var band_min: i8 = 127;
+                var band_max: i8 = -128;
+                var band_sum: i32 = 0;
+                var pad_px: usize = 0;
+                var data_px: usize = 0;
                 var write_idx: usize = 0;
                 var kh_i: usize = 0;
                 while (kh_i < kernel_height) : (kh_i += 1) {
@@ -2469,19 +2480,34 @@ fn qlinearconv_cmsis_accelerated_impl(
                         var c_copy: usize = 0;
                         while (c_copy < in_channels) : (c_copy += 1) {
                             const dst = write_idx * in_channels + c_copy;
-                            if (ih < 0 or ih >= @as(isize, @intCast(in_height))) {
-                                band_buf[dst] = @as(i8, @intCast(-zero_adjust_stream));
-                            } else {
+                            const val: i8 = if (ih < 0 or ih >= @as(isize, @intCast(in_height))) blk: {
+                                pad_px += 1;
+                                break :blk pad_val_s8;
+                            } else blk: {
+                                data_px += 1;
                                 const ihz = @as(usize, @intCast(ih));
                                 const src_idx = ((n_dw * in_channels + c_copy) * in_height + ihz) * in_width + w_copy;
                                 const raw = @as(i32, @intCast(effective_input.data[src_idx]));
                                 const centered = raw - zero_adjust_stream;
-                                band_buf[dst] = @as(i8, @intCast(std.math.clamp(centered, -128, 127)));
-                            }
+                                break :blk @as(i8, @intCast(std.math.clamp(centered, -128, 127)));
+                            };
+                            band_buf[dst] = val;
+                            band_min = @min(band_min, val);
+                            band_max = @max(band_max, val);
+                            band_sum += @as(i32, val);
                         }
                         write_idx += 1;
                     }
                 }
+
+                const band_mean_q10: i32 = if (band_len > 0)
+                    @divTrunc(band_sum * 10, @as(i32, @intCast(band_len)))
+                else
+                    0;
+                logDebug(
+                    "[ZANT][qlinearconv][CMSIS][dw-stream] n={d} oh={d} band min={d} max={d} mean_q10={d} pad_px={d} data_px={d}\n",
+                    .{ n_dw, oh, band_min, band_max, band_mean_q10, pad_px, data_px },
+                );
 
                 // Depthwise for this band → one output row
                 const status = cmsis_nn.conv.arm_depthwise_conv_wrapper_s8(
@@ -2501,6 +2527,23 @@ fn qlinearconv_cmsis_accelerated_impl(
                     logDebug("[ZANT][qlinearconv][CMSIS][dw-stream] row conv failed status={d}\n", .{status});
                     return TensorMathError.InvalidDimensions;
                 }
+
+                var row_min: i8 = 127;
+                var row_max: i8 = -128;
+                var row_sum: i32 = 0;
+                for (row_out_buf) |v| {
+                    row_min = @min(row_min, v);
+                    row_max = @max(row_max, v);
+                    row_sum += @as(i32, v);
+                }
+                const row_mean_q10: i32 = if (row_out_len > 0)
+                    @divTrunc(row_sum * 10, @as(i32, @intCast(row_out_len)))
+                else
+                    0;
+                logDebug(
+                    "[ZANT][qlinearconv][CMSIS][dw-stream] n={d} oh={d} row min={d} max={d} mean_q10={d}\n",
+                    .{ n_dw, oh, row_min, row_max, row_mean_q10 },
+                );
 
                 // Write back row to NCHW
                 var ow: usize = 0;
@@ -2822,6 +2865,10 @@ fn qlinearconv_cmsis_accelerated_impl(
 
                 const zero_adjust_stream: i32 = if (is_u8_input) 128 else 0;
                 const zero_restore_stream: i32 = if (is_u8_input) 128 else 0;
+                const pad_val_s8: i8 = if (is_u8_input)
+                    @as(i8, @intCast(input_zero_point_s8))
+                else
+                    0;
 
                 var n_stream: usize = 0;
                 while (n_stream < batch_size) : (n_stream += 1) {
@@ -2831,6 +2878,11 @@ fn qlinearconv_cmsis_accelerated_impl(
 
                         // Build band: [kH, in_width, in_channels] in NHWC-s8 with vertical padding integrated
                         var write_idx: usize = 0;
+                        var band_min: i8 = 127;
+                        var band_max: i8 = -128;
+                        var band_sum: i32 = 0;
+                        var pad_px: usize = 0;
+                        var data_px: usize = 0;
                         var kh_i: usize = 0;
                         while (kh_i < kernel_height) : (kh_i += 1) {
                             const ih = in_h_origin + @as(isize, @intCast(kh_i));
@@ -2839,19 +2891,34 @@ fn qlinearconv_cmsis_accelerated_impl(
                                 var c_copy: usize = 0;
                                 while (c_copy < in_channels) : (c_copy += 1) {
                                     const dst = write_idx * in_channels + c_copy;
-                                    if (ih < 0 or ih >= @as(isize, @intCast(in_height))) {
-                                        band_buf[dst] = @as(i8, @intCast(-zero_adjust_stream));
-                                    } else {
+                                    const val: i8 = if (ih < 0 or ih >= @as(isize, @intCast(in_height))) blk: {
+                                        pad_px += 1;
+                                        break :blk pad_val_s8;
+                                    } else blk: {
+                                        data_px += 1;
                                         const ihz = @as(usize, @intCast(ih));
                                         const src_idx = ((n_stream * in_channels + c_copy) * in_height + ihz) * in_width + w_copy;
                                         const raw = @as(i32, @intCast(effective_input.data[src_idx]));
                                         const centered = raw - zero_adjust_stream;
-                                        band_buf[dst] = @as(i8, @intCast(std.math.clamp(centered, -128, 127)));
-                                    }
+                                        break :blk @as(i8, @intCast(std.math.clamp(centered, -128, 127)));
+                                    };
+                                    band_buf[dst] = val;
+                                    band_min = @min(band_min, val);
+                                    band_max = @max(band_max, val);
+                                    band_sum += @as(i32, val);
                                 }
                                 write_idx += 1;
                             }
                         }
+
+                        const band_mean_q10: i32 = if (band_len > 0)
+                            @divTrunc(band_sum * 10, @as(i32, @intCast(band_len)))
+                        else
+                            0;
+                        logDebug(
+                            "[ZANT][qlinearconv][CMSIS][std-stream] n={d} oh={d} band min={d} max={d} mean_q10={d} pad_px={d} data_px={d}\n",
+                            .{ n_stream, oh, band_min, band_max, band_mean_q10, pad_px, data_px },
+                        );
 
                         // Run CMSIS on this single output row
                         const status_row = cmsis_nn.conv.arm_convolve_wrapper_s8(
@@ -2891,6 +2958,23 @@ fn qlinearconv_cmsis_accelerated_impl(
                                 auto_pad,
                             );
                         }
+
+                        var row_min: i8 = 127;
+                        var row_max: i8 = -128;
+                        var row_sum: i32 = 0;
+                        for (row_out) |v| {
+                            row_min = @min(row_min, v);
+                            row_max = @max(row_max, v);
+                            row_sum += @as(i32, v);
+                        }
+                        const row_mean_q10: i32 = if (row_out_len > 0)
+                            @divTrunc(row_sum * 10, @as(i32, @intCast(row_out_len)))
+                        else
+                            0;
+                        logDebug(
+                            "[ZANT][qlinearconv][CMSIS][std-stream] n={d} oh={d} row min={d} max={d} mean_q10={d}\n",
+                            .{ n_stream, oh, row_min, row_max, row_mean_q10 },
+                        );
 
                         // NHWC row -> NCHW row in output tensor
                         var w_write: usize = 0;
@@ -2973,6 +3057,32 @@ fn qlinearconv_cmsis_accelerated_impl(
             }
         }
     }
+    var in_min_s8: i8 = 127;
+    var in_max_s8: i8 = -128;
+    var in_sum_s32: i32 = 0;
+    var zero_matches: usize = 0;
+    const zero_marker: i8 = @as(i8, @intCast(input_zero_point_s8));
+    for (input_buf) |val| {
+        in_min_s8 = @min(in_min_s8, val);
+        in_max_s8 = @max(in_max_s8, val);
+        in_sum_s32 += @as(i32, val);
+        if (val == zero_marker) zero_matches += 1;
+    }
+    const total_input_elems = input_buf.len;
+    const in_mean_q10: i32 = if (total_input_elems > 0)
+        @divTrunc(in_sum_s32 * 10, @as(i32, @intCast(total_input_elems)))
+    else
+        0;
+    const zero_ratio_permille: i32 = if (total_input_elems > 0)
+        @divTrunc(@as(i32, @intCast(zero_matches)) * 1000, @as(i32, @intCast(total_input_elems)))
+    else
+        0;
+    const sample_len = if (total_input_elems < 8) total_input_elems else 8;
+    const sample_slice = input_buf[0..sample_len];
+    logDebug(
+        "[ZANT][qlinearconv][CMSIS] input_s8 stats min={d} max={d} mean_q10={d} zero@zp_permille={d} sample={any}\n",
+        .{ in_min_s8, in_max_s8, in_mean_q10, zero_ratio_permille, sample_slice },
+    );
     const input_ptr_s8: [*]const i8 = input_buf.ptr;
 
     // Allocate temporary NHWC s8 buffer for output
@@ -3411,6 +3521,13 @@ fn qlinearconv_cmsis_accelerated_impl(
     // Reorder output from NHWC back to NCHW and convert s8 -> u8 if needed
     const out_spatial = out_height * out_width;
     const out_batch_stride = out_spatial * out_channels;
+    var out_min_val: i32 = std.math.maxInt(i32);
+    var out_max_val: i32 = std.math.minInt(i32);
+    var out_sum_val: i32 = 0;
+    var out_count: usize = 0;
+    var match_first: usize = 0;
+    var have_first = false;
+    var first_value: i32 = 0;
     var n_back: usize = 0;
     var src_batch_base_back: usize = 0;
     var dst_batch_base_back: usize = 0;
@@ -3424,10 +3541,28 @@ fn qlinearconv_cmsis_accelerated_impl(
                 const v_i32 = @as(i32, @intCast(output_buf[src_idx]));
                 const adjusted = v_i32 + zero_restore;
                 if (is_u8_input) {
-                    output.data[dst_idx] = @as(u8, @intCast(std.math.clamp(adjusted, 0, 255)));
+                    const clamped = std.math.clamp(adjusted, 0, 255);
+                    output.data[dst_idx] = @as(u8, @intCast(clamped));
+                    out_min_val = @min(out_min_val, clamped);
+                    out_max_val = @max(out_max_val, clamped);
+                    out_sum_val += clamped;
+                    if (!have_first) {
+                        have_first = true;
+                        first_value = clamped;
+                    }
+                    if (clamped == first_value) match_first += 1;
                 } else {
                     output.data[dst_idx] = @as(InputType, @intCast(adjusted));
+                    out_min_val = @min(out_min_val, adjusted);
+                    out_max_val = @max(out_max_val, adjusted);
+                    out_sum_val += adjusted;
+                    if (!have_first) {
+                        have_first = true;
+                        first_value = adjusted;
+                    }
+                    if (adjusted == first_value) match_first += 1;
                 }
+                out_count += 1;
                 src_idx += 1;
                 dst_idx += out_spatial;
             }
@@ -3435,6 +3570,21 @@ fn qlinearconv_cmsis_accelerated_impl(
         src_batch_base_back += out_batch_stride;
         dst_batch_base_back += out_batch_stride;
     }
+
+    const final_out_min: i32 = if (out_count > 0) out_min_val else 0;
+    const final_out_max: i32 = if (out_count > 0) out_max_val else 0;
+    const out_mean_q10: i32 = if (out_count > 0)
+        @divTrunc(out_sum_val * 10, @as(i32, @intCast(out_count)))
+    else
+        0;
+    const uniform_permille: i32 = if (out_count > 0)
+        @divTrunc(@as(i32, @intCast(match_first)) * 1000, @as(i32, @intCast(out_count)))
+    else
+        0;
+    logDebug(
+        "[ZANT][qlinearconv] output stats min={d} max={d} mean_q10={d} same-as-first_permille={d}\n",
+        .{ final_out_min, final_out_max, out_mean_q10, uniform_permille },
+    );
 
     logDebug("[ZANT][qlinearconv] CMSIS execution completed successfully\n", .{});
 }
