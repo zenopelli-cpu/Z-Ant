@@ -17,6 +17,7 @@ additional repacking at prediction time.
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -29,6 +30,9 @@ class Layout(str):
     STANDARD = "standard"
     OHWI = "ohwi"
     DEPTHWISE_KHWC = "depthwise_khwc"
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_attribute_i(node: onnx.NodeProto, name: str, default: int) -> int:
@@ -73,18 +77,29 @@ def _detect_layout(
         # Standard/grouped (OIHW or OHWI)
         if shape[1] * group == in_channels:
             return Layout.STANDARD
-        if shape[3] * group == in_channels:
-            return Layout.OHWI
         # Depthwise cases (accept both pre-OHWI KHWC and OHWI-with-C=1)
         if group == in_channels:
             # KHWC depthwise (pre-normalized)
             if shape[3] == in_channels:
+                logger.info("Detected depthwise KHWC layout for shape %s", shape)
                 return Layout.DEPTHWISE_KHWC
             # OHWI depthwise variant: [M, kH, kW, 1]
             if shape[0] == in_channels and shape[3] == 1:
+                logger.info("Detected depthwise OHWI layout for shape %s", shape)
                 return Layout.DEPTHWISE_KHWC
+        if shape[3] * group == in_channels:
+            return Layout.OHWI
 
     if group > 1 and shape[0] <= group and shape[3] == group:
+        logger.info(
+            "Detected depthwise KHWC layout via fallback for shape %s group %d", shape, group
+        )
+        return Layout.DEPTHWISE_KHWC
+
+    if group > 1 and shape[0] == group and shape[3] == 1:
+        logger.info(
+            "Detected depthwise OHWI layout via fallback for shape %s group %d", shape, group
+        )
         return Layout.DEPTHWISE_KHWC
 
     if group > 1 and shape[1] == 1:
@@ -446,6 +461,7 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
 
 
 def main(argv: Iterable[str]) -> int:
+    logging.basicConfig(level=logging.INFO)
     args = parse_args(argv)
     model = onnx.load(args.input)
     convert_model(model)
