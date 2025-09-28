@@ -99,12 +99,25 @@ fn write_allocationTracking(writer: std.fs.File.Writer) !void {
 fn write_logFunction(writer: std.fs.File.Writer) !void {
     _ = try writer.print(
         \\
-        \\var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
+        \\var log_function: ?*const fn ([*c]const u8) callconv(.C) void = null;
+        \\var log_buffer: [512]u8 = undefined;
         \\
-        \\pub {s} fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {{
+        \\fn safe_log_forwarder(c_msg: [*c]const u8) callconv(.C) void {{
+        \\    if (log_function) |user_log| {{
+        \\        var i: usize = 0;
+        \\        while (i < log_buffer.len - 1 and c_msg[i] != 0) : (i += 1) {{
+        \\            log_buffer[i] = c_msg[i];
+        \\        }}
+        \\        log_buffer[i] = 0;
+        \\        user_log(@ptrCast(&log_buffer));
+        \\    }}
+        \\}}
+        \\
+        \\pub {s} fn setLogFunction(func: ?*const fn ([*c]const u8) callconv(.C) void) void {{
+        \\    // Keep only our own logging; disable verbose internal logs
         \\    log_function = func;
-        \\    zant.core.tensor.setLogFunction(func);
-        \\    tensMath.setQLinearConvLogFunctionC(func);
+        \\    zant.core.tensor.setLogFunction(null);
+        \\    tensMath.setQLinearConvLogFunctionC(null);
         \\}}
         \\
     , .{if (codegen_options.do_export == true) "export" else ""});

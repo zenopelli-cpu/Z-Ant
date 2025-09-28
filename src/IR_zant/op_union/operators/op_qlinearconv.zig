@@ -285,6 +285,9 @@ pub const QLinearConv = struct {
             \\        {d}, // group
             \\        "{s}", // auto_pad
             \\    ) catch return -1;
+            \\    if (log_function != null) {{
+            \\        logTensorStatsU8("qconv", &tensor_{s});
+            \\    }}
         , .{
             qlinearconv_impl,
             target_type, // InputType
@@ -307,6 +310,7 @@ pub const QLinearConv = struct {
             dilat_string, // dilations
             self.group, // group
             self.auto_pad, // auto_pad
+            try utils.getSanitizedName(self.output_y.name),
         });
     }
 

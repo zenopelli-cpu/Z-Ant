@@ -33,7 +33,10 @@ const T_in: type = f32;
 const T_out: type = f32;
 inline fn logMsg(comptime msg: []const u8) void {
     if (log_function) |log| {
-        log(@constCast(@ptrCast(msg)));
+        var buffer: [msg.len + 1:0]u8 = undefined;
+        @memcpy(buffer[0..msg.len], msg);
+        buffer[msg.len] = 0;
+        log(@ptrCast([*c]u8, @constCast(&buffer)));
     }
 }
 

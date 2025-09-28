@@ -13,9 +13,44 @@ pub fn emitLogHelper(writer: std.fs.File.Writer) !void {
     try writer.print(
         \\
         \\inline fn logMsg(comptime msg: []const u8) void {{
-        \\    if (log_function) |log| {{
-        \\        log(@constCast(@ptrCast(msg)));
+        \\    if (log_function != null) {{
+        \\        var buffer: [msg.len + 1:0]u8 = undefined;
+        \\        @memcpy(buffer[0..msg.len], msg);
+        \\        buffer[msg.len] = 0;
+        \\        safe_log_forwarder(@ptrCast(&buffer));
         \\    }}
+        \\}}
+        \\
+        \\inline fn logf(comptime fmt: []const u8, args: anytype) void {{
+        \\    if (log_function != null) {{
+        \\        var tmp: [256]u8 = undefined;
+        \\        const written = std.fmt.bufPrint(&tmp, fmt, args) catch return;
+        \\        var zbuf: [257:0]u8 = undefined;
+        \\        @memcpy(zbuf[0..written.len], written);
+        \\        zbuf[written.len] = 0;
+        \\        safe_log_forwarder(@ptrCast(&zbuf));
+        \\    }}
+        \\}}
+        \\
+        \\fn logTensorStatsU8(label: []const u8, t: *Tensor(u8)) void {{
+        \\    var min_val: u8 = 255;
+        \\    var max_val: u8 = 0;
+        \\    var sum_val: usize = 0;
+        \\    var zeros: usize = 0;
+        \\    var i: usize = 0;
+        \\    while (i < t.size) : (i += 1) {{
+        \\        const v = t.data[i];
+        \\        if (v < min_val) min_val = v;
+        \\        if (v > max_val) max_val = v;
+        \\        sum_val += v;
+        \\        if (v == 0) zeros += 1;
+        \\    }}
+        \\    const mean_val: f32 = @as(f32, @floatFromInt(sum_val)) / @as(f32, @floatFromInt(t.size));
+        \\    const s0 = if (t.shape.len > 0) t.shape[0] else 0;
+        \\    const s1 = if (t.shape.len > 1) t.shape[1] else 0;
+        \\    const s2 = if (t.shape.len > 2) t.shape[2] else 0;
+        \\    const s3 = if (t.shape.len > 3) t.shape[3] else 0;
+        \\    logf("[conv] {{s}} shape={{{{ {{}} , {{}} , {{}} , {{}} }}}} size={{}} min={{}} max={{}} mean={{}} zeros={{}}\\n", .{{ label, s0, s1, s2, s3, t.size, min_val, max_val, mean_val, zeros }});
         \\}}
         \\
     , .{});
