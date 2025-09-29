@@ -103,6 +103,8 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
         \\
         \\pub {s} fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {{
         \\    log_function = func;
+        \\    // Forward to core so ops (e.g., qlinearconv) can log via same callback
+        \\    zant.core.tensor.setLogFunction(func);
         \\}}
         \\
     , .{if (codegen_options.do_export == true) "export" else ""});

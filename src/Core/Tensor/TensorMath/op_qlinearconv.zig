@@ -10,6 +10,27 @@ const TensorMathError = zant.utils.error_handler.TensorMathError;
 // Import existing conv operation to reuse shape calculation and structure
 const conv = @import("op_convolution.zig");
 
+// Lightweight logger that forwards to the global core tensor log_function (if set)
+inline fn coreLogStatic(comptime msg: []const u8) void {
+    if (zant.core.tensor.log_function) |log| {
+        log(@constCast(@ptrCast(msg)));
+    }
+}
+
+inline fn coreLogf(comptime fmt: []const u8, args: anytype) void {
+    if (zant.core.tensor.log_function) |log| {
+        var buf: [256]u8 = undefined;
+        const s = std.fmt.bufPrint(&buf, fmt, args) catch return;
+        const n = s.len;
+        if (n < buf.len) {
+            buf[n] = 0;
+        } else {
+            buf[buf.len - 1] = 0;
+        }
+        log(@ptrCast(&buf[0]));
+    }
+}
+
 // HELPER FUNCTIONS FOR CORRECT QUANTIZATION
 inline fn readScalarZP(comptime T: type, zp_any: anytype) i32 {
     _ = T;
@@ -288,6 +309,7 @@ pub fn qlinearconv_lean(
     group: ?usize,
     auto_pad: []const u8,
 ) !void {
+    coreLogStatic("QLINEAR: using qlinearconv_lean (fp)\n");
     // DEBUG: Print which function is being called
     // std.debug.print("QLINEAR_DEBUG: using qlinearconv_lean (floating point)\n", .{});
     _ = auto_pad; // non gestito: usare pads espliciti
@@ -775,8 +797,7 @@ pub inline fn qlinearconv_embedded_lean(
     group: ?usize,
     auto_pad: []const u8,
 ) !void {
-    // DEBUG: Print which function is being called
-    // std.debug.print("QLINEAR_DEBUG: using qlinearconv_embedded_lean, input[0]={}\n", .{x.data[0]});
+    coreLogStatic("QLINEAR: using qlinearconv_embedded_lean (int)\n");
     if (auto_pad.len != 0 and !std.mem.eql(u8, auto_pad, "NOTSET")) {
         return TensorMathError.InvalidPadding;
     }
@@ -983,6 +1004,7 @@ inline fn conv3x3EmbeddedOptimized(
                 const channel = channel_params[m];
                 const weight_base = m * layout.weight_out_stride;
                 const output_channel_base = output_batch_base + m * layout.output_channel_stride;
+                const use_simd = isEightBitInt(InputType) and isEightBitInt(WeightType);
 
                 for (0..dims.out_height) |oh| {
                     const ih_origin = @as(isize, @intCast(oh * dims.stride_h)) - @as(isize, @intCast(dims.pad_h));
@@ -991,8 +1013,48 @@ inline fn conv3x3EmbeddedOptimized(
                     for (0..dims.out_width) |ow| {
                         const iw_origin = @as(isize, @intCast(ow * dims.stride_w)) - @as(isize, @intCast(dims.pad_w));
                         var acc_raw: i64 = 0;
+                        var ic_start: usize = 0;
 
-                        for (0..dims.group_in_channels) |ic| {
+                        if (use_simd) {
+                            const simd = dotProductKernelSimd(
+                                InputType,
+                                WeightType,
+                                x_data,
+                                w_data,
+                                dims,
+                                layout,
+                                input_batch_base,
+                                weight_base,
+                                in_group_base,
+                                ih_origin,
+                                iw_origin,
+                                3,
+                                3,
+                                1,
+                                1,
+                                input_zp,
+                                channel,
+                                in_height_isize,
+                                in_width_isize,
+                            );
+                            logSimdEvent(
+                                "QLINEAR_SIMD: conv3x3 n={} g={} oc={} oh={} ow={} simd_acc={} processed={} remainder={}\n",
+                                .{
+                                    n,
+                                    g,
+                                    m,
+                                    oh,
+                                    ow,
+                                    simd.acc,
+                                    simd.processed,
+                                    dims.group_in_channels - simd.processed,
+                                },
+                            );
+                            acc_raw += simd.acc;
+                            ic_start = simd.processed;
+                        }
+
+                        for (ic_start..dims.group_in_channels) |ic| {
                             const c = in_group_base + ic;
                             const input_channel_base = input_batch_base + c * layout.input_channel_stride;
                             const weight_channel_base = weight_base + ic * layout.weight_channel_stride;
@@ -1070,6 +1132,115 @@ inline fn isEightBitInt(comptime T: type) bool {
         .int => |info| info.bits == 8,
         else => false,
     };
+}
+
+const simd_block = 16;
+const enable_simd_logging = false;
+
+inline fn logSimdEvent(comptime fmt: []const u8, args: anytype) void {
+    if (!enable_simd_logging) return;
+    coreLogf(fmt, args);
+}
+
+inline fn dotProductKernelSimd(
+    comptime InputType: type,
+    comptime WeightType: type,
+    x_data: []const InputType,
+    w_data: []const WeightType,
+    dims: ConvDims,
+    layout: ConvLayout,
+    input_batch_base: usize,
+    weight_base: usize,
+    in_group_base: usize,
+    ih_origin: isize,
+    iw_origin: isize,
+    kernel_height: usize,
+    kernel_width: usize,
+    dilation_h: usize,
+    dilation_w: usize,
+    input_zp: i32,
+    channel: ChannelParams,
+    in_height_isize: isize,
+    in_width_isize: isize,
+) struct { acc: i64, processed: usize } {
+    if (dims.group_in_channels < simd_block) {
+        logSimdEvent(
+            "QLINEAR_SIMD: skip SIMD because channels={} < block={}\n",
+            .{ dims.group_in_channels, simd_block },
+        );
+        return .{ .acc = 0, .processed = 0 };
+    }
+
+    var acc_total: i64 = 0;
+    var processed: usize = 0;
+    const weight_zp_vec = @as(@Vector(simd_block, i32), @splat(channel.weight_zero_point));
+
+    while (processed + simd_block <= dims.group_in_channels) : (processed += simd_block) {
+        logSimdEvent(
+            "QLINEAR_SIMD: processing block start={} end={} kernel={}x{} dil={}x{}\n",
+            .{
+                processed,
+                processed + simd_block,
+                kernel_height,
+                kernel_width,
+                dilation_h,
+                dilation_w,
+            },
+        );
+        var block_acc = @as(@Vector(simd_block, i64), @splat(0));
+
+        var kh: usize = 0;
+        while (kh < kernel_height) : (kh += 1) {
+            const ih = ih_origin + @as(isize, @intCast(kh * dilation_h));
+            if (ih < 0 or ih >= in_height_isize) continue;
+
+            const ih_usize = @as(usize, @intCast(ih));
+
+            var kw: usize = 0;
+            while (kw < kernel_width) : (kw += 1) {
+                const iw = iw_origin + @as(isize, @intCast(kw * dilation_w));
+                if (iw < 0 or iw >= in_width_isize) continue;
+
+                const iw_usize = @as(usize, @intCast(iw));
+                var x_block: [simd_block]i32 = undefined;
+                var w_block: [simd_block]i32 = undefined;
+
+                inline for (0..simd_block) |lane| {
+                    const channel_index = in_group_base + processed + lane;
+                    const input_channel_base = input_batch_base + channel_index * layout.input_channel_stride;
+                    const input_row_base = input_channel_base + ih_usize * layout.input_row_stride;
+                    const input_index = input_row_base + iw_usize;
+                    const x_q = @as(i32, @intCast(x_data[input_index]));
+                    x_block[lane] = x_q - input_zp;
+
+                    const lane_weight_channel_base = weight_base + (processed + lane) * layout.weight_channel_stride;
+                    const lane_weight_row_base = lane_weight_channel_base + kh * layout.weight_row_stride;
+                    const weight_index = lane_weight_row_base + kw;
+                    w_block[lane] = @as(i32, @intCast(w_data[weight_index]));
+                }
+
+                const x_vec = @as(@Vector(simd_block, i32), x_block);
+                const w_vec = @as(@Vector(simd_block, i32), w_block) - weight_zp_vec;
+                const prod = @as(@Vector(simd_block, i64), @intCast(x_vec)) *
+                    @as(@Vector(simd_block, i64), @intCast(w_vec));
+                block_acc = block_acc + prod;
+            }
+        }
+
+        const block_sum = @reduce(.Add, block_acc);
+        acc_total += block_sum;
+        logSimdEvent(
+            "QLINEAR_SIMD: block complete processed={} acc_block={} acc_total={}\n",
+            .{ processed + simd_block, block_sum, acc_total },
+        );
+    }
+
+    logSimdEvent(
+        "QLINEAR_SIMD: finished processed={} of {} channels acc={} remainder={}\n",
+        .{ processed, dims.group_in_channels, acc_total, dims.group_in_channels - processed },
+    );
+
+    return .{ .acc = acc_total, .processed = processed };
 }
 
 inline fn dotProduct1x1Simd(
@@ -1273,6 +1444,7 @@ inline fn convGenericEmbeddedOptimized(
                 const channel = channel_params[m];
                 const weight_base = m * layout.weight_out_stride;
                 const output_channel_base = output_batch_base + m * layout.output_channel_stride;
+                const use_simd = isEightBitInt(InputType) and isEightBitInt(WeightType);
 
                 for (0..dims.out_height) |oh| {
                     const ih_origin = @as(isize, @intCast(oh * dims.stride_h)) - @as(isize, @intCast(dims.pad_h));
@@ -1281,8 +1453,48 @@ inline fn convGenericEmbeddedOptimized(
                     for (0..dims.out_width) |ow| {
                         const iw_origin = @as(isize, @intCast(ow * dims.stride_w)) - @as(isize, @intCast(dims.pad_w));
                         var acc_raw: i64 = 0;
+                        var ic_start: usize = 0;
 
-                        for (0..dims.group_in_channels) |ic| {
+                        if (use_simd) {
+                            const simd = dotProductKernelSimd(
+                                InputType,
+                                WeightType,
+                                x_data,
+                                w_data,
+                                dims,
+                                layout,
+                                input_batch_base,
+                                weight_base,
+                                in_group_base,
+                                ih_origin,
+                                iw_origin,
+                                dims.kernel_height,
+                                dims.kernel_width,
+                                dims.dilation_h,
+                                dims.dilation_w,
+                                input_zp,
+                                channel,
+                                in_height_isize,
+                                in_width_isize,
+                            );
+                            logSimdEvent(
+                                "QLINEAR_SIMD: convGeneric n={} g={} oc={} oh={} ow={} simd_acc={} processed={} remainder={}\n",
+                                .{
+                                    n,
+                                    g,
+                                    m,
+                                    oh,
+                                    ow,
+                                    simd.acc,
+                                    simd.processed,
+                                    dims.group_in_channels - simd.processed,
+                                },
+                            );
+                            acc_raw += simd.acc;
+                            ic_start = simd.processed;
+                        }
+
+                        for (ic_start..dims.group_in_channels) |ic| {
                             const c = in_group_base + ic;
                             const input_channel_base = input_batch_base + c * layout.input_channel_stride;
                             const weight_channel_base = weight_base + ic * layout.weight_channel_stride;
@@ -1415,9 +1627,7 @@ pub fn qlinearconv_dispatch(
 ) !void {
     const accelerators = @import("../Accelerators/mod.zig");
     if (!accelerators.canUseCmsisHelium()) {
-        // Reference build: force embedded fixed-point implementation
-        // DEBUG: dispatch to embedded
-        // std.debug.print("QLINEAR_DEBUG: dispatch -> qlinearconv_embedded_lean, input[0]={}\n", .{x.data[0]});
+        coreLogStatic("QLINEAR: dispatch -> embedded_lean\n");
         return qlinearconv_embedded_lean(
             InputType,
             WeightType,
@@ -1443,6 +1653,7 @@ pub fn qlinearconv_dispatch(
     }
 
     // CMSIS path
+    coreLogStatic("QLINEAR: dispatch -> cmsis_accelerated\n");
     return qlinearconv_cmsis_accelerated(
         InputType,
         WeightType,
@@ -1490,6 +1701,7 @@ pub fn qlinearconv_cmsis_accelerated(
     group: ?usize,
     _: []const u8,
 ) !void {
+    coreLogStatic("QLINEAR: using qlinearconv_cmsis_accelerated\n");
     // Mark CMSIS usage for testing
     const accelerators = @import("../Accelerators/mod.zig");
     accelerators.markCmsisUsed();
