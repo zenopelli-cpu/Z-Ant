@@ -100,69 +100,81 @@ fn readPerChannelZPInternal(zp_any: anytype, m: usize) i32 {
     };
 }
 
-const SHIFT: u5 = 16;
-inline fn q16(x: f32) i32 {
-    const scaled = x * @as(f32, @floatFromInt(@as(u32, 1) << SHIFT));
-    // Clamp to i32 bounds to prevent overflow
-    if (scaled > @as(f32, @floatFromInt(std.math.maxInt(i32)))) {
-        return std.math.maxInt(i32);
-    }
-    if (scaled < @as(f32, @floatFromInt(std.math.minInt(i32)))) {
-        return std.math.minInt(i32);
-    }
-    return @as(i32, @intFromFloat(scaled));
+inline fn saturateToI64(value: i128) i64 {
+    if (value > @as(i128, std.math.maxInt(i64))) return std.math.maxInt(i64);
+    if (value < @as(i128, std.math.minInt(i64))) return std.math.minInt(i64);
+    return @as(i64, @intCast(value));
 }
 
-inline fn saturateWideProductToI64(high: i64, low: u64) i64 {
-    const result = @as(i64, @bitCast(low));
-
-    if (high == 0) {
-        if (result < 0) return std.math.maxInt(i64);
-        return result;
+inline fn saturatingShiftLeft(value: i64, shift: u6) i64 {
+    if (shift >= 63) {
+        return if (value >= 0) std.math.maxInt(i64) else std.math.minInt(i64);
     }
 
-    if (high == -1) {
-        if (result >= 0) return std.math.minInt(i64);
-        return result;
+    const shifted = @shlWithOverflow(value, shift);
+    if (shifted[1]) {
+        return if (value >= 0) std.math.maxInt(i64) else std.math.minInt(i64);
+    }
+    return shifted[0];
+}
+
+inline fn roundingDivideByPOT(value: i64, exponent: u6) i64 {
+    if (exponent == 0) return value;
+
+    const denom: i64 = @as(i64, 1) << exponent;
+    const mask: i64 = denom - 1;
+    var result = value >> exponent;
+    const remainder = value & mask;
+
+    if (value < 0 and remainder != 0) {
+        result += 1;
     }
 
-    return if (high > 0) std.math.maxInt(i64) else std.math.minInt(i64);
-}
+    const abs_rem = if (value >= 0)
+        remainder
+    else
+        (denom - remainder) & mask;
+    const half: i64 = denom >> 1;
+    const sign: i64 = if (value >= 0) 1 else -1;
 
-inline fn mul_shift_sat(lhs: i64, rhs: i64, comptime shift: u6) i64 {
-    comptime {
-        if (shift >= 64) @compileError("shift must be less than 64 bits");
+    if (abs_rem > half) {
+        result += sign;
+    } else if (abs_rem == half) {
+        if ((result & 1) != 0) result += sign;
     }
 
-    const wide: i128 = @as(i128, lhs) * @as(i128, rhs);
-    const shifted: i128 = if (shift == 0) wide else wide >> @as(u7, shift);
-
-    const max_i64_as_i128: i128 = @as(i128, std.math.maxInt(i64));
-    const min_i64_as_i128: i128 = @as(i128, std.math.minInt(i64));
-
-    if (shifted > max_i64_as_i128) return std.math.maxInt(i64);
-    if (shifted < min_i64_as_i128) return std.math.minInt(i64);
-    return @as(i64, @intCast(shifted));
+    return result;
 }
 
-inline fn mul_q16_sat(lhs: i64, rhs: i64) i64 {
-    return mul_shift_sat(lhs, rhs, @as(u6, SHIFT));
-}
+inline fn requantize(
+    value: i64,
+    multiplier: i32,
+    shift: i32,
+    q_min: i32,
+    q_max: i32,
+    output_zero_point: i32,
+) i32 {
+    if (multiplier == 0) {
+        return std.math.clamp(output_zero_point, q_min, q_max);
+    }
 
-inline fn mul_i64_sat(lhs: i64, rhs: i64) i64 {
-    return mul_shift_sat(lhs, rhs, 0);
-}
+    var product = @as(i128, value) * @as(i128, multiplier);
+    const rounding: i128 = if (product >= 0) (@as(i128, 1) << 30) else -(@as(i128, 1) << 30);
+    product += rounding;
+    product >>= 31;
 
-inline fn rshift_round_s64(x: i64, comptime shift_bits: u5) i64 {
-    const bias: i64 = if (x >= 0) (1 << (shift_bits - 1)) else -(1 << (shift_bits - 1));
-    return (x + bias) >> shift_bits;
-}
+    var scaled = saturateToI64(product);
 
-inline fn clampToI8(value: i32) i8 {
-    var v = value;
-    if (v < -128) v = -128;
-    if (v > 127) v = 127;
-    return @as(i8, @intCast(v));
+    if (shift > 0) {
+        scaled = saturatingShiftLeft(scaled, @as(u6, @intCast(shift)));
+    } else if (shift < 0) {
+        scaled = roundingDivideByPOT(scaled, @as(u6, @intCast(-shift)));
+    }
+
+    const with_zp_128 = @as(i128, scaled) + @as(i128, output_zero_point);
+    const with_zp = saturateToI64(with_zp_128);
+    const clamped = std.math.clamp(with_zp, @as(i64, q_min), @as(i64, q_max));
+    return @as(i32, @intCast(clamped));
 }
 
 /// QLinearConv operation following ONNX specification
@@ -685,15 +697,14 @@ fn conv1x1Optimized(x: anytype, w: anytype, output: anytype, batch_size: usize, 
 }
 
 const ChannelParams = struct {
-    combined_scale_q16: i64,
+    requant_multiplier: i32,
+    requant_shift: i32,
     weight_zero_point: i32,
-    bias_q16: i64,
+    bias_acc: i64,
 };
 
 const QuantParams = struct {
-    scale_shift: u5,
     input_zero_point: i32,
-    output_inv_scale_i64: i64,
     output_zero_point_q16: i64,
     q_min: i32,
     q_max: i32,
@@ -731,42 +742,6 @@ const ConvLayout = struct {
     output_channel_stride: usize,
     output_row_stride: usize,
 };
-
-inline fn quantizeAccumulator(acc: i64, quant: QuantParams) i32 {
-    // Step 1: scale by 1/y_scale keeping Q16
-    const tmp_q16 = (acc * quant.output_inv_scale_i64) >> @as(u6, @intCast(quant.scale_shift));
-    // Step 2: add zero point in Q16
-    const with_zp_q16 = tmp_q16 + quant.output_zero_point_q16;
-
-    // Step 3: round-to-nearest-even from Q16 to integer
-    const shift = @as(u6, @intCast(quant.scale_shift));
-    const denom: i64 = @as(i64, 1) << shift;
-    const mask: i64 = denom - 1;
-    var q64 = with_zp_q16 >> shift;
-    const rem_bits = with_zp_q16 & mask;
-
-    if (with_zp_q16 < 0 and rem_bits != 0) {
-        q64 += 1; // compensate for arithmetic shift rounding toward -inf
-    }
-
-    const abs_rem = if (with_zp_q16 >= 0)
-        rem_bits
-    else
-        (denom - rem_bits) & mask;
-    const half: i64 = denom >> 1;
-    const sign: i64 = if (with_zp_q16 >= 0) 1 else -1;
-
-    if (abs_rem > half) {
-        q64 += sign;
-    } else if (abs_rem == half) {
-        if ((q64 & 1) != 0) q64 += sign;
-    }
-
-    var q = @as(i32, @intCast(q64));
-    if (q < quant.q_min) q = quant.q_min;
-    if (q > quant.q_max) q = quant.q_max;
-    return q;
-}
 
 /// Embedded-optimized version using fixed-point arithmetic (Q15.16)
 /// Reduces floating-point operations for better performance on embedded targets
@@ -859,9 +834,7 @@ pub inline fn qlinearconv_embedded_lean(
     }
 
     const SCALE_SHIFT: u5 = 16;
-    const scale_factor = @as(f32, @floatFromInt(@as(u32, 1) << SCALE_SHIFT));
     const x_scale_val = asF32(ScaleType, x_scale.data[0]);
-    const x_scale_q16 = @as(i64, q16(x_scale_val));
     const y_scale_val = asF32(ScaleType, y_scale.data[0]);
     const input_zero_point = if (@typeInfo(@TypeOf(x_zero_point)) == .pointer and x_zero_point.data.len == 0)
         0
@@ -873,9 +846,7 @@ pub inline fn qlinearconv_embedded_lean(
         readScalarZP(InputType, y_zero_point);
 
     const quant = QuantParams{
-        .scale_shift = SCALE_SHIFT,
         .input_zero_point = input_zero_point,
-        .output_inv_scale_i64 = @as(i64, q16(1.0 / y_scale_val)),
         .output_zero_point_q16 = @as(i64, output_zero_point) << SCALE_SHIFT,
         .q_min = @as(i32, @intCast(std.math.minInt(InputType))),
         .q_max = @as(i32, @intCast(std.math.maxInt(InputType))),
@@ -926,27 +897,39 @@ pub inline fn qlinearconv_embedded_lean(
         else
             asF32(ScaleType, w_scale.data[0]);
 
-        const weight_scale_q16 = @as(i64, q16(w_scale_val));
-        const combined_scale_q16 = mul_q16_sat(x_scale_q16, weight_scale_q16);
+        var multiplier: i32 = 0;
+        var shift: i32 = 0;
+        const total_scale = if (y_scale_val == 0)
+            0
+        else
+            (x_scale_val * w_scale_val) / y_scale_val;
+        quantizeMultiplier(total_scale, &multiplier, &shift);
         const weight_zero_point = if (@typeInfo(@TypeOf(w_zero_point)) == .pointer and w_zero_point.data.len == 0)
             0
         else
             readPerChannelZP(w_zero_point, m, out_channels);
 
-        const bias_q16 = if (bias_tensor) |b_tensor| blk: {
+        const bias_acc = if (bias_tensor) |b_tensor| blk: {
             if (b_tensor.data.len == 0) break :blk 0;
             const raw = if (b_tensor.data.len == 1) b_tensor.data[0] else b_tensor.data[m];
             var bias_real = asF32(BiasType, raw);
             if (bias_is_int) {
                 bias_real *= x_scale_val * w_scale_val;
             }
-            break :blk @as(i64, @intFromFloat(@round(bias_real * scale_factor)));
+            if (total_scale == 0) {
+                if (y_scale_val == 0) break :blk 0;
+                break :blk @as(i64, @intFromFloat(@round(bias_real / y_scale_val)));
+            }
+            const acc_scale = x_scale_val * w_scale_val;
+            if (acc_scale == 0) break :blk 0;
+            break :blk @as(i64, @intFromFloat(@round(bias_real / acc_scale)));
         } else 0;
 
         channel_params[m] = .{
-            .combined_scale_q16 = combined_scale_q16,
+            .requant_multiplier = multiplier,
+            .requant_shift = shift,
             .weight_zero_point = weight_zero_point,
-            .bias_q16 = bias_q16,
+            .bias_acc = bias_acc,
         };
     }
 
@@ -1031,13 +1014,41 @@ inline fn conv3x3EmbeddedOptimized(
                             }
                         }
 
-                        const scaled = mul_i64_sat(acc_raw, channel.combined_scale_q16);
-                        const sum = @addWithOverflow(channel.bias_q16, scaled);
-                        var acc_q16: i64 = sum[0];
-                        if (sum[1] != 0) {
-                            acc_q16 = if (scaled >= 0) std.math.maxInt(i64) else std.math.minInt(i64);
+                        if (channel.requant_multiplier == 0) {
+                            const base = @as(i64, @intCast(quant.output_zero_point_q16 >> SCALE_SHIFT));
+                            const base_sum = @addWithOverflow(base, channel.bias_acc);
+                            var biased_i64: i64 = base_sum[0];
+                            if (base_sum[1] != 0) {
+                                biased_i64 = if ((base >= 0 and channel.bias_acc >= 0))
+                                    std.math.maxInt(i64)
+                                else
+                                    std.math.minInt(i64);
+                            }
+                            const biased = std.math.clamp(
+                                biased_i64,
+                                @as(i64, quant.q_min),
+                                @as(i64, quant.q_max),
+                            );
+                            out_data[output_row_base + ow] = @as(InputType, @intCast(biased));
+                            continue;
                         }
-                        const q = quantizeAccumulator(acc_q16, quant);
+
+                        const sum = @addWithOverflow(acc_raw, channel.bias_acc);
+                        var acc_with_bias: i64 = sum[0];
+                        if (sum[1] != 0) {
+                            acc_with_bias = if ((acc_raw >= 0 and channel.bias_acc >= 0))
+                                std.math.maxInt(i64)
+                            else
+                                std.math.minInt(i64);
+                        }
+                        const q = requantize(
+                            acc_with_bias,
+                            channel.requant_multiplier,
+                            channel.requant_shift,
+                            quant.q_min,
+                            quant.q_max,
+                            @as(i32, @intCast(quant.output_zero_point_q16 >> SCALE_SHIFT)),
+                        );
                         out_data[output_row_base + ow] = @as(InputType, @intCast(q));
                     }
                 }
@@ -1183,13 +1194,41 @@ inline fn conv1x1EmbeddedOptimized(
                             }
                         }
 
-                        const scaled = mul_i64_sat(acc_raw, channel.combined_scale_q16);
-                        const sum = @addWithOverflow(channel.bias_q16, scaled);
-                        var acc_q16: i64 = sum[0];
-                        if (sum[1] != 0) {
-                            acc_q16 = if (scaled >= 0) std.math.maxInt(i64) else std.math.minInt(i64);
+                        if (channel.requant_multiplier == 0) {
+                            const base = @as(i64, @intCast(quant.output_zero_point_q16 >> SCALE_SHIFT));
+                            const base_sum = @addWithOverflow(base, channel.bias_acc);
+                            var biased_i64: i64 = base_sum[0];
+                            if (base_sum[1] != 0) {
+                                biased_i64 = if ((base >= 0 and channel.bias_acc >= 0))
+                                    std.math.maxInt(i64)
+                                else
+                                    std.math.minInt(i64);
+                            }
+                            const biased = std.math.clamp(
+                                biased_i64,
+                                @as(i64, quant.q_min),
+                                @as(i64, quant.q_max),
+                            );
+                            out_data[output_row_base + ow] = @as(InputType, @intCast(biased));
+                            continue;
                         }
-                        const q = quantizeAccumulator(acc_q16, quant);
+
+                        const sum = @addWithOverflow(acc_raw, channel.bias_acc);
+                        var acc_with_bias: i64 = sum[0];
+                        if (sum[1] != 0) {
+                            acc_with_bias = if ((acc_raw >= 0 and channel.bias_acc >= 0))
+                                std.math.maxInt(i64)
+                            else
+                                std.math.minInt(i64);
+                        }
+                        const q = requantize(
+                            acc_with_bias,
+                            channel.requant_multiplier,
+                            channel.requant_shift,
+                            quant.q_min,
+                            quant.q_max,
+                            @as(i32, @intCast(quant.output_zero_point_q16 >> SCALE_SHIFT)),
+                        );
                         out_data[output_row_base + ow] = @as(InputType, @intCast(q));
                     }
                 }
@@ -1267,13 +1306,41 @@ inline fn convGenericEmbeddedOptimized(
                             }
                         }
 
-                        const scaled = mul_i64_sat(acc_raw, channel.combined_scale_q16);
-                        const sum = @addWithOverflow(channel.bias_q16, scaled);
-                        var acc_q16: i64 = sum[0];
-                        if (sum[1] != 0) {
-                            acc_q16 = if (scaled >= 0) std.math.maxInt(i64) else std.math.minInt(i64);
+                        if (channel.requant_multiplier == 0) {
+                            const base = @as(i64, @intCast(quant.output_zero_point_q16 >> SCALE_SHIFT));
+                            const base_sum = @addWithOverflow(base, channel.bias_acc);
+                            var biased_i64: i64 = base_sum[0];
+                            if (base_sum[1] != 0) {
+                                biased_i64 = if ((base >= 0 and channel.bias_acc >= 0))
+                                    std.math.maxInt(i64)
+                                else
+                                    std.math.minInt(i64);
+                            }
+                            const biased = std.math.clamp(
+                                biased_i64,
+                                @as(i64, quant.q_min),
+                                @as(i64, quant.q_max),
+                            );
+                            out_data[output_row_base + ow] = @as(InputType, @intCast(biased));
+                            continue;
                         }
-                        const q = quantizeAccumulator(acc_q16, quant);
+
+                        const sum = @addWithOverflow(acc_raw, channel.bias_acc);
+                        var acc_with_bias: i64 = sum[0];
+                        if (sum[1] != 0) {
+                            acc_with_bias = if ((acc_raw >= 0 and channel.bias_acc >= 0))
+                                std.math.maxInt(i64)
+                            else
+                                std.math.minInt(i64);
+                        }
+                        const q = requantize(
+                            acc_with_bias,
+                            channel.requant_multiplier,
+                            channel.requant_shift,
+                            quant.q_min,
+                            quant.q_max,
+                            @as(i32, @intCast(quant.output_zero_point_q16 >> SCALE_SHIFT)),
+                        );
 
                         // Fixed point quantization now matches ONNX Runtime behavior
 
