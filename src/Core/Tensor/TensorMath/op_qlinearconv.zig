@@ -965,6 +965,21 @@ pub inline fn qlinearconv_embedded_lean(
 
     // DEBUG: kernel selection
     // std.debug.print("QLINEAR_DEBUG: kernel={}x{} dilation={}x{}\n", .{kernel_height, kernel_width, dilation_h, dilation_w});
+    if (dims.group_in_channels == 1) {
+        convDepthwiseEmbeddedOptimized(
+            InputType,
+            WeightType,
+            x.data,
+            w.data,
+            output.data,
+            dims,
+            layout,
+            quant,
+            channel_params,
+        );
+        return;
+    }
+
     if (kernel_height == 3 and kernel_width == 3 and dilation_h == 1 and dilation_w == 1) {
         // std.debug.print("QLINEAR_DEBUG: using conv3x3EmbeddedOptimized\n", .{});
         conv3x3EmbeddedOptimized(InputType, WeightType, x.data, w.data, output.data, dims, layout, quant, channel_params);
@@ -974,6 +989,302 @@ pub inline fn qlinearconv_embedded_lean(
     } else {
         // std.debug.print("QLINEAR_DEBUG: using convGenericEmbeddedOptimized\n", .{});
         convGenericEmbeddedOptimized(InputType, WeightType, x.data, w.data, output.data, dims, layout, quant, channel_params);
+    }
+}
+
+inline fn finalizeDepthwiseAccumulation(
+    comptime InputType: type,
+    quant: QuantParams,
+    channel: ChannelParams,
+    acc_raw: i64,
+) InputType {
+    if (channel.requant_multiplier == 0) {
+        const base = @as(i64, @intCast(quant.output_zero_point_q16 >> SCALE_SHIFT));
+        const base_sum = @addWithOverflow(base, channel.bias_acc);
+        var biased_i64: i64 = base_sum[0];
+        if (base_sum[1] != 0) {
+            biased_i64 = if ((base >= 0 and channel.bias_acc >= 0))
+                std.math.maxInt(i64)
+            else
+                std.math.minInt(i64);
+        }
+        const biased = std.math.clamp(
+            biased_i64,
+            @as(i64, quant.q_min),
+            @as(i64, quant.q_max),
+        );
+        return @as(InputType, @intCast(biased));
+    }
+
+    const sum = @addWithOverflow(acc_raw, channel.bias_acc);
+    var acc_with_bias: i64 = sum[0];
+    if (sum[1] != 0) {
+        acc_with_bias = if ((acc_raw >= 0 and channel.bias_acc >= 0))
+            std.math.maxInt(i64)
+        else
+            std.math.minInt(i64);
+    }
+
+    const q = requantize(
+        acc_with_bias,
+        channel.requant_multiplier,
+        channel.requant_shift,
+        quant.q_min,
+        quant.q_max,
+        @as(i32, @intCast(quant.output_zero_point_q16 >> SCALE_SHIFT)),
+    );
+
+    return @as(InputType, @intCast(q));
+}
+
+inline fn convDepthwiseEmbeddedOptimized(
+    comptime InputType: type,
+    comptime WeightType: type,
+    x_data: []const InputType,
+    w_data: []const WeightType,
+    out_data: []InputType,
+    dims: ConvDims,
+    layout: ConvLayout,
+    quant: QuantParams,
+    channel_params: []const ChannelParams,
+) void {
+    std.debug.assert(dims.group_in_channels == 1);
+
+    if (dims.kernel_height == 3 and dims.kernel_width == 3 and dims.dilation_h == 1 and dims.dilation_w == 1) {
+        convDepthwise3x3EmbeddedOptimized(
+            InputType,
+            WeightType,
+            x_data,
+            w_data,
+            out_data,
+            dims,
+            layout,
+            quant,
+            channel_params,
+        );
+        return;
+    }
+
+    if (dims.kernel_height == 1 and dims.kernel_width == 1 and dims.dilation_h == 1 and dims.dilation_w == 1) {
+        convDepthwise1x1EmbeddedOptimized(
+            InputType,
+            WeightType,
+            x_data,
+            w_data,
+            out_data,
+            dims,
+            layout,
+            quant,
+            channel_params,
+        );
+        return;
+    }
+
+    convDepthwiseGenericEmbeddedOptimized(
+        InputType,
+        WeightType,
+        x_data,
+        w_data,
+        out_data,
+        dims,
+        layout,
+        quant,
+        channel_params,
+    );
+}
+
+inline fn convDepthwise3x3EmbeddedOptimized(
+    comptime InputType: type,
+    comptime WeightType: type,
+    x_data: []const InputType,
+    w_data: []const WeightType,
+    out_data: []InputType,
+    dims: ConvDims,
+    layout: ConvLayout,
+    quant: QuantParams,
+    channel_params: []const ChannelParams,
+) void {
+    const input_zp = quant.input_zero_point;
+    const in_height_isize = @as(isize, @intCast(dims.in_height));
+    const in_width_isize = @as(isize, @intCast(dims.in_width));
+
+    for (0..dims.batch) |n| {
+        const input_batch_base = n * layout.input_batch_stride;
+        const output_batch_base = n * layout.output_batch_stride;
+
+        for (0..dims.groups) |g| {
+            const in_group_base = g * dims.group_in_channels;
+            const input_channel_base = input_batch_base + in_group_base * layout.input_channel_stride;
+            const out_group_base = g * dims.group_out_channels;
+
+            for (0..dims.group_out_channels) |oc| {
+                const m = out_group_base + oc;
+                const channel = channel_params[m];
+                const weight_base = m * layout.weight_out_stride;
+                const output_channel_base = output_batch_base + m * layout.output_channel_stride;
+
+                for (0..dims.out_height) |oh| {
+                    const ih_origin = @as(isize, @intCast(oh * dims.stride_h)) - @as(isize, @intCast(dims.pad_h));
+                    const output_row_base = output_channel_base + oh * layout.output_row_stride;
+
+                    for (0..dims.out_width) |ow| {
+                        const iw_origin = @as(isize, @intCast(ow * dims.stride_w)) - @as(isize, @intCast(dims.pad_w));
+                        var acc_raw: i64 = 0;
+
+                        var kh: usize = 0;
+                        while (kh < 3) : (kh += 1) {
+                            const ih = ih_origin + @as(isize, @intCast(kh));
+                            if (ih < 0 or ih >= in_height_isize) continue;
+
+                            const input_row_base = input_channel_base + @as(usize, @intCast(ih)) * layout.input_row_stride;
+                            const weight_row_base = weight_base + kh * layout.weight_row_stride;
+
+                            var kw: usize = 0;
+                            var weight_index = weight_row_base;
+                            while (kw < 3) : (kw += 1) {
+                                const iw = iw_origin + @as(isize, @intCast(kw));
+                                if (iw >= 0 and iw < in_width_isize) {
+                                    const input_index = input_row_base + @as(usize, @intCast(iw));
+                                    const x_q = @as(i32, @intCast(x_data[input_index]));
+                                    const w_q = @as(i32, @intCast(w_data[weight_index]));
+                                    const x_diff = x_q - input_zp;
+                                    const w_diff = w_q - channel.weight_zero_point;
+                                    acc_raw += @as(i64, x_diff) * @as(i64, w_diff);
+                                }
+                                weight_index += 1;
+                            }
+                        }
+
+                        out_data[output_row_base + ow] = finalizeDepthwiseAccumulation(InputType, quant, channel, acc_raw);
+                    }
+                }
+            }
+        }
+    }
+}
+
+inline fn convDepthwise1x1EmbeddedOptimized(
+    comptime InputType: type,
+    comptime WeightType: type,
+    x_data: []const InputType,
+    w_data: []const WeightType,
+    out_data: []InputType,
+    dims: ConvDims,
+    layout: ConvLayout,
+    quant: QuantParams,
+    channel_params: []const ChannelParams,
+) void {
+    const input_zp = quant.input_zero_point;
+    const in_height_isize = @as(isize, @intCast(dims.in_height));
+    const in_width_isize = @as(isize, @intCast(dims.in_width));
+
+    for (0..dims.batch) |n| {
+        const input_batch_base = n * layout.input_batch_stride;
+        const output_batch_base = n * layout.output_batch_stride;
+
+        for (0..dims.groups) |g| {
+            const in_group_base = g * dims.group_in_channels;
+            const input_channel_base = input_batch_base + in_group_base * layout.input_channel_stride;
+            const out_group_base = g * dims.group_out_channels;
+
+            for (0..dims.group_out_channels) |oc| {
+                const m = out_group_base + oc;
+                const channel = channel_params[m];
+                const weight_base = m * layout.weight_out_stride;
+                const output_channel_base = output_batch_base + m * layout.output_channel_stride;
+
+                for (0..dims.out_height) |oh| {
+                    const output_row_base = output_channel_base + oh * layout.output_row_stride;
+
+                    for (0..dims.out_width) |ow| {
+                        const iw = @as(isize, @intCast(ow * dims.stride_w)) - @as(isize, @intCast(dims.pad_w));
+                        const ih = @as(isize, @intCast(oh * dims.stride_h)) - @as(isize, @intCast(dims.pad_h));
+                        var acc_raw: i64 = 0;
+
+                        if (ih >= 0 and ih < in_height_isize and iw >= 0 and iw < in_width_isize) {
+                            const input_row_base = input_channel_base + @as(usize, @intCast(ih)) * layout.input_row_stride;
+                            const input_index = input_row_base + @as(usize, @intCast(iw));
+                            const x_q = @as(i32, @intCast(x_data[input_index]));
+                            const w_q = @as(i32, @intCast(w_data[weight_base]));
+                            const x_diff = x_q - input_zp;
+                            const w_diff = w_q - channel.weight_zero_point;
+                            acc_raw = @as(i64, x_diff) * @as(i64, w_diff);
+                        }
+
+                        out_data[output_row_base + ow] = finalizeDepthwiseAccumulation(InputType, quant, channel, acc_raw);
+                    }
+                }
+            }
+        }
+    }
+}
+
+inline fn convDepthwiseGenericEmbeddedOptimized(
+    comptime InputType: type,
+    comptime WeightType: type,
+    x_data: []const InputType,
+    w_data: []const WeightType,
+    out_data: []InputType,
+    dims: ConvDims,
+    layout: ConvLayout,
+    quant: QuantParams,
+    channel_params: []const ChannelParams,
+) void {
+    const input_zp = quant.input_zero_point;
+    const in_height_isize = @as(isize, @intCast(dims.in_height));
+    const in_width_isize = @as(isize, @intCast(dims.in_width));
+
+    for (0..dims.batch) |n| {
+        const input_batch_base = n * layout.input_batch_stride;
+        const output_batch_base = n * layout.output_batch_stride;
+
+        for (0..dims.groups) |g| {
+            const in_group_base = g * dims.group_in_channels;
+            const input_channel_base = input_batch_base + in_group_base * layout.input_channel_stride;
+            const out_group_base = g * dims.group_out_channels;
+
+            for (0..dims.group_out_channels) |oc| {
+                const m = out_group_base + oc;
+                const channel = channel_params[m];
+                const weight_base = m * layout.weight_out_stride;
+                const output_channel_base = output_batch_base + m * layout.output_channel_stride;
+
+                for (0..dims.out_height) |oh| {
+                    const ih_origin = @as(isize, @intCast(oh * dims.stride_h)) - @as(isize, @intCast(dims.pad_h));
+                    const output_row_base = output_channel_base + oh * layout.output_row_stride;
+
+                    for (0..dims.out_width) |ow| {
+                        const iw_origin = @as(isize, @intCast(ow * dims.stride_w)) - @as(isize, @intCast(dims.pad_w));
+                        var acc_raw: i64 = 0;
+
+                        var kh: usize = 0;
+                        while (kh < dims.kernel_height) : (kh += 1) {
+                            const ih = ih_origin + @as(isize, @intCast(kh * dims.dilation_h));
+                            if (ih < 0 or ih >= in_height_isize) continue;
+
+                            const input_row_base = input_channel_base + @as(usize, @intCast(ih)) * layout.input_row_stride;
+                            const weight_row_base = weight_base + kh * layout.weight_row_stride;
+
+                            var kw: usize = 0;
+                            while (kw < dims.kernel_width) : (kw += 1) {
+                                const iw = iw_origin + @as(isize, @intCast(kw * dims.dilation_w));
+                                if (iw < 0 or iw >= in_width_isize) continue;
+
+                                const input_index = input_row_base + @as(usize, @intCast(iw));
+                                const weight_index = weight_row_base + kw;
+                                const x_q = @as(i32, @intCast(x_data[input_index]));
+                                const w_q = @as(i32, @intCast(w_data[weight_index]));
+                                const x_diff = x_q - input_zp;
+                                const w_diff = w_q - channel.weight_zero_point;
+                                acc_raw += @as(i64, x_diff) * @as(i64, w_diff);
+                            }
+                        }
+
+                        out_data[output_row_base + ow] = finalizeDepthwiseAccumulation(InputType, quant, channel, acc_raw);
+                    }
+                }
+            }
+        }
     }
 }
 
