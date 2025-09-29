@@ -196,12 +196,6 @@ const shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_zer
 const array_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_zero_point : [1]u8 linksection(".rodata") = [_]u8{ 123} ;
 pub const tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_zero_point = Tensor(u8).fromConstBuffer(&allocator, &array_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_zero_point, &shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_zero_point);
 
- // ----------- Initializing tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_zero_point;
-
-const shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_zero_point : [1]usize = [_]usize{ 1} ;
-const array_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_zero_point : [1]u8 linksection(".rodata") = [_]u8{ 103} ;
-pub const tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_zero_point = Tensor(u8).fromConstBuffer(&allocator, &array_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_zero_point, &shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_zero_point);
-
  // ----------- Initializing tensor_model_1_block_4_expand_bn_fusedbatchnormv3_quantized;
 
 const shape_tensor_model_1_block_4_expand_bn_fusedbatchnormv3_quantized : [1]usize = [_]usize{ 96} ;
@@ -535,14 +529,8 @@ pub const tensor_const_fold_opt__171_scale = Tensor(f32).fromConstBuffer(&alloca
  // ----------- Initializing tensor_head_bias_quantized;
 
 const shape_tensor_head_bias_quantized : [1]usize = [_]usize{ 32} ;
-const array_head_bias_quantized : [32]i32 linksection(".rodata") = [_]i32{ -462, 1156, -463, -533, 2252, -628, 1181, -411, 1393, -602, 573, -301, -454, 1292, -541, -355, -650, 1260, 1275, 1167, -659, -501, 1670, -562, 1059, 1562, 1041, 1594, -914, 272, 1248, 751} ;
+const array_head_bias_quantized : [32]i32 linksection(".rodata") = [_]i32{ -777, 1944, -778, -896, 3786, -1056, 1986, -691, 2342, -1012, 963, -506, -763, 2172, -910, -597, -1093, 2118, 2144, 1962, -1108, -842, 2808, -945, 1780, 2626, 1750, 2680, -1537, 457, 2098, 1263} ;
 pub const tensor_head_bias_quantized = Tensor(i32).fromConstBuffer(&allocator, &array_head_bias_quantized, &shape_tensor_head_bias_quantized);
-
- // ----------- Initializing tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_scale;
-
-const shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_scale : [1]usize = [_]usize{ 1} ;
-const array_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_scale : [1]f32 linksection(".rodata") = [_]f32{ 6.897246e-2} ;
-pub const tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_scale = Tensor(f32).fromConstBuffer(&allocator, &array_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_scale, &shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_scale);
 
  // ----------- Initializing tensor_const_fold_opt__164_scale;
 
@@ -565,7 +553,7 @@ pub const tensor_const_fold_opt__193_quantized = Tensor(i8).fromConstBuffer(&all
  // ----------- Initializing tensor_const_fold_opt__194_scale;
 
 const shape_tensor_const_fold_opt__194_scale : [1]usize = [_]usize{ 32} ;
-const array_const_fold_opt__194_scale : [32]f32 linksection(".rodata") = [_]f32{ 1.8544116e-3, 2.129427e-3, 1.814419e-3, 2.199491e-3, 2.4543426e-3, 2.1379525e-3, 2.6299637e-3, 1.9009258e-3, 2.16115e-3, 2.0516196e-3, 2.1136487e-3, 1.924478e-3, 1.8575523e-3, 2.1148701e-3, 1.8179178e-3, 1.8093612e-3, 1.8181264e-3, 2.34382e-3, 2.5919664e-3, 2.0920245e-3, 1.96675e-3, 1.8136654e-3, 2.6183578e-3, 1.8764412e-3, 2.164972e-3, 2.3623013e-3, 2.1011608e-3, 2.3237613e-3, 2.073365e-3, 2.4055436e-3, 2.1935105e-3, 2.661062e-3} ;
+const array_const_fold_opt__194_scale : [32]f32 linksection(".rodata") = [_]f32{ 1.1029956e-3, 1.2665734e-3, 1.0792082e-3, 1.3082473e-3, 1.4598318e-3, 1.2716445e-3, 1.5642905e-3, 1.130662e-3, 1.2854423e-3, 1.220294e-3, 1.2571886e-3, 1.1446708e-3, 1.1048637e-3, 1.2579152e-3, 1.0812893e-3, 1.0761998e-3, 1.0814134e-3, 1.3940935e-3, 1.5416899e-3, 1.2443267e-3, 1.169814e-3, 1.0787599e-3, 1.5573873e-3, 1.1160987e-3, 1.2877155e-3, 1.4050861e-3, 1.249761e-3, 1.3821627e-3, 1.2332281e-3, 1.4308064e-3, 1.3046901e-3, 1.5827876e-3} ;
 pub const tensor_const_fold_opt__194_scale = Tensor(f32).fromConstBuffer(&allocator, &array_const_fold_opt__194_scale, &shape_tensor_const_fold_opt__194_scale);
 
  // ----------- Initializing tensor_model_1_block_3_expand_bn_fusedbatchnormv3_quantized;

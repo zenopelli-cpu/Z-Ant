@@ -132,7 +132,7 @@ pub export fn predict (
         .size = input_size,
         .allocator = &allocator, // non-owning view
     };
-    logMsg("Using plan-based execution with 37 steps\\n");
+    logMsg("Using plan-based execution with 34 steps\\n");
 
 var shape_tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0 : [4]usize = [_]usize{ 1, 1, 96, 96} ;
     var tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0 = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0) catch return -2;
@@ -918,9 +918,9 @@ var shape_tensor_relu6__35_0_quantized : [4]usize = [_]usize{ 1, 96, 12, 12} ;
     ) catch return -1;    tensor_model_1_block_5_add_add_quantized.deinit();
 
 
-var shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized : [4]usize = [_]usize{ 1, 32, 12, 12} ;
-    var tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized) catch return -2;
-    defer tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized.deinit();
+var shape_tensor_relu__37_0_quantized : [4]usize = [_]usize{ 1, 32, 12, 12} ;
+    var tensor_relu__37_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu__37_0_quantized) catch return -2;
+    defer tensor_relu__37_0_quantized.deinit();
 
    // Step 29: qlinearconv operation
 
@@ -937,9 +937,9 @@ var shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head
         @constCast(&param_lib.tensor_const_fold_opt__194_quantized), // w
         @constCast(&param_lib.tensor_const_fold_opt__194_scale), // w_scale
         @constCast(&param_lib.tensor_const_fold_opt__194_zero_point), // w_zero_point
-        &tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized, // output
-        @constCast(&param_lib.tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_scale), // y_scale
-        @constCast(&param_lib.tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_zero_point), // y_zero_point
+        &tensor_relu__37_0_quantized, // output
+        @constCast(&param_lib.tensor_relu__37_0_scale), // y_scale
+        @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
         @constCast(&param_lib.tensor_head_bias_quantized), // bias
         &[_]usize{1,1}, // stride
         &[_]usize{0,0,0,0,0,0,0,0}, // pads
@@ -949,65 +949,11 @@ var shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head
     ) catch return -1;    tensor_relu6__35_0_quantized.deinit();
 
 
-var shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias : [4]usize = [_]usize{ 1, 32, 12, 12} ;
-    var tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias) catch return -2;
-    defer tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias.deinit();
-
-   // Step 30: dequantizelinear operation
-
-    logMsg("Running dequantizelinear operation...\\n");
-
-
-    tensMath.dequantizeLinear_lean(u8, // InputType
-                                 f32, // OutputType
-                                 u8, // ZeroPointType
-                                 &tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized, // x: input tensor
-                                 @constCast(&param_lib.tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_scale), // x_scale
-                                 @constCast(&param_lib.tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_zero_point), // x_zero_point
-                                 1,  // axis
-                                 0,  // block_size
-                                 &tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias, // y: output tensor
-    ) catch return -1;    tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias_quantized.deinit();
-
-
-var shape_tensor_relu__37_0 : [4]usize = [_]usize{ 1, 32, 12, 12} ;
-    var tensor_relu__37_0 = Tensor(f32).fromShape(&allocator, &shape_tensor_relu__37_0) catch return -2;
-    defer tensor_relu__37_0.deinit();
-
-   // Step 31: relu operation
-
-    logMsg("Running relu operation...\\n");
-
-
-    tensMath.ReLU_lean(f32, &tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias, &tensor_relu__37_0) catch return -1;    tensor_model_1_head_relu_model_1_head_biasadd_model_1_head_conv2d_head_bias.deinit();
-
-
-var shape_tensor_relu__37_0_quantized : [4]usize = [_]usize{ 1, 32, 12, 12} ;
-    var tensor_relu__37_0_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_relu__37_0_quantized) catch return -2;
-    defer tensor_relu__37_0_quantized.deinit();
-
-   // Step 32: quantizelinear operation
-
-    logMsg("Running quantizelinear operation...\\n");
-
-
-    tensMath.quantizeLinear_lean(f32, // InputType
-                                 u8, // OutputType
-                                 u8, // ZeroPointType
-                                 &tensor_relu__37_0, // x: input tensor
-                                 @constCast(&param_lib.tensor_relu__37_0_scale), // y_scale
-                                 @constCast(&param_lib.tensor_model_1_conv1_relu_relu6_model_1_bn_conv1_fusedbatchnormv3_model_1_expanded_conv_depthwise_bn_fusedbatchnormv3_model_1_expanded_conv_depthwise_depthwise_model_1_block_5_project_conv2d_model_1_conv1_conv2d__40_0_zero_point), // y_zero_point
-                                 1,  // axis
-                                 0,  // block_size
-                                 &tensor_relu__37_0_quantized, // y: output tensor
-    ) catch return -1;    tensor_relu__37_0.deinit();
-
-
 var shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_quantized : [4]usize = [_]usize{ 1, 3, 12, 12} ;
     var tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_quantized = Tensor(u8).fromShape(&allocator, &shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_quantized) catch return -2;
     defer tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1_quantized.deinit();
 
-   // Step 33: qlinearconv operation
+   // Step 30: qlinearconv operation
 
     logMsg("Running qlinearconv operation...\\n");
     tensMath.qlinearconv_dispatch(
@@ -1038,7 +984,7 @@ var shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1 : [4]
     var tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1 = Tensor(f32).fromShape(&allocator, &shape_tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1) catch return -2;
     defer tensor_model_1_logits_biasadd_model_1_logits_conv2d_logits_bias1.deinit();
 
-   // Step 34: dequantizelinear operation
+   // Step 31: dequantizelinear operation
 
     logMsg("Running dequantizelinear operation...\\n");
 
@@ -1059,7 +1005,7 @@ var shape_tensor_statefulpartitionedcall_0_raw_output___3_0 : [4]usize = [_]usiz
     var tensor_statefulpartitionedcall_0_raw_output___3_0 = Tensor(f32).fromShape(&allocator, &shape_tensor_statefulpartitionedcall_0_raw_output___3_0) catch return -2;
     defer tensor_statefulpartitionedcall_0_raw_output___3_0.deinit();
 
-   // Step 35: softmax operation
+   // Step 32: softmax operation
 
     logMsg("Running softmax operation...\\n");
 
@@ -1075,7 +1021,7 @@ var shape_tensor_statefulpartitionedcall_0_raw_output___3_0 : [4]usize = [_]usiz
 var shape_tensor_statefulpartitionedcall_0 : [4]usize = [_]usize{ 1, 12, 12, 3} ;
     var tensor_statefulpartitionedcall_0 = Tensor(f32).fromShape(&allocator, &shape_tensor_statefulpartitionedcall_0) catch return -2;
 
-   // Step 36: transpose operation
+   // Step 33: transpose operation
 
     logMsg("Running transpose operation...\\n");
     tensMath.transpose_onnx_lean(

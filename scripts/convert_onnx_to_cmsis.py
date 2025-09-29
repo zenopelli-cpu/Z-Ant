@@ -10,8 +10,11 @@ This script rewrites every QLinearConv weight tensor so that:
 * Weight zero-points are folded into the tensor data and reset to zero, matching
   the runtime assumption that CMSIS receives symmetric int8 weights.
 
-The resulting model can be consumed directly by the CMSIS execution path without
-additional repacking at prediction time.
+In addition to weight repacking, the converter performs graph-level fusions to
+remove redundant DequantizeLinear/activation/QuantizeLinear chains following a
+QLinearConv when their effect can be captured by the quantized convolution
+itself.  This reduces the number of runtime buffers and improves inference
+latency for CMSIS-NN backends.
 """
 
 from __future__ import annotations
@@ -258,7 +261,7 @@ def convert_model(model: onnx.ModelProto) -> None:
             zp_tensor.CopyFrom(new_zp)
 
     # After weight normalization, apply high-level fusions to reduce runtime buffers
-    _fuse_clip_into_qlinearconv(model)
+    _fuse_activation_chain_into_qlinearconv(model)
     _normalize_first_qlinearconv_padding(model)
 
 
@@ -301,12 +304,40 @@ def _prune_unused_initializers(model: onnx.ModelProto) -> None:
     model.graph.initializer.extend(keep)
 
 
-def _fuse_clip_into_qlinearconv(model: onnx.ModelProto) -> None:
-    """Fuse QLinearConv -> DequantizeLinear -> Clip(0,6) -> QuantizeLinear into a single QLinearConv.
+def _single_consumer(
+    consumers: Dict[str, List[onnx.NodeProto]], name: str
+) -> Optional[onnx.NodeProto]:
+    cs = consumers.get(name, [])
+    if len(cs) == 1:
+        return cs[0]
+    return None
 
-    We redirect the QLinearConv output directly to the QuantizeLinear output and
-    replace the conv's y_scale/y_zero_point with those of QuantizeLinear.
-    This removes three runtime buffers and the extra pass.
+
+def _read_clip_bounds(
+    node: onnx.NodeProto, inits: Dict[str, onnx.TensorProto]
+) -> Optional[Tuple[Optional[float], Optional[float]]]:
+    clip_min: Optional[float] = None
+    clip_max: Optional[float] = None
+    for a in node.attribute:
+        if a.name == "min":
+            clip_min = float(a.f)
+        elif a.name == "max":
+            clip_max = float(a.f)
+    if clip_min is None and len(node.input) >= 2:
+        clip_min = _const_scalar_from_input(inits, node.input[1])
+    if clip_max is None and len(node.input) >= 3:
+        clip_max = _const_scalar_from_input(inits, node.input[2])
+    return clip_min, clip_max
+
+
+def _fuse_activation_chain_into_qlinearconv(model: onnx.ModelProto) -> None:
+    """Fuse QLinearConv -> DequantizeLinear -> (Clip|Relu) -> QuantizeLinear chains.
+
+    The fused QLinearConv adopts the QuantizeLinear scale/zero-point so that the
+    quantized accumulator saturates to the same range that the activation
+    enforced in floating point.  This mirrors the behaviour of ReLU and
+    ReLU6-like activations for unsigned outputs while eliminating the need for
+    additional buffers.
     """
     inits = _get_initializer_map(model)
     consumers = _build_consumers(model)
@@ -316,49 +347,43 @@ def _fuse_clip_into_qlinearconv(model: onnx.ModelProto) -> None:
         if conv.op_type != "QLinearConv" or len(conv.output) == 0:
             continue
         conv_out = conv.output[0]
-        ds = consumers.get(conv_out, [])
-        if len(ds) != 1:
-            continue
-        dlin = ds[0]
-        if dlin.op_type != "DequantizeLinear" or len(dlin.output) == 0:
-            continue
-        dlin_out = dlin.output[0]
-        cs = consumers.get(dlin_out, [])
-        if len(cs) != 1:
-            continue
-        clip = cs[0]
-        if clip.op_type != "Clip" or len(clip.output) == 0:
+        dlin = _single_consumer(consumers, conv_out)
+        if dlin is None or dlin.op_type != "DequantizeLinear" or len(dlin.output) == 0:
             continue
 
-        # Get clip min/max (attr or inputs)
-        clip_min: Optional[float] = None
-        clip_max: Optional[float] = None
-        for a in clip.attribute:
-            if a.name == "min":
-                clip_min = float(a.f)
-            elif a.name == "max":
-                clip_max = float(a.f)
-        # Opset 11+ uses extra inputs
-        if clip_min is None and len(clip.input) >= 2:
-            clip_min = _const_scalar_from_input(inits, clip.input[1])
-        if clip_max is None and len(clip.input) >= 3:
-            clip_max = _const_scalar_from_input(inits, clip.input[2])
-
-        if clip_min is None or clip_max is None:
-            continue
-        # Only fuse typical ReLU6 range ( loose tolerance )
-        if not (abs(clip_min - 0.0) < 1e-5 and abs(clip_max - 6.0) < 1e-3):
+        act = _single_consumer(consumers, dlin.output[0])
+        if act is None or len(act.output) == 0:
             continue
 
-        cs2 = consumers.get(clip.output[0], [])
-        if len(cs2) != 1:
-            continue
-        qlin = cs2[0]
-        if qlin.op_type != "QuantizeLinear" or len(qlin.input) < 3:
+        activation_kind: Optional[str] = None
+        clip_bounds: Tuple[Optional[float], Optional[float]] = (None, None)
+
+        if act.op_type == "Clip":
+            clip_bounds = _read_clip_bounds(act, inits)
+            if clip_bounds is None:
+                continue
+            clip_min, clip_max = clip_bounds
+            if clip_min is None or clip_max is None:
+                continue
+            # Only accept non-negative clamps; the upper bound is optional but
+            # must be finite.  This covers ReLU (max=None) and ReLU6-style
+            # activations.
+            if clip_min < -1e-5:
+                continue
+            if clip_max <= 0.0:
+                continue
+            activation_kind = "clip"
+        elif act.op_type == "Relu":
+            activation_kind = "relu"
+            clip_bounds = (0.0, None)
+        else:
             continue
 
-        # Redirect conv's y_scale/y_zero_point to QuantizeLinear's scale and zp
-        # QLinearConv inputs: x, x_scale, x_zp, w, w_scale, w_zp, y_scale, y_zp, bias?
+        qlin = _single_consumer(consumers, act.output[0])
+        if qlin is None or qlin.op_type != "QuantizeLinear" or len(qlin.input) < 3:
+            continue
+
+        # Ensure the convolution provides output scale/zero-point tensors.
         if len(conv.input) < 8:
             continue
 
@@ -380,22 +405,30 @@ def _fuse_clip_into_qlinearconv(model: onnx.ModelProto) -> None:
         if old_scale <= 0.0 or new_scale <= 0.0:
             continue
 
+        # The QuantizeLinear output zero-point must correspond to the
+        # activation's lower bound.  For ReLU and Clip(0,x) this is typically 0
+        # for uint8 tensors.
+        new_y_zp_name = qlin.input[2]
+        if new_y_zp_name not in inits:
+            continue
+        new_y_zp_arr = numpy_helper.to_array(inits[new_y_zp_name])
+        if new_y_zp_arr.size != 1:
+            continue
+        if activation_kind in {"relu", "clip"}:
+            zp_val = float(new_y_zp_arr.reshape(()))
+            # Enforce non-negative lower bounds; otherwise the activation cannot
+            # be represented by quantized saturation.
+            if zp_val < -1e-5:
+                continue
+
         scale_ratio = new_scale / old_scale
 
-        # Adjust per-channel weight scales so that the effective rescale factor
-        # (x_scale * w_scale / y_scale) remains identical after swapping the
-        # output quantization parameters. This preserves the dequantized output
-        # range even when the fused QuantizeLinear introduces a much larger
-        # y_scale.
         w_scale_name = conv.input[4]
         if w_scale_name not in inits:
             continue
         w_scale_arr = numpy_helper.to_array(inits[w_scale_name]).astype(np.float32)
         w_scale_arr *= scale_ratio
 
-        # Bias tensors (if present) are quantized with x_scale * w_scale. When
-        # we expand w_scale we must shrink the bias values by the reciprocal to
-        # keep the floating-point bias identical.
         if len(conv.input) >= 9:
             bias_name = conv.input[8]
             if bias_name in inits:
@@ -422,13 +455,10 @@ def _fuse_clip_into_qlinearconv(model: onnx.ModelProto) -> None:
                 break
 
         conv.input[6] = new_y_scale_name
-        conv.input[7] = qlin.input[2]
-
-        # Rewire outputs: conv output now feeds where qlin output was used
+        conv.input[7] = new_y_zp_name
         conv.output[0] = qlin.output[0]
 
-        # Mark nodes for removal
-        to_remove.extend([dlin, clip, qlin])
+        to_remove.extend([dlin, act, qlin])
 
     if to_remove:
         _remove_nodes(model, to_remove)
