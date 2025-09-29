@@ -39,6 +39,9 @@ pub fn write(generated_path: []const u8, model_name: []const u8, linearizedGraph
     if (codegen_options.log) {
         //log function setting
         try write_logFunction(writer);
+    } else {
+        // Add dummy log declarations when logging is disabled
+        try write_dummyLogFunction(writer);
     }
 
     //Fixed Buffer Allocator (only for static allocation)
@@ -197,4 +200,29 @@ fn write_FBA(writer: std.fs.File.Writer) !void {
             \\
         , .{ buffer_size_kb, buffer_size_kb * 1024, buffer_size_kb * 1024 });
     }
+}
+
+fn write_dummyLogFunction(writer: std.fs.File.Writer) !void {
+    _ = try writer.print(
+        \\
+        \\// Dummy log declarations for when logging is disabled
+        \\var log_function: ?*const fn ([*c]const u8) callconv(.C) void = null;
+        \\
+        \\inline fn logMsg(comptime msg: []const u8) void {{
+        \\    _ = msg; // suppress unused variable warning
+        \\}}
+        \\
+        \\inline fn logf(comptime fmt: []const u8, args: anytype) void {{
+        \\    _ = fmt; _ = args; // suppress unused variable warnings
+        \\}}
+        \\
+        \\fn logTensorStatsU8(label: []const u8, t: anytype) void {{
+        \\    _ = label; _ = t; // suppress unused variable warnings
+        \\}}
+        \\
+        \\pub {s} fn setLogFunction(func: ?*const fn ([*c]const u8) callconv(.C) void) void {{
+        \\    _ = func; // suppress unused variable warning
+        \\}}
+        \\
+    , .{if (codegen_options.do_export == true) "export" else ""});
 }

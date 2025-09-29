@@ -2642,38 +2642,42 @@ fn qlinearconv_cmsis_accelerated_impl(
 
     // Convert bias to i32 format as expected by CMSIS-NN
     var bias_converted: ?[]i32 = null;
+    defer if (bias_converted) |slice| alloc.free(slice);
+
     var bias_ptr: ?[*]const i32 = null;
 
     if (bias) |b| {
         const bias_buf = try alloc.alloc(i32, out_channels);
-        defer alloc.free(bias_buf);
+        errdefer alloc.free(bias_buf);
+
         const has_per_channel_bias = b.data.len == out_channels;
         const bias_min = std.math.minInt(i32);
         const bias_max = std.math.maxInt(i32);
-        var bias_slice = bias_buf;
+
         for (0..out_channels) |ch| {
             const bias_val = if (has_per_channel_bias) b.data[ch] else b.data[0];
             switch (@typeInfo(BiasType)) {
                 .int, .comptime_int => {
-                    bias_slice[ch] = @as(i32, @intCast(bias_val));
+                    bias_buf[ch] = @as(i32, @intCast(bias_val));
                 },
                 .float => {
                     const w_scale_val = asF32(ScaleType, w_scale_data[if (has_per_channel_w_scale) ch else 0]);
                     const bias_scale = x_scale_val * w_scale_val;
                     if (!(bias_scale > 0)) {
-                        bias_slice[ch] = 0;
+                        bias_buf[ch] = 0;
                         continue;
                     }
                     const bias_float = asF32(BiasType, bias_val);
                     const scaled = bias_float / bias_scale;
                     const clamped = std.math.clamp(scaled, @as(f32, @floatFromInt(bias_min)), @as(f32, @floatFromInt(bias_max)));
-                    bias_slice[ch] = @as(i32, @intFromFloat(@round(clamped)));
+                    bias_buf[ch] = @as(i32, @intFromFloat(@round(clamped)));
                 },
                 else => @compileError("Unsupported bias tensor type for CMSIS-NN qlinearconv"),
             }
         }
-        bias_converted = bias_slice;
-        bias_ptr = @ptrCast(bias_slice.ptr);
+
+        bias_converted = bias_buf;
+        bias_ptr = @ptrCast(bias_buf.ptr);
     }
 
     const weight_ptr_s8: [*]const i8 = @ptrCast(w.data.ptr);
