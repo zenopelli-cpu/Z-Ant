@@ -1,5 +1,6 @@
 const std = @import("std");
 const zant = @import("../../../zant.zig");
+const builtin = @import("builtin");
 
 const SCALE_SHIFT: u5 = 16;
 
@@ -1136,6 +1137,7 @@ inline fn isEightBitInt(comptime T: type) bool {
 
 const simd_block = 16;
 const enable_simd_logging = false;
+pub var simd_debug_call_counter: usize = 0;
 
 inline fn logSimdEvent(comptime fmt: []const u8, args: anytype) void {
     if (!enable_simd_logging) return;
@@ -1163,24 +1165,23 @@ inline fn dotProductKernelSimd(
     in_height_isize: isize,
     in_width_isize: isize,
 ) struct { acc: i64, processed: usize } {
-    if (dims.group_in_channels < simd_block) {
-        logSimdEvent(
-            "QLINEAR_SIMD: skip SIMD because channels={} < block={}\n",
-            .{ dims.group_in_channels, simd_block },
-        );
-        return .{ .acc = 0, .processed = 0 };
-    }
-
     var acc_total: i64 = 0;
     var processed: usize = 0;
     const weight_zp_vec = @as(@Vector(simd_block, i32), @splat(channel.weight_zero_point));
 
-    while (processed + simd_block <= dims.group_in_channels) : (processed += simd_block) {
+    while (processed < dims.group_in_channels) {
+        const lanes = @min(simd_block, dims.group_in_channels - processed);
+        if (lanes == 0) break;
+        if (builtin.is_test) {
+            simd_debug_call_counter += 1;
+        }
+
         logSimdEvent(
-            "QLINEAR_SIMD: processing block start={} end={} kernel={}x{} dil={}x{}\n",
+            "QLINEAR_SIMD: processing block start={} end={} lanes={} kernel={}x{} dil={}x{}\n",
             .{
                 processed,
-                processed + simd_block,
+                processed + lanes,
+                lanes,
                 kernel_height,
                 kernel_width,
                 dilation_h,
@@ -1206,17 +1207,22 @@ inline fn dotProductKernelSimd(
                 var w_block: [simd_block]i32 = undefined;
 
                 inline for (0..simd_block) |lane| {
-                    const channel_index = in_group_base + processed + lane;
-                    const input_channel_base = input_batch_base + channel_index * layout.input_channel_stride;
-                    const input_row_base = input_channel_base + ih_usize * layout.input_row_stride;
-                    const input_index = input_row_base + iw_usize;
-                    const x_q = @as(i32, @intCast(x_data[input_index]));
-                    x_block[lane] = x_q - input_zp;
+                    if (lane < lanes) {
+                        const channel_index = in_group_base + processed + lane;
+                        const input_channel_base = input_batch_base + channel_index * layout.input_channel_stride;
+                        const input_row_base = input_channel_base + ih_usize * layout.input_row_stride;
+                        const input_index = input_row_base + iw_usize;
+                        const x_q = @as(i32, @intCast(x_data[input_index]));
+                        x_block[lane] = x_q - input_zp;
 
-                    const lane_weight_channel_base = weight_base + (processed + lane) * layout.weight_channel_stride;
-                    const lane_weight_row_base = lane_weight_channel_base + kh * layout.weight_row_stride;
-                    const weight_index = lane_weight_row_base + kw;
-                    w_block[lane] = @as(i32, @intCast(w_data[weight_index]));
+                        const lane_weight_channel_base = weight_base + (processed + lane) * layout.weight_channel_stride;
+                        const lane_weight_row_base = lane_weight_channel_base + kh * layout.weight_row_stride;
+                        const weight_index = lane_weight_row_base + kw;
+                        w_block[lane] = @as(i32, @intCast(w_data[weight_index]));
+                    } else {
+                        x_block[lane] = 0;
+                        w_block[lane] = channel.weight_zero_point;
+                    }
                 }
 
                 const x_vec = @as(@Vector(simd_block, i32), x_block);
@@ -1231,8 +1237,9 @@ inline fn dotProductKernelSimd(
         acc_total += block_sum;
         logSimdEvent(
             "QLINEAR_SIMD: block complete processed={} acc_block={} acc_total={}\n",
-            .{ processed + simd_block, block_sum, acc_total },
+            .{ processed + lanes, block_sum, acc_total },
         );
+        processed += lanes;
     }
 
     logSimdEvent(
