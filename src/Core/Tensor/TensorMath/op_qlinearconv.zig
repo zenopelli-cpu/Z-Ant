@@ -1046,6 +1046,70 @@ inline fn conv3x3EmbeddedOptimized(
     }
 }
 
+inline fn isEightBitInt(comptime T: type) bool {
+    return switch (@typeInfo(T)) {
+        .int => |info| info.bits == 8,
+        else => false,
+    };
+}
+
+inline fn dotProduct1x1Simd(
+    comptime InputType: type,
+    comptime WeightType: type,
+    x_data: []const InputType,
+    w_data: []const WeightType,
+    dims: ConvDims,
+    layout: ConvLayout,
+    input_batch_base: usize,
+    weight_base: usize,
+    in_group_base: usize,
+    ih: usize,
+    iw: usize,
+    input_zp: i32,
+    channel: ChannelParams,
+) i64 {
+    const block: usize = 16;
+    var acc: i64 = 0;
+    const input_zp_vec = @as(@Vector(block, i32), @splat(input_zp));
+    const weight_zp_vec = @as(@Vector(block, i32), @splat(channel.weight_zero_point));
+
+    var processed: usize = 0;
+    while (processed + block <= dims.group_in_channels) : (processed += block) {
+        var input_block: [block]i32 = undefined;
+        var weight_block: [block]i32 = undefined;
+
+        inline for (0..block) |lane| {
+            const channel_index = in_group_base + processed + lane;
+            const input_channel_base = input_batch_base + channel_index * layout.input_channel_stride;
+            const input_index = input_channel_base + ih * layout.input_row_stride + iw;
+            input_block[lane] = @as(i32, @intCast(x_data[input_index]));
+            weight_block[lane] = @as(i32, @intCast(w_data[weight_base + processed + lane]));
+        }
+
+        const x_vec = @as(@Vector(block, i32), input_block);
+        const w_vec = @as(@Vector(block, i32), weight_block);
+        const x_diff = x_vec - input_zp_vec;
+        const w_diff = w_vec - weight_zp_vec;
+        const products = @as(@Vector(block, i64), @intCast(x_diff)) * @as(@Vector(block, i64), @intCast(w_diff));
+        acc += @reduce(.Add, products);
+    }
+
+    var remainder = processed;
+    while (remainder < dims.group_in_channels) : (remainder += 1) {
+        const c = in_group_base + remainder;
+        const input_channel_base = input_batch_base + c * layout.input_channel_stride;
+        const input_index = input_channel_base + ih * layout.input_row_stride + iw;
+        const weight_index = weight_base + remainder;
+        const x_q = @as(i32, @intCast(x_data[input_index]));
+        const w_q = @as(i32, @intCast(w_data[weight_index]));
+        const x_diff = x_q - input_zp;
+        const w_diff = w_q - channel.weight_zero_point;
+        acc += @as(i64, x_diff) * @as(i64, w_diff);
+    }
+
+    return acc;
+}
+
 inline fn conv1x1EmbeddedOptimized(
     comptime InputType: type,
     comptime WeightType: type,
@@ -1087,17 +1151,35 @@ inline fn conv1x1EmbeddedOptimized(
                             const ih = @as(usize, @intCast(ih_origin));
                             const iw = @as(usize, @intCast(iw_origin));
 
-                            for (0..dims.group_in_channels) |ic| {
-                                const c = in_group_base + ic;
-                                const input_channel_base = input_batch_base + c * layout.input_channel_stride;
-                                const input_index = input_channel_base + ih * layout.input_row_stride + iw;
-                                const weight_index = weight_base + ic;
+                            if (comptime (isEightBitInt(InputType) and isEightBitInt(WeightType))) {
+                                acc_raw = dotProduct1x1Simd(
+                                    InputType,
+                                    WeightType,
+                                    x_data,
+                                    w_data,
+                                    dims,
+                                    layout,
+                                    input_batch_base,
+                                    weight_base,
+                                    in_group_base,
+                                    ih,
+                                    iw,
+                                    input_zp,
+                                    channel,
+                                );
+                            } else {
+                                for (0..dims.group_in_channels) |ic| {
+                                    const c = in_group_base + ic;
+                                    const input_channel_base = input_batch_base + c * layout.input_channel_stride;
+                                    const input_index = input_channel_base + ih * layout.input_row_stride + iw;
+                                    const weight_index = weight_base + ic;
 
-                                const x_q = @as(i32, @intCast(x_data[input_index]));
-                                const w_q = @as(i32, @intCast(w_data[weight_index]));
-                                const x_diff = x_q - input_zp;
-                                const w_diff = w_q - channel.weight_zero_point;
-                                acc_raw += @as(i64, x_diff) * @as(i64, w_diff);
+                                    const x_q = @as(i32, @intCast(x_data[input_index]));
+                                    const w_q = @as(i32, @intCast(w_data[weight_index]));
+                                    const x_diff = x_q - input_zp;
+                                    const w_diff = w_q - channel.weight_zero_point;
+                                    acc_raw += @as(i64, x_diff) * @as(i64, w_diff);
+                                }
                             }
                         }
 
