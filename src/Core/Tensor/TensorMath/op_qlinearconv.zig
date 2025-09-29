@@ -1,6 +1,8 @@
 const std = @import("std");
 const zant = @import("../../../zant.zig");
 
+const SCALE_SHIFT: u5 = 16;
+
 const Tensor = zant.core.tensor.Tensor;
 const pkg_allocator = zant.utils.allocator.allocator;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
@@ -112,10 +114,16 @@ inline fn saturatingShiftLeft(value: i64, shift: u6) i64 {
     }
 
     const shifted = @shlWithOverflow(value, shift);
-    if (shifted[1]) {
+    if (shifted[1] != 0) {
         return if (value >= 0) std.math.maxInt(i64) else std.math.minInt(i64);
     }
     return shifted[0];
+}
+
+inline fn clampToI8(v: anytype) i8 {
+    const val_i32: i32 = @as(i32, @intCast(v));
+    const clamped = std.math.clamp(val_i32, std.math.minInt(i8), std.math.maxInt(i8));
+    return @as(i8, @intCast(clamped));
 }
 
 inline fn roundingDivideByPOT(value: i64, exponent: u6) i64 {
@@ -833,7 +841,7 @@ pub inline fn qlinearconv_embedded_lean(
         return TensorMathError.InvalidDimensions;
     }
 
-    const SCALE_SHIFT: u5 = 16;
+    // use module-level SCALE_SHIFT
     const x_scale_val = asF32(ScaleType, x_scale.data[0]);
     const y_scale_val = asF32(ScaleType, y_scale.data[0]);
     const input_zero_point = if (@typeInfo(@TypeOf(x_zero_point)) == .pointer and x_zero_point.data.len == 0)
