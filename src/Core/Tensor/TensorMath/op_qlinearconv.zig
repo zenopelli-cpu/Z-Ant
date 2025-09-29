@@ -113,6 +113,46 @@ inline fn q16(x: f32) i32 {
     return @as(i32, @intFromFloat(scaled));
 }
 
+inline fn saturateWideProductToI64(high: i64, low: u64) i64 {
+    const result = @as(i64, @bitCast(low));
+
+    if (high == 0) {
+        if (result < 0) return std.math.maxInt(i64);
+        return result;
+    }
+
+    if (high == -1) {
+        if (result >= 0) return std.math.minInt(i64);
+        return result;
+    }
+
+    return if (high > 0) std.math.maxInt(i64) else std.math.minInt(i64);
+}
+
+inline fn mul_shift_sat(lhs: i64, rhs: i64, comptime shift: u6) i64 {
+    comptime {
+        if (shift >= 64) @compileError("shift must be less than 64 bits");
+    }
+
+    const wide: i128 = @as(i128, lhs) * @as(i128, rhs);
+    const shifted: i128 = if (shift == 0) wide else wide >> @as(u7, shift);
+
+    const max_i64_as_i128: i128 = @as(i128, std.math.maxInt(i64));
+    const min_i64_as_i128: i128 = @as(i128, std.math.minInt(i64));
+
+    if (shifted > max_i64_as_i128) return std.math.maxInt(i64);
+    if (shifted < min_i64_as_i128) return std.math.minInt(i64);
+    return @as(i64, @intCast(shifted));
+}
+
+inline fn mul_q16_sat(lhs: i64, rhs: i64) i64 {
+    return mul_shift_sat(lhs, rhs, @as(u6, SHIFT));
+}
+
+inline fn mul_i64_sat(lhs: i64, rhs: i64) i64 {
+    return mul_shift_sat(lhs, rhs, 0);
+}
+
 inline fn rshift_round_s64(x: i64, comptime shift_bits: u5) i64 {
     const bias: i64 = if (x >= 0) (1 << (shift_bits - 1)) else -(1 << (shift_bits - 1));
     return (x + bias) >> shift_bits;
@@ -659,19 +699,6 @@ const QuantParams = struct {
     q_max: i32,
 };
 
-inline fn saturateI128ToI64(value: i128) i64 {
-    const max_i64_as_i128 = @as(i128, std.math.maxInt(i64));
-    const min_i64_as_i128 = @as(i128, std.math.minInt(i64));
-
-    if (value > max_i64_as_i128) {
-        return std.math.maxInt(i64);
-    }
-    if (value < min_i64_as_i128) {
-        return std.math.minInt(i64);
-    }
-    return @intCast(value);
-}
-
 const ConvDims = struct {
     batch: usize,
     in_channels: usize,
@@ -712,12 +739,22 @@ inline fn quantizeAccumulator(acc: i64, quant: QuantParams) i32 {
     const with_zp_q16 = tmp_q16 + quant.output_zero_point_q16;
 
     // Step 3: round-to-nearest-even from Q16 to integer
-    const denom: i64 = @as(i64, 1) << @as(u6, @intCast(quant.scale_shift));
+    const shift = @as(u6, @intCast(quant.scale_shift));
+    const denom: i64 = @as(i64, 1) << shift;
+    const mask: i64 = denom - 1;
+    var q64 = with_zp_q16 >> shift;
+    const rem_bits = with_zp_q16 & mask;
+
+    if (with_zp_q16 < 0 and rem_bits != 0) {
+        q64 += 1; // compensate for arithmetic shift rounding toward -inf
+    }
+
+    const abs_rem = if (with_zp_q16 >= 0)
+        rem_bits
+    else
+        (denom - rem_bits) & mask;
     const half: i64 = denom >> 1;
-    var q64 = @divTrunc(with_zp_q16, denom); // toward zero
-    const rem = with_zp_q16 - q64 * denom; // remainder with sign of with_zp_q16
     const sign: i64 = if (with_zp_q16 >= 0) 1 else -1;
-    const abs_rem = if (rem >= 0) rem else -rem;
 
     if (abs_rem > half) {
         q64 += sign;
@@ -890,7 +927,7 @@ pub inline fn qlinearconv_embedded_lean(
             asF32(ScaleType, w_scale.data[0]);
 
         const weight_scale_q16 = @as(i64, q16(w_scale_val));
-        const combined_scale_q16 = saturateI128ToI64((@as(i128, x_scale_q16) * @as(i128, weight_scale_q16)) >> SCALE_SHIFT);
+        const combined_scale_q16 = mul_q16_sat(x_scale_q16, weight_scale_q16);
         const weight_zero_point = if (@typeInfo(@TypeOf(w_zero_point)) == .pointer and w_zero_point.data.len == 0)
             0
         else
@@ -994,7 +1031,7 @@ inline fn conv3x3EmbeddedOptimized(
                             }
                         }
 
-                        const scaled = saturateI128ToI64(@as(i128, acc_raw) * @as(i128, channel.combined_scale_q16));
+                        const scaled = mul_i64_sat(acc_raw, channel.combined_scale_q16);
                         const sum = @addWithOverflow(channel.bias_q16, scaled);
                         var acc_q16: i64 = sum[0];
                         if (sum[1] != 0) {
@@ -1064,7 +1101,7 @@ inline fn conv1x1EmbeddedOptimized(
                             }
                         }
 
-                        const scaled = saturateI128ToI64(@as(i128, acc_raw) * @as(i128, channel.combined_scale_q16));
+                        const scaled = mul_i64_sat(acc_raw, channel.combined_scale_q16);
                         const sum = @addWithOverflow(channel.bias_q16, scaled);
                         var acc_q16: i64 = sum[0];
                         if (sum[1] != 0) {
@@ -1148,7 +1185,7 @@ inline fn convGenericEmbeddedOptimized(
                             }
                         }
 
-                        const scaled = saturateI128ToI64(@as(i128, acc_raw) * @as(i128, channel.combined_scale_q16));
+                        const scaled = mul_i64_sat(acc_raw, channel.combined_scale_q16);
                         const sum = @addWithOverflow(channel.bias_q16, scaled);
                         var acc_q16: i64 = sum[0];
                         if (sum[1] != 0) {
