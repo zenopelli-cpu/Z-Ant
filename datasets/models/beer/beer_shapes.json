@@ -1,0 +1,92 @@
+{
+  "model_1/block_5_add/add": {
+    "shape": [
+      1,
+      16,
+      12,
+      12
+    ],
+    "dtype": "float32"
+  },
+  "Relu6__25_0_quantized": {
+    "shape": [
+      1,
+      96,
+      12,
+      12
+    ],
+    "dtype": "uint8"
+  },
+  "model_1/block_2_depthwise_relu/Relu6;model_1/block_2_depthwise_BN/FusedBatchNormV3;model_1/block_3_depthwise_BN/FusedBatchNormV3;model_1/block_3_depthwise/depthwise;model_1/block_2_depthwise/depthwise_quantized": {
+    "shape": [
+      1,
+      48,
+      24,
+      24
+    ],
+    "dtype": "uint8"
+  },
+  "model_1/block_3_depthwise_relu/Relu6;model_1/block_3_depthwise_BN/FusedBatchNormV3;model_1/block_3_depthwise/depthwise_quantized": {
+    "shape": [
+      1,
+      48,
+      12,
+      12
+    ],
+    "dtype": "uint8"
+  },
+  "model_1/block_5_expand_relu/Relu6;model_1/block_5_expand_BN/FusedBatchNormV3;model_1/block_5_depthwise_BN/FusedBatchNormV3;model_1/block_5_depthwise/depthwise;model_1/block_6_expand/Conv2D;model_1/block_5_expand/Conv2D_quantized": {
+    "shape": [
+      1,
+      96,
+      12,
+      12
+    ],
+    "dtype": "uint8"
+  },
+  "model_1/Conv1_relu/Relu6;model_1/bn_Conv1/FusedBatchNormV3;model_1/expanded_conv_depthwise_BN/FusedBatchNormV3;model_1/expanded_conv_depthwise/depthwise;model_1/block_5_project/Conv2D;model_1/Conv1/Conv2D_quantized": {
+    "shape": [
+      1,
+      16,
+      48,
+      48
+    ],
+    "dtype": "uint8"
+  },
+  "model_1/block_1_project_BN/FusedBatchNormV3;model_1/block_2_project/Conv2D;model_1/block_1_project/Conv2D1_quantized": {
+    "shape": [
+      1,
+      8,
+      24,
+      24
+    ],
+    "dtype": "uint8"
+  },
+  "model_1/block_5_depthwise_relu/Relu6;model_1/block_5_depthwise_BN/FusedBatchNormV3;model_1/block_5_depthwise/depthwise;model_1/block_6_expand/Conv2D_quantized": {
+    "shape": [
+      1,
+      96,
+      12,
+      12
+    ],
+    "dtype": "uint8"
+  },
+  "Relu6__20_0": {
+    "shape": [
+      1,
+      48,
+      24,
+      24
+    ],
+    "dtype": "float32"
+  },
+  "Relu6__32_0_quantized": {
+    "shape": [
+      1,
+      96,
+      12,
+      12
+    ],
+    "dtype": "uint8"
+  }
+}

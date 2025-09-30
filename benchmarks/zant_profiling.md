@@ -1,40 +1,83 @@
 # Z-Ant Model Performance Comparison
 
-| | beer_model | | new2_model | | darknet_s_model | | fomo8_model | | mnist-8_model | | mobilenet_v2_model | |
-|---------------------|-------------|-------------|---------------|---------------|-----------------|-----------------|---------------|---------------|---------------|---------------|-------------------|-------------------|
-| | **ReleaseFast** | **ReleaseSmall** | **ReleaseFast** | **ReleaseSmall** | **ReleaseFast** | **ReleaseSmall** | **ReleaseFast** | **ReleaseSmall** | **ReleaseFast** | **ReleaseSmall** | **ReleaseFast** | **ReleaseSmall** |
-| Total Instructions | 87,791,919 | 130,930,476 | 2,376,299,678 | 5,638,188,336 | 72,170,395 | 106,000,990 | 5,801,221 | 5,724,155 | 15,218,762 | 14,401,577 | 75,913,090 | 105,265,510 |
-| Exec Time massif | 605 ms | 558 ms | 2,420 ms | 4,920 ms | 697 ms | 608 ms | 434 ms | 428 ms | 402 ms | 427 ms | 648 ms | 552 ms |
-| Primary alloc | 36,960B | 73,824B | 102,208B | 112,192B | 45,120B | 45,120B | 110,652B | 110,652B | 50,240B | 50,240B | 45,120B | 45,120B |
-| Primary alloc % | 99.91% | 99.95% | 99.96% | 99.96% | 99.93% | 99.93% | 99.95% | 99.95% | 99.94% | 99.94% | 99.93% | 99.93% |
-| Total heap usage | 2,494,460B | 2,494,492B | 1,554,336B | 6,199,296B | 650,352B | 650,416B | 286,025B | 286,025B | 113,744B | 113,744B | 592,080B | 592,080B |
-| Memory leaks | 1,728B | 1,728B | 320B | 320B | 16B | 16B | 24B | 24B | 40B | 40B | 16B | 16B |
-| Executable Size | 1.7M | 88K | 9.5M | 9.1M | 19M | 17M | 1.2M | 182K | 1.4M | 50K | 8.5M | 7.0M |
-| Peak Memory | 36.96 KB | 73.82 KB | 102.2 KB | 112.2 KB | 45.12 KB | 45.12 KB | 110.7 KB | 110.7 KB | 50.24 KB | 50.24 KB | 45.12 KB | 45.12 KB |
-| Memory Timeline | 0→36K | 0→73K | 0→102K | 0→112K | 0→45K | 0→45K | 0→110K | 0→110K | 0→50K | 0→50K | 0→45K | 0→45K |
-| Allocations | 163 allocs | 164 allocs | 33,353 allocs | 323,660 allocs | 259 allocs | 267 allocs | 17 allocs | 17 allocs | 1,877 allocs | 1,877 allocs | 135 allocs | 135 allocs |
+## ReleaseFast Optimization
 
-## Key Observations
+| Model | Total Instructions | Exec Time (ms) | Primary Alloc | Alloc % | Total Heap Usage | Memory Leaks | Executable Size | Peak Memory | Allocations | time dyn us | time static us |
+|-------|-------------------|----------------|---------------|---------|------------------|--------------|-----------------|-------------|-------------|-------------|-------------|
+| beer | 87,791,919 | 605 | 36,960B | 99.91% | 2,494,460B | 1,728B | 1.7M | 36.96 KB | 163 | fail | fail |
+| new2 | 2,376,299,678 | 2,420 | 102,208B | 99.96% | 1,554,336B | 320B | 9.5M | 102.2 KB | 33,353 | 11,363,927 | 10,286,534 |
+| darknet_s | 72,170,395 | 697 | 45,120B | 99.93% | 650,352B | 16B | 19M | 45.12 KB | 259 | NA | NA |
+| fomo8 | 5,801,221 | 434 | 110,652B | 99.95% | 286,025B | 24B | 1.2M | 110.7 KB | 17 | fail | fail |
+| mnist-8 | 15,218,762 | 402 | 50,240B | 99.94% | 113,744B | 40B | 1.4M | 50.24 KB | 1,877 | 189,293 | 169,364 |
+| mobilenet_v2 | 75,913,090 | 648 | 45,120B | 99.93% | 592,080B | 16B | 8.5M | 45.12 KB | 135 | 143,507 | 128,446 |
+| coco80_q | 1,902,010,879 | 4,187 | 112,192B | 99.96% | 1,554,336B | 320B | 9.6M | 112.2 KB | 33,353 | 12,049,579 | tbd |
 
-### Performance Characteristics:
-- **ReleaseFast** generally produces larger executables but with better runtime performance (fewer instructions for most models)
-- **ReleaseSmall** produces significantly smaller executables but may have performance trade-offs
 
-### Model Complexity:
-- **new2_model**: Most complex with highest instruction count and memory usage
-- **fomo8_model**: Most memory-efficient with lowest allocation count
-- **mnist-8_model**: Smallest peak memory footprint
-- **darknet_s_model**: Largest executable size in both optimization modes
-- **mobilenet_v2_model**: Moderate complexity with consistent memory usage across optimizations
+## ReleaseSmall Optimization
 
-### Memory Behavior:
-- All models show consistent memory leak patterns across optimization modes
-- Memory allocation efficiency is very high (>99.9%) across all models
-- ReleaseSmall sometimes increases memory usage (beer, new2) but reduces executable size significantly
-- mobilenet_v2 shows identical memory behavior between optimization modes
+| Model | Total Instructions | Exec Time (ms) | Primary Alloc | Alloc % | Total Heap Usage | Memory Leaks | Executable Size | Peak Memory | Allocations | time dyn us | time static us |
+|-------|-------------------|----------------|---------------|---------|------------------|--------------|-----------------|-------------|-------------|-------------|-------------|
+| beer | 130,930,476 | 558 | 73,824B | 99.95% | 2,494,492B | 1,728B | 88K | 73.82 KB | 164 | fail | fail |
+| new2 | 5,638,188,336 | 4,920 | 112,192B | 99.96% | 6,199,296B | 320B | 9.1M | 112.2 KB | 323,660 | 1,563,288 | 1,400,959 |
+| darknet_s | 106,000,990 | 608 | 45,120B | 99.93% | 650,416B | 16B | 17M | 45.12 KB | 267 | NA | NA |
+| fomo8 | 5,724,155 | 428 | 110,652B | 99.95% | 286,025B | 24B | 182K | 110.7 KB | 17 | fail | fail |
+| mnist-8 | 14,401,577 | 427 | 50,240B | 99.94% | 113,744B | 40B | 50K | 50.24 KB | 1,877 | 143,507 | 128,454 |
+| mobilenet_v2 | 105,265,510 | 552 | 45,120B | 99.93% | 592,080B | 16B | 7.0M | 45.12 KB | 135 | 1,614,847 | 1,445,338 |
+| coco80_q | 2,062,059,985 | 3,879 | 112,192B | 99.96% | 6,199,296B | 320B | 9.1M | 112.2 KB | 323,660 | tbd | tbd |
 
-### Optimization Trade-offs:
-- **Size reduction**: ReleaseSmall achieves 19x-28x size reduction for some models (beer: 1.7M→88K, mnist-8: 1.4M→50K)
-- **Performance impact**: Varies by model - some show instruction count increases with ReleaseSmall
-- **Memory consistency**: Peak memory usage remains similar between optimization modes for most models
-- **mobilenet_v2**: Shows 38% increase in instructions with ReleaseSmall but maintains identical memory profile
+
+## Comparative Analysis (ReleaseFast vs ReleaseSmall)
+
+| Model | Instructions Δ | Exec Time Δ | Size Reduction | Peak Memory Δ | Allocations Δ | time dyn us | time static us |
+|-------|----------------|-------------|----------------|---------------|---------------|------------|------------|
+| beer | +49.1% | -7.8% | 95% (1.7M→88K) | +99.8% | +0.6% | fail→fail | fail→fail |
+| new2 | +137.3% | +103.3% | 4% (9.5M→9.1M) | +9.8% | +870.0% | -86.2% (11.4s→1.6s) | -86.4% (10.3s→1.4s) |
+| darknet_s | +46.9% | -12.8% | 11% (19M→17M) | 0% | +3.1% | NA | NA |
+| fomo8 | -1.3% | -1.4% | 85% (1.2M→182K) | 0% | 0% | fail→fail | fail→fail |
+| mnist-8 | -5.4% | +6.2% | 96% (1.4M→50K) | 0% | 0% | -24.2% (189ms→144ms) | -24.1% (169ms→128ms) |
+| mobilenet_v2 | +38.7% | -14.8% | 18% (8.5M→7.0M) | 0% | 0% | +1025% (144ms→1.6s) | +1025% (128ms→1.4s) |
+| coco80_q | +8.4% | -7.4% | 5% (9.6M→9.1M) | 0% | +870.0% | tbd | tbd |
+
+## Key Insights
+
+### Best Performance (ReleaseFast):
+- **Fastest execution**: mnist-8 (402ms)
+- **Lowest memory**: mnist-8 (50.24 KB)
+- **Smallest executable**: fomo8 (1.2M)
+- **Most efficient allocations**: fomo8 (17 allocs)
+
+### Best Optimization (ReleaseSmall Benefits):
+- **Largest size reduction**: mnist-8 (96% reduction)
+- **Execution improvement**: coco80_q (-7.4% faster)
+- **Best overall trade-off**: fomo8 (85% size reduction, minimal performance impact)
+
+### Model Characteristics:
+- **Quantized models** (new2, coco80_q): High instruction counts, identical allocation patterns
+- **Lightweight models** (fomo8, mnist-8): Minimal allocations, excellent size reductions
+- **Large models** (darknet_s, mobilenet_v2): Moderate optimization benefits, stable memory profiles
+
+
+
+
+zig build lib-gen \
+ -Dmodel="my_model" \
+ -Dxip=true \
+ -Ddo_export \
+ -Denable_user_tests
+
+zig build lib \
+ -Dmodel="my_model"\
+ -Dtarget=thumb-freestanding \
+ -Dcpu=cortex_m7 \
+ -Dxip=true
+
+~/Arduino/libraries/ZantLib/src/cortex-m7
+
+FQBN="arduino:mbed_nicla:nicla_vision"
+
+arduino-cli compile \
+--fqbn "$FQBN" \
+--export-binaries \
+--libraries ~/Arduino/libraries \
+--build-property "compiler.c.elf.extra_flags=-Wl,-T$PWD/custom.ld"
+

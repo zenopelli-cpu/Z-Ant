@@ -11,7 +11,7 @@
 
 
 # Array of models to profile
-models=( "mobilenet_v2" ) #"beer" "new2" "darknet_s" "fomo8" "mnist-8"
+models=( "coco80_q" ) # "coco80_q" "mobilenet_v2" "beer" "new2" "darknet_s" "fomo8" "mnist-8"
 
 # Array of optimization modes to profile
 optimize_modes=( "ReleaseFast" "ReleaseSmall" )

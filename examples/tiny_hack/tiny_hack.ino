@@ -173,7 +173,7 @@ static HAL_StatusTypeDef qspi_enter_mmap(QSPI_HandleTypeDef *h)
 #define ZANT_OUTPUT_LEN 4
 #endif
 static const int OUT_LEN = ZANT_OUTPUT_LEN;
-static const uint32_t IN_N = 1, IN_C = 3, IN_H = 32, IN_W = 32;
+static const uint32_t IN_N = 1, IN_C = 3, IN_H = 96, IN_W = 96;
 static const uint32_t IN_SIZE = IN_N * IN_C * IN_H * IN_W;
 static float inputData[IN_SIZE];
 static uint32_t inputShape[4] = {IN_N, IN_C, IN_H, IN_W};
@@ -237,14 +237,21 @@ void setup()
 
     float *out = nullptr;
     Serial.println("[Predict] Calling predict()...");
-    unsigned long t_us0 = micros();
-    int rc = predict(inputData, inputShape, 4, &out);
-    unsigned long t_us1 = micros();
+    int rc = -3 ;
+    unsigned long average_sum = 0;
+
+    for(uint32_t i = 0; i<10; i++) {
+        unsigned long t_us0 = micros();
+        rc = predict(inputData, inputShape, 4, &out);
+        unsigned long t_us1 = micros();
+        average_sum = average_sum + t_us1 - t_us0;
+        if(rc!=0) break;
+    }
 
     Serial.print("[Predict] rc=");
     Serial.println(rc);
     Serial.print("[Predict] us=");
-    Serial.println((unsigned long)(t_us1 - t_us0));
+    Serial.println((unsigned long)(average_sum/10));
     if (rc == 0 && out)
     {
         printOutput(out, OUT_LEN);
