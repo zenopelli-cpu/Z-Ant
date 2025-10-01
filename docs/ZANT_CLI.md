@@ -198,13 +198,13 @@ zig build extractor-test -Dmodel="my_model"
 
 # --- GENERATING THE LIBRARY and TESTS ---
 # Generate code for a specific model
-zig build lib-gen -Dmodel="my_model" -Denable_user_tests [ -Dfuse -Ddo_export -Dlog -Dcomm ... ]
+zig build lib-gen -Dmodel="my_model" -Denable_user_tests [ -Dxip=true -Dfuse -Ddo_export -Dlog -Dcomm ... ]
 
 # Test the generated code
 zig build lib-test -Dmodel="my_model" -Denable_user_tests [ -Dfuse -Ddo_export -Dlog -Dcomm ... ]
 
 # Build the static library
-zig build lib -Dmodel="my_model" [-Dtarget=... -Dcpu=...]
+zig build lib -Dmodel="my_model" [-Doptimize= [ ReleaseSmall, ReleaseFast ] -Dtarget=... -Dcpu=...]
 ```
 
 ### 2. Test Single Operations
