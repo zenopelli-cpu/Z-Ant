@@ -181,7 +181,7 @@ zig build lib -Dtarget=aarch64-macos -Doptimize=ReleaseSafe
 
 ./zant input_setter --model my_model --shape 1,3,224,224
 # or, if the model input is already well defined you can run this:
-./zant shape_thief --model my_mode my_model #shape_thief is in Beta version
+./zant shape_thief --model my_mode #shape_thief is in Beta version
 
 # Generate test data
 ./zant user_tests_gen --model my_model [ --normalize ]
