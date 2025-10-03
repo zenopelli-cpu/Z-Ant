@@ -1,46 +1,72 @@
-#ifndef MY_NICLA_LIB_PREDICT_H
-#define MY_NICLA_LIB_PREDICT_H
+#ifndef ZANT_ARDUINO_H
+#define ZANT_ARDUINO_H
 
-// Include l'header standard per tipi interi a dimensione fissa come uint32_t
+#include <Arduino.h>
 #include <stdint.h>
+#include <stdbool.h>
 
-// Questo blocco assicura che il linkage C sia usato anche se l'header
-// viene incluso in un file C++ (come lo sketch .ino di Arduino)
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/**
- * @brief Runs model inference based on the input data.
- *
- * @param input Pointer to the buffer containing the input data (float).
- * It must be a flat array representing the input tensor.
- * @param input_shape Pointer to an array of uint32_t describing the
- * shape (dimensions) of the input tensor (e.g., {1, 1, 28, 28}).
- * @param shape_len Number of elements in the input_shape array (number of dimensions).
- * @param result Pointer to a pointer to float (float**). The function will write
- * the memory address of the internal buffer containing the inference result
- * into the location pointed to by 'result'.
- * WARNING: Do not deallocate the memory pointed to by *result,
- * it belongs to the library. The content is valid until the
- * next call to predict().
- * 
- * Retun codes:
- *  0 : everything good
- * -1 : something when wrong in the mathematical operations
- * -2 : something when wrong in the initialization phase
- * -3 : something when wrong in the output/return phase
- */
-extern "C" {
-    int predict(float* input, uint32_t* input_shape, uint32_t shape_len, float** result);
+// ===================== PREDICT =====================
+typedef struct {
+    float* data;
+    size_t size;
+} zant_tensor_t;
+
+// Main prediction function (generated)
+int predict(
+    float*    input,        // e.g. [1,3,32,32] => 3072 floats
+    uint32_t* input_shape,  // e.g. {1,3,32,32}
+    uint32_t  shape_len,    // e.g. 4
+    float**   result        // out pointer to logits/probabilities
+);
+
+// ===================== WEIGHTS I/O LAYER =====================
+// Callback signature usata dal runtime per leggere "blocchi" di pesi
+typedef int (*zant_weight_read_callback_t)(size_t offset, uint8_t* buffer, size_t size);
+
+// Le seguenti API possono NON essere presenti in libzant.a se hai build XIP.
+// Le dichiariamo weak per consentire il link anche quando mancano.
+// Quando le usi a runtime verifica prima che il puntatore non sia NULL.
+
+// Inizializza il layer I/O (se presente)
+extern void zant_init_weights_io(void) __attribute__((weak));
+
+// Registra la callback di lettura pesi (se presente)
+extern void zant_register_weight_callback(zant_weight_read_callback_t cb) __attribute__((weak));
+
+// (Facoltativa) Fallback diretto: imposta base address dei pesi XIP (se supportata)
+extern void zant_set_weights_base_address(const uint8_t* base) __attribute__((weak));
+
+// (Facoltative) API info/debug — dichiara weak se il runtime le espone
+typedef struct {
+    bool            has_callback;
+    bool            has_base_address;
+    const uint8_t*  base_address;  // valido solo in direct mode
+    size_t          total_size;    // se disponibile
+} zant_weights_io_info_t;
+
+extern zant_weights_io_info_t zant_get_weights_io_info(void) __attribute__((weak));
+
+// ===================== ARDUINO HELPERS =====================
+// Queste le implementi nel tuo sketch o in uno .cpp di supporto
+void zant_arduino_init(void);
+int  zant_predict_image(uint8_t* rgb_image, int width, int height, float* output_probabilities);
+void zant_set_flash_weights_callback(void);
+
+// ===================== LOG CALLBACK =====================
+// Callback per debug logging
+typedef void (*zant_log_callback_t)(const char* message);
+extern void zant_set_log_callback(zant_log_callback_t callback) __attribute__((weak));
+
+// Alternative log function setter (per compatibilità con lib_face.zig)
+extern void setLogFunction(void (*func)(char*)) __attribute__((weak));
+
+#ifdef __cplusplus
 }
-
-// (Opzionale) Puoi dichiarare anche setLogFunction se prevedi di usarla
-// typedef void (*log_callback_t)(const char*); // Definisci un tipo per il callback
-// void setLogFunction(log_callback_t func);
-
-#ifdef __cplusplus
-} // extern "C"
 #endif
 
-#endif // MY_NICLA_LIB_PREDICT_H
+#endif // ZANT_ARDUINO_H
+

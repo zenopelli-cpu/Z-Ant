@@ -133,17 +133,6 @@ fi
 # Build command arguments
 BUILD_ARGS="-Dmodel=${MODEL_NAME}"
 
-if [ -n "$TARGET" ]; then
-    BUILD_ARGS="$BUILD_ARGS -Dtarget=${TARGET}"
-fi
-
-if [ -n "$CPU" ]; then
-    BUILD_ARGS="$BUILD_ARGS -Dcpu=${CPU}"
-fi
-
-if [ -n "$OPTIMIZE" ]; then
-    BUILD_ARGS="$BUILD_ARGS -Doptimize=${OPTIMIZE}"
-fi
 
 echo "======================================"
 echo "Model Pipeline for: $MODEL_NAME"
@@ -184,9 +173,9 @@ fi
 print_step "Generating main library code..."
 
 if [ "$DO_USER_TESTS" = true ]; then
-    zig build lib-gen $BUILD_ARGS -Denable_user_tests=true
+    zig build lib-gen $BUILD_ARGS -Denable_user_tests=true -Ddo_export
 else
-    zig build lib-gen $BUILD_ARGS
+    zig build lib-gen $BUILD_ARGS -Ddo_export
 fi
 
 print_success "Library code generation completed"
@@ -206,7 +195,19 @@ print_success "Library tests completed"
 # Step 5: Build the static library
 print_step "Building static library..."
 
-zig build lib $BUILD_ARGS
+if [ -n "$TARGET" ]; then
+    BUILD_ARGS="$BUILD_ARGS -Dtarget=${TARGET}"
+fi
+
+if [ -n "$CPU" ]; then
+    BUILD_ARGS="$BUILD_ARGS -Dcpu=${CPU}"
+fi
+
+if [ -n "$OPTIMIZE" ]; then
+    BUILD_ARGS="$BUILD_ARGS -Doptimize=${OPTIMIZE}"
+fi
+
+zig build lib $BUILD_ARGS 
 
 print_success "Static library build completed"
 sleep 2s 
