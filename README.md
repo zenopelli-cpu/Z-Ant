@@ -292,7 +292,7 @@ We welcome contributions from developers of all skill levels! Here's how to get 
 - **🧪 Testing**: Write tests or improve test coverage
 
 ### Community Guidelines
-- Follow our [Code of Conduct](docs/CODE_OF_CONDUCT.md)
+- Follow our [Code of Conduct](.github/CODE_OF_CONDUCT.md)
 - Check out the [Contributing Guide](docs/CONTRIBUTING.md) for detailed guidelines
 - Join discussions on GitHub Issues and Discussions
 
