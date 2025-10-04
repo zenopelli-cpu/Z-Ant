@@ -6,44 +6,6 @@
   <img src="https://github.com/ZIGTinyBook/Z-Ant/actions/workflows/zig-codegen-tests.yml/badge.svg" alt="Zig Codegen Tests" />
 </div>
 
-<!-- BEER_TIMINGS_START -->
-Beer model timing (QEMU, Cortex-M55):
-
-- Reference: 1405.81 ms
-- CMSIS-NN: 828.07 ms
-- Improvement: 577.74 ms (41.1%)
-<!-- BEER_TIMINGS_END -->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ![image](https://github.com/user-attachments/assets/6a5346e5-58ec-4069-8143-c3b7b03586f3)
 
 ## 🛠️ CI/CD
