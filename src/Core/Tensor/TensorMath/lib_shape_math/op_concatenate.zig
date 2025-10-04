@@ -167,7 +167,7 @@ pub fn concatenate_lean(comptime T: type, allocator: *const std.mem.Allocator, t
     }
 
     if (concat_axis < 0 or concat_axis >= @as(isize, @intCast(working_rank))) {
-        std.log.err("[CONCAT DEBUG] Error: Axis out of bounds! concat_axis={d}, working_rank={d}", .{ concat_axis, working_rank });
+        //std.log.err("[CONCAT DEBUG] Error: Axis out of bounds! concat_axis={d}, working_rank={d}", .{ concat_axis, working_rank });
         return TensorError.AxisOutOfBounds;
     }
 
@@ -175,10 +175,10 @@ pub fn concatenate_lean(comptime T: type, allocator: *const std.mem.Allocator, t
 
     // Validate that all tensors have matching shapes except along the concatenation axis
     // std.log.warn("[CONCAT DEBUG] Validating tensor shapes...", .{});
-    for (modified_tensors, 0..) |tensor, i| {
+    for (modified_tensors) |tensor| {
         for (0..working_rank) |d| {
             if (d != concat_axis_usize and tensor.shape[d] != modified_tensors[0].shape[d]) {
-                std.log.err("[CONCAT DEBUG] Error: Shape mismatch! Tensor {d} dim {d}: {d} != {d}", .{ i, d, tensor.shape[d], modified_tensors[0].shape[d] });
+                //std.log.err("[CONCAT DEBUG] Error: Shape mismatch! Tensor {d} dim {d}: {d} != {d}", .{ i, d, tensor.shape[d], modified_tensors[0].shape[d] });
                 return TensorError.MismatchedShape;
             }
         }
