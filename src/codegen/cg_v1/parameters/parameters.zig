@@ -20,9 +20,17 @@ pub const XIPConfig = struct {
     section_name: []const u8 = ".flash_weights",
     validate_pointers: bool = true,
 
-    /// Get the linksection attribute for weight arrays
+    /// Get the linksection attribute for weight arrays with platform-specific formatting
     pub fn getLinkSection(self: *const XIPConfig) []const u8 {
-        return if (self.enabled) self.section_name else ".rodata";
+        if (!self.enabled) return ".rodata";
+        
+        // For macOS (mach-o), section specifiers must be in "segment,section" format
+        if (comptime @import("builtin").target.os.tag == .macos) {
+            return "__DATA,.flash_weights";
+        }
+        
+        // For other platforms, use the original format
+        return self.section_name;
     }
 };
 
