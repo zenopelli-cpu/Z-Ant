@@ -2,7 +2,17 @@
 set -e
 
 # Configuration
-ARD="$HOME/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/7-2017q4/bin"
+if [ -d "$HOME/Library/Arduino15/packages/arduino/tools/arm-none-eabi-gcc/7-2017q4/bin" ]; then
+    # macOS
+    ARD="$HOME/Library/Arduino15/packages/arduino/tools/arm-none-eabi-gcc/7-2017q4/bin"
+elif [ -d "$HOME/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/7-2017q4/bin" ]; then
+    # linux
+    ARD="$HOME/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/7-2017q4/bin"
+else
+    echo "Error: Arduino installation not found"
+    echo "Check your Arduino installation"
+    exit 1
+fi
 READELF="$ARD/arm-none-eabi-readelf"
 OBJCOPY="$ARD/arm-none-eabi-objcopy"
 ELF="./build/arduino.mbed_nicla.nicla_vision/tiny_hack.ino.elf"
