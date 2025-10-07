@@ -26,12 +26,12 @@ pub const XIPConfig = struct {
     /// Get the linksection attribute for weight arrays with platform-specific formatting
     pub fn getLinkSection(self: *const XIPConfig) []const u8 {
         if (!self.enabled) return ".rodata";
-        
+
         // For macOS (mach-o), section specifiers must be in "segment,section" format
         if (comptime @import("builtin").target.os.tag == .macos) {
             return "__DATA,.flash_weights";
         }
-        
+
         // For other platforms, use the original format
         return self.section_name;
     }

@@ -279,7 +279,23 @@ pub fn build(b: *std.Build) void {
     static_lib.root_module.addImport("zant", zant_mod);
     static_lib.root_module.addImport("codegen", codegen_mod);
 
-    const install_lib_step = b.addInstallArtifact(static_lib, .{ .dest_dir = .{ .override = .{ .custom = model_name_option } } });
+    const output_path = std.fmt.allocPrint(b.allocator, "{s}/{s}", .{ model_name_option, @tagName(target.result.os.tag) }) catch |err| {
+        std.log.scoped(.build).warn("Error allocating old path: {}\n", .{err});
+        return;
+    };
+
+    std.debug.print("\n<<<<<<<<{s}", .{output_path});
+
+    const install_lib_step = b.addInstallArtifact(
+        static_lib,
+        .{
+            .dest_dir = .{
+                .override = .{
+                    .custom = output_path,
+                },
+            },
+        },
+    );
     const lib_step = b.step("lib", "Compile tensor_math static library");
     lib_step.dependOn(&install_lib_step.step);
 
@@ -292,7 +308,7 @@ pub fn build(b: *std.Build) void {
                 return;
             };
         }
-        const old_path = std.fmt.allocPrint(b.allocator, "zig-out/{s}/libzant.a", .{model_name_option}) catch |err| {
+        const old_path = std.fmt.allocPrint(b.allocator, "zig-out/{s}/libzant.a", .{output_path}) catch |err| {
             std.log.scoped(.build).warn("Error allocating old path: {}\n", .{err});
             return;
         };

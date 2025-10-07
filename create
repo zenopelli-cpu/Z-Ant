@@ -46,6 +46,7 @@ show_usage() {
     echo "  --optimize=OPT          Optimization level (Debug, ReleaseFast, ReleaseSafe, ReleaseSmall)"
     echo "  --do-extract            Does node extraction and testing"
     echo "  --do-user-tests         Does user test generation and usage"
+    echo "  --do-xip                Enables XIP allocation"
     echo "  --help, -h              Show this help message"
     echo ""
     echo "Pipeline Steps:"
@@ -57,9 +58,8 @@ show_usage() {
     echo ""
     echo "Examples:"
     echo "  $0 mnist-8"
-    echo "  $0 resnet50 --target=aarch64-linux --optimize=ReleaseFast"
-    echo "  $0 embedded_model --target=thumb-freestanding --cpu=cortex_m33"
-    echo "  $0 my_model --skip-extract"
+    echo "  $0 resnet50 --do-xip --target=aarch64-linux --optimize=ReleaseFast"
+    echo "  $0 embedded_model --do-xip --target=thumb-freestanding --cpu=cortex_m33"
 }
 
 # Check if model name is provided
@@ -78,6 +78,7 @@ CPU=""
 OPTIMIZE=""
 DO_EXTRACT=false
 DO_USER_TESTS=false
+DO_XIP=false
 
 # Parse options
 while [[ $# -gt 0 ]]; do
@@ -100,6 +101,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --do-user-tests)
             DO_USER_TESTS=true
+            shift
+            ;;
+        --do-xip)
+            DO_XIP=true
             shift
             ;;
         --help|-h)
@@ -147,7 +152,7 @@ if [ "$DO_USER_TESTS" = true ]; then
     print_success "User test data generated"
     sleep 2s 
 else
-    print_step "Skipping user test generation (--skip-user-tests specified)"
+    print_step "Skipping user test generation (--do-user-tests not specified)"
 fi
 
 # Step 2: Node extraction and testing
@@ -166,11 +171,15 @@ if [ "$DO_EXTRACT" = true ]; then
     zig build extractor-test $BUILD_ARGS
     print_success "Extractor tests completed" 
 else
-    print_step "Skipping node extraction and testing (--skip-extract specified)"
+    print_step "Skipping node extraction and testing (--do-extract not specified)"
 fi
 
 # Step 3: Generate main library
 print_step "Generating main library code..."
+
+if [ -n "$DO_XIP" ]; then
+    BUILD_ARGS="$BUILD_ARGS -Dxip=true"
+fi 
 
 if [ "$DO_USER_TESTS" = true ]; then
     zig build lib-gen $BUILD_ARGS -Denable_user_tests=true -Ddo_export

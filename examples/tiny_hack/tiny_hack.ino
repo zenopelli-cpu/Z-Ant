@@ -170,10 +170,10 @@ static HAL_StatusTypeDef qspi_enter_mmap(QSPI_HandleTypeDef *h)
 
 // ---- Predict demo ----
 #ifndef ZANT_OUTPUT_LEN
-#define ZANT_OUTPUT_LEN 64 // <<<<<<<<<<<<<<<< ensure it is correct !!
+#define ZANT_OUTPUT_LEN 1 // <<<<<<<<<<<<<<<< ensure it is correct !!
 #endif
 static const int OUT_LEN = ZANT_OUTPUT_LEN;
-static const uint32_t IN_N = 1, IN_C = 3, IN_H = 10, IN_W = 10; // <<<<<<<<<<<<<<<< ensure it is correct !!
+static const uint32_t IN_N = 1, IN_C = 3, IN_H = 96, IN_W = 96; // <<<<<<<<<<<<<<<< ensure it is correct !!
 static const uint32_t IN_SIZE = IN_N * IN_C * IN_H * IN_W;
 static float inputData[IN_SIZE];
 static uint32_t inputShape[4] = {IN_N, IN_C, IN_H, IN_W};
