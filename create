@@ -152,7 +152,7 @@ if [ "$DO_USER_TESTS" = true ]; then
     print_success "User test data generated"
     sleep 2s 
 else
-    print_step "Skipping user test generation (--skip-user-tests specified)"
+    print_step "Skipping user test generation (--do-user-tests not specified)"
 fi
 
 # Step 2: Node extraction and testing
@@ -171,7 +171,7 @@ if [ "$DO_EXTRACT" = true ]; then
     zig build extractor-test $BUILD_ARGS
     print_success "Extractor tests completed" 
 else
-    print_step "Skipping node extraction and testing (--skip-extract specified)"
+    print_step "Skipping node extraction and testing (--do-extract not specified)"
 fi
 
 # Step 3: Generate main library
