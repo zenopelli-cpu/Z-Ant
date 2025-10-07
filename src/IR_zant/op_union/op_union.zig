@@ -79,7 +79,7 @@ pub const Op_union = union(enum) {
     // ------------- fused operations
     fused_Conv_Clip: fused_operators.Fused_Conv_Clip,
     fused_Conv_Relu: fused_operators.Fused_Conv_Relu,
-    fused_Conv_Sigmoid_Mul: fused_operators.Fused_Conv_Sigmoid_Mul,
+    // fused_Conv_Sigmoid_Mul: fused_operators.Fused_Conv_Sigmoid_Mul, TODO
     fused_Dequant_Clip_Quant: fused_operators.Fused_Dequant_Clip_Quant,
     fused_Dequant_Pad_Quant_QLinConv: fused_operators.Fused_Dequant_Pad_Quant_QLinConv,
     fused_Dequant_Quant: fused_operators.Fused_Dequant_Quant,
