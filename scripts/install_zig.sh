@@ -5,7 +5,32 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 ZIG_VERSION="${ZIG_VERSION:-${1:-0.14.0}}"
-ZIG_PLATFORM="${ZIG_PLATFORM:-linux-x86_64}"
+
+# Detect OS and architecture
+OS=$(uname -s)
+ARCH=$(uname -m)
+
+case "$OS" in
+    Linux)
+        if [[ "$ARCH" == "x86_64" ]]; then
+            ZIG_PLATFORM="linux-x86_64"
+        elif [[ "$ARCH" == "aarch64" ]]; then
+            ZIG_PLATFORM="linux-aarch64"
+        fi
+        ;;
+    Darwin)
+        if [[ "$ARCH" == "arm64" ]]; then
+            ZIG_PLATFORM="macos-aarch64"
+        else
+            ZIG_PLATFORM="macos-x86_64"
+        fi
+        ;;
+    *)
+        echo "Unsupported OS: $OS"
+        exit 1
+        ;;
+esac
+
 INSTALL_ROOT="${ZIG_INSTALL_ROOT:-${REPO_ROOT}/.zig-toolchain}"
 ARCHIVE_NAME="zig-${ZIG_PLATFORM}-${ZIG_VERSION}.tar.xz"
 DOWNLOAD_BASE="${ZIG_DOWNLOAD_BASE:-https://ziglang.org/download}"
