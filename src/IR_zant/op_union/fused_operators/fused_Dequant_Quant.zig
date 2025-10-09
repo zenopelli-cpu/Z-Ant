@@ -21,7 +21,19 @@ pub const Fused_Dequant_Quant = struct {
 
     // This method is not used since is initialized as a "useless" operator
     pub fn init_fused_op(fusion_list: std.ArrayList(*NodeZant)) !Fused_Dequant_Quant {
-        _ = fusion_list;
+        const dequant_op = switch (fusion_list.items[0].op) {
+            .dequantizeLinear => |d| d,
+            else => return error.InvalidDequantizeLinearOperation,
+        };
+
+        const quant_op = switch (fusion_list.items[1].op) {
+            .quantizeLinear => |q| q,
+            else => return error.InvalidQuantizeLinearOperation,
+        };
+        // Downgrade LINK tensors between fudes noted to FUSED_LINK tensors
+        // in this case , since it is an elimination, all the tensors must be downgraded
+        dequant_op.y.set_tensorCategory(TensorCategory.FUSED_LINK);
+        quant_op.y.set_tensorCategory(TensorCategory.FUSED_LINK);
     }
 
     /// Pattern detection function for DequantizeLinear -> QuantizeLinear

@@ -68,6 +68,10 @@ pub const Fused_Dequant_Clip_Quant = struct {
             }
         }
 
+        // Downgrade LINK tensors between fudes noted to FUSED_LINK tensors
+        dequant_op.y.set_tensorCategory(TensorCategory.FUSED_LINK);
+        clip_op.output.set_tensorCategory(TensorCategory.FUSED_LINK);
+
         return Fused_Dequant_Clip_Quant{
             .op_name = try NodeZant_lib.getFusedOpsName(fusion_list),
             .op_DequantizeLinear = dequant_op,

@@ -39,6 +39,9 @@ pub const Fused_Conv_Relu = struct {
             else => return error.InvalidReluOperation,
         };
 
+        // Downgrade LINK tensors between fudes noted to FUSED_LINK tensors
+        conv_op.output_Y.set_tensorCategory(TensorCategory.FUSED_LINK);
+
         return Fused_Conv_Relu{
             .op_name = try NodeZant_lib.getFusedOpsName(fusion_list),
             .op_Conv = conv_op,

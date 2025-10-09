@@ -6,6 +6,7 @@ const allocator = std.heap.page_allocator;
 const NodeZant = NodeZant_lib.NodeZant;
 const NodeZant_lib = IR_zant.NodeZant_lib;
 const TensorZant = tensorZant_lib.TensorZant;
+const TensorCategory = tensorZant_lib.TensorCategory;
 const tensorZant_lib = IR_zant.tensorZant_lib;
 const GraphZant = IR_zant.GraphZant;
 
@@ -44,6 +45,10 @@ pub const Fused_Conv_Sigmoid_Mul = struct {
             .mul => |m| m,
             else => return error.InvalidMulOperation,
         };
+
+        // Downgrade LINK tensors between fudes noted to FUSED_LINK tensors
+        conv_op.output_Y.set_tensorCategory(TensorCategory.FUSED_LINK);
+        sigmoid_op.output_Y.set_tensorCategory(TensorCategory.FUSED_LINK);
 
         return Fused_Conv_Sigmoid_Mul{
             .op_name = try NodeZant_lib.getFusedOpsName(fusion_list),

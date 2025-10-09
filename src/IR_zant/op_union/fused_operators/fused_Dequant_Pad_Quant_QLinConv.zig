@@ -117,6 +117,11 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         // The output should be the same as the original QLinearConv output
         fused_qconv.output_y = qlinearconv_op.output_y;
 
+        // Downgrade LINK tensors between fudes noted to FUSED_LINK tensors
+        dequant_op.y.set_tensorCategory(TensorCategory.FUSED_LINK);
+        pad_op.output.set_tensorCategory(TensorCategory.FUSED_LINK);
+        quant_op.y.set_tensorCategory(TensorCategory.FUSED_LINK);
+
         return Fused_Dequant_Pad_Quant_QLinConv{
             .op_name = try NodeZant_lib.getFusedOpsName(fusion_list),
             .op_DequantizeLinear = dequant_op,

@@ -85,7 +85,8 @@ pub const TensorCategory = enum {
     INPUT,
     OUTPUT,
     INITIALIZER,
-    LINK,
+    LINK, // tensor that connect two nodes (Ouput of nodeA is Input in nodeB)
+    FUSED_LINK, //is the conseguence of a LINK tensor after the fusion of the nodes that the link tensor connects
     CONSTANT,
 
     pub fn toString(self: TensorCategory) []const u8 {
@@ -94,6 +95,7 @@ pub const TensorCategory = enum {
             .OUTPUT => ".OUTPUT",
             .INITIALIZER => ".INITIALIZER",
             .LINK => ".LINK",
+            .FUSED_LINK => ".FUSED_LINK",
             .CONSTANT => ".CONSTANT",
         };
     }
@@ -216,6 +218,10 @@ pub const TensorZant = struct {
             return error.illegalBehavior;
         }
         self.ty = ty;
+    }
+
+    pub fn set_tensorCategory(self: *TensorZant, tc: TensorCategory) void {
+        self.tc = tc;
     }
 
     // Returns the id of a tensorZant from the hashMap

@@ -42,6 +42,7 @@ pub fn codegnenerateFromOnnx(model_name: []const u8, generated_path: []const u8,
 
 pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []const u8, graphZant: *GraphZant) !void {
     const PreFusionNodes = graphZant.nodes.items.len;
+    const PreFusion_linkers = (try IR.utils.getLinkers(&IR.tensorZant_lib.tensorMap)).len;
 
     // --- fusion step ---
     if (codegen_options.fuse) try graphZant.fuse(&pattern_collection.patterns);
@@ -50,9 +51,15 @@ pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []cons
 
     // Note: Pre-fusion graph printing disabled to avoid accessing freed nodes
 
-    try graphZant.print_linearized();
+    // try graphZant.print_linearized(); // DEBUG
 
-    std.debug.print("\n Pre-Fusion nodes: {} \n Post-Fusion nodes: {}\n", .{ PreFusionNodes, graphZant.nodes.items.len });
+    std.debug.print("\n Pre-Fusion nodes: {} \n Post-Fusion nodes: {}", .{ PreFusionNodes, graphZant.nodes.items.len });
+
+    std.debug.print("\n-----\n Pre-Fusion LINK TENSORS: {} \n Post-Fusion LINK TENSORS: {}\n Post-Fusion FUSED_LINK TENSORS: {}", .{
+        PreFusion_linkers,
+        (try IR.utils.getLinkers(&IR.tensorZant_lib.tensorMap)).len,
+        (try IR.utils.getFusedLinkers(&IR.tensorZant_lib.tensorMap)).len,
+    });
 
     var linearizedGraph: std.ArrayList(*NodeZant) = try graphZant.linearize(allocator);
     defer linearizedGraph.deinit();

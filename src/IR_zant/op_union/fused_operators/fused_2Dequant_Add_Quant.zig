@@ -80,6 +80,11 @@ pub const Fused_2Dequant_Add_Quant = struct {
             .input_C_zero_point = quant_op.y_zero_point.?,
         };
 
+        // Downgrade LINK tensors between fudes noted to FUSED_LINK tensors
+        dequant_a_op.y.set_tensorCategory(TensorCategory.FUSED_LINK);
+        dequant_b_op.y.set_tensorCategory(TensorCategory.FUSED_LINK);
+        add_op.output_C.set_tensorCategory(TensorCategory.FUSED_LINK);
+
         return Fused_2Dequant_Add_Quant{
             .op_name = try NodeZant_lib.getFusedOpsName(fusion_list),
             .op_DequantizeLinear_A = dequant_a_op,
