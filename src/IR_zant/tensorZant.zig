@@ -306,7 +306,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
         // node.print(null); //DEBUG
 
         //WHy CONSTANT nodes need a different initialization? because is has many different variants and is hard to generalize
-        if (std.mem.eql(u8, node.op_type, "Constant")) {
+        if (node.op_type == .CONSTANT) {
             const tensorZant: TensorZant = try TensorZant.init(
                 node.output[0],
                 node.attribute[0].t.?,
@@ -342,7 +342,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                 if (tensorMap.getPtr(output_name) != null) continue;
 
                 //WHy RESHAPE nodes need a different initialization? Because the output shape is sometime specified in the attributes, sometime is passed as an initializer and sometimes is a ValueInfoProto
-                if (std.mem.eql(u8, node.op_type, "Reshape")) {
+                if (node.op_type == .CONSTANT) {
 
                     // ------------------ is it a ValueInfoProto? most probable option
                     if (utils.getValueInfoTensorFromGraphInfo(output_name, protoGraph)) |vip_tensor| {
@@ -365,7 +365,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                     //TODO
 
                     return error.Reshape_outputShape_NotFound;
-                } else if (std.mem.eql(u8, node.op_type, "QLinearAveragePool")) {
+                } else if (node.op_type == .QLINEARAVERAGEPOOL) {
                     // Special handling for QLinearAveragePool when value_info is missing
                     if (utils.getValueInfoTensorFromGraphInfo(output_name, protoGraph)) |vip_tensor| {
                         const tensorZant: TensorZant = try TensorZant.init(
@@ -394,7 +394,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                             return error.QLinearAveragePool_shapeCalculationFailed;
                         }
                     }
-                } else if (std.mem.eql(u8, node.op_type, "QLinearConcat")) {
+                } else if (node.op_type == .QLINEARCONCAT) {
                     // Special handling for QLinearConcat when value_info is missing
                     if (utils.getValueInfoTensorFromGraphInfo(output_name, protoGraph)) |vip_tensor| {
                         const tensorZant: TensorZant = try TensorZant.init(
@@ -423,7 +423,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                             return error.QLinearConcat_shapeCalculationFailed;
                         }
                     }
-                } else if (std.mem.startsWith(u8, node.op_type, "QLinear")) {
+                } else if (onnx.isQlinear(node.op_type)) {
                     // Generic handling for any QLinear operation when value_info is missing
                     if (utils.getValueInfoTensorFromGraphInfo(output_name, protoGraph)) |vip_tensor| {
                         const tensorZant: TensorZant = try TensorZant.init(
@@ -448,7 +448,7 @@ pub fn initialize_tensorZantMap(modelProto: *ModelProto) !void {
                                 default_shape = allocator.alloc(usize, input_shape.len) catch null;
                                 if (default_shape) |shape| {
                                     // Special case for QLinearGlobalAveragePool
-                                    if (std.mem.eql(u8, node.op_type, "QLinearGlobalAveragePool")) {
+                                    if (node.op_type == .QLINEARGLOBALAVERAGEPOOL) {
                                         // Global average pool reduces spatial dimensions to 1x1
                                         for (input_shape, 0..) |dim, idx| {
                                             if (idx < 2) {
