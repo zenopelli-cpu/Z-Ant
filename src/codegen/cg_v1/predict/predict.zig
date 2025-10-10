@@ -1,5 +1,6 @@
 const std = @import("std");
 const zant = @import("zant");
+const cg_v1 = @import("../codegen_v1.zig");
 
 const IR_zant = @import("IR_zant");
 
@@ -22,18 +23,23 @@ const emit = @import("emit.zig");
 const plan = @import("plan.zig");
 
 // Writes the computation function for predicting outputs
-pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant), do_export: bool) !void {
+pub inline fn writePredict(
+    writer: std.fs.File.Writer,
+    linearizedGraph: std.ArrayList(*NodeZant),
+    do_export: bool,
+    codegen_parameters: cg_v1.CodegenParameters,
+) !void {
 
     // Static initialization for output tensors if not using dynamic allocation
     //
     // declare all the outputs for each node, aka: linkers
-    if (!codegen_options.dynamic) try write_linkersInitialization(writer);
+    if (!codegen_options.dynamic) try write_linkersInitialization(writer, codegen_parameters);
 
     // declare all the outputs of  the network
-    try write_outputsInitialization(writer);
+    try write_outputsInitialization(writer, codegen_parameters);
 
     // method to reset the tensors values
-    if (!codegen_options.dynamic) try write_linkersResetMethod(writer);
+    if (!codegen_options.dynamic) try write_linkersResetMethod(writer, codegen_parameters);
 
     const inputs = try IR_utils.getInputs(tensorZantMap);
     const outputs = try IR_utils.getOutputs(tensorZantMap);
@@ -133,7 +139,8 @@ pub inline fn writePredict(writer: std.fs.File.Writer, linearizedGraph: std.Arra
 // -------------------------------- WRITE LINKERS --------------------------------
 
 // Initializes output tensor of each node in the computation graph
-fn write_linkersInitialization(writer: std.fs.File.Writer) !void {
+fn write_linkersInitialization(writer: std.fs.File.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
+    _ = codegen_parameters; // autofix
     try writer.print(
         \\
         \\
@@ -150,7 +157,8 @@ fn write_linkersInitialization(writer: std.fs.File.Writer) !void {
     }
 }
 
-fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
+fn write_linkersResetMethod(writer: std.fs.File.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
+    _ = codegen_parameters; // autofix
     try writer.print(
         \\
         \\
@@ -217,7 +225,8 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer) !void {
 
 // -------------------------------- WRITE OUTPUT --------------------------------
 // Initializes output tensor of each node in the computation graph
-fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
+fn write_outputsInitialization(writer: std.fs.File.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
+    _ = codegen_parameters; // autofix
     if (!codegen_options.dynamic) {
         try writer.print(
             \\

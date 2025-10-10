@@ -9,6 +9,9 @@ const NodeZant = IR.NodeZant;
 const pattern_matcher = IR.pattern_matcher;
 const pattern_collection = IR.pattern_collection;
 
+// --- Static memory planning
+pub const static_memory_planning = @import("static_memory_planning.zig");
+
 // --- utils
 pub const utils = @import("utils.zig");
 // --- onnx
@@ -64,15 +67,37 @@ pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []cons
     var linearizedGraph: std.ArrayList(*NodeZant) = try graphZant.linearize(allocator);
     defer linearizedGraph.deinit();
 
-    try codegnenerateFromLinearizedGraph(model_name, generated_path, linearizedGraph);
+    var backing_buffers: ?static_memory_planning.TensorsBackingBuffers = null;
+    defer {
+        if (backing_buffers) |*allocators| {
+            allocators.deinit();
+        }
+    }
+
+
+    try codegnenerateFromLinearizedGraph(
+        model_name,
+        generated_path,
+        linearizedGraph,
+        .{ .tensors_backing_buffers = backing_buffers },
+    );
 }
 
-pub fn codegnenerateFromLinearizedGraph(model_name: []const u8, generated_path: []const u8, linearizedGraph: std.ArrayList(*NodeZant)) !void {
+pub const CodegenParameters = struct {
+    tensors_backing_buffers: ?static_memory_planning.TensorsBackingBuffers = null,
+};
+
+pub fn codegnenerateFromLinearizedGraph(
+    model_name: []const u8,
+    generated_path: []const u8,
+    linearizedGraph: std.ArrayList(*NodeZant),
+    codegen_parameters: CodegenParameters,
+) !void {
 
     //set globals
     tensorZantMap = &IR.tensorZant_lib.tensorMap;
 
     try ParametersWriter.write(generated_path);
 
-    try PredictWriter.write(generated_path, model_name, linearizedGraph);
+    try PredictWriter.write(generated_path, model_name, linearizedGraph, codegen_parameters);
 }

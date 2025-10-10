@@ -1,6 +1,7 @@
 const std = @import("std");
 const zant = @import("zant");
 const IR_zant = @import("IR_zant");
+const cg_v1 = @import("codegen_v1.zig");
 
 // --- zant IR
 const GraphZant = IR_zant.GraphZant;
@@ -19,8 +20,12 @@ const allocator = zant.utils.allocator.allocator;
 const codeGenPredict = @import("predict/predict.zig");
 const codegen_options = @import("codegen_options");
 
-pub fn write(generated_path: []const u8, model_name: []const u8, linearizedGraph: std.ArrayList(*NodeZant)) !void {
-
+pub fn write(
+    generated_path: []const u8,
+    model_name: []const u8,
+    linearizedGraph: std.ArrayList(*NodeZant),
+    codegen_parameters: cg_v1.CodegenParameters,
+) !void {
     //initializing writer for lib_operation file
     const lib_file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ generated_path, model_name });
     defer allocator.free(lib_file_path);
@@ -48,7 +53,7 @@ pub fn write(generated_path: []const u8, model_name: []const u8, linearizedGraph
 
     // _ = linearizedGraph;
     // Generate prediction function code
-    try codeGenPredict.writePredict(writer, linearizedGraph, codegen_options.do_export);
+    try codeGenPredict.writePredict(writer, linearizedGraph, codegen_options.do_export, codegen_parameters);
 }
 
 /// Writes the required library imports to the generated Zig file for predict function.
