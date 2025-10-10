@@ -335,6 +335,12 @@ pub const conv_lean = convolution_math_lib.conv_lean;
 pub const conv_clip_lean = convolution_math_lib.conv_clip_lean;
 pub const setLogFunctionC = convolution_math_lib.setLogFunctionC;
 
+// ---convolution+ReLU
+const conv_relu_math_lib = @import("op_conv_relu.zig");
+pub const conv_relu = conv_relu_math_lib.conv_relu;
+pub const conv_relu_lean = conv_relu_math_lib.conv_relu_lean;
+pub const get_conv_relu_output_shape = conv_relu_math_lib.get_conv_relu_output_shape;
+
 //---qlinearconv
 const qlinearconv_math_lib = @import("op_qlinearconv.zig");
 const qlinearconv_simd_lib = @import("op_qlinearconv_simd.zig");
