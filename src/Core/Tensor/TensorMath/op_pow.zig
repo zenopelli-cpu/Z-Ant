@@ -42,7 +42,7 @@ pub fn get_pow_output_shape(comptime T: type, base: *const Tensor(T), exp: *cons
     return output;
 }
 
-pub fn pow(comptime T: type, base: *const Tensor(T), exp: *const Tensor(T)) !Tensor(T) {
+pub fn pow(comptime T: type, base: *Tensor(T), exp: *Tensor(T)) !Tensor(T) {
     const outputShape = try get_pow_output_shape(T, base, exp);
     defer pkg_allocator.free(outputShape);
 
@@ -55,7 +55,7 @@ pub fn pow(comptime T: type, base: *const Tensor(T), exp: *const Tensor(T)) !Ten
 }
 
 //TODO scalar optimization
-pub fn pow_lean(comptime T: type, baseTensor: *const Tensor(T), expTensor: *const Tensor(T), output: *Tensor(T)) !void {
+pub fn pow_lean(comptime T: type, baseTensor: *Tensor(T), expTensor: *Tensor(T), output: *Tensor(T)) !void {
     const len1 = baseTensor.data.len;
     const len2 = expTensor.data.len;
 
