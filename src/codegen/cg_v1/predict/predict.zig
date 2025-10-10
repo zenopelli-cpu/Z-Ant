@@ -140,7 +140,6 @@ pub inline fn writePredict(
 
 // Initializes output tensor of each node in the computation graph
 fn write_linkersInitialization(writer: std.fs.File.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
-    _ = codegen_parameters; // autofix
     try writer.print(
         \\
         \\
@@ -151,14 +150,45 @@ fn write_linkersInitialization(writer: std.fs.File.Writer, codegen_parameters: c
 
     const linkers: []TensorZant = try IR_utils.getLinkers(tensorZantMap);
 
+    if (!codegen_options.dynamic and codegen_options.static_planning) {
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+
+        const arena_alloc = arena.allocator();
+
+        const allocators = codegen_parameters.tensors_backing_buffers orelse return error.MissingTensorsBackingBuffers;
+
+        var value_it = allocators.valueIterator();
+        var emitted_buffers = try std.bit_set.DynamicBitSet.initEmpty(
+            arena_alloc,
+            if (codegen_options.static_planning) blk: {
+                break :blk codegen_parameters.tensors_backing_buffers.?.count();
+            } else 0,
+        );
+        // Emitting all backing buffers
+        while (value_it.next()) |backing_buffer| {
+            if (!emitted_buffers.isSet(backing_buffer.id)) {
+                try writer.print("\n    var backing_buffer_{[id]d}: [{[size]d}]{[type]s} = [_]{[type]s}{{0}} ** {[size]d};", .{
+                    .id = backing_buffer.id,
+                    .size = backing_buffer.size,
+                    .type = @tagName(backing_buffer.element_type),
+                });
+                emitted_buffers.set(backing_buffer.id);
+            }
+        }
+    }
+
     for (linkers) |*tz| {
         const size = try emit.ShapeEmitter.emit(writer, tz);
-        try emit.TensorEmitter.emitAllocation(writer, tz, size, codegen_options.dynamic);
+        var backing_buffer_id: ?cg_v1.static_memory_planning.BufferId = null;
+        if (!codegen_options.dynamic and codegen_options.static_planning) {
+            backing_buffer_id = codegen_parameters.tensors_backing_buffers.?.get(tz.name).?.id;
+        }
+        try emit.TensorEmitter.emitAllocation(writer, tz, size, codegen_options.dynamic, backing_buffer_id);
     }
 }
 
 fn write_linkersResetMethod(writer: std.fs.File.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
-    _ = codegen_parameters; // autofix
     try writer.print(
         \\
         \\
@@ -178,12 +208,35 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer, codegen_parameters: cg_v
     // --------- linkers
     const linkers: []TensorZant = try IR_utils.getLinkers(tensorZantMap);
 
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+
+    const arena_alloc = arena.allocator();
+
+    var emitted_buffers = try std.bit_set.DynamicBitSet.initEmpty(
+        arena_alloc,
+        if (codegen_options.static_planning) blk: {
+            break :blk codegen_parameters.tensors_backing_buffers.?.count();
+        } else 0,
+    );
     for (linkers) |*tz| {
         if (!codegen_options.dynamic) {
-            _ = try writer.print(
-                \\
-                \\    @memset(array_{s}[0..], 0);
-            , .{try tz.getNameSanitized()});
+            if (!codegen_options.static_planning) {
+                _ = try writer.print(
+                    \\
+                    \\    @memset(array_{s}[0..], 0);
+                , .{try tz.getNameSanitized()});
+            } else {
+                const backing_buffers = codegen_parameters.tensors_backing_buffers orelse return error.MissingTensorsBackingBuffers;
+                const backing_buffer = backing_buffers.get(tz.name).?;
+                if (!emitted_buffers.isSet(backing_buffer.id)) {
+                    _ = try writer.print(
+                        \\
+                        \\    @memset(backing_buffer_{d}[0..], 0);
+                    , .{backing_buffer.id});
+                    emitted_buffers.set(backing_buffer.id);
+                }
+            }
         }
 
         if (codegen_options.log) {
@@ -201,10 +254,22 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer, codegen_parameters: cg_v
 
     for (outputs) |*tz| {
         if (!codegen_options.dynamic) {
-            _ = try writer.print(
-                \\
-                \\    @memset(array_{s}[0..], 0);
-            , .{try tz.getNameSanitized()});
+            if (!codegen_options.static_planning) {
+                _ = try writer.print(
+                    \\
+                    \\    @memset(array_{s}[0..], 0);
+                , .{try tz.getNameSanitized()});
+            } else {
+                const backing_buffers = codegen_parameters.tensors_backing_buffers orelse return error.MissingTensorsBackingBuffers;
+                const backing_buffer = backing_buffers.get(tz.name).?;
+                if (!emitted_buffers.isSet(backing_buffer.id)) {
+                    _ = try writer.print(
+                        \\
+                        \\    @memset(backing_buffer_{d}[0..], 0);
+                    , .{backing_buffer.id});
+                    emitted_buffers.set(backing_buffer.id);
+                }
+            }
         }
 
         if (codegen_options.log) {
@@ -226,7 +291,6 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer, codegen_parameters: cg_v
 // -------------------------------- WRITE OUTPUT --------------------------------
 // Initializes output tensor of each node in the computation graph
 fn write_outputsInitialization(writer: std.fs.File.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
-    _ = codegen_parameters; // autofix
     if (!codegen_options.dynamic) {
         try writer.print(
             \\
@@ -240,7 +304,11 @@ fn write_outputsInitialization(writer: std.fs.File.Writer, codegen_parameters: c
 
         for (outputs) |*tz| {
             const size = try emit.ShapeEmitter.emit(writer, tz);
-            try emit.TensorEmitter.emitAllocation(writer, tz, size, codegen_options.dynamic);
+            var backing_buffer_id: ?cg_v1.static_memory_planning.BufferId = null;
+            if (!codegen_options.dynamic and codegen_options.static_planning) {
+                backing_buffer_id = codegen_parameters.tensors_backing_buffers.?.get(tz.name).?.id;
+            }
+            try emit.TensorEmitter.emitAllocation(writer, tz, size, codegen_options.dynamic, backing_buffer_id);
         }
     }
 }
