@@ -86,6 +86,7 @@ pub fn build(b: *std.Build) void {
     const output_type_option = b.option([]const u8, "output_type", "Output type") orelse "f32";
     const comm_option = b.option(bool, "comm", "Codegen with comments") orelse false;
     const dynamic_option = b.option(bool, "dynamic", "Dynamic allocation") orelse true;
+    const static_planning_option = b.option(bool, "static_planning", "Perform static memory planning to optimize memory allocation (ignored when -dynamic=true)") orelse false;
     const fuse_option = b.option(bool, "fuse", "enable Kernel fusion") orelse false;
     const export_option = b.option(bool, "do_export", "codegen Exportable ") orelse false;
     const codegen_version_option = b.option([]const u8, "v", "Version, v1 or v2") orelse "v1";
@@ -107,6 +108,7 @@ pub fn build(b: *std.Build) void {
     codegen_options.addOption([]const u8, "output_type", output_type_option);
     codegen_options.addOption(bool, "comm", comm_option);
     codegen_options.addOption(bool, "dynamic", dynamic_option);
+    codegen_options.addOption(bool, "static_planning", static_planning_option);
     codegen_options.addOption(bool, "fuse", fuse_option);
     codegen_options.addOption([]const u8, "version", codegen_version_option);
     codegen_options.addOption(bool, "xip", xip_enabled);
