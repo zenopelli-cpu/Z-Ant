@@ -392,6 +392,7 @@ pub inline fn get_conv_relu_output_shape(
 
 // ----------TEST----------
 
+// test with all positive output values
 test "convRelu basic functionality" {
     const testing = std.testing;
 
@@ -433,6 +434,7 @@ test "convRelu basic functionality" {
     try testing.expect(result.data[3] == 14.0); // 5+9
 }
 
+// test with all values of the output negative (to be replaced with 0)
 test "convRelu negative basic functionality" {
     const testing = std.testing;
 
