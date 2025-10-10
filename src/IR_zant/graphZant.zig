@@ -178,6 +178,102 @@ pub const GraphZant = struct {
         try result.append(node);
     }
 
+    // TODO: unit tests for this
+    pub fn isDag(
+        self: *GraphZant,
+        alloc: std.mem.Allocator,
+    ) !bool {
+        if (self.nodes.items.len == 0) {
+            return true;
+        }
+
+        // We don't have an obvious starting point in the graph, so instead we
+        // start a visit from all the nodes in the graph, unless we already ran
+        // into them during a previous visit
+        var visited_starting_nodes = std.AutoHashMap(*NodeZant, void).init(alloc);
+        defer visited_starting_nodes.deinit();
+
+        // Look for a cycle starting a visit from any node
+        // If none is found, return true
+        for (self.nodes.items) |node| {
+            if (visited_starting_nodes.contains(node)) {
+                continue;
+            }
+
+            var arena = std.heap.ArenaAllocator.init(alloc);
+            defer arena.deinit();
+            const arena_alloc = arena.allocator();
+
+            // The boolean tells us if the visit ended already or is still in progress
+            var visited = std.AutoHashMap(*NodeZant, bool).init(arena_alloc);
+            const Snapshot = struct {
+                zant_node: *NodeZant,
+                next_index_to_check: usize,
+            };
+
+            var stack = try std.ArrayListUnmanaged(Snapshot).initCapacity(arena_alloc, self.nodes.items.len);
+
+            try stack.append(arena_alloc, .{
+                .zant_node = node,
+                .next_index_to_check = 0,
+            });
+
+            visit_loop: while (stack.pop()) |stack_node| {
+                const zant_node = stack_node.zant_node;
+                const next_index_to_check = stack_node.next_index_to_check;
+                const visited_state = try visited.getOrPut(zant_node);
+                // If we have pushed a node for which the visit ended on the
+                // stack, we have a bug in the algorithm
+                std.debug.assert(
+                    !visited_state.found_existing or
+                        !visited_state.value_ptr.*,
+                );
+
+                // Visit started
+                if (!visited_state.found_existing) {
+                    visited_state.value_ptr.* = false;
+                }
+
+                const n_links = zant_node.next.items.len;
+
+                std.debug.assert(next_index_to_check <= n_links);
+
+                if (next_index_to_check == n_links) {
+                    visited_state.value_ptr.* = true;
+                    continue;
+                }
+
+                for (zant_node.next.items[next_index_to_check..], next_index_to_check..n_links) |next_node, i| {
+                    const next_node_visited_state = try visited.getOrPut(next_node);
+                    if (next_node_visited_state.found_existing and !next_node_visited_state.value_ptr.*) {
+                        // We found a link from a node being visited and another node we are still visiting (i.e. a cycle)
+                        return false;
+                    }
+
+                    // Visit for this next node has not started yet, add it to the stack along with its parent
+                    if (!next_node_visited_state.found_existing) {
+                        try stack.append(arena_alloc, .{
+                            .zant_node = zant_node,
+                            .next_index_to_check = i + 1,
+                        });
+
+                        try stack.append(arena_alloc, .{
+                            .zant_node = next_node,
+                            .next_index_to_check = 0,
+                        });
+
+                        continue :visit_loop;
+                    }
+                }
+
+                visited_state.value_ptr.* = true;
+                try visited_starting_nodes.put(zant_node, undefined);
+            }
+        }
+
+        return true;
+    }
+
     pub fn reverseArrayList(comptime T: type, list: *std.ArrayList(T)) void {
         var i: usize = 0;
         var j: usize = list.items.len - 1;
