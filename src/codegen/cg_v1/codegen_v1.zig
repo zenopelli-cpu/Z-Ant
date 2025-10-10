@@ -74,6 +74,38 @@ pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []cons
         }
     }
 
+    if (!codegen_options.dynamic and codegen_options.static_planning) {
+        // NOTE: Not a strict requirement for the future, but the first draft
+        // will assume that there are no cycles (simplifies the implementation
+        // and works for non-recurrent neural networks)
+        std.debug.assert(try graphZant.isDag(allocator));
+        std.debug.assert(linearizedGraph.items.len > 0);
+
+        backing_buffers = try static_memory_planning.computeBackingBuffers(linearizedGraph.items[0], allocator);
+
+        std.debug.print("\nStatic memory planning", .{});
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+        const arena_alloc = arena.allocator();
+
+        var entry_it = backing_buffers.?.iterator();
+        var tensors = try arena_alloc.alloc(struct {
+            name: []const u8,
+            size: usize,
+            backing_buffer: ?static_memory_planning.BackingBuffer,
+        }, backing_buffers.?.count());
+        var i: usize = 0;
+        while (entry_it.next()) |entry| : (i += 1) {
+            const tensor = IR.tensorZant_lib.tensorMap.get(entry.key_ptr.*).?;
+            tensors[i] = .{
+                .name = tensor.name,
+                .size = tensor.getSize(),
+                .backing_buffer = entry.value_ptr.*,
+            };
+        }
+        std.debug.print("\n{}\n", .{std.json.fmt(tensors, .{})});
+        std.debug.print("\n", .{});
+    }
 
     try codegnenerateFromLinearizedGraph(
         model_name,
