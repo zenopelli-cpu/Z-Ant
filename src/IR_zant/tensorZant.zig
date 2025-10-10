@@ -166,7 +166,7 @@ pub const TensorZant = struct {
         allocator.free(self.stride);
     }
 
-    pub fn getNameSanitized(self: *TensorZant) ![]const u8 {
+    pub fn getNameSanitized(self: *const TensorZant) ![]const u8 {
         var sanitized = try allocator.alloc(u8, self.name.len);
 
         for (self.name, 0..) |char, i| {
@@ -187,7 +187,7 @@ pub const TensorZant = struct {
         return self.stride;
     }
 
-    pub fn getSize(self: *TensorZant) usize {
+    pub fn getSize(self: *const TensorZant) usize {
         var size: usize = 1;
         for (self.shape) |dim| {
             size *= dim;
