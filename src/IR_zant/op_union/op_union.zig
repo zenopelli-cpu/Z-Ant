@@ -49,7 +49,7 @@ pub const Op_union = union(enum) {
     nonMaxSuppression: operators.NonMaxSuppression,
     oneHot: operators.OneHot,
     pad: operators.Pad,
-    pow: operators.Pow,
+    // pow: operators.Pow,
     qgemm: operators.QGemm,
     qlinearadd: operators.QLinearAdd,
     qlinearaveragepool: operators.QLinearAveragePool,
@@ -156,9 +156,11 @@ pub const Op_union = union(enum) {
             return Op_union{ .oneHot = try operators.OneHot.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "Pad")) {
             return Op_union{ .pad = try operators.Pad.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Pow")) {
-            return Op_union{ .pow = try operators.Pow.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "QGemm")) {
+        }
+        // else if (std.mem.eql(u8, op_type, "Pow")) {
+        //     return Op_union{ .pow = try operators.Pow.init(nodeProto) };
+        // }
+        else if (std.mem.eql(u8, op_type, "QGemm")) {
             return Op_union{ .qgemm = try operators.QGemm.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "QLinearAdd")) {
             return Op_union{ .qlinearadd = try operators.QLinearAdd.init(nodeProto) };
