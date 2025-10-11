@@ -108,6 +108,7 @@ pub const NodeProto = struct {
                 4 => { // op_type
                     const op_str = try reader.readString(reader.allocator);
                     node.op_type = try fromString(op_str);
+                    reader.allocator.free(op_str);
                 },
                 5 => { // attribute (repeated)
                     var attr_reader = try reader.readLengthDelimited();
