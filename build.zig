@@ -13,10 +13,9 @@ pub fn build(b: *std.Build) void {
 
     // First build the Zant enviroment
     const zantBuild: ZantBuild = ZantBuild.init(b) catch unreachable;
-
-    // -------------------------------------------------------------
-    // ------------------ Target and Optimization ------------------
-    // -------------------------------------------------------------
+    // ---------------------------------------------------------------------
+    // ------------------ Target and Release Optimization ------------------
+    // ---------------------------------------------------------------------
     // Get target and CPU options from command line or use defaults
     const target_str = b.option([]const u8, "target", "Target architecture (e.g., thumb-freestanding)") orelse "native";
     const cpu_str = b.option([]const u8, "cpu", "CPU model (e.g., cortex_m33)");
@@ -31,40 +30,52 @@ pub fn build(b: *std.Build) void {
     target = b.resolveTargetQuery(target_query);
     optimize = b.standardOptimizeOption(.{});
 
-    // ************************************************ UNIT TESTS ************************************************
+    // ************************************************ UNIT TESTS **************************************************
+    // $ zig build test --summary all
     unit_test_creation(b, zantBuild);
 
-    // ************************************************ CODEGEN IR LIB_MODEL************************************************
+    // ************************************************ CODEGEN IR LIB_MODEL*****************************************
+    // $ zig build lib-gen -Dmodel="myModel" ...
     lib_codegen(b, zantBuild);
 
-    // ************************************************ LIB_MODEL EXECUTABLE ************************************************
+    // ************************************************ LIB_MODEL EXECUTABLE ****************************************
+    // $ zig build lib-exe -Dmodel="myModel" ...
     lib_exe(b, zantBuild);
 
-    // ************************************************ GENERATED LIBRARY TESTS ************************************************
+    // ************************************************ GENERATED LIBRARY TESTS **************************************
+    // $ zig build lib-test -Dmodel="myModel" ...
     lib_test(b, zantBuild);
 
-    // ************************************************ STATIC LIBRARY CREATION ************************************************
+    // ************************************************ STATIC LIBRARY CREATION **************************************
+    // $ zig build lib -Dmodel="myModel" [ -Dtarget=... -Dcpu=... -Doptimize=[ReleaseSmall, ReleaseFast]]
     const static_lib: *std.Build.Step.Compile = lib_creation(b, zantBuild) catch unreachable;
 
     // ************************************************ ONEOP CODEGEN ************************************************
+    // $ zig build op-codegen-gen [ -Dop="OpName" ]
     op_codegen_gen(b, zantBuild);
 
     // ************************************************ ONEOP TESTING ************************************************
+    // $ zig build op-codegen-test [ -Dop="OpName" ]
     op_codegen_test(b, zantBuild);
 
-    // ************************************************ NODE EXTRACTOR GEN ************************************************
+    // ************************************************ NODE EXTRACTOR GEN *******************************************
+    // $ zig build extractor-gen -Dmodel="myModel"
     extractor_gen(b, zantBuild);
 
-    // ************************************************ NODE EXTRACTOR TEST ************************************************
+    // ************************************************ NODE EXTRACTOR TEST ******************************************
+    // $ zig build extractor-test -Dmodel="myModel"
     extractor_test(b, zantBuild);
 
-    // ************************************************ BENCHMARK  ************************************************
+    // ************************************************ BENCHMARK  ***************************************************
+    // $ zig build benchmark
     benchmark_create(b, zantBuild);
 
-    // ************************************************ ONNX PARSER TESTS ************************************************
+    // ************************************************ ONNX PARSER TESTS ********************************************
+    // $ zig build onnx-parser
     onnx_parser(b, zantBuild);
 
-    // ************************************************ MAIN EXECUTABLE (for profiling) ************************************************
+    // ************************************************ MAIN EXECUTABLE (for profiling) ******************************
+    // $ zig build build-main -Dmodel="my_model"
     build_main(b, zantBuild, static_lib);
 }
 
