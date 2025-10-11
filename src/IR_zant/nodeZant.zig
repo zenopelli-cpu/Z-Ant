@@ -21,7 +21,7 @@ const UOpBuilder = zant.uops.UOpBuilder;
 
 pub const NodeZant = struct {
     name: ?[]const u8, //name of the node
-    op_type: []const u8, //onnx name of the operation, see here: https://onnx.ai/onnx/operators/
+    op_type: onnx.OnnxOperator, //onnx name of the operation, see here: https://onnx.ai/onnx/operators/
     op: Op_union, // contains all the information of the operation
     next: std.ArrayList(*NodeZant), // points to the following nodes
 
