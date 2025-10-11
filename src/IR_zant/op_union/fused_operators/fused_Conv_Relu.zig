@@ -183,33 +183,33 @@ pub const Fused_Conv_Relu = struct {
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);
 
-        if (self.input_X.tc == TensorCategory.INITIALIZER) {
+        if (self.op_Conv.input_X.tc == TensorCategory.INITIALIZER) {
             tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
-                try IR_utils.getSanitizedName(self.input_X.name),
+                try IR_utils.getSanitizedName(self.op_Conv.input_X.name),
                 ")",
             });
         } else {
-            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try IR_utils.getSanitizedName(self.input_X.name), ")" });
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try IR_utils.getSanitizedName(self.op_Conv.input_X.name), ")" });
         }
 
         //----create tensor_W_string
         var tensor_W_string: []u8 = undefined;
         defer allocator.free(tensor_W_string);
-        if (self.input_W.tc == TensorCategory.INITIALIZER) {
+        if (self.op_Conv.input_W.tc == TensorCategory.INITIALIZER) {
             tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{
                 "@constCast(&param_lib.tensor_",
-                try IR_utils.getSanitizedName(self.input_W.name),
+                try IR_utils.getSanitizedName(self.op_Conv.input_W.name),
                 ")",
             });
         } else {
-            tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try IR_utils.getSanitizedName(self.input_W.name), ")" });
+            tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try IR_utils.getSanitizedName(self.op_Conv.input_W.name), ")" });
         }
 
         //----create ?bias string
         var bias_string: []u8 = undefined;
         // Bias Tensor B is optional! verify the presence
-        if (self.input_B) |input_B| {
+        if (self.op_Conv.input_B) |input_B| {
             const B_name = try IR_utils.getSanitizedName(input_B.name);
             bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", B_name, ")" });
         } else {
@@ -218,14 +218,14 @@ pub const Fused_Conv_Relu = struct {
 
         //----create stride string (mandatory)
         // TODO: implement default stride, see docs above
-        if (self.strides == null) return error.StrideNotFound;
-        const stride_string: []const u8 = try IR_utils.i64SliceToUsizeArrayString(self.strides.?);
+        if (self.op_Conv.strides == null) return error.StrideNotFound;
+        const stride_string: []const u8 = try IR_utils.i64SliceToUsizeArrayString(self.op_Conv.strides.?);
 
         //----create ?pads string
         var pads_string: []const u8 = "null";
-        if (self.pads != null) {
-            if (self.pads.?.len > 0) { // Check if the slice is actually non-empty
-                pads_string = try IR_utils.i64SliceToUsizeArrayString(self.pads.?);
+        if (self.op_Conv.pads != null) {
+            if (self.op_Conv.pads.?.len > 0) { // Check if the slice is actually non-empty
+                pads_string = try IR_utils.i64SliceToUsizeArrayString(self.op_Conv.pads.?);
                 // Assuming no allocation needed to be freed, following write_conv
             } else {
                 pads_string = "&[_]usize{}"; // Use explicit empty slice literal if input slice is empty
@@ -234,18 +234,18 @@ pub const Fused_Conv_Relu = struct {
 
         //----create ?dilatations string
         var dilat_string: []const u8 = "null";
-        if (self.dilations != null) {
-            if (self.dilations.?.len > 0) {
-                dilat_string = try IR_utils.i64SliceToUsizeArrayString(self.dilations.?);
+        if (self.op_Conv.dilations != null) {
+            if (self.op_Conv.dilations.?.len > 0) {
+                dilat_string = try IR_utils.i64SliceToUsizeArrayString(self.op_Conv.dilations.?);
             } else {
                 dilat_string = "&[_]usize{}";
             }
         } // else dilat_string remains "null"
 
         // Check if we need cast operations for mixed precision
-        const target_type = self.output_Y.ty.toString();
-        const need_kernel_cast = !std.mem.eql(u8, self.input_W.ty.toString(), target_type);
-        const need_bias_cast = if (self.input_B) |bias| !std.mem.eql(u8, bias.ty.toString(), target_type) else false;
+        const target_type = self.op_Relu.output_Y.ty.toString();
+        const need_kernel_cast = !std.mem.eql(u8, self.op_Conv.input_W.ty.toString(), target_type);
+        const need_bias_cast = if (self.op_Conv.input_B) |bias| !std.mem.eql(u8, bias.ty.toString(), target_type) else false;
 
         var final_kernel_string: []const u8 = undefined;
         var final_bias_string: []const u8 = undefined;
@@ -256,7 +256,7 @@ pub const Fused_Conv_Relu = struct {
 
         if (need_kernel_cast) {
             // Generate cast for kernel
-            const kernel_name = try IR_utils.getSanitizedName(self.input_W.name);
+            const kernel_name = try IR_utils.getSanitizedName(self.op_Conv.input_W.name);
             _ = try writer.print(
                 \\
                 \\    // Cast kernel from {s} to {s}
@@ -265,13 +265,13 @@ pub const Fused_Conv_Relu = struct {
                 \\    tensMath.cast_lean({s}, {s}, @constCast(&param_lib.tensor_{s}), &tensor_{s}_casted, zant.onnx.DataType.FLOAT) catch return -1;
                 \\
             , .{
-                self.input_W.ty.toString(),
+                self.op_Conv.input_W.ty.toString(),
                 target_type,
                 kernel_name,
                 target_type,
                 kernel_name,
                 kernel_name,
-                self.input_W.ty.toString(),
+                self.op_Conv.input_W.ty.toString(),
                 target_type,
                 kernel_name,
                 kernel_name,
@@ -282,9 +282,9 @@ pub const Fused_Conv_Relu = struct {
             final_kernel_string = tensor_W_string;
         }
 
-        if (need_bias_cast and self.input_B != null) {
+        if (need_bias_cast and self.op_Conv.input_B != null) {
             // Generate cast for bias
-            const bias_name = try IR_utils.getSanitizedName(self.input_B.?.name);
+            const bias_name = try IR_utils.getSanitizedName(self.op_Conv.input_B.?.name);
             _ = try writer.print(
                 \\
                 \\    // Cast bias from {s} to {s}
@@ -293,13 +293,13 @@ pub const Fused_Conv_Relu = struct {
                 \\    tensMath.cast_lean({s}, {s}, @constCast(&param_lib.tensor_{s}), &tensor_{s}_casted, zant.onnx.DataType.FLOAT) catch return -1;
                 \\
             , .{
-                self.input_B.?.ty.toString(),
+                self.op_Conv.input_B.?.ty.toString(),
                 target_type,
                 bias_name,
                 target_type,
                 bias_name,
                 bias_name,
-                self.input_B.?.ty.toString(),
+                self.op_Conv.input_B.?.ty.toString(),
                 target_type,
                 bias_name,
                 bias_name,
@@ -336,8 +336,8 @@ pub const Fused_Conv_Relu = struct {
             stride_string, //Strides
             pads_string, //Pads
             dilat_string, //Dilatations
-            self.group, //Group
-            self.auto_pad, //auto_pad
+            self.op_Conv.group, //Group
+            self.op_Conv.auto_pad, //auto_pad
         });
     }
 
