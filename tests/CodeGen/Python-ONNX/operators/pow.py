@@ -5,10 +5,14 @@ from onnx import helper, TensorProto
 def generate_pow_model(input_names, output_names):
     """
     Generates a Pow operator model with comprehensive broadcasting tests.
-    Uses only type combinations supported by ONNX Runtime CPU.
+    Output type matches base (X) type, exponent (Y) can have different type.
+    Supports mixed precision as per ONNX Pow specification (version 12+).
     """
     initializers = []
  
+    # Supported combinations: (base_type, exp_type)
+    # Base type determines output type
+    # Only combinations supported by ONNX Runtime CPU
     supported_combinations = [
         # (base_type_proto, base_type_np, exp_type_proto, exp_type_np)
         (TensorProto.FLOAT, np.float32, TensorProto.FLOAT, np.float32),
@@ -64,8 +68,7 @@ def generate_pow_model(input_names, output_names):
     base_shape, exponent_shape, broadcast_type = random.choice(broadcast_scenarios)
     
     # Generate base data
-    # For integer types, use positive values to avoid issues with negative bases and fractional exponents
-    # For float types, also use positive values for safety
+    # Use positive values to avoid issues with negative bases and fractional exponents
     if base_dtype_np in [np.float32, np.float64, np.float16]:
         base_data = np.random.uniform(0.5, 5.0, base_shape).astype(base_dtype_np)
     else:
@@ -84,10 +87,10 @@ def generate_pow_model(input_names, output_names):
     if exp_dtype_np in [np.float32, np.float64, np.float16]:
         exponent_data = np.random.uniform(0.5, 3.0, exponent_shape).astype(exp_dtype_np)
     elif exp_dtype_np in [np.int8, np.int16, np.int32, np.int64]:
-        # For integer exponents, use very small values to avoid overflow
-        exponent_data = np.random.randint(1, 4, exponent_shape).astype(exp_dtype_np)
+        # For integer exponents, use small values to avoid overflow
+        exponent_data = np.random.randint(0, 4, exponent_shape).astype(exp_dtype_np)
     else:  # unsigned types
-        exponent_data = np.random.randint(1, 4, exponent_shape).astype(exp_dtype_np)
+        exponent_data = np.random.randint(0, 4, exponent_shape).astype(exp_dtype_np)
     
     exponent_tensor = helper.make_tensor(
         input_names[1],
@@ -106,10 +109,10 @@ def generate_pow_model(input_names, output_names):
         output_shape = base_shape.copy()
         broadcast_type = "fallback_no_broadcast"
     
-    # Output has same type as base (X)
+    # IMPORTANT: Output has same type as base (X) per ONNX Pow specification
     output_info = helper.make_tensor_value_info(
         output_names[0], 
-        base_dtype_proto, 
+        base_dtype_proto,  # Output type matches base type
         output_shape
     )
     
@@ -134,6 +137,7 @@ def generate_pow_model(input_names, output_names):
         "output_shapes": [output_shape],
         "base_dtype": str(base_dtype_np),
         "exponent_dtype": str(exp_dtype_np),
+        "output_dtype": str(base_dtype_np),  # Output type = base type
         "broadcast_type": broadcast_type,
         "base_data_sample": base_data.flatten()[:5].tolist(),
         "exp_data_sample": exponent_data.flatten()[:5].tolist()
