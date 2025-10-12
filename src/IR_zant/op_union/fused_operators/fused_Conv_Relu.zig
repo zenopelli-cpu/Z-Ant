@@ -26,7 +26,7 @@ pub const Fused_Conv_Relu = struct {
         //Ensure that the ArrayList is the correct one
         if (fusion_list.items.len != 2) return error.WrongNumberOfElements;
         if (fusion_list.items[0].op != .conv) return error.WrongOpAtPose0;
-        if (fusion_list.items[1].op != .RELU) return error.WrongOpAtPose2;
+        if (fusion_list.items[1].op != .relu) return error.WrongOpAtPose2;
 
         // Extract the specific operations from the unions
         const conv_op = switch (fusion_list.items[0].op) {
@@ -70,7 +70,7 @@ pub const Fused_Conv_Relu = struct {
         }
 
         const successor = next_nodes.items[0];
-        if (successor.op != .RELU) {
+        if (successor.op != .relu) {
             node_list.deinit();
             return null;
         }
@@ -88,7 +88,7 @@ pub const Fused_Conv_Relu = struct {
 
         // PATTERN_MATCHING_STRATEGY
         if (node_list.items[0].op != .conv) return error.UnexpectedOpAtPos0;
-        if (node_list.items[1].op != .RELU) return error.UnexpectedOpAtPos1;
+        if (node_list.items[1].op != .relu) return error.UnexpectedOpAtPos1;
 
         const relu_node: *NodeZant = node_list.items[1];
 

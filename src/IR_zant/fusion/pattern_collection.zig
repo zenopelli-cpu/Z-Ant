@@ -52,20 +52,20 @@ pub const patterns = [_]PatternConfig{
         .fn_pattern_sobstitution = fused_operators.Fused_Conv_Clip.fn_pattern_sobstitution, // sobstitution stategy
     },
 
-    // .{ // "DequantizeLinear" -> "QuantizeLinear" into nothing
-    //     .pattern = &[_][]const u8{ "DequantizeLinear", "QuantizeLinear" },
-    //     .name = "DequantizeLinearQuantizeLinear",
-    //     .fn_pattern_detection = fused_operators.Fused_Dequant_Quant.fn_pattern_detection,
-    //     .fn_pattern_fusion = fused_operators.Fused_Dequant_Quant.fn_pattern_fusion,
-    //     .fn_pattern_sobstitution = fused_operators.Fused_Dequant_Quant.fn_pattern_sobstitution,
-    // },
-
     .{
         .pattern = &[_][]const u8{ "Conv", "Relu" },
         .name = "fused_Conv_Relu", //used for more complex pattern like detect_qadd_pattern()
         .fn_pattern_detection = fused_operators.Fused_Conv_Relu.fn_pattern_detection,
         .fn_pattern_fusion = fused_operators.Fused_Conv_Relu.fn_pattern_fusion, // fusion stategy
         .fn_pattern_sobstitution = fused_operators.Fused_Conv_Relu.fn_pattern_sobstitution, // sobstitution stategy
+    },
+
+    .{ // "DequantizeLinear" -> "QuantizeLinear" into nothing
+        .pattern = &[_][]const u8{ "DequantizeLinear", "QuantizeLinear" },
+        .name = "DequantizeLinearQuantizeLinear",
+        .fn_pattern_detection = fused_operators.Fused_Dequant_Quant.fn_pattern_detection,
+        .fn_pattern_fusion = fused_operators.Fused_Dequant_Quant.fn_pattern_fusion,
+        .fn_pattern_sobstitution = fused_operators.Fused_Dequant_Quant.fn_pattern_sobstitution,
     },
 
     // // Quantized convolution with padding
