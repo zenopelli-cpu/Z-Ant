@@ -9,6 +9,7 @@ Clip
 Concat
 # Constant <<<<<<<<<<<>>>>>>>>>>> often useless if the onnx graph is simplified
 Conv   
+ConvRelu
 # ConvInteger <<<<<<<<<<< not supported by ORT
 DequantizeLinear
 Div  
