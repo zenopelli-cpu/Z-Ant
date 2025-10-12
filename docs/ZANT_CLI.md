@@ -208,9 +208,10 @@ zig build lib -Dmodel="my_model" [-Doptimize= [ ReleaseSmall, ReleaseFast ] -Dta
 ```
 
 ### 2. Test Single Operations
+Without specifing ` --op Add ` ad `-Dop="Add"` all the ops are tested
 ```bash
 # Generate ONNX models for testing (using zant wrapper)
-./zant onnx_gen --op Add --iterations 5
+./zant onnx_gen --op Add 
 
 # Generate code for one-op models
 zig build op-codegen-gen -Dop="Add"
