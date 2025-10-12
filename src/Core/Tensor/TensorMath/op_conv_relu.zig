@@ -32,7 +32,6 @@ const pkg_allocator = zant.utils.allocator.allocator;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 
 /// ONNX Conv+ReLU operation - creates output tensor and performs convolution
-/// Following ONNX Conv-22 specification exactly
 pub fn conv_relu(
     comptime T: type,
     input: *const Tensor(T), // X: Input tensor [N, C, H, W] or [C, H, W]
@@ -72,10 +71,11 @@ pub fn conv_relu(
     defer if (temp_input) |*t| t.deinit();
 
     // Calculate output shape
-    const output_shape = try get_conv_relu_output_shape(T, &input_shape, weight.shape, stride, pads, dilations, auto_pad);
+    const output_shape = try get_conv_relu_output_shape(T, pkg_allocator, &input_shape, weight.shape, stride, pads, dilations, auto_pad);
+    defer pkg_allocator.free(output_shape);
 
     // Create output tensor
-    var output_tensor = try Tensor(T).fromShape(&pkg_allocator, &output_shape);
+    var output_tensor = try Tensor(T).fromShape(&pkg_allocator, output_shape);
     errdefer output_tensor.deinit();
 
     // Perform convolution
