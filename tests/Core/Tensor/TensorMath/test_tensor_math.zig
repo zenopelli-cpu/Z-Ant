@@ -15,4 +15,5 @@ test {
     // _ = @import("test_op_pooling.zig");  Tests are obsolete! The ops are tested into the fuzzing
     // _ = @import("test_op_convolution.zig"); Tests are obsolete! The ops are tested into the fuzzing
     _ = @import("test_op_mean.zig");
+    _ = @import("test_op_pow.zig");
 }

@@ -13,11 +13,11 @@ pub fn main() !void {
     std.debug.print("\n     generated_path:{s} ", .{codegen_options.generated_path});
     std.debug.print("\n     user_tests:{} ", .{codegen_options.user_tests});
     std.debug.print("\n     log:{} ", .{codegen_options.log});
-    std.debug.print("\n     shape:{s} ", .{codegen_options.shape});
     std.debug.print("\n     type:{s} ", .{codegen_options.type});
     std.debug.print("\n     output_type:{s} ", .{codegen_options.output_type});
     std.debug.print("\n     comm:{} ", .{codegen_options.comm});
     std.debug.print("\n     dynamic:{} ", .{codegen_options.dynamic});
+    std.debug.print("\n     static_planning:{} ", .{codegen_options.static_planning});
     std.debug.print("\n     version:{s} ", .{codegen_options.version});
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

@@ -21,7 +21,19 @@ pub const Fused_Dequant_Quant = struct {
 
     // This method is not used since is initialized as a "useless" operator
     pub fn init_fused_op(fusion_list: std.ArrayList(*NodeZant)) !Fused_Dequant_Quant {
-        _ = fusion_list;
+        const dequant_op = switch (fusion_list.items[0].op) {
+            .dequantizeLinear => |d| d,
+            else => return error.InvalidDequantizeLinearOperation,
+        };
+
+        const quant_op = switch (fusion_list.items[1].op) {
+            .quantizeLinear => |q| q,
+            else => return error.InvalidQuantizeLinearOperation,
+        };
+        // Downgrade LINK tensors between fudes noted to FUSED_LINK tensors
+        // in this case , since it is an elimination, all the tensors must be downgraded
+        dequant_op.y.set_tensorCategory(TensorCategory.FUSED_LINK);
+        quant_op.y.set_tensorCategory(TensorCategory.FUSED_LINK);
     }
 
     /// Pattern detection function for DequantizeLinear -> QuantizeLinear
@@ -29,7 +41,7 @@ pub const Fused_Dequant_Quant = struct {
         _ = graph; // Not used in this sequential pattern
 
         // Only start detection from DequantizeLinear nodes
-        if (!std.mem.eql(u8, root_node.op_type, "DequantizeLinear")) {
+        if (root_node.op != .dequantizeLinear) {
             return null;
         }
 
@@ -45,7 +57,7 @@ pub const Fused_Dequant_Quant = struct {
         }
 
         const quant_node = root_node.next.items[0];
-        if (!std.mem.eql(u8, quant_node.op_type, "QuantizeLinear")) {
+        if (quant_node.op != .quantizeLinear) {
             node_list.deinit();
             return null;
         }
@@ -63,8 +75,8 @@ pub const Fused_Dequant_Quant = struct {
 
         // Validate the pattern
         if (node_list.items.len != 2) return error.InvalidNumberOfOps;
-        if (!std.mem.eql(u8, node_list.items[0].op_type, "DequantizeLinear")) return error.UnexpectedOpAtPos0;
-        if (!std.mem.eql(u8, node_list.items[1].op_type, "QuantizeLinear")) return error.UnexpectedOpAtPos1;
+        if (node_list.items[0].op != .dequantizeLinear) return error.UnexpectedOpAtPos0;
+        if (node_list.items[1].op != .quantizeLinear) return error.UnexpectedOpAtPos1;
 
         const last_node = node_list.items[1]; // QuantizeLinear node
 

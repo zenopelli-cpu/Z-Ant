@@ -3,6 +3,7 @@
 //! the concept of scalars, vectors, and matrices to higher dimensions. A scalar is a 0-dimensional
 //! tensor, a vector is a 1-dimensional tensor, and a matrix is a 2-dimensional tensor. Tensors can extend
 //! to even higher dimensions (3D, 4D, etc.).
+
 pub const math_lean = @import("TensorMath/tensor_math_standard.zig");
 pub const math_standard = @import("TensorMath/tensor_math_standard.zig");
 pub const quantized_math = @import("QuantTensorMath/quant_tensor_math_standard.zig");

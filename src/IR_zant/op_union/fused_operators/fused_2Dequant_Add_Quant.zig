@@ -42,10 +42,10 @@ pub const Fused_2Dequant_Add_Quant = struct {
         if (fusion_list.items.len != 4) return error.WrongNumberOfElements;
 
         // Pattern: DequantizeLinear(A) -> DequantizeLinear(B) -> Add -> QuantizeLinear
-        if (!std.mem.eql(u8, fusion_list.items[0].op_type, "DequantizeLinear")) return error.WrongOpAtPos0;
-        if (!std.mem.eql(u8, fusion_list.items[1].op_type, "DequantizeLinear")) return error.WrongOpAtPos1;
-        if (!std.mem.eql(u8, fusion_list.items[2].op_type, "Add")) return error.WrongOpAtPos2;
-        if (!std.mem.eql(u8, fusion_list.items[3].op_type, "QuantizeLinear")) return error.WrongOpAtPos3;
+        if (fusion_list.items[0].op != .dequantizeLinear) return error.WrongOpAtPos0;
+        if (fusion_list.items[1].op != .dequantizeLinear) return error.WrongOpAtPos1;
+        if (fusion_list.items[2].op != .add) return error.WrongOpAtPos2;
+        if (fusion_list.items[3].op != .quantizeLinear) return error.WrongOpAtPos3;
 
         const dequant_a_op = switch (fusion_list.items[0].op) {
             .dequantizeLinear => |d| d,
@@ -80,6 +80,11 @@ pub const Fused_2Dequant_Add_Quant = struct {
             .input_C_zero_point = quant_op.y_zero_point.?,
         };
 
+        // Downgrade LINK tensors between fudes noted to FUSED_LINK tensors
+        dequant_a_op.y.set_tensorCategory(TensorCategory.FUSED_LINK);
+        dequant_b_op.y.set_tensorCategory(TensorCategory.FUSED_LINK);
+        add_op.output_C.set_tensorCategory(TensorCategory.FUSED_LINK);
+
         return Fused_2Dequant_Add_Quant{
             .op_name = try NodeZant_lib.getFusedOpsName(fusion_list),
             .op_DequantizeLinear_A = dequant_a_op,
@@ -95,7 +100,7 @@ pub const Fused_2Dequant_Add_Quant = struct {
     pub fn fn_pattern_detection(graph: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
 
         // Only start detection from Add nodes
-        if (!std.mem.eql(u8, root_node.op_type, "Add")) {
+        if (root_node.op != .add) {
             return null;
         }
 
@@ -116,7 +121,7 @@ pub const Fused_2Dequant_Add_Quant = struct {
 
         // Check that both predecessors are DequantizeLinear nodes
         for (predecessors.items) |pred| {
-            if (std.mem.eql(u8, pred.op_type, "DequantizeLinear")) {
+            if (pred.op != .dequantizeLinear) {
                 if (dequant_a == null) {
                     dequant_a = pred;
                 } else {
@@ -137,7 +142,7 @@ pub const Fused_2Dequant_Add_Quant = struct {
         }
 
         const quant_node = root_node.next.items[0];
-        if (!std.mem.eql(u8, quant_node.op_type, "QuantizeLinear")) {
+        if (quant_node.op != .quantizeLinear) {
             return null;
         }
 
@@ -159,10 +164,10 @@ pub const Fused_2Dequant_Add_Quant = struct {
         // Validate the pattern - must be exactly 4 nodes
         if (node_list.items.len != 4) return error.InvalidNumberOfOps;
 
-        if (!std.mem.eql(u8, node_list.items[0].op_type, "DequantizeLinear")) return error.UnexpectedOpAtPos0;
-        if (!std.mem.eql(u8, node_list.items[1].op_type, "DequantizeLinear")) return error.UnexpectedOpAtPos1;
-        if (!std.mem.eql(u8, node_list.items[2].op_type, "Add")) return error.UnexpectedOpAtPos2;
-        if (!std.mem.eql(u8, node_list.items[3].op_type, "QuantizeLinear")) return error.UnexpectedOpAtPos3;
+        if (node_list.items[0].op != .dequantizeLinear) return error.UnexpectedOpAtPos0;
+        if (node_list.items[1].op != .dequantizeLinear) return error.UnexpectedOpAtPos1;
+        if (node_list.items[2].op != .add) return error.UnexpectedOpAtPos2;
+        if (node_list.items[3].op != .quantizeLinear) return error.UnexpectedOpAtPos3;
 
         const last_node = node_list.items[3]; // QuantizeLinear node
 

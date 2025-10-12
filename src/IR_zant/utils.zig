@@ -498,11 +498,26 @@ pub fn getConstants(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
     return constants.toOwnedSlice();
 }
 
+// Returns all the tensor tagged as Linkers (.LINK) in the global HashMap.
+// A linker tensor is a tensor connectingg two nodes.
 pub fn getLinkers(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
     var linkers = std.ArrayList(TensorZant).init(allocator);
     var it = hashMap.iterator();
     while (it.next()) |entry| {
         if (entry.value_ptr.tc == TensorCategory.LINK) {
+            try linkers.append(entry.value_ptr.*);
+        }
+    }
+    return linkers.toOwnedSlice();
+}
+
+// Returns all the tensor tagged as Fused Linkers (.FUSED_LINK) in the global HashMap.
+// A fused linker tensor is a tensor connectingg two fudes nodes.
+pub fn getFusedLinkers(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
+    var linkers = std.ArrayList(TensorZant).init(allocator);
+    var it = hashMap.iterator();
+    while (it.next()) |entry| {
+        if (entry.value_ptr.tc == TensorCategory.FUSED_LINK) {
             try linkers.append(entry.value_ptr.*);
         }
     }

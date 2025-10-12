@@ -33,7 +33,7 @@ pub const NodeZant = struct {
     pub fn init(nodeProto: *NodeProto) !NodeZant {
         return NodeZant{
             .name = if (nodeProto.name) |n| n else "unnamed",
-            .op_type = nodeProto.op_type,
+            .op_type = @tagName(nodeProto.op_type),
             .op = try Op_union.init(nodeProto),
             .next = std.ArrayList(*NodeZant).init(allocator),
             .nodeProto = nodeProto,
@@ -147,7 +147,7 @@ pub fn getFusedOpsType(fusion_list: std.ArrayList(*NodeZant)) ![]const u8 {
     try op_type_buffer.appendSlice("fused");
     for (fusion_list.items) |node| {
         try op_type_buffer.append('_');
-        try op_type_buffer.appendSlice(node.op_type);
+        try op_type_buffer.appendSlice(@tagName(node.op));
     }
 
     return try allocator.dupe(u8, op_type_buffer.items);

@@ -18,6 +18,10 @@ pub const ModelProto = @import("modelProto.zig").ModelProto;
 pub const StringStringEntryProto = @import("stringStringEntryProto.zig").StringStringEntryProto;
 pub const OperatorSetIdProto = @import("operatorSetIdProto.zig").OperatorSetIdProto;
 pub const FunctionProto = @import("functionProto.zig").FunctionProto;
+// --- onnx operator ---
+pub const OnnxOperator = @import("onnxOperator.zig").OnnxOperator;
+pub const fromString = @import("onnxOperator.zig").fromString;
+pub const isQlinear = @import("onnxOperator.zig").isQlinear;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());

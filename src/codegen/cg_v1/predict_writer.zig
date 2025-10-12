@@ -1,6 +1,7 @@
 const std = @import("std");
 const zant = @import("zant");
 const IR_zant = @import("IR_zant");
+const cg_v1 = @import("codegen_v1.zig");
 
 // --- zant IR
 const GraphZant = IR_zant.GraphZant;
@@ -19,8 +20,12 @@ const allocator = zant.utils.allocator.allocator;
 const codeGenPredict = @import("predict/predict.zig");
 const codegen_options = @import("codegen_options");
 
-pub fn write(generated_path: []const u8, model_name: []const u8, linearizedGraph: std.ArrayList(*NodeZant)) !void {
-
+pub fn write(
+    generated_path: []const u8,
+    model_name: []const u8,
+    linearizedGraph: std.ArrayList(*NodeZant),
+    codegen_parameters: cg_v1.CodegenParameters,
+) !void {
     //initializing writer for lib_operation file
     const lib_file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ generated_path, model_name });
     defer allocator.free(lib_file_path);
@@ -48,7 +53,7 @@ pub fn write(generated_path: []const u8, model_name: []const u8, linearizedGraph
 
     // _ = linearizedGraph;
     // Generate prediction function code
-    try codeGenPredict.writePredict(writer, linearizedGraph, codegen_options.do_export);
+    try codeGenPredict.writePredict(writer, linearizedGraph, codegen_options.do_export, codegen_parameters);
 }
 
 /// Writes the required library imports to the generated Zig file for predict function.
@@ -111,11 +116,6 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
 }
 
 fn write_FBA(writer: std.fs.File.Writer) !void {
-    //TODO DO AGAIN ALL OF THIS LOGIC it works but it can be way better
-    //TODO: instead of hardcoding "buf: [1024 * 10]"" compute the size form the IR Graph
-
-    // Current: 2MB fisso - troppo per modelli piccoli come beer (211KB picco)
-    // TODO: Calcolare size dal grafo IR + margine sicurezza 20%
     const buffer_size_kb = if (std.process.getEnvVarOwned(std.heap.page_allocator, "ZANT_FBA_SIZE_KB")) |env_size| blk: {
         defer std.heap.page_allocator.free(env_size);
         break :blk std.fmt.parseInt(u32, env_size, 10) catch 512;
@@ -129,47 +129,59 @@ fn write_FBA(writer: std.fs.File.Writer) !void {
     // Use tensor_pool if the option is enabled or if custom section is specified
     const should_use_tensor_pool = codegen_options.use_tensor_pool or link_section != null;
 
-    if (should_use_tensor_pool) {
+    const old_static_format =
+        \\
+        \\
+        \\ // Static allocation: two FixedBufferAllocator pools (ping-pong)
+        \\ // Buffer size: {[buffer_size_kb]d}KB each (configurable via ZANT_FBA_SIZE_KB env var)
+        \\ var buf_a: [{[buffer_size_bytes]d}]u8 {[link_section]s} = undefined;
+        \\ var fba_state_a = std.heap.FixedBufferAllocator.init(&buf_a);
+        \\ const fba_a = fba_state_a.allocator();
+        \\ var fba_live_a: usize = 0; // live LINK tensors in pool A
+        \\
+        \\ var buf_b: [{[buffer_size_bytes]d}]u8 {[link_section]s} = undefined;
+        \\ var fba_state_b = std.heap.FixedBufferAllocator.init(&buf_b);
+        \\ const fba_b = fba_state_b.allocator();
+        \\ var fba_live_b: usize = 0; // live LINK tensors in pool B
+        \\ const fba = fba_a; // Backward compatibility path
+        \\
+        \\
+    ;
+
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+
+    const arena_alloc = arena.allocator();
+
+    if (!codegen_options.static_planning) {
         const section = link_section orelse ".tensor_pool";
-        try writer.print(
-            \\
-            \\
-            \\ // Static allocation: two FixedBufferAllocator pools (ping-pong)
-            \\ // Buffer size: {d}KB each (configurable via ZANT_FBA_SIZE_KB env var)
-            \\ var buf_a: [{d}]u8 linksection("{s}") = undefined;
-            \\ var fba_state_a = std.heap.FixedBufferAllocator.init(&buf_a);
-            \\ const fba_a = fba_state_a.allocator();
-            \\ var fba_live_a: usize = 0; // live LINK tensors in pool A
-            \\
-            \\ var buf_b: [{d}]u8 linksection("{s}") = undefined;
-            \\ var fba_state_b = std.heap.FixedBufferAllocator.init(&buf_b);
-            \\ const fba_b = fba_state_b.allocator();
-            \\ var fba_live_b: usize = 0; // live LINK tensors in pool B
-            \\ const fba = fba_a; // Backward compatibility path
-            \\
-            \\
-        , .{ buffer_size_kb, buffer_size_kb * 1024, section, buffer_size_kb * 1024, section });
+        try writer.print(old_static_format, .{
+            .link_section = if (should_use_tensor_pool) blk: {
+                break :blk try std.fmt.allocPrint(arena_alloc, "linksection(\"{s}\")", .{section});
+            } else blk: {
+                break :blk "";
+            },
+            .buffer_size_kb = buffer_size_kb,
+            .buffer_size_bytes = buffer_size_kb * 1024,
+        });
         if (link_section) |section_to_free| {
             std.heap.page_allocator.free(section_to_free);
         }
     } else {
+        // We still emit a FBA with a zero-sized backing buffer
+        // Why? Tensors still need an allocator argument, but they don't use it
+        // when initialized with fromConstBuffer
+        // TODO: consider making the tensor allocator optional
         try writer.print(
             \\
+            \\ // Static allocation: placeholder FixedBufferAllocator
+            \\ // Tensors still need an allocator argument, but they don't use it
+            \\ // when initialized with fromConstBuffer
             \\
-            \\ // Static allocation: two FixedBufferAllocator pools (ping-pong)
-            \\ // Buffer size: {d}KB each (configurable via ZANT_FBA_SIZE_KB env var)
-            \\ var buf_a: [{d}]u8 = undefined;
+            \\ var buf_a: [0]u8 = undefined;
             \\ var fba_state_a = std.heap.FixedBufferAllocator.init(&buf_a);
-            \\ const fba_a = fba_state_a.allocator();
-            \\ var fba_live_a: usize = 0; // live LINK tensors in pool A
+            \\ const fba = fba_state_a.allocator();
             \\
-            \\ var buf_b: [{d}]u8 = undefined;
-            \\ var fba_state_b = std.heap.FixedBufferAllocator.init(&buf_b);
-            \\ const fba_b = fba_state_b.allocator();
-            \\ var fba_live_b: usize = 0; // live LINK tensors in pool B
-            \\ const fba = fba_a; // Backward compatibility path
-            \\
-            \\
-        , .{ buffer_size_kb, buffer_size_kb * 1024, buffer_size_kb * 1024 });
+        , .{});
     }
 }

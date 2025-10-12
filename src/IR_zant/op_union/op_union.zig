@@ -49,6 +49,7 @@ pub const Op_union = union(enum) {
     nonMaxSuppression: operators.NonMaxSuppression,
     oneHot: operators.OneHot,
     pad: operators.Pad,
+    pow: operators.Pow,
     qgemm: operators.QGemm,
     qlinearadd: operators.QLinearAdd,
     qlinearaveragepool: operators.QLinearAveragePool,
@@ -79,6 +80,7 @@ pub const Op_union = union(enum) {
     // ------------- fused operations
     fused_Conv_Clip: fused_operators.Fused_Conv_Clip,
     fused_Conv_Relu: fused_operators.Fused_Conv_Relu,
+    // fused_Conv_Sigmoid_Mul: fused_operators.Fused_Conv_Sigmoid_Mul, TODO
     fused_Dequant_Clip_Quant: fused_operators.Fused_Dequant_Clip_Quant,
     fused_Dequant_Pad_Quant_QLinConv: fused_operators.Fused_Dequant_Pad_Quant_QLinConv,
     fused_Dequant_Quant: fused_operators.Fused_Dequant_Quant,
@@ -90,126 +92,71 @@ pub const Op_union = union(enum) {
 
     pub fn init(nodeProto: *NodeProto) !Op_union {
         const op_type = nodeProto.op_type;
-        if (std.mem.eql(u8, op_type, "Add")) {
-            return Op_union{ .add = try operators.Add.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "AveragePool")) {
-            return Op_union{ .averagePool = try operators.AveragePool.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "BatchNormalization")) {
-            return Op_union{ .batchNormalization = try operators.BatchNormalization.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Cast")) {
-            return Op_union{ .cast = try operators.Cast.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Ceil")) {
-            return Op_union{ .ceil = try operators.Ceil.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Clip")) {
-            return Op_union{ .clip = try operators.Clip.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Concat")) {
-            return Op_union{ .concat = try operators.Concat.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Constant")) {
-            return Op_union{ .constant = try operators.Constant.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Conv")) {
-            return Op_union{ .conv = try operators.Conv.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "ConvInteger")) {
-            return Op_union{ .convInteger = try operators.ConvInteger.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "DequantizeLinear")) {
-            return Op_union{ .dequantizeLinear = try operators.DequantizeLinear.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Div")) {
-            return Op_union{ .div = try operators.Div.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "DynamicQuantizeLinear")) {
-            return Op_union{ .dynamicQuantizeLinear = try operators.DynamicQuantizeLinear.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Elu")) {
-            return Op_union{ .elu = try operators.Elu.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Exp")) {
-            return Op_union{ .exp = try operators.Exp.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Flatten")) {
-            return Op_union{ .flatten = try operators.Flatten.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Floor")) {
-            return Op_union{ .floor = try operators.Floor.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Gather")) {
-            return Op_union{ .gather = try operators.Gather.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "GatherND")) {
-            return Op_union{ .gatherND = try operators.GatherND.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Gelu")) {
-            return Op_union{ .gelu = try operators.Gelu.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Gemm")) {
-            return Op_union{ .gemm = try operators.Gemm.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "GlobalAveragePool")) {
-            return Op_union{ .globalAveragePool = try operators.GlobalAveragePool.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Identity")) {
-            return Op_union{ .identity = try operators.Identity.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "LeakyRelu")) {
-            return Op_union{ .leakyRelu = try operators.LeakyRelu.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "MatMul")) {
-            return Op_union{ .matMul = try operators.MatMul.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "MaxPool")) {
-            return Op_union{ .maxPool = try operators.MaxPool.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Min")) {
-            return Op_union{ .min = try operators.Min.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Mul")) {
-            return Op_union{ .mul = try operators.Mul.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Neg")) {
-            return Op_union{ .neg = try operators.Neg.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "NonMaxSuppression")) {
-            return Op_union{ .nonMaxSuppression = try operators.NonMaxSuppression.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "OneHot")) {
-            return Op_union{ .oneHot = try operators.OneHot.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Pad")) {
-            return Op_union{ .pad = try operators.Pad.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "QGemm")) {
-            return Op_union{ .qgemm = try operators.QGemm.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "QLinearAdd")) {
-            return Op_union{ .qlinearadd = try operators.QLinearAdd.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "QLinearAveragePool")) {
-            return Op_union{ .qlinearaveragepool = try operators.QLinearAveragePool.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "QLinearConcat")) {
-            return Op_union{ .qlinearconcat = try operators.QLinearConcat.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "QLinearConv")) {
-            return Op_union{ .qlinearconv = try operators.QLinearConv.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "QLinearGlobalAveragePool")) {
-            return Op_union{ .qlinearglobalaveragepool = try operators.QLinearGlobalAveragePool.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "QLinearMatMul")) {
-            return Op_union{ .qlinearmatmul = try operators.QLinearMatMul.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "QLinearMul")) {
-            return Op_union{ .qlinearmul = try operators.QLinearMul.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "QLinearSoftmax")) {
-            return Op_union{ .qlinearsoftmax = try operators.QLinearSoftmax.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "QuantizeLinear")) {
-            return Op_union{ .quantizeLinear = try operators.QuantizeLinear.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "ReduceMean")) {
-            return Op_union{ .reduceMean = try operators.ReduceMean.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Relu")) {
-            return Op_union{ .relu = try operators.Relu.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Reshape")) {
-            return Op_union{ .reshape = try operators.Reshape.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Resize")) {
-            return Op_union{ .resize = try operators.Resize.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Shape")) {
-            return Op_union{ .shape = try operators.Shape.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Sigmoid")) {
-            return Op_union{ .sigmoid = try operators.Sigmoid.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Slice")) {
-            return Op_union{ .slice = try operators.Slice.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Softmax")) {
-            return Op_union{ .softmax = try operators.Softmax.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Split")) {
-            return Op_union{ .split = try operators.Split.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Squeeze")) {
-            return Op_union{ .squeeze = try operators.Squeeze.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Sqrt")) {
-            return Op_union{ .sqrt = try operators.Sqrt.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Sub")) {
-            return Op_union{ .sub = try operators.Sub.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "TopK")) {
-            return Op_union{ .topK = try operators.TopK.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Tanh")) {
-            return Op_union{ .tanh = try operators.Tanh.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Transpose")) {
-            return Op_union{ .transpose = try operators.Transpose.init(nodeProto) };
-        } else if (std.mem.eql(u8, op_type, "Unsqueeze")) {
-            return Op_union{ .unsqueeze = try operators.Unsqueeze.init(nodeProto) };
-        } else {
-            std.debug.print("\n\nERROR: init() is not available for {s} operator!! \n Pay attention! It may be a fused operation\n", .{op_type});
-            return error.OpNotAvailable_for_init;
-        }
+        return switch (op_type) {
+            .ADD => Op_union{ .add = try operators.Add.init(nodeProto) },
+            .AVERAGEPOOL => Op_union{ .averagePool = try operators.AveragePool.init(nodeProto) },
+            .BATCHNORMALIZATION => Op_union{ .batchNormalization = try operators.BatchNormalization.init(nodeProto) },
+            .CAST => Op_union{ .cast = try operators.Cast.init(nodeProto) },
+            .CEIL => Op_union{ .ceil = try operators.Ceil.init(nodeProto) },
+            .CLIP => Op_union{ .clip = try operators.Clip.init(nodeProto) },
+            .CONCAT => Op_union{ .concat = try operators.Concat.init(nodeProto) },
+            .CONSTANT => Op_union{ .constant = try operators.Constant.init(nodeProto) },
+            .CONV => Op_union{ .conv = try operators.Conv.init(nodeProto) },
+            .CONVINTEGER => Op_union{ .convInteger = try operators.ConvInteger.init(nodeProto) },
+            .DEQUANTIZELINEAR => Op_union{ .dequantizeLinear = try operators.DequantizeLinear.init(nodeProto) },
+            .DIV => Op_union{ .div = try operators.Div.init(nodeProto) },
+            .DYNAMICQUANTIZELINEAR => Op_union{ .dynamicQuantizeLinear = try operators.DynamicQuantizeLinear.init(nodeProto) },
+            .ELU => Op_union{ .elu = try operators.Elu.init(nodeProto) },
+            .EXP => Op_union{ .exp = try operators.Exp.init(nodeProto) },
+            .FLATTEN => Op_union{ .flatten = try operators.Flatten.init(nodeProto) },
+            .FLOOR => Op_union{ .floor = try operators.Floor.init(nodeProto) },
+            .GATHER => Op_union{ .gather = try operators.Gather.init(nodeProto) },
+            .GATHERND => Op_union{ .gatherND = try operators.GatherND.init(nodeProto) },
+            .GELU => Op_union{ .gelu = try operators.Gelu.init(nodeProto) },
+            .GEMM => Op_union{ .gemm = try operators.Gemm.init(nodeProto) },
+            .GLOBALAVERAGEPOOL => Op_union{ .globalAveragePool = try operators.GlobalAveragePool.init(nodeProto) },
+            .IDENTITY => Op_union{ .identity = try operators.Identity.init(nodeProto) },
+            .LEAKYRELU => Op_union{ .leakyRelu = try operators.LeakyRelu.init(nodeProto) },
+            .MATMUL => Op_union{ .matMul = try operators.MatMul.init(nodeProto) },
+            .MAXPOOL => Op_union{ .maxPool = try operators.MaxPool.init(nodeProto) },
+            .MIN => Op_union{ .min = try operators.Min.init(nodeProto) },
+            .MUL => Op_union{ .mul = try operators.Mul.init(nodeProto) },
+            .NEG => Op_union{ .neg = try operators.Neg.init(nodeProto) },
+            .NONMAXSUPPRESSION => Op_union{ .nonMaxSuppression = try operators.NonMaxSuppression.init(nodeProto) },
+            .ONEHOT => Op_union{ .oneHot = try operators.OneHot.init(nodeProto) },
+            .PAD => Op_union{ .pad = try operators.Pad.init(nodeProto) },
+            .POW => Op_union{ .pow = try operators.Pow.init(nodeProto) },
+            .QGEMM => Op_union{ .qgemm = try operators.QGemm.init(nodeProto) },
+            .QLINEARADD => Op_union{ .qlinearadd = try operators.QLinearAdd.init(nodeProto) },
+            .QLINEARAVERAGEPOOL => Op_union{ .qlinearaveragepool = try operators.QLinearAveragePool.init(nodeProto) },
+            .QLINEARCONCAT => Op_union{ .qlinearconcat = try operators.QLinearConcat.init(nodeProto) },
+            .QLINEARCONV => Op_union{ .qlinearconv = try operators.QLinearConv.init(nodeProto) },
+            .QLINEARGLOBALAVERAGEPOOL => Op_union{ .qlinearglobalaveragepool = try operators.QLinearGlobalAveragePool.init(nodeProto) },
+            .QLINEARMATMUL => Op_union{ .qlinearmatmul = try operators.QLinearMatMul.init(nodeProto) },
+            .QLINEARMUL => Op_union{ .qlinearmul = try operators.QLinearMul.init(nodeProto) },
+            .QLINEARSOFTMAX => Op_union{ .qlinearsoftmax = try operators.QLinearSoftmax.init(nodeProto) },
+            .QUANTIZELINEAR => Op_union{ .quantizeLinear = try operators.QuantizeLinear.init(nodeProto) },
+            .REDUCEMEAN => Op_union{ .reduceMean = try operators.ReduceMean.init(nodeProto) },
+            .RELU => Op_union{ .relu = try operators.Relu.init(nodeProto) },
+            .RESHAPE => Op_union{ .reshape = try operators.Reshape.init(nodeProto) },
+            .RESIZE => Op_union{ .resize = try operators.Resize.init(nodeProto) },
+            .SHAPE => Op_union{ .shape = try operators.Shape.init(nodeProto) },
+            .SIGMOID => Op_union{ .sigmoid = try operators.Sigmoid.init(nodeProto) },
+            .SLICE => Op_union{ .slice = try operators.Slice.init(nodeProto) },
+            .SOFTMAX => Op_union{ .softmax = try operators.Softmax.init(nodeProto) },
+            .SPLIT => Op_union{ .split = try operators.Split.init(nodeProto) },
+            .SQUEEZE => Op_union{ .squeeze = try operators.Squeeze.init(nodeProto) },
+            .SQRT => Op_union{ .sqrt = try operators.Sqrt.init(nodeProto) },
+            .SUB => Op_union{ .sub = try operators.Sub.init(nodeProto) },
+            .TOPK => Op_union{ .topK = try operators.TopK.init(nodeProto) },
+            .TANH => Op_union{ .tanh = try operators.Tanh.init(nodeProto) },
+            .TRANSPOSE => Op_union{ .transpose = try operators.Transpose.init(nodeProto) },
+            .UNSQUEEZE => Op_union{ .unsqueeze = try operators.Unsqueeze.init(nodeProto) },
+            else => {
+                std.debug.print("\n\nERROR: init() is not available for {any} operator!! \n Pay attention! It may be a fused operation\n", .{op_type});
+                return error.OpNotAvailable_for_init;
+            },
+        };
     }
 
     pub fn get_output_shape(self: Op_union) ![]usize {
