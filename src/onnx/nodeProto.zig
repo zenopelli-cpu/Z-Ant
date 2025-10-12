@@ -1,8 +1,10 @@
 const std = @import("std");
 const protobuf = @import("protobuf.zig");
+const fromString = @import("onnx.zig").fromString;
 const AttributeType = @import("onnx.zig").AttributeType;
 const AttributeProto = @import("onnx.zig").AttributeProto;
 const DataType = @import("onnx.zig").DataType;
+const OnnxOperator = @import("onnx.zig").OnnxOperator;
 const StringStringEntryProto = @import("onnx.zig").StringStringEntryProto;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -23,7 +25,7 @@ const onnx_log = std.log.scoped(.nodeProto);
 //  - 9 : metadata_props, repeated StringStringEntryProto
 pub const NodeProto = struct {
     name: ?[]const u8,
-    op_type: []const u8,
+    op_type: OnnxOperator,
     domain: ?[]const u8,
     input: [][]const u8,
     output: [][]const u8,
@@ -34,7 +36,7 @@ pub const NodeProto = struct {
 
     pub fn deinit(self: *NodeProto, allocator: std.mem.Allocator) void {
         if (self.name) |name| allocator.free(name);
-        allocator.free(self.op_type);
+        //allocator.free(self.op_type); TODO remove this line because it is useless
         if (self.domain) |domain| allocator.free(domain);
         for (self.input) |input| {
             allocator.free(input);
@@ -79,7 +81,7 @@ pub const NodeProto = struct {
         errdefer {
             if (node.name) |n| reader.allocator.free(n);
             if (node.domain) |d| reader.allocator.free(d);
-            reader.allocator.free(node.op_type);
+            // reader.allocator.free(node.op_type); //TODO delte this line because it is useless
 
             for (inputs.items) |i| reader.allocator.free(i);
             for (outputs.items) |o| reader.allocator.free(o);
@@ -104,7 +106,9 @@ pub const NodeProto = struct {
                     node.name = try reader.readString(reader.allocator);
                 },
                 4 => { // op_type
-                    node.op_type = try reader.readString(reader.allocator);
+                    const op_str = try reader.readString(reader.allocator);
+                    node.op_type = try fromString(op_str);
+                    reader.allocator.free(op_str);
                 },
                 5 => { // attribute (repeated)
                     var attr_reader = try reader.readLengthDelimited();
@@ -154,7 +158,7 @@ pub const NodeProto = struct {
             std.debug.print("{s}Name: (none)\n", .{space});
         }
 
-        std.debug.print("{s}Op Type: {s}\n", .{ space, self.op_type });
+        std.debug.print("{s}Op Type: {any}\n", .{ space, self.op_type });
 
         if (self.domain) |d| {
             std.debug.print("{s}Domain: {s}\n", .{ space, d });

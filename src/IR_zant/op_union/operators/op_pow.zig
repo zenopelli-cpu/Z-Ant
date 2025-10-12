@@ -37,8 +37,11 @@ pub const Pow = struct {
         const X = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.X_notFound;
         const Y = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.Y_notFound;
         const Z = if (tensorZant_lib.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.Z_notFound;
+<<<<<<< HEAD
 
         if (Z.ty == tensorZant_lib.TensorType.undefined) Z.ty = Y.ty;
+=======
+>>>>>>> feature
 
         return Pow{
             .X = X,

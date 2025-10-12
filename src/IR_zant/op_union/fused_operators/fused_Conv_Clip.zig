@@ -351,13 +351,12 @@ pub const Fused_Conv_Clip = struct {
     }
 
     // --- Fusion --
-
     /// Pattern detection function for DequantizeLinear -> Pad -> QuantizeLinear -> QLinearConv
     pub fn fn_pattern_detection(graph: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
         _ = graph; // Not used in this sequential pattern
 
         // Only start detection from DequantizeLinear nodes
-        if (!std.mem.eql(u8, root_node.op_type, "Conv")) {
+        if (root_node.op != .conv) {
             return null;
         }
 
@@ -373,7 +372,7 @@ pub const Fused_Conv_Clip = struct {
         }
 
         const pad_node = root_node.next.items[0];
-        if (!std.mem.eql(u8, pad_node.op_type, "Clip")) {
+        if (pad_node.op != .clip) {
             node_list.deinit();
             return null;
         }
@@ -391,8 +390,8 @@ pub const Fused_Conv_Clip = struct {
 
         // Validate the pattern
         if (node_list.items.len != 2) return error.InvalidNumberOfOps;
-        if (!std.mem.eql(u8, node_list.items[0].op_type, "Conv")) return error.UnexpectedOpAtPos0;
-        if (!std.mem.eql(u8, node_list.items[1].op_type, "Clip")) return error.UnexpectedOpAtPos1;
+        if (node_list.items[0].op != .conv) return error.UnexpectedOpAtPos0;
+        if (node_list.items[1].op != .clip) return error.UnexpectedOpAtPos1;
 
         const last_node = node_list.items[1]; // Clip
 

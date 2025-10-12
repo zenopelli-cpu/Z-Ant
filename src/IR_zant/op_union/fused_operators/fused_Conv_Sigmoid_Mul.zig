@@ -26,9 +26,9 @@ pub const Fused_Conv_Sigmoid_Mul = struct {
     //inizialization logic for the new operation given a list of old nodes
     pub fn init_fused_op(fusion_list: std.ArrayList(*NodeZant)) !Fused_Conv_Sigmoid_Mul {
         if (fusion_list.items.len != 3) return error.WrongNumberOfElements;
-        if (!std.mem.eql(u8, fusion_list.items[0].op_type, "Conv")) return error.WrongOpAtPose0;
-        if (!std.mem.eql(u8, fusion_list.items[1].op_type, "Sigmoid")) return error.WrongOpAtPose1;
-        if (!std.mem.eql(u8, fusion_list.items[2].op_type, "Mul")) return error.WrongOpAtPose2;
+        if (fusion_list.items[0].op != .conv) return error.WrongOpAtPose0;
+        if (fusion_list.items[1].op != .sigmoid) return error.WrongOpAtPose1;
+        if (fusion_list.items[2].op != .mul) return error.WrongOpAtPose2;
 
         // Extract the specific operations from the unions
         const conv_op = switch (fusion_list.items[0].op) {
@@ -61,7 +61,7 @@ pub const Fused_Conv_Sigmoid_Mul = struct {
     pub fn fn_pattern_detection(_: *GraphZant, root_node: *NodeZant) anyerror!?std.ArrayList(*NodeZant) {
         std.debug.print("\n  Checking Conv_Sigmoid_Mul pattern from node: {s}", .{root_node.op_type});
 
-        if (!std.mem.eql(u8, root_node.op_type, "Conv")) {
+        if (root_node.op != .conv) {
             return null;
         }
 
@@ -86,10 +86,10 @@ pub const Fused_Conv_Sigmoid_Mul = struct {
         var sigmoid_node: ?*NodeZant = null;
         var mul_node: ?*NodeZant = null;
 
-        if (std.mem.eql(u8, node_a.op_type, "Sigmoid") and std.mem.eql(u8, node_b.op_type, "Mul")) {
+        if (node_a.op != .sigmoid and node_b.op != .mul) {
             sigmoid_node = node_a;
             mul_node = node_b;
-        } else if (std.mem.eql(u8, node_a.op_type, "Mul") and std.mem.eql(u8, node_b.op_type, "Sigmoid")) {
+        } else if (node_a.op != .mul and node_b.op != .sigmoid) {
             sigmoid_node = node_b;
             mul_node = node_a;
         }
@@ -114,9 +114,9 @@ pub const Fused_Conv_Sigmoid_Mul = struct {
         if (node_list.items.len != 3) return error.InvalidNumberOfOps;
 
         // PATTERN_MATCHING_STRATEGY
-        if (!std.mem.eql(u8, node_list.items[0].op_type, "Conv")) return error.UnexpectedOpAtPos0;
-        if (!std.mem.eql(u8, node_list.items[1].op_type, "Sigmoid")) return error.UnexpectedOpAtPos1;
-        if (!std.mem.eql(u8, node_list.items[2].op_type, "Mul")) return error.UnexpectedOpAtPos2;
+        if (node_list.items[0].op != .conv) return error.UnexpectedOpAtPos0;
+        if (node_list.items[1].op != .sigmoid) return error.UnexpectedOpAtPos1;
+        if (node_list.items[2].op != .mul) return error.UnexpectedOpAtPos2;
 
         const sigmoid_node: *NodeZant = node_list.items[1];
         const mul_node: *NodeZant = node_list.items[2];

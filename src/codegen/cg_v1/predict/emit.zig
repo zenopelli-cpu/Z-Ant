@@ -6,6 +6,7 @@ const TensorCategory = tensorZant_lib.TensorCategory;
 const templates = @import("templates.zig");
 const plan = @import("plan.zig");
 const codegen_options = @import("codegen_options");
+const cg_v1 = @import("../codegen_v1.zig");
 
 // Global allocator for name sanitization
 var sanitize_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -53,7 +54,13 @@ pub const ShapeEmitter = struct {
 pub const TensorEmitter = struct {
     /// Emits tensor allocation given a shape size
     /// This will eventually replace write_TensorAllocation with policy-based approach
-    pub fn emitAllocation(writer: std.fs.File.Writer, tz: *TensorZant, size: i64, dynamic: bool) !void {
+    pub fn emitAllocation(
+        writer: std.fs.File.Writer,
+        tz: *TensorZant,
+        size: i64,
+        dynamic: bool,
+        backing_buffer_id: ?cg_v1.static_memory_planning.BufferId,
+    ) !void {
         const sanitized_name = try tz.getNameSanitized();
 
         // --- ADD CHECK FOR UNDEFINED TYPE ---
@@ -67,7 +74,18 @@ pub const TensorEmitter = struct {
 
         if (dynamic) {
             // Dynamic allocation: Use fromShape
-            try writer.print("    var tensor_{s} = Tensor({s}).fromShape(&allocator, &shape_tensor_{s}) catch return {d};", .{ sanitized_name, type_str, sanitized_name, templates.RC.INIT_ERROR });
+            try writer.print("    var tensor_{[name]s} = Tensor({[type]s}).fromShape(&allocator, &shape_tensor_{[name]s}) catch return {[return_code]d};", .{
+                .name = sanitized_name,
+                .type = type_str,
+                .return_code = templates.RC.INIT_ERROR,
+            });
+        } else if (codegen_options.static_planning) {
+            try writer.print("    var tensor_{[name]s} = Tensor({[type]s}).fromConstBuffer(&fba, backing_buffer_{[buffer_id]d}[0..{[tensor_size]d}], &shape_tensor_{[name]s});", .{
+                .name = sanitized_name,
+                .type = type_str,
+                .tensor_size = tz.getSize(),
+                .buffer_id = backing_buffer_id.?,
+            });
         } else {
             // Static allocation: Use fromConstBuffer to allow mutation
             // Add tensor_pool linksection for large arrays when the option is enabled
@@ -108,7 +126,7 @@ pub const PlanEmitter = struct {
             // Comment with operation info
             try writer.print(
                 \\
-               \\   // Step {d}: {s} operation
+                \\   // Step {d}: {s} operation
                 \\
             , .{ step_idx, sanitizeName(step.node.*.op_type) });
 
