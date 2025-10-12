@@ -5,34 +5,20 @@ from onnx import helper, TensorProto
 def generate_pow_model(input_names, output_names):
     """
     Generates a Pow operator model with comprehensive broadcasting tests.
+    Uses only type combinations supported by ONNX Runtime CPU.
     """
     initializers = []
-    
-    # Choose random data type for base (X) from supported types
-    base_dtypes = [
-        (TensorProto.FLOAT, np.float32),
-        (TensorProto.DOUBLE, np.float64),
-        (TensorProto.FLOAT16, np.float16),
-        (TensorProto.INT32, np.int32),
-        (TensorProto.INT64, np.int64)
+ 
+    supported_combinations = [
+        # (base_type_proto, base_type_np, exp_type_proto, exp_type_np)
+        (TensorProto.FLOAT, np.float32, TensorProto.FLOAT, np.float32),
+        (TensorProto.FLOAT, np.float32, TensorProto.INT64, np.int64),
+        (TensorProto.FLOAT, np.float32, TensorProto.INT32, np.int32),
+        (TensorProto.INT64, np.int64, TensorProto.INT64, np.int64),
+        (TensorProto.INT32, np.int32, TensorProto.INT32, np.int32),
     ]
-    base_dtype_proto, base_dtype_np = random.choice(base_dtypes)
     
-    # Choose random data type for exponent (Y) from supported types
-    exp_dtypes = [
-        (TensorProto.FLOAT, np.float32),
-        (TensorProto.DOUBLE, np.float64),
-        (TensorProto.FLOAT16, np.float16),
-        (TensorProto.INT32, np.int32),
-        (TensorProto.INT64, np.int64),
-        (TensorProto.INT16, np.int16),
-        (TensorProto.INT8, np.int8),
-        (TensorProto.UINT32, np.uint32),
-        (TensorProto.UINT64, np.uint64),
-        (TensorProto.UINT16, np.uint16),
-        (TensorProto.UINT8, np.uint8)
-    ]
-    exp_dtype_proto, exp_dtype_np = random.choice(exp_dtypes)
+    base_dtype_proto, base_dtype_np, exp_dtype_proto, exp_dtype_np = random.choice(supported_combinations)
     
     # Define various broadcasting scenarios
     broadcast_scenarios = [
@@ -77,10 +63,13 @@ def generate_pow_model(input_names, output_names):
     # Randomly select a broadcasting scenario
     base_shape, exponent_shape, broadcast_type = random.choice(broadcast_scenarios)
     
-    # Generate base data (avoid zeros and negatives for safer computation)
+    # Generate base data
+    # For integer types, use positive values to avoid issues with negative bases and fractional exponents
+    # For float types, also use positive values for safety
     if base_dtype_np in [np.float32, np.float64, np.float16]:
         base_data = np.random.uniform(0.5, 5.0, base_shape).astype(base_dtype_np)
     else:
+        # Integer types: use small positive values
         base_data = np.random.randint(1, 10, base_shape).astype(base_dtype_np)
     
     base_tensor = helper.make_tensor(
@@ -95,6 +84,7 @@ def generate_pow_model(input_names, output_names):
     if exp_dtype_np in [np.float32, np.float64, np.float16]:
         exponent_data = np.random.uniform(0.5, 3.0, exponent_shape).astype(exp_dtype_np)
     elif exp_dtype_np in [np.int8, np.int16, np.int32, np.int64]:
+        # For integer exponents, use very small values to avoid overflow
         exponent_data = np.random.randint(1, 4, exponent_shape).astype(exp_dtype_np)
     else:  # unsigned types
         exponent_data = np.random.randint(1, 4, exponent_shape).astype(exp_dtype_np)
@@ -145,7 +135,7 @@ def generate_pow_model(input_names, output_names):
         "base_dtype": str(base_dtype_np),
         "exponent_dtype": str(exp_dtype_np),
         "broadcast_type": broadcast_type,
-        "base_data_sample": base_data.flatten()[:5].tolist(),  # First 5 elements for debugging
+        "base_data_sample": base_data.flatten()[:5].tolist(),
         "exp_data_sample": exponent_data.flatten()[:5].tolist()
     }
     

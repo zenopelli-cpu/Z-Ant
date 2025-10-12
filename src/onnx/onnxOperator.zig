@@ -34,6 +34,7 @@ pub const OnnxOperator = enum {
     NONMAXSUPPRESSION,
     ONEHOT,
     PAD,
+    POW,
     QGEMM,
     QLINEARADD,
     QLINEARAVERAGEPOOL,
@@ -102,6 +103,7 @@ pub fn fromString(op_type: []const u8) !OnnxOperator {
     if (std.mem.eql(u8, op_type, "NonMaxSuppression")) return .NONMAXSUPPRESSION;
     if (std.mem.eql(u8, op_type, "OneHot")) return .ONEHOT;
     if (std.mem.eql(u8, op_type, "Pad")) return .PAD;
+    if (std.mem.eql(u8, op_type, "Pow")) return .POW;
     if (std.mem.eql(u8, op_type, "QGemm")) return .QGEMM;
     if (std.mem.eql(u8, op_type, "QLinearAdd")) return .QLINEARADD;
     if (std.mem.eql(u8, op_type, "QLinearAveragePool")) return .QLINEARAVERAGEPOOL;
