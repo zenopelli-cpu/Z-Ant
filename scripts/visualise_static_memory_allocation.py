@@ -58,13 +58,20 @@ colors_array = pc.sample_colorscale(
 )
 
 fig = make_subplots(
-    rows=2,
-    cols=2,
+    rows=4,
+    cols=4,
     specs=[
-        [{"type": "xy", "colspan": 2}, None],
-        [{"type": "table"}, {"type": "table"}],
+        [{"type": "xy", "colspan": 4, "rowspan": 2}, None, None, None],
+        [None, None, None, None],
+        [
+            {"type": "table", "rowspan": 2, "colspan": 1},
+            {"type": "table", "colspan": 3},
+            None,
+            None,
+        ],
+        [None, {"type": "table", "colspan": 3}, None, None],
     ],
-    row_heights=[0.80, 0.20],
+    row_heights=[0.40, 0.40, 0.08, 0.12],
 )
 
 already_shown_legend = set({})
@@ -126,7 +133,7 @@ fig.add_trace(
             align="left",
         ),
     ),
-    row=2,
+    row=3,
     col=1,
 )
 
@@ -147,7 +154,45 @@ fig.add_trace(
             align="left",
         ),
     ),
-    row=2,
+    row=3,
+    col=2,
+)
+
+EFFECTIVE_SIZE = "effective_size"
+TOTAL_SIZE = "total_size"
+
+df[EFFECTIVE_SIZE] = df[TENSOR_SIZE] * df[BUFFER_TYPE].map({"f32": 4, "u8": 1})
+
+joined_along_lifetime_bounds = df.merge(
+    df, left_on=END_T, right_on=START_T, suffixes=("_left", "_right")
+)
+joined_along_lifetime_bounds[TOTAL_SIZE] = (
+    joined_along_lifetime_bounds[f"{EFFECTIVE_SIZE}_left"]
+    + joined_along_lifetime_bounds[f"{EFFECTIVE_SIZE}_right"]
+)
+max_row = joined_along_lifetime_bounds.loc[
+    joined_along_lifetime_bounds[TOTAL_SIZE].idxmax(),
+    [
+        f"{TENSOR_NAME}_left",
+        TOTAL_SIZE,
+    ],
+]
+
+max_row = max_row.rename({f"{TENSOR_NAME}_left": TENSOR_NAME})
+
+fig.add_trace(
+    go.Table(
+        header=dict(values=["Peak memory usage", "Tensor"]),
+        columnwidth=[30, 100],
+        cells=dict(
+            values=[
+                max_row[TOTAL_SIZE],
+                max_row[TENSOR_NAME].replace(";", " "),
+            ],
+            align="left",
+        ),
+    ),
+    row=4,
     col=2,
 )
 
