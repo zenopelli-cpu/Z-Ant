@@ -20,6 +20,8 @@ pub const Fused_Pad_Conv = struct {
     op_name: []const u8,
     op_Pad: operators.Pad,
     op_Conv: operators.Conv,
+    // The resulting fused operation
+    fused_pad_conv: operators.Conv,
 
     pub fn init_fused_op(fusion_list: std.ArrayList(*NodeZant)) !Fused_Pad_Conv {
         if (fusion_list.items.len != 2) return error.WrongNumberOfElements;
@@ -36,10 +38,15 @@ pub const Fused_Pad_Conv = struct {
             else => return error.InvalidConvOperation,
         };
 
+        var fused_padconv = conv_op;
+
+        // TODO  fused_padcpnv.pad = ?
+
         return Fused_Pad_Conv{
             .op_name = try NodeZant_lib.getFusedOpsName(fusion_list),
             .op_Pad = pad_op,
             .op_Conv = conv_op,
+            .fused_pad_conv = fused_padconv,
         };
     }
 
@@ -66,7 +73,6 @@ pub const Fused_Pad_Conv = struct {
         return node_list;
     }
 
-    //
     pub fn patter_fusion(graph: *GraphZant, node_list: std.ArrayList(*NodeZant)) anyerror!NodeZant {
         _ = graph; // Not used, we only look at successors nodes
 
@@ -100,7 +106,7 @@ pub const Fused_Pad_Conv = struct {
         if (node_list.items.len != 2) return error.InvalidPatternLength;
 
         const first_node = node_list.items[0]; // Pad node
-        // const last_node = node_list.items[1]; // Conv node
+        const last_node = node_list.items[1]; // Conv node
 
         // Find all predecessor nodes that point to the first node in the pattern
         const predecessors_first_node = try graph.get_predecessors(first_node);
@@ -113,27 +119,35 @@ pub const Fused_Pad_Conv = struct {
             }
         }
 
+        // Set the successor nodes if it hasn't been done yet
+        if (fused_node.next.items.len == 0) {
+            for (last_node.next.items) |successor| {
+                try fused_node.next.append(successor);
+            }
+        }
+
         try graph.removeNodes(node_list);
         try graph.nodes.append(fused_node);
     }
 
     pub fn get_output_shape(self: Fused_Pad_Conv) []usize {
-        return self.op_Conv.get_output_shape();
+        return self.fused_pad_conv.get_output_shape();
     }
 
     pub fn get_input_tensors(self: Fused_Pad_Conv) anyerror![]*TensorZant {
-        return try self.op_Pad.get_input_tensors();
+        return try self.fused_pad_conv.get_input_tensors();
     }
 
     pub fn get_output_tensors(self: Fused_Pad_Conv) anyerror![]*TensorZant {
-        return try self.op_Conv.get_output_tensors();
+        return try self.fused_pad_conv.get_output_tensors();
     }
 
-    // TODO
-    // pub fn write_op(self: Fused_Pad_Conv, writer: std.fs.File.Writer) !void {}
+    pub fn write_op(self: Fused_Pad_Conv, writer: std.fs.File.Writer) !void {
+        self.fused_pad_conv.write_op(writer);
+    }
 
     pub fn compute_output_shape(self: Fused_Pad_Conv) []usize {
-        return self.op_Conv.compute_output_shape();
+        return self.fused_pad_conv.compute_output_shape();
     }
 
     pub fn print(self: Fused_Pad_Conv) void {
@@ -144,7 +158,10 @@ pub const Fused_Pad_Conv = struct {
         // Try to substitute in the Pad operation
         self.op_Pad.sobstitute_tensors(old_tensor, new_tensor) catch {
             // If not found in Pad, try Conv operation
-            return try self.op_Conv.sobstitute_tensors(old_tensor, new_tensor);
+            self.op_Conv.sobstitute_tensors(old_tensor, new_tensor) catch {
+                // Finally, try the fused result operation
+                return try self.fused_pad_conv.sobstitute_tensors(old_tensor, new_tensor);
+            };
         };
     }
 };

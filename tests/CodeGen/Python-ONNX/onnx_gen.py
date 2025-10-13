@@ -61,6 +61,7 @@ from operators.qLinearGlobalAveragePool import generate_qlinearglobalaveragepool
 from operators.qLinearAdd import generate_qlinearadd_model
 from operators.qLinearMatMul import generate_qlinearmatmul_model
 from operators.convInteger import generate_convinteger_model
+from operators.padConv import generate_padconv_model
 
 
 def random_shape(rank, min_dim=1, max_dim=10):
@@ -129,6 +130,7 @@ def generate_fuzz_model(op_name):
         "QLinearAdd": generate_qlinearadd_model,
         "QLinearMatMul": generate_qlinearmatmul_model,
         "ConvInteger": generate_convinteger_model,
+        "PadConv": generate_padconv_model,
     }
     
     if op_name in operator_generators:
