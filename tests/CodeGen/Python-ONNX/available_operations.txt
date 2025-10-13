@@ -22,6 +22,7 @@ Gemm
 GlobalAveragePool  
 Identity  
 LeakyRelu  
+Log
 MatMul  
 MaxPool 
 Mul  

@@ -41,6 +41,7 @@ pub const Op_union = union(enum) {
     globalAveragePool: operators.GlobalAveragePool,
     identity: operators.Identity,
     leakyRelu: operators.LeakyRelu,
+    log: operators.Log,
     matMul: operators.MatMul,
     maxPool: operators.MaxPool,
     min: operators.Min,
@@ -138,6 +139,8 @@ pub const Op_union = union(enum) {
             return Op_union{ .identity = try operators.Identity.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "LeakyRelu")) {
             return Op_union{ .leakyRelu = try operators.LeakyRelu.init(nodeProto) };
+        } else if (std.mem.eql(u8, op_type, "Log")) {
+            return Op_union{ .log = try operators.Log.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "MatMul")) {
             return Op_union{ .matMul = try operators.MatMul.init(nodeProto) };
         } else if (std.mem.eql(u8, op_type, "MaxPool")) {

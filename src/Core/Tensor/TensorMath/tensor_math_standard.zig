@@ -476,3 +476,10 @@ const logical_math_lib = @import("lib_logical_math.zig");
 pub const isOneHot = logical_math_lib.isOneHot;
 pub const isSafe = logical_math_lib.isSafe;
 pub const equal = logical_math_lib.equal;
+
+//---log
+const op_log = @import("op_log.zig");
+
+pub const log = op_log.log;
+pub const log_lean = op_log.log_lean;
+pub const get_log_output_shape = op_log.get_log_output_shape;
