@@ -38,9 +38,60 @@ pub const Fused_Pad_Conv = struct {
             else => return error.InvalidConvOperation,
         };
 
+        // Initialize the new Conv operation node, with:
+        // input_data: pad_op.input
+        // input_weight: conv_op.input_weight
+        // output: conv_op.output
         var fused_padconv = conv_op;
+        fused_padconv.input_X = pad_op.input_data;
 
-        // TODO  fused_padcpnv.pad = ?
+        if (pad_op.input_pads.ptr) |pad_data_AnyTensor| {
+            // Get existing pads from Conv (should be initialized to zeros in Conv.init)
+            var existing_pads: [4]i64 = .{ 0, 0, 0, 0 };
+            if (conv_op.pads) |conv_pads| {
+                // Conv pads format: [h_begin, w_begin, h_end, w_end] for 2D
+                const pads_to_copy = @min(conv_pads.len, 4);
+                for (0..pads_to_copy) |i| {
+                    existing_pads[i] = conv_pads[i];
+                }
+            }
+
+            // Extract pad values from Pad operation
+            var pad_values: [4]i64 = .{ 0, 0, 0, 0 };
+            if (pad_op.input_pads.shape.len > 0) {
+                switch (pad_op.input_pads.ty) {
+                    .i64 => {
+                        const pad_i64 = pad_data_AnyTensor.get_data_as(i64);
+                        const pad_len = pad_op.input_pads.shape[0];
+
+                        // ONNX Pad format for NCHW: [N_begin, C_begin, H_begin, W_begin, N_end, C_end, H_end, W_end]
+                        if (pad_len >= 8) {
+                            // Extract spatial padding only (H and W dimensions)
+                            pad_values[0] = pad_i64[2]; // H_begin -> top
+                            pad_values[1] = pad_i64[3]; // W_begin -> left
+                            pad_values[2] = pad_i64[6]; // H_end -> bottom
+                            pad_values[3] = pad_i64[7]; // W_end -> right
+                        }
+                    },
+                    else => return error.UnsupportedPadDataType,
+                }
+            }
+
+            // Create fused pads
+            const final_pads = [4]i64{
+                existing_pads[0] + pad_values[0], // top
+                existing_pads[1] + pad_values[1], // left
+                existing_pads[2] + pad_values[2], // bottom
+                existing_pads[3] + pad_values[3], // right
+            };
+
+            // Allocate and set the fused pads
+            const fused_pads = try allocator.alloc(i64, 4);
+            @memcpy(fused_pads, &final_pads);
+            fused_padconv.pads = fused_pads;
+
+            std.debug.print("Fused padding: original={any}, pad_op={any}, final={any}\n", .{ existing_pads, pad_values, final_pads });
+        }
 
         return Fused_Pad_Conv{
             .op_name = try NodeZant_lib.getFusedOpsName(fusion_list),
@@ -80,8 +131,8 @@ pub const Fused_Pad_Conv = struct {
         if (node_list.items.len != 2) return error.InvalidNumberOfOps;
 
         // Check Pattern matching: Pad->Conv
-        if (!std.mem.eql(u8, node_list.items[0], "Pad")) return error.UnexpectedOpAtPos0;
-        if (!std.mem.eql(u8, node_list.items[1], "Conv")) return error.UnexpectedOpAtPos1;
+        if (!std.mem.eql(u8, node_list.items[0].op_type, "Pad")) return error.UnexpectedOpAtPos0;
+        if (!std.mem.eql(u8, node_list.items[1].op_type, "Conv")) return error.UnexpectedOpAtPos1;
 
         const last_node = node_list.items[1];
         // Clone the next list instead of direct reference
