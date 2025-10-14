@@ -20,7 +20,6 @@ Beer model timing (QEMU, Cortex-M55):
 
 
 
-
 ![image](https://github.com/user-attachments/assets/6a5346e5-58ec-4069-8143-c3b7b03586f3)
 
 ## 🛠️ CI/CD

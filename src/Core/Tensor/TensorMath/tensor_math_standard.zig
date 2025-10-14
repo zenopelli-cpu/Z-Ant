@@ -487,3 +487,8 @@ pub const equal = logical_math_lib.equal;
 const op_pow = @import("op_pow.zig");
 pub const pow = op_pow.pow;
 pub const pow_lean = op_pow.pow_lean;
+
+//---log
+const op_log = @import("op_log.zig");
+pub const log = op_log.log;
+pub const log_lean = op_log.log_lean;
