@@ -26,7 +26,7 @@ const UOpBuilder = cg_v2.builder;
 const DType = Uops.DType;
 const Any = Uops.Any;
 
-//https://onnx.ai/onnx/operators/onnx__Exp.html
+//https://onnx.ai/onnx/operators/onnx__Log.html
 // INPUTS:
 //      - input (heterogeneous) - T: Input tensor
 // OUTPUTS:
@@ -82,7 +82,7 @@ pub const Log = struct {
 
         _ = try writer.print(
             \\
-            \\    tensMath.exp_lean(
+            \\    tensMath.log_lean(
             \\      {s},
             \\      {s},
             \\      &tensor_{s},
@@ -98,13 +98,13 @@ pub const Log = struct {
 
     pub fn compute_output_shape(self: Log) []usize {
         var output_shape: []usize = undefined;
-        output_shape = try tensorMath.get_exp_output_shape(self.input.shape);
+        output_shape = try tensorMath.get_log_output_shape(self.input.shape);
         self.output.shape = output_shape;
         return output_shape;
     }
 
     pub fn print(self: Log) void {
-        std.debug.print("\n Exp: {any}", .{self});
+        std.debug.print("\n Log: {any}", .{self});
     }
 
     pub fn sobstitute_tensors(self: *Log, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
@@ -124,7 +124,7 @@ pub const Log = struct {
         const out_shape = self.get_output_shape();
         const out_dtype = utils.tensorTypeToDtype(self.output.ty);
 
-        const out_buf_id = lowerExp(
+        const out_buf_id = lowerLog(
             builder,
             X_id,
             out_shape,
@@ -133,8 +133,8 @@ pub const Log = struct {
         _ = out_buf_id;
     }
 
-    /// https://onnx.ai/onnx/operators/onnx__Exp.html
-    pub fn lowerExp(
+    /// https://onnx.ai/onnx/operators/onnx__Log.html
+    pub fn lowerLog(
         b: *UOpBuilder,
         X_id: usize, // SSA id of input tensor X
         x_shape: []const usize, // Shape of input tensor X
@@ -158,11 +158,11 @@ pub const Log = struct {
         // ── 5. Load the input value ─────────────────────────────────────────
         const id_x = b.push(.LOAD, out_dtype, &.{id_gepX}, null);
 
-        // ── 6. Implement Exp: f(x) = exp(x) ────────────────────────────────
-        // Since we already have EXP2 in UOps, we'll use that with conversion: exp(x) = 2^(x * log2(e))
+        // ── 6. Implement Log: f(x) = log(x) ────────────────────────────────
+        // Since we already have LOG in UOps, we'll use that with conversion: log(x) = 2^(x * log2(e))
         const id_log2_e = b.push(.CONST, out_dtype, &.{}, Any{ .float = 1.4426950408889634 }); // log2(e)
         const id_scaled_x = b.push(.MUL, out_dtype, &.{ id_x, id_log2_e }, null);
-        const id_result = b.push(.EXP2, out_dtype, &.{id_scaled_x}, null);
+        const id_result = b.push(.LOG2, out_dtype, &.{id_scaled_x}, null);
 
         // ── 7. Store the result to the output tensor ───────────────────────
         const id_gepY = b.push(.GEP, out_dtype, &.{ id_Y, id_range }, Any{ .mem_info = .{ .base = id_Y, .offset = 0, .stride = 1 } });
