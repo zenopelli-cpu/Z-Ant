@@ -25,8 +25,8 @@ pub const Fused_Pad_Conv = struct {
 
     pub fn init_fused_op(fusion_list: std.ArrayList(*NodeZant)) !Fused_Pad_Conv {
         if (fusion_list.items.len != 2) return error.WrongNumberOfElements;
-        if (!std.mem.eql(u8, fusion_list.items[0].op_type, "Pad")) return error.WrongOpAtPos0;
-        if (!std.mem.eql(u8, fusion_list.items[1].op_type, "Conv")) return error.WrongOpAtPos1;
+        if (fusion_list.items[0].op != .pad) return error.WrongOpAtPos0;
+        if (fusion_list.items[1].op != .conv) return error.WrongOpAtPos1;
 
         const pad_op = switch (fusion_list.items[0].op) {
             .pad => |p| p,
@@ -85,6 +85,8 @@ pub const Fused_Pad_Conv = struct {
                 existing_pads[3] + pad_values[3], // right
             };
 
+            pad_op.output.set_tensorCategory(TensorCategory.FUSED_LINK);
+
             // Allocate and set the fused pads
             const fused_pads = try allocator.alloc(i64, 4);
             @memcpy(fused_pads, &final_pads);
@@ -106,12 +108,12 @@ pub const Fused_Pad_Conv = struct {
         _ = graph; // Not used, we only look at successors nodes
 
         // Start detection from Pad nodes
-        if (!std.mem.eql(u8, root_node.op_type, "Pad")) return null;
+        if (root_node.op != .pad) return null;
 
         // Check that the only successor is Conv
         if (root_node.next.items.len != 1) return null;
         const conv_node = root_node.next.items[0];
-        if (!std.mem.eql(u8, conv_node.op_type, "Conv")) return null;
+        if (conv_node.op != .conv) return null;
 
         var node_list = std.ArrayList(*NodeZant).init(allocator);
         errdefer node_list.deinit();
@@ -124,15 +126,15 @@ pub const Fused_Pad_Conv = struct {
         return node_list;
     }
 
-    pub fn patter_fusion(graph: *GraphZant, node_list: std.ArrayList(*NodeZant)) anyerror!NodeZant {
+    pub fn fn_pattern_fusion(graph: *GraphZant, node_list: std.ArrayList(*NodeZant)) anyerror!NodeZant {
         _ = graph; // Not used, we only look at successors nodes
 
         // Check the number of nodes
         if (node_list.items.len != 2) return error.InvalidNumberOfOps;
 
         // Check Pattern matching: Pad->Conv
-        if (!std.mem.eql(u8, node_list.items[0].op_type, "Pad")) return error.UnexpectedOpAtPos0;
-        if (!std.mem.eql(u8, node_list.items[1].op_type, "Conv")) return error.UnexpectedOpAtPos1;
+        if (node_list.items[0].op != .pad) return error.UnexpectedOpAtPos0;
+        if (node_list.items[1].op != .conv) return error.UnexpectedOpAtPos1;
 
         const last_node = node_list.items[1];
         // Clone the next list instead of direct reference
@@ -194,7 +196,7 @@ pub const Fused_Pad_Conv = struct {
     }
 
     pub fn write_op(self: Fused_Pad_Conv, writer: std.fs.File.Writer) !void {
-        self.fused_pad_conv.write_op(writer);
+        try self.fused_pad_conv.write_op(writer);
     }
 
     pub fn compute_output_shape(self: Fused_Pad_Conv) []usize {
