@@ -492,4 +492,3 @@ pub const pow_lean = op_pow.pow_lean;
 const op_log = @import("op_log.zig");
 pub const log = op_log.log;
 pub const log_lean = op_log.log_lean;
-pub const get_log_output_shape = op_log.get_log_output_shape;

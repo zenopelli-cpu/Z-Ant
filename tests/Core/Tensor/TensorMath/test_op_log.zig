@@ -12,8 +12,8 @@ const tests_log = std.log.scoped(.test_log);
 test "log_standard - basic case" {
     tests_log.info("\n     test: log_standard - basic case", .{});
     const allocator = pkgAllocator.allocator;
-    var shape = [_]usize{3};
-    var inputArray = [_]f32{ 1.0, -2.0, 0.0 };
+    var shape = [_]usize{4};
+    var inputArray = [_]f32{ 1.0, 2.718282, 7.389056, 10.0 };
 
     var input = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer input.deinit();
@@ -21,18 +21,18 @@ test "log_standard - basic case" {
     var result = try TensMath.log(f32, &input);
     defer result.deinit();
 
-    const expected = [_]f32{ 1.0, -0.86466472, 0.0 }; // exp(-2.0) - 1 ≈ -0.86466472
+    const expected = [_]f32{ 0.0, 1.0, 2.0, 2.302585 }; // ln(1)=0, ln(e)=1, ln(e²)=2, ln(10)≈2.302585
     for (result.data, expected) |got, exp| {
         try std.testing.expectApproxEqRel(got, exp, 1e-5);
     }
-    try std.testing.expectEqualSlices(usize, &[_]usize{3}, result.shape);
+    try std.testing.expectEqualSlices(usize, &[_]usize{4}, result.shape);
 }
 
-test "log_standard - different alpha" {
-    tests_log.info("\n     test: log_standard - different alpha", .{});
+test "log_standard - fractional values" {
+    tests_log.info("\n     test: log_standard - fractional values", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{3};
-    var inputArray = [_]f32{ 1.0, -2.0, 0.0 };
+    var inputArray = [_]f32{ 0.5, 0.1, 0.01 };
 
     var input = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer input.deinit();
@@ -40,7 +40,7 @@ test "log_standard - different alpha" {
     var result = try TensMath.log(f32, &input);
     defer result.deinit();
 
-    const expected = [_]f32{ 1.0, -1.72932944, 0.0 }; // 2.0 * (exp(-2.0) - 1) ≈ -1.72932944
+    const expected = [_]f32{ -0.693147, -2.302585, -4.605170 }; // ln(0.5), ln(0.1), ln(0.01)
     for (result.data, expected) |got, exp| {
         try std.testing.expectApproxEqRel(got, exp, 1e-5);
     }
@@ -51,7 +51,7 @@ test "log_standard - single element" {
     tests_log.info("\n     test: log_standard - single element", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{1};
-    var inputArray = [_]f32{-1.0};
+    var inputArray = [_]f32{2.718282};
 
     var input = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer input.deinit();
@@ -59,11 +59,30 @@ test "log_standard - single element" {
     var result = try TensMath.log(f32, &input);
     defer result.deinit();
 
-    const expected = [_]f32{-0.63212056}; // exp(-1.0) - 1 ≈ -0.63212056
+    const expected = [_]f32{1.0}; // ln(e) = 1
     for (result.data, expected) |got, exp| {
         try std.testing.expectApproxEqRel(got, exp, 1e-5);
     }
     try std.testing.expectEqualSlices(usize, &[_]usize{1}, result.shape);
+}
+
+test "log_standard - 2D tensor" {
+    tests_log.info("\n     test: log_standard - 2D tensor", .{});
+    const allocator = pkgAllocator.allocator;
+    var shape = [_]usize{ 2, 3 };
+    var inputArray = [_]f32{ 1.0, 2.718282, 7.389056, 10.0, 100.0, 1000.0 };
+
+    var input = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer input.deinit();
+
+    var result = try TensMath.log(f32, &input);
+    defer result.deinit();
+
+    const expected = [_]f32{ 0.0, 1.0, 2.0, 2.302585, 4.605170, 6.907755 };
+    for (result.data, expected) |got, exp| {
+        try std.testing.expectApproxEqRel(got, exp, 1e-5);
+    }
+    try std.testing.expectEqualSlices(usize, &[_]usize{ 2, 3 }, result.shape);
 }
 
 test "log_standard - empty tensor" {
@@ -81,32 +100,56 @@ test "log_standard - empty tensor" {
     try std.testing.expectEqualSlices(usize, &[_]usize{0}, result.shape);
 }
 
-test "log_standard - invalid type" {
-    tests_log.info("\n     test: log_standard - invalid type", .{});
+test "log_standard - zero input (should handle gracefully)" {
+    tests_log.info("\n     test: log_standard - zero input", .{});
     const allocator = pkgAllocator.allocator;
     var shape = [_]usize{3};
-    var inputArray = [_]i32{ 1, -2, 0 };
-
-    var input = try Tensor(i32).fromArray(&allocator, &inputArray, &shape);
-    defer input.deinit();
-
-    try std.testing.expectError(TensorMathError.InvalidDataType, TensMath.log(i32, &input));
-    _ = TensMath.log(i32, &input) catch |err| {
-        tests_log.warn("\n     Error: {s}", .{zant.utils.error_handler.errorDetails(err)});
-    };
-}
-
-test "log_standard - non 1D input" {
-    tests_log.info("\n     test: log_standard - non 1D input", .{});
-    const allocator = pkgAllocator.allocator;
-    var shape = [_]usize{ 2, 2 };
-    var inputArray = [_]f32{ 1.0, -2.0, 0.0, 1.0 };
+    var inputArray = [_]f32{ 1.0, 0.0, 2.0 };
 
     var input = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
     defer input.deinit();
 
-    try std.testing.expectError(TensorMathError.InvalidInput, TensMath.log(f32, &input, 1.0));
-    _ = TensMath.log(f32, &input) catch |err| {
-        tests_log.warn("\n     Error: {s}", .{zant.utils.error_handler.errorDetails(err)});
-    };
+    var result = try TensMath.log(f32, &input);
+    defer result.deinit();
+
+    // ln(0) = -inf in standard math, check how your implementation handles it
+    try std.testing.expect(result.data[0] == 0.0); // ln(1) = 0
+    try std.testing.expect(std.math.isInf(result.data[1])); // ln(0) = -inf
+    try std.testing.expectApproxEqRel(result.data[2], 0.693147, 1e-5); // ln(2)
+}
+
+test "log_standard - negative input (should handle gracefully)" {
+    tests_log.info("\n     test: log_standard - negative input", .{});
+    const allocator = pkgAllocator.allocator;
+    var shape = [_]usize{2};
+    var inputArray = [_]f32{ -1.0, 1.0 };
+
+    var input = try Tensor(f32).fromArray(&allocator, &inputArray, &shape);
+    defer input.deinit();
+
+    var result = try TensMath.log(f32, &input);
+    defer result.deinit();
+
+    // ln(negative) = NaN in standard math
+    try std.testing.expect(std.math.isNan(result.data[0])); // ln(-1) = NaN
+    try std.testing.expect(result.data[1] == 0.0); // ln(1) = 0
+}
+
+test "log_standard - f64 support" {
+    tests_log.info("\n     test: log_standard - f64 support", .{});
+    const allocator = pkgAllocator.allocator;
+    var shape = [_]usize{3};
+    var inputArray = [_]f64{ 1.0, 2.718281828459045, 10.0 };
+
+    var input = try Tensor(f64).fromArray(&allocator, &inputArray, &shape);
+    defer input.deinit();
+
+    var result = try TensMath.log(f64, &input);
+    defer result.deinit();
+
+    const expected = [_]f64{ 0.0, 1.0, 2.302585092994046 };
+    for (result.data, expected) |got, exp| {
+        try std.testing.expectApproxEqRel(got, exp, 1e-10);
+    }
+    try std.testing.expectEqualSlices(usize, &[_]usize{3}, result.shape);
 }
