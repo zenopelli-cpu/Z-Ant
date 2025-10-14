@@ -26,6 +26,7 @@ pub const OnnxOperator = enum {
     GLOBALAVERAGEPOOL,
     IDENTITY,
     LEAKYRELU,
+    LOOP,
     MATMUL,
     MAXPOOL,
     MIN,
