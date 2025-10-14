@@ -41,6 +41,7 @@ pub const Op_union = union(enum) {
     globalAveragePool: operators.GlobalAveragePool,
     identity: operators.Identity,
     leakyRelu: operators.LeakyRelu,
+    log: operators.Log,
     matMul: operators.MatMul,
     maxPool: operators.MaxPool,
     min: operators.Min,
