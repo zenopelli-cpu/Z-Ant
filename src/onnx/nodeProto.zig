@@ -7,6 +7,10 @@ const DataType = @import("onnx.zig").DataType;
 const OnnxOperator = @import("onnx.zig").OnnxOperator;
 const StringStringEntryProto = @import("onnx.zig").StringStringEntryProto;
 
+//--
+const parseError = @import("parseErrors.zig");
+//--
+
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
@@ -56,7 +60,7 @@ pub const NodeProto = struct {
         allocator.free(self.metadata_props);
     }
 
-    pub fn parse(reader: *protobuf.ProtoReader) !NodeProto {
+    pub fn parse(reader: *protobuf.ProtoReader) parseError.ParseError!NodeProto {
         var node = NodeProto{
             .name = null,
             .op_type = undefined,

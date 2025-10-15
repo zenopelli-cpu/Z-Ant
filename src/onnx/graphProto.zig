@@ -8,6 +8,10 @@ const StringStringEntryProto = @import("stringStringEntryProto.zig").StringStrin
 const TensorAnnotation = @import("tensorAnnotation.zig").TensorAnnotation;
 const SparseTensorProto = @import("sparseTensorProto.zig").SparseTensorProto;
 
+//--
+const parseError = @import("parseErrors.zig");
+//--
+
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
@@ -88,7 +92,7 @@ pub const GraphProto = struct {
         allocator.free(self.metadata_props);
     }
 
-    pub fn parse(reader: *protobuf.ProtoReader) !GraphProto {
+    pub fn parse(reader: *protobuf.ProtoReader) parseError.ParseError!GraphProto {
         var graph = GraphProto{
             .name = null,
             .nodes = &[_]*NodeProto{},

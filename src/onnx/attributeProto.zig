@@ -8,6 +8,10 @@ const SparseTensorProto = @import("sparseTensorProto.zig").SparseTensorProto;
 
 const onnx_log = std.log.scoped(.attributeProto);
 
+//--
+const parseError = @import("parseErrors.zig");
+//--
+
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
@@ -129,7 +133,7 @@ pub const AttributeProto = struct {
         }
     }
 
-    pub fn parse(reader: *protobuf.ProtoReader) !AttributeProto {
+    pub fn parse(reader: *protobuf.ProtoReader) parseError.ParseError!AttributeProto {
         var attr = AttributeProto{
             .name = "",
             .f = 0,
