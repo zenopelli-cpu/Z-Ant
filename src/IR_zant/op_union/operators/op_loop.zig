@@ -46,33 +46,13 @@ pub const Loop = struct {
     pub fn init(nodeProto: *NodeProto) !Loop {
         //TODO inserisci dei check
 
-        //dichiarazioni
-        var body: ?*GraphProto = null;
-        var M = ?*TensorZant = null;
-        var cond = ?*TensorZant = null;
-        var v_initials = ?[]*TensorZant = null;
+        //dichiarazione e assegnazione degli attributi
+        const body: ?*GraphProto = nodeProto.attribute[0].g;
 
-
-        //TODO uso di eql per maggiore precisione (buona idea?)
-        for (nodeProto.attribute) |attr| 
-        {
-            
-            if (std.mem.indexOf(u8, attr.name, "body")) |_| {
-                if (attr.type == onnx.AttributeType.GRAPH) body = attr.g else return error.GemmAphaNotFLOAT;
-            } 
-
-            if (std.mem.indexOf(u8, attr.name, "M")) |_| {
-                if (attr.type == onnx.AttributeType.TENSOR) M = attr.t else return error.GemmAphaNotFLOAT;
-            }
-
-            if (std.mem.indexOf(u8, attr.name, "cond")) |_| {
-                if (attr.type == onnx.AttributeType.GRAPH) cond = attr.t else return error.GemmAphaNotFLOAT;
-            }
-
-            if (std.mem.indexOf(u8, attr.name, "v_initials")) |_| {
-                if (attr.type == onnx.AttributeType.GRAPH) v_initials = attr.tensors else return error.GemmAphaNotFLOAT;
-            }
-        }
+        //dichiarazione e assegnazione degli input
+        var M: ?*TensorZant = null;
+        var cond: ?*TensorZant = null;
+        var v_initials: ?[]*TensorZant = null;
     }
 
     //-----GET OUTPUT SHAPES-----

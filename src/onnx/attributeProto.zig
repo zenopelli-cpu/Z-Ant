@@ -29,27 +29,35 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 //  - 15: type_protos, repeated TypeProto
 //  - 20: type, optional AttributeType //TODO !!check how
 //  - 21: ref_attr_name, optional string
+//  - 22: optional SparseTensorProto sparse_tensor = 22;   sparse tensor value
 //  - 23: sparse_tensor, optional SparseTensorProto
 //reserved 12, 16 to 19;
 //reserved "v";
 pub const AttributeProto = struct {
+
+    //MUST BE PRESENT FOR THIS VERSION OF THE IR
     name: []const u8, //Tag:1
+    type: AttributeType, //Tag:20
+
+    //EXACTLY ONE OF THIS MUST BE PRESENT
     f: f32 = 0, //Tag:2
     i: i64 = 0, //Tag:3
     s: []const u8, //Tag:4s
     t: ?*TensorProto, //Tag:5
     g: ?*GraphProto, //Tag:6 WIP
-    floats: []f32, //Tag:7
-    ints: []i64, //Tag:8
-    strings: [][]const u8, //Tag:9
-    tensors: []*TensorProto, //Tag:10
-    graphs: []*GraphProto, //Tag:11
+    //optional SparseTensorProto sparse_tensor = 22;   sparse tensor value
+
+    //OTHERS, OLDER VERSIONS USE THIS BUT NEWER CODE DOESN'T
+    floats: []f32, //Tag:7    list of floats
+    ints: []i64, //Tag:8         list of ints
+    strings: [][]const u8, //Tag:9  list of UTF-8 strings
+    tensors: []*TensorProto, //Tag:10  list of tensors
+    graphs: []*GraphProto, //Tag:11      list of graph
     doc_string: ?[]const u8, //Tag:13
     tp: ?*TypeProto, //Tag:14
-    type_protos: []*TypeProto, //Tag:15
-    type: AttributeType, //Tag:20
+    type_protos: []*TypeProto, //Tag:15.   list of type protos
     ref_attr_name: []const u8, //Tag:21
-    sparse_tensor: ?*SparseTensorProto, //Tag:23
+    sparse_tensor: ?*SparseTensorProto, //Tag:23.   list of sparse tensors
 
     pub fn deinit(self: *AttributeProto, allocator: std.mem.Allocator) void {
         //free name
@@ -192,12 +200,12 @@ pub const AttributeProto = struct {
                     attr.t = tensor_ptr;
                     attr.type = .TENSOR;
                 },
-                6 => { // single tensor (t)
-                    var tensor_reader = try reader.readLengthDelimited();
-                    const tensor_ptr = try reader.allocator.create(TensorProto);
-                    tensor_ptr.* = try TensorProto.parse(&tensor_reader);
-                    attr.t = tensor_ptr;
-                    if (attr.type != .INTS) attr.type = .TENSOR;
+                6 => { // single graph (g)
+                    var graph_reader = try reader.readLengthDelimited();
+                    const graph_ptr = try reader.allocator.create(GraphProto);
+                    graph_ptr.* = try GraphProto.parse(&graph_reader);
+                    attr.g = graph_ptr;
+                    attr.type = .GRAPH;
                 },
                 7 => { // repeated float (floats)
                     if (attr_tag.wire_type == .LengthDelimited) {
@@ -231,12 +239,12 @@ pub const AttributeProto = struct {
                     tensor_ptr.* = try TensorProto.parse(&tensors_reader);
                     try tensors_list.append(tensor_ptr);
                 },
-                11 => { //graphs TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    _ = try reader.readLengthDelimited(); //var graph_reader
-                    // const graph_ptr = try reader.allocator.create(GraphProto);
-                    // graph_ptr.* = try GraphProto.parse(&graph_reader);
-                    // try graphs_list.append(graph_ptr);
-                    // attr.type = .GRAPHS;
+                11 => {
+                    //var graph_reader = try reader.readLengthDelimited(); //var graph_reader
+                    //const graph_ptr = try reader.allocator.create(GraphProto);
+                    //graph_ptr.* = try GraphProto.parse(&graph_reader);
+                    //try graphs_list.append(graph_ptr);
+                    //attr.type = .GRAPHS;
                 },
                 13 => { // doc_string
                     attr.doc_string = try reader.readString(reader.allocator);
