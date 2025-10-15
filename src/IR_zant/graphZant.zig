@@ -18,6 +18,14 @@ const onnx = zant.onnx;
 const pattern_matcher = @import("fusion/pattern_matcher.zig");
 const PatternConfig = pattern_matcher.PatternConfig;
 
+//flag per scegliere il tipo di algoritmo da eseguire DFS o BFS
+pub const algoritmo = enum {
+    DFS,
+    BFS,
+};
+
+pub var algoritmo_scelto: algoritmo = .DFS;
+
 pub const GraphZant = struct {
     name: ?[]const u8,
     nodes: std.ArrayList(*NodeZant),
@@ -147,8 +155,16 @@ pub const GraphZant = struct {
         try pattern_matcher.fusePatterns(self, pattern_configs);
     }
 
-    // linearize the graph
+    //linearize che sceglie quale algoritmo scegliere (BFS o DFS)
     pub fn linearize(self: *GraphZant, alloc: std.mem.Allocator) !std.ArrayList(*NodeZant) {
+        return switch (algoritmo_scelto) {
+            .DFS => try self.linearize_dfs(alloc),
+            .BFS => try self.linearize_bfs(alloc),
+        };
+    }
+
+    // linearize the graph
+    pub fn linearize_dfs(self: *GraphZant, alloc: std.mem.Allocator) !std.ArrayList(*NodeZant) {
         var visited = std.AutoHashMap(*NodeZant, bool).init(alloc);
         var result = std.ArrayList(*NodeZant).init(alloc);
         defer visited.deinit();
@@ -176,6 +192,70 @@ pub const GraphZant = struct {
         }
 
         try result.append(node);
+    }
+
+    //linearizza il grafo usnado BFS
+    pub fn linearize_bfs(self: *GraphZant, alloc: std.mem.Allocator) !std.ArrayList(*NodeZant) {
+        var visited = std.AutoArrayHashMap(*NodeZant, bool).init(alloc);
+        defer visited.deinit();
+
+        var result = std.ArrayList(*NodeZant).init(alloc);
+
+        var root_nodes = std.ArrayList(*NodeZant).init(alloc);
+        defer root_nodes.deinit();
+
+        for (self.nodes.items) |node| {
+            const preds = try self.get_predecessors(node);
+            defer preds.deinit();
+
+            if (preds.items.len == 0) {
+                try root_nodes.append(node);
+            }
+        }
+
+        if (root_nodes.items.len == 0) {
+            for (self.nodes.items) |node| {
+                try root_nodes.append(node);
+            }
+        }
+
+        //eseguo il BFS per ogni radice
+        for (root_nodes.items) |root| {
+            try bfs(root, &visited, &result, alloc);
+        }
+
+        return result;
+    }
+
+    //BFS codice di visita dei nodi
+    pub fn bfs(
+        start_node: *NodeZant,
+        visited: *std.AutoHashMap(*NodeZant, bool),
+        result: *std.ArrayList(*NodeZant),
+        alloc: std.mem.Allocator,
+    ) !void {
+        if (visited.get(start_node)) |_| return;
+
+        //coda per il BFS
+        var queue = std.ArrayList(*NodeZant).init(alloc);
+        defer queue.deinit();
+
+        try queue.append(start_node);
+        try visited.put(start_node, true);
+
+        while (queue.items.len > 0) {
+            const current = queue.orderedRemove(0);
+
+            try result.append(current);
+
+            //aggiungi nodi non visitati alla coda
+            for (current.next.items) |child| {
+                if (!visited.contains(child)) {
+                    try visited.put(child, true);
+                    try queue.append(child);
+                }
+            }
+        }
     }
 
     // TODO: unit tests for this
