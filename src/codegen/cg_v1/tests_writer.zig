@@ -30,9 +30,7 @@ pub fn UserTest(comptime T_in: type, comptime T_out: type) type {
 fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
     // Generate model_options.zig
     const model_options_path = try std.fmt.allocPrint(allocator, "{s}model_options.zig", .{model_path});
-    const model_options_file = try std.fs.cwd().createFile(model_options_path, .{
-        .exclusive = true,
-    });
+    const model_options_file = try std.fs.cwd().createFile(model_options_path, .{});
     defer model_options_file.close();
 
     var buffer: [1024]u8 = undefined;
@@ -124,9 +122,7 @@ fn copyFile(src_path: []const u8, dst_path: []const u8) !void {
     });
     defer src_file.close();
 
-    var dst_file = try std.fs.cwd().createFile(dst_path, .{
-        .exclusive = true,
-    });
+    var dst_file = try std.fs.cwd().createFile(dst_path, .{});
     defer dst_file.close();
 
     // Use a buffer to copy in chunks

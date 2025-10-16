@@ -20,9 +20,9 @@ pub fn write(generated_path: []const u8) !void {
     //initializing writer for static_parameters file
     const params_file_path = try std.fmt.allocPrint(allocator, "{s}static_parameters.zig", .{generated_path});
     defer allocator.free(params_file_path);
-    var param_file = try std.fs.cwd().createFile(params_file_path, .{
-        .exclusive = true,
-    });
+
+    var param_file = try std.fs.cwd().createFile(params_file_path, .{});
+
     std.log.info("\n .......... file created, path:{s}", .{params_file_path});
     defer param_file.close();
 

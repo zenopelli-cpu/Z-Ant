@@ -29,9 +29,9 @@ pub fn write(
     //initializing writer for lib_operation file
     const lib_file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ generated_path, model_name });
     defer allocator.free(lib_file_path);
-    var lib_file = try std.fs.cwd().createFile(lib_file_path, .{
-        .exclusive = true,
-    });
+
+    var lib_file = try std.fs.cwd().createFile(lib_file_path, .{});
+
     std.log.info("\n .......... file created, path:{s}", .{lib_file_path});
     defer lib_file.close();
 
