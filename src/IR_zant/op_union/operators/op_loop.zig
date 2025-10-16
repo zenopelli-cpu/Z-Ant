@@ -48,7 +48,7 @@ pub const Loop = struct {
     pub fn init(nodeProto: *NodeProto) !Loop {
         //TODO inserisci dei check
 
-        //dichiarazione e assegnazione degli input
+        //declarationn of inputs
         var M: ?*TensorZant = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_M_notFound;
         var cond: ?*TensorZant = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_COND_notFound;
         var v_initials: ?[]*TensorZant = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_V_INITIALS_notFound;
