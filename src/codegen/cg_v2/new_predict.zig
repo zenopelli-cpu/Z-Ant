@@ -22,7 +22,7 @@ const Builder = zant.uops.UOpBuilder;
 const ZigRenderer = codegen.renderer.ZigRenderer;
 
 // Writes the computation function for predicting outputs
-pub inline fn writePredict(writer: std.fs.File.Writer, nodes: std.ArrayList(*NodeZant), do_export: bool) !void {
+pub inline fn writePredict(writer: *std.Io.Writer, nodes: std.ArrayList(*NodeZant), do_export: bool) !void {
     // Static initialization for output tensors if not using dynamic allocation
     if (!codegen_options.dynamic) {
         // declare all the outputs of each node of the network
@@ -76,7 +76,7 @@ pub inline fn writePredict(writer: std.fs.File.Writer, nodes: std.ArrayList(*Nod
 }
 
 // Processes and writes the computation graph
-inline fn write_graphSerialization(writer: std.fs.File.Writer, nodes: std.ArrayList(*NodeZant)) !void {
+inline fn write_graphSerialization(writer: *std.Io.Writer, nodes: std.ArrayList(*NodeZant)) !void {
     const Writer = @TypeOf(writer);
 
     // initializing the renderer and the builder
@@ -102,7 +102,7 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer, nodes: std.ArrayL
 // -------------------------------- WRITE OUTPUTS --------------------------------
 
 // Initializes output tensors in the computation graph
-fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
+fn write_outputsInitialization(writer: *std.Io.Writer) !void {
     try writer.print(
         \\
         \\
@@ -139,7 +139,7 @@ fn write_outputsInitialization(writer: std.fs.File.Writer) !void {
     }
 }
 
-fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor, node: *const ReadyNode) !i64 {
+fn write_OutputShape(writer: *std.Io.Writer, output: *ReadyTensor, node: *const ReadyNode) !i64 {
     if (@as(?*ReadyTensor, output) == null) return error.InvalidOutput;
     const original_shape = output.shape;
     var size: i64 = 1;
@@ -201,7 +201,7 @@ fn write_OutputShape(writer: std.fs.File.Writer, output: *ReadyTensor, node: *co
     return size;
 }
 
-fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode) !void {
+fn write_constantTensor(writer: *std.Io.Writer, readyNode: *const ReadyNode) !void {
     try writer.print(
         \\
         \\ // ---- CONSTANT TENSOR ---- 
@@ -267,14 +267,14 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
     } else if (tensor.raw_data) |data| {
         switch (tensor.data_type) {
             .FLOAT => {
-                const float_data = @as([*]const f32, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 4)];
+                const float_data = @as([*]const f32, @ptrCast(@alignCast(data.ptr)))[0..@divExact(data.len, 4)];
                 for (0..float_data.len) |i| {
                     if (i > 0) try writer.print(",", .{});
                     try writer.print(" {d}", .{float_data[i]});
                 }
             },
             .INT64 => {
-                const int_data = @as([*]const i64, @alignCast(@ptrCast(data.ptr)))[0..@divExact(data.len, 8)];
+                const int_data = @as([*]const i64, @ptrCast(@alignCast(data.ptr)))[0..@divExact(data.len, 8)];
                 for (0..int_data.len) |i| {
                     if (i > 0) try writer.print(",", .{});
                     try writer.print(" {d}", .{int_data[i]});
@@ -295,7 +295,7 @@ fn write_constantTensor(writer: std.fs.File.Writer, readyNode: *const ReadyNode)
     , .{ sanitized_name, type_str_const, sanitized_name, sanitized_name });
 }
 
-fn write_OutputTensor(writer: std.fs.File.Writer, output: *ReadyTensor, size: i64) !void {
+fn write_OutputTensor(writer: *std.Io.Writer, output: *ReadyTensor, size: i64) !void {
     const sanitized_name = try utils.getSanitizedName(output.name);
 
     // --- ADD CHECK FOR UNDEFINED TYPE ---
@@ -336,7 +336,7 @@ fn write_OutputTensor(writer: std.fs.File.Writer, output: *ReadyTensor, size: i6
     }
 }
 
-fn write_outputsResetMethod(writer: std.fs.File.Writer) !void {
+fn write_outputsResetMethod(writer: *std.Io.Writer) !void {
     try writer.print(
         \\
         \\
@@ -384,7 +384,7 @@ fn write_outputsResetMethod(writer: std.fs.File.Writer) !void {
 
 // -------------------------------- WRITE CHECKS --------------------------------
 
-fn write_checks(writer: std.fs.File.Writer) !void {
+fn write_checks(writer: *std.Io.Writer) !void {
     // Autogen a check for the input shape as arg VS input shape as codegen option
 
     //check on the number of dims
@@ -406,7 +406,7 @@ fn write_checks(writer: std.fs.File.Writer) !void {
 
 // -------------------------------- WRITE PREDICT() --------------------------------
 
-fn write_predictInitialization(writer: std.fs.File.Writer) !void {
+fn write_predictInitialization(writer: *std.Io.Writer) !void {
     _ = try writer.print(
         \\  
         \\    //computing the size of the input tensor
@@ -424,7 +424,7 @@ fn write_predictInitialization(writer: std.fs.File.Writer) !void {
     , .{});
 }
 
-fn writeReturn(writer: std.fs.File.Writer) !void {
+fn writeReturn(writer: *std.Io.Writer) !void {
     _ = try writer.print(
         \\
         \\    result.* = tensor_{s}.data.ptr;

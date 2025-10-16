@@ -31,10 +31,10 @@ pub fn render(
 
     // Calculate strides
 
-    var strides = std.ArrayList(usize).init(alloc);
-    defer strides.deinit();
+    var strides: std.ArrayList(usize) = .empty;
+    defer strides.deinit(alloc);
 
-    try strides.resize(shape.len);
+    try strides.resize(alloc, shape.len);
 
     var stride: usize = 1;
     var i: usize = shape.len;

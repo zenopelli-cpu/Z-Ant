@@ -216,8 +216,8 @@ pub fn render(
     const base_id = uop.src[0];
 
     var base_var_name: []const u8 = undefined;
-    var offset_list = std.ArrayList(u8).init(temp_alloc);
-    const offset_writer = offset_list.writer();
+    var offset_list: std.ArrayList(u8) = .empty;
+    const offset_writer = offset_list.writer(temp_alloc);
 
     // Calculate the offset based on source type
     if (view_map.get(base_id)) |vinfo| {
@@ -232,7 +232,7 @@ pub fn render(
     }
 
     // Render the final GEP instruction
-    const offset_expr = try offset_list.toOwnedSlice();
+    const offset_expr = try offset_list.toOwnedSlice(temp_alloc);
     const dtype_name = DTypeInfo.asString(uop.dtype);
 
     try writer.print(

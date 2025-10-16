@@ -322,9 +322,9 @@ pub fn ZigRenderer(comptime WriterType: type) type {
         fn write_function_signature(self: *Self, input_ids: []const usize, output_type: []const u8) !void {
             try self.writer.print("pub fn generated_kernel(allocator: std.mem.Allocator", .{});
 
-            var sorted_inputs_list = std.ArrayList(usize).init(self.allocator);
-            defer sorted_inputs_list.deinit();
-            try sorted_inputs_list.appendSlice(input_ids);
+            var sorted_inputs_list: std.ArrayList(usize) = .empty;
+            defer sorted_inputs_list.deinit(self.allocator);
+            try sorted_inputs_list.appendSlice(self.allocator, input_ids);
             std.mem.sort(usize, sorted_inputs_list.items, {}, std.sort.asc(usize));
 
             for (sorted_inputs_list.items) |id| {
