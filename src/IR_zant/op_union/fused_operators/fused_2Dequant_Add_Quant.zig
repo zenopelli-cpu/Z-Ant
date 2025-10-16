@@ -104,12 +104,12 @@ pub const Fused_2Dequant_Add_Quant = struct {
             return null;
         }
 
-        var node_list = std.ArrayList(*NodeZant).init(allocator);
-        errdefer node_list.deinit();
+        var node_list: std.ArrayList(*NodeZant) = .empty;
+        errdefer node_list.deinit(allocator);
 
         // Get predecessors of the Add node
         const predecessors = try graph.get_predecessors(root_node);
-        defer predecessors.deinit();
+        defer predecessors.deinit(allocator);
 
         // We need exactly 2 predecessors for binary Add operation
         if (predecessors.items.len != 2) {
@@ -147,10 +147,10 @@ pub const Fused_2Dequant_Add_Quant = struct {
         }
 
         // Build the node list in order: DequantA -> DequantB -> Add -> Quant
-        try node_list.append(dequant_a.?);
-        try node_list.append(dequant_b.?);
-        try node_list.append(root_node); // Add node
-        try node_list.append(quant_node);
+        try node_list.append(allocator, dequant_a.?);
+        try node_list.append(allocator, dequant_b.?);
+        try node_list.append(allocator, root_node); // Add node
+        try node_list.append(allocator, quant_node);
 
         std.debug.print(" -> Found complete DequantizeLinear->DequantizeLinear->Add->QuantizeLinear pattern!", .{});
 
@@ -172,9 +172,9 @@ pub const Fused_2Dequant_Add_Quant = struct {
         const last_node = node_list.items[3]; // QuantizeLinear node
 
         // Clone the next list instead of direct reference
-        var cloned_next = std.ArrayList(*NodeZant).init(allocator);
+        var cloned_next: std.ArrayList(*NodeZant) = .empty;
         for (last_node.next.items) |next_node| {
-            try cloned_next.append(next_node);
+            try cloned_next.append(allocator, next_node);
         }
 
         return NodeZant{

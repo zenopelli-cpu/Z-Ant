@@ -33,24 +33,24 @@ pub const Fused_Quant_Dequant = struct {
             return null;
         }
 
-        var node_list = std.ArrayList(*NodeZant).init(allocator);
-        errdefer node_list.deinit();
+        var node_list: std.ArrayList(*NodeZant) = .empty;
+        errdefer node_list.deinit(allocator);
 
-        try node_list.append(root_node);
+        try node_list.append(allocator, root_node);
 
         // Check DequantizeLinear -> Pad
         if (root_node.next.items.len != 1) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         const pad_node = root_node.next.items[0];
         if (pad_node.op != .dequantizeLinear) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
-        try node_list.append(pad_node);
+        try node_list.append(allocator, pad_node);
 
         return node_list;
     }
@@ -67,9 +67,9 @@ pub const Fused_Quant_Dequant = struct {
         const last_node = node_list.items[1]; // QLinearConv node
 
         // Clone the next list instead of direct reference
-        var cloned_next = std.ArrayList(*NodeZant).init(allocator);
+        var cloned_next: std.ArrayList(*NodeZant) = .empty;
         for (last_node.next.items) |next_node| {
-            try cloned_next.append(next_node);
+            try cloned_next.append(allocator, next_node);
         }
 
         return NodeZant{

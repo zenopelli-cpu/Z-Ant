@@ -89,38 +89,38 @@ pub const Fused_Dequant_Clip_Quant = struct {
             return null;
         }
 
-        var node_list = std.ArrayList(*NodeZant).init(allocator);
-        errdefer node_list.deinit();
+        var node_list: std.ArrayList(*NodeZant) = .empty;
+        errdefer node_list.deinit(allocator);
 
-        try node_list.append(root_node);
+        try node_list.append(allocator, root_node);
 
         // Check DequantizeLinear -> Clip
         if (root_node.next.items.len != 1) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         const clip_node = root_node.next.items[0];
         if (clip_node.op != .clip) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
-        try node_list.append(clip_node);
+        try node_list.append(allocator, clip_node);
 
         // Check Clip -> QuantizeLinear
         if (clip_node.next.items.len != 1) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         const quant_node = clip_node.next.items[0];
         if (quant_node.op != .quantizeLinear) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
-        try node_list.append(quant_node);
+        try node_list.append(allocator, quant_node);
         std.debug.print(" -> Found complete DequantizeLinear->Clip->QuantizeLinear pattern!", .{});
 
         return node_list;
@@ -139,9 +139,9 @@ pub const Fused_Dequant_Clip_Quant = struct {
         const last_node = node_list.items[2]; // QuantizeLinear node
 
         // Clone the next list instead of direct reference
-        var cloned_next = std.ArrayList(*NodeZant).init(allocator);
+        var cloned_next: std.ArrayList(*NodeZant) = .empty;
         for (last_node.next.items) |next_node| {
-            try cloned_next.append(next_node);
+            try cloned_next.append(allocator, next_node);
         }
 
         return NodeZant{

@@ -127,12 +127,12 @@ pub const GraphZant = struct {
     }
 
     pub fn get_predecessors(self: *GraphZant, root_node: *NodeZant) !std.ArrayList(*NodeZant) {
-        var predecessors = std.ArrayList(*NodeZant).init(allocator);
+        var predecessors: std.ArrayList(*NodeZant) = .empty;
         for (self.nodes.items) |node| {
             // Check if this node points to our first_node
             for (node.next.items) |next_node| {
                 if (next_node == root_node) {
-                    try predecessors.append(node);
+                    try predecessors.append(allocator, node);
                     break;
                 }
             }
@@ -324,8 +324,8 @@ pub const GraphZant = struct {
         edge_nodes: std.ArrayList(*NodeZant),
         server_nodes: std.ArrayList(*NodeZant),
     } {
-        var edge_nodes = std.ArrayList(*NodeZant).init(allocator);
-        var server_nodes = std.ArrayList(*NodeZant).init(allocator);
+        var edge_nodes: std.ArrayList(*NodeZant) = .empty;
+        var server_nodes: std.ArrayList(*NodeZant) = .empty;
 
         var cumulative_memory: usize = 0;
 
@@ -335,7 +335,7 @@ pub const GraphZant = struct {
             const node_mem = try node.op.get_memory_footprint();
 
             if (cumulative_memory + node_mem <= max_edge_memory) {
-                try edge_nodes.append(node);
+                try edge_nodes.append(allocator, node);
                 cumulative_memory += node_mem;
             } else {
                 break;
@@ -344,7 +344,7 @@ pub const GraphZant = struct {
 
         // append the remaining nodes to the server
         while (i < nodes.items.len) : (i += 1) {
-            try server_nodes.append(nodes.items[i]);
+            try server_nodes.append(allocator, nodes.items[i]);
         }
 
         return .{
