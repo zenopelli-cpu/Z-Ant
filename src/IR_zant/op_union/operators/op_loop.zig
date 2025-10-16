@@ -1,6 +1,7 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 const zant = @import("zant");
+const IR_zant = @import("../../IR_zant.zig");
 
 // --- onnx ---
 const onnx = zant.onnx;
@@ -11,6 +12,7 @@ const TensorProto = onnx.TensorProto;
 
 // --- zant IR---
 const tensorZant = @import("../../tensorZant.zig");
+const tensorZant_lib = IR_zant.tensorZant_lib;
 const TensorZant = tensorZant.TensorZant;
 const TensorCategory = tensorZant.TensorCategory;
 const IR_utils = @import("../../utils.zig"); //this is IR utils
@@ -46,13 +48,15 @@ pub const Loop = struct {
     pub fn init(nodeProto: *NodeProto) !Loop {
         //TODO inserisci dei check
 
+        //dichiarazione e assegnazione degli input
+        var M: ?*TensorZant = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.input_M_notFound;
+        var cond: ?*TensorZant = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.input_COND_notFound;
+        var v_initials: ?[]*TensorZant = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[2])) |ptr| ptr else return error.input_V_INITIALS_notFound;
+
         //dichiarazione e assegnazione degli attributi
         const body: ?*GraphProto = nodeProto.attribute[0].g;
 
-        //dichiarazione e assegnazione degli input
-        var M: ?*TensorZant = null;
-        var cond: ?*TensorZant = null;
-        var v_initials: ?[]*TensorZant = null;
+        //OUTPUTS
     }
 
     //-----GET OUTPUT SHAPES-----
