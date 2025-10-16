@@ -364,15 +364,15 @@ pub fn runLibGen() !void {
     const model_flag = try std.fmt.allocPrint(gpa, "-Dmodel={s}", .{model_name});
     defer gpa.free(model_flag);
 
-    var args = std.ArrayList([]const u8).init(gpa);
-    defer args.deinit();
-    try args.appendSlice(&[_][]const u8{ "zig", "build", "lib", model_flag });
+    var args: std.ArrayList([]const u8) = .empty;
+    defer args.deinit(gpa);
+    try args.appendSlice(gpa, &[_][]const u8{ "zig", "build", "lib", model_flag });
 
     var arch_flag: ?[]const u8 = null;
     if (target_arch_str) |str| {
         if (!std.mem.eql(u8, str, "")) {
             arch_flag = try std.fmt.allocPrint(gpa, "-Dtarget={s}", .{str});
-            try args.append(arch_flag.?);
+            try args.append(gpa, arch_flag.?);
         }
     }
     defer if (arch_flag) |flag| gpa.free(flag);
@@ -381,7 +381,7 @@ pub fn runLibGen() !void {
     if (target_cpu_str) |str| {
         if (!std.mem.eql(u8, str, "")) {
             cpu_flag = try std.fmt.allocPrint(gpa, "-Dcpu={s}", .{str});
-            try args.append(cpu_flag.?);
+            try args.append(gpa, cpu_flag.?);
         }
     }
     defer if (cpu_flag) |flag| gpa.free(flag);
