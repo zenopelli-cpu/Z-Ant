@@ -64,24 +64,24 @@ pub const Pow = struct {
     }
 
     pub fn get_input_tensors(self: Pow) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.X);
-        try inputs.append(self.Y);
+        try inputs.append(allocator, self.X);
+        try inputs.append(allocator, self.Y);
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Pow) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.Z);
-        return outputs.toOwnedSlice();
+        try outputs.append(allocator, self.Z);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Pow, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Pow, writer: *std.Io.Writer) !void {
 
         //----create tensor_X_string (base)
         var tensor_X_string: []u8 = undefined;

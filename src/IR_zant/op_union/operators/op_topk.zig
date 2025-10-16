@@ -91,22 +91,22 @@ pub const TopK = struct {
     }
 
     pub fn get_input_tensors(self: TopK) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        try inputs.append(self.input_X);
-        try inputs.append(self.input_K);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        try inputs.append(allocator, self.input_X);
+        try inputs.append(allocator, self.input_K);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: TopK) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
-        try outputs.append(self.output_values);
-        try outputs.append(self.output_indices);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
+        try outputs.append(allocator, self.output_values);
+        try outputs.append(allocator, self.output_indices);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: TopK, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: TopK, writer: *std.Io.Writer) !void {
         // Create tensor strings for inputs
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);

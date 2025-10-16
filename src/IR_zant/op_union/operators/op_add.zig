@@ -53,25 +53,25 @@ pub const Add = struct {
     }
 
     pub fn get_input_tensors(self: Add) ![]*TensorZant {
-        var input_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer input_tensors.deinit();
+        var input_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer input_tensors.deinit(allocator);
 
-        try input_tensors.append(self.input_A);
-        try input_tensors.append(self.input_B);
+        try input_tensors.append(allocator, self.input_A);
+        try input_tensors.append(allocator, self.input_B);
 
-        return input_tensors.toOwnedSlice();
+        return input_tensors.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Add) ![]*TensorZant {
-        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer output_tensors.deinit();
+        var output_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer output_tensors.deinit(allocator);
 
-        try output_tensors.append(self.output_C);
+        try output_tensors.append(allocator, self.output_C);
 
-        return output_tensors.toOwnedSlice();
+        return output_tensors.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Add, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Add, writer: *std.Io.Writer) !void {
 
         //----create tensor_A_string
         var tensor_A_string: []u8 = undefined;

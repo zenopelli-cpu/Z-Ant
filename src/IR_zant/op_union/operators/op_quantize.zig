@@ -90,7 +90,7 @@ pub const Quantize = struct {
         return output_shape;
     }
 
-    pub fn write_op(self: Quantize, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Quantize, writer: *std.Io.Writer) !void {
         const input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
             "@constCast(&tensor_",
             try utils.getSanitizedName(self.input.name),

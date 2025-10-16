@@ -149,7 +149,7 @@ pub const QLinearMul = struct {
         return tensors;
     }
 
-    pub fn write_op(op: *const QLinearMul, writer: std.fs.File.Writer) !void {
+    pub fn write_op(op: *const QLinearMul, writer: *std.Io.Writer) !void {
         // Create sanitized tensor name strings
         var tensor_A_string: []u8 = undefined;
         defer allocator.free(tensor_A_string);

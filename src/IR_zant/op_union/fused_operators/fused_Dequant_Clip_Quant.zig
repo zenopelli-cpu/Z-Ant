@@ -196,30 +196,30 @@ pub const Fused_Dequant_Clip_Quant = struct {
     }
 
     pub fn get_input_tensors(self: Fused_Dequant_Clip_Quant) anyerror![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.op_DequantizeLinear.x);
-        try inputs.append(self.op_DequantizeLinear.x_scale);
+        try inputs.append(allocator, self.op_DequantizeLinear.x);
+        try inputs.append(allocator, self.op_DequantizeLinear.x_scale);
         if (self.op_DequantizeLinear.x_zero_point) |zp| {
-            try inputs.append(zp);
+            try inputs.append(allocator, zp);
         }
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Fused_Dequant_Clip_Quant) anyerror![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.op_QuantizeLinear.y);
-        return outputs.toOwnedSlice();
+        try outputs.append(allocator, self.op_QuantizeLinear.y);
+        return outputs.toOwnedSlice(allocator);
     }
 
     /// Optimized write operation for quantized clip pattern.
     /// This should be called when we detect the pattern:
     /// DequantizeLinear -> Clip -> QuantizeLinear
-    pub fn write_op(self: Fused_Dequant_Clip_Quant, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Dequant_Clip_Quant, writer: *std.Io.Writer) !void {
         // Extract clip bounds from the clip operation
         var min_val: f32 = 0.0;
         var max_val: f32 = std.math.floatMax(f32);
@@ -259,7 +259,7 @@ pub const Fused_Dequant_Clip_Quant = struct {
         output_zero_point_tensor: *TensorZant,
         min_val: f32,
         max_val: f32,
-        writer: std.fs.File.Writer,
+        writer: *std.Io.Writer,
     ) !void {
         _ = self; // Self is not used in this static-like function
 

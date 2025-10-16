@@ -27,7 +27,7 @@ pub const GraphZant = struct {
     pub fn init(graphProto: *GraphProto) !GraphZant {
         return GraphZant{
             .name = graphProto.name.?,
-            .nodes = std.ArrayList(*NodeZant).init(allocator),
+            .nodes = .empty,
             .graphProto = graphProto,
         };
     }
@@ -44,7 +44,7 @@ pub const GraphZant = struct {
             allocator.destroy(node); // Free the node
         }
 
-        self.nodes.deinit();
+        self.nodes.deinit(allocator);
     }
 
     /// Removes the specified nodes from the graph and cleans up their associated tensors.
@@ -98,7 +98,7 @@ pub const GraphZant = struct {
             // allocate memory for the node
             const node = try allocator.create(NodeZant);
             node.* = try NodeZant.init(nodeProto);
-            try self.nodes.append(node);
+            try self.nodes.append(allocator, node);
         }
 
         //hashmap for the outputs for the producers
@@ -150,7 +150,7 @@ pub const GraphZant = struct {
     // linearize the graph
     pub fn linearize(self: *GraphZant, alloc: std.mem.Allocator) !std.ArrayList(*NodeZant) {
         var visited = std.AutoHashMap(*NodeZant, bool).init(alloc);
-        var result = std.ArrayList(*NodeZant).init(alloc);
+        var result: std.ArrayList(*NodeZant) = .empty;
         defer visited.deinit();
 
         for (self.nodes.items) |node| {
@@ -175,7 +175,7 @@ pub const GraphZant = struct {
             try dfs(child, visited, result);
         }
 
-        try result.append(node);
+        try result.append(allocator, node);
     }
 
     // TODO: unit tests for this

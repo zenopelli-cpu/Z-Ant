@@ -47,17 +47,17 @@ pub const Sqrt = struct {
     }
 
     pub fn get_input_tensors(self: Sqrt) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        try inputs.append(self.input_X);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        try inputs.append(allocator, self.input_X);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Sqrt) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
-        try outputs.append(self.output_Y);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
+        try outputs.append(allocator, self.output_Y);
+        return outputs.toOwnedSlice(allocator);
     }
 
     pub fn compute_output_shape(self: Sqrt) []usize {
@@ -67,7 +67,7 @@ pub const Sqrt = struct {
         return output_shape;
     }
 
-    pub fn write_op(self: Sqrt, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Sqrt, writer: *std.Io.Writer) !void {
         // Create input tensor string
         var input_tensor_string: []u8 = undefined;
         defer allocator.free(input_tensor_string);

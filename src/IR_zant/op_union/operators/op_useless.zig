@@ -35,18 +35,18 @@ pub const Useless = struct {
 
     pub fn get_input_tensors(self: Useless) ![]*TensorZant {
         _ = self;
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Useless) ![]*TensorZant {
         _ = self;
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Useless, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Useless, writer: *std.Io.Writer) !void {
         _ = self;
         _ = writer;
         // Useless operator does nothing - no code generation needed

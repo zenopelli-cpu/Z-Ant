@@ -218,7 +218,7 @@ pub const Op_union = union(enum) {
         return node_mem;
     }
 
-    pub fn write_op(self: Op_union, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Op_union, writer: *std.Io.Writer) !void {
         switch (self) {
             .split => |ptr| try ptr.write_op(writer), //not working! error: .FAULT => unreachable,
             .useless => |ptr| try ptr.write_op(writer),

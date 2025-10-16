@@ -270,7 +270,7 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         return try self.fused_qlinearconv.get_output_tensors();
     }
 
-    pub fn write_op(self: Fused_Dequant_Pad_Quant_QLinConv, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Dequant_Pad_Quant_QLinConv, writer: *std.Io.Writer) !void {
         try self.fused_qlinearconv.write_op(writer);
     }
 

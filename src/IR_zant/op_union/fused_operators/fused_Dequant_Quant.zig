@@ -160,7 +160,7 @@ pub const Fused_Dequant_Quant = struct {
         return error.ThisIsUseless;
     }
 
-    pub fn write_op(self: Fused_Dequant_Quant, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Dequant_Quant, writer: *std.Io.Writer) !void {
         _ = self;
         _ = writer;
         return error.ThisIsUseless;

@@ -248,7 +248,7 @@ pub const Fused_2Dequant_Add_Quant = struct {
     /// Optimized write operation for quantized add pattern.
     /// This implements QLinearAdd semantics: efficiently adds quantized inputs
     /// without intermediate dequantization.
-    pub fn write_op(self: Fused_2Dequant_Add_Quant, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_2Dequant_Add_Quant, writer: *std.Io.Writer) !void {
         try self.fused_qlinear_add.write_op(writer);
     }
 

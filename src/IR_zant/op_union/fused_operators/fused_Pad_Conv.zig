@@ -195,7 +195,7 @@ pub const Fused_Pad_Conv = struct {
         return try self.fused_pad_conv.get_output_tensors();
     }
 
-    pub fn write_op(self: Fused_Pad_Conv, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Pad_Conv, writer: *std.Io.Writer) !void {
         try self.fused_pad_conv.write_op(writer);
     }
 

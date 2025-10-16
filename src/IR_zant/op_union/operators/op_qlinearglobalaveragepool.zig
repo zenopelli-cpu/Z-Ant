@@ -73,28 +73,28 @@ pub const QLinearGlobalAveragePool = struct {
     }
 
     pub fn get_input_tensors(self: QLinearGlobalAveragePool) ![]*TensorZant {
-        var input_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer input_tensors.deinit();
+        var input_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer input_tensors.deinit(allocator);
 
-        try input_tensors.append(self.input_X);
-        try input_tensors.append(self.input_X_scale);
-        try input_tensors.append(self.input_X_zero_point);
-        try input_tensors.append(self.input_Y_scale);
-        try input_tensors.append(self.input_Y_zero_point);
+        try input_tensors.append(allocator, self.input_X);
+        try input_tensors.append(allocator, self.input_X_scale);
+        try input_tensors.append(allocator, self.input_X_zero_point);
+        try input_tensors.append(allocator, self.input_Y_scale);
+        try input_tensors.append(allocator, self.input_Y_zero_point);
 
-        return input_tensors.toOwnedSlice();
+        return input_tensors.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: QLinearGlobalAveragePool) ![]*TensorZant {
-        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer output_tensors.deinit();
+        var output_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer output_tensors.deinit(allocator);
 
-        try output_tensors.append(self.output_Y);
+        try output_tensors.append(allocator, self.output_Y);
 
-        return output_tensors.toOwnedSlice();
+        return output_tensors.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: QLinearGlobalAveragePool, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: QLinearGlobalAveragePool, writer: *std.Io.Writer) !void {
         // Create tensor string variables for each input
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);

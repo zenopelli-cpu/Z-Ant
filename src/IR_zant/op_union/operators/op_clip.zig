@@ -63,34 +63,34 @@ pub const Clip = struct {
     }
 
     pub fn get_input_tensors(self: Clip) ![]*TensorZant {
-        var input_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer input_tensors.deinit();
+        var input_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer input_tensors.deinit(allocator);
 
         // Append the mandatory input tensor
-        try input_tensors.append(self.input);
+        try input_tensors.append(allocator, self.input);
 
         // Append optional min and max tensors if they exist
         if (self.min) |min_tensor| {
-            try input_tensors.append(min_tensor);
+            try input_tensors.append(allocator, min_tensor);
         }
         if (self.max) |max_tensor| {
-            try input_tensors.append(max_tensor);
+            try input_tensors.append(allocator, max_tensor);
         }
 
-        return input_tensors.toOwnedSlice();
+        return input_tensors.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Clip) ![]*TensorZant {
-        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer output_tensors.deinit();
+        var output_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer output_tensors.deinit(allocator);
 
         // Append the single output tensor
-        try output_tensors.append(self.output);
+        try output_tensors.append(allocator, self.output);
 
-        return output_tensors.toOwnedSlice();
+        return output_tensors.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Clip, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Clip, writer: *std.Io.Writer) !void {
         // Create tensor string for input
         var input_tensor_string: []u8 = undefined;
         defer allocator.free(input_tensor_string);
@@ -163,7 +163,7 @@ pub const Clip = struct {
     /// Optimized write operation for quantized clip pattern.
     /// This should be called when we detect the pattern:
     /// DequantizeLinear -> Clip -> QuantizeLinear
-    pub fn write_op_quantized_pattern(input_quantized_tensor: *TensorZant, input_scale_tensor: *TensorZant, input_zero_point_tensor: *TensorZant, _: *TensorZant, output_scale_tensor: *TensorZant, output_zero_point_tensor: *TensorZant, min_val: f32, max_val: f32, writer: std.fs.File.Writer) !void {
+    pub fn write_op_quantized_pattern(input_quantized_tensor: *TensorZant, input_scale_tensor: *TensorZant, input_zero_point_tensor: *TensorZant, _: *TensorZant, output_scale_tensor: *TensorZant, output_zero_point_tensor: *TensorZant, min_val: f32, max_val: f32, writer: *std.Io.Writer) !void {
         // Helper to create tensor strings
         const createTensorStr = struct {
             fn call(tensor: *TensorZant) ![]u8 {

@@ -112,23 +112,23 @@ pub const MaxPool = struct {
     }
 
     pub fn get_input_tensors(self: MaxPool) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        try inputs.append(self.input_X);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        try inputs.append(allocator, self.input_X);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: MaxPool) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
-        try outputs.append(self.output_Y);
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
+        try outputs.append(allocator, self.output_Y);
         if (self.output_indices) |indices| {
-            try outputs.append(indices);
+            try outputs.append(allocator, indices);
         }
-        return outputs.toOwnedSlice();
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: MaxPool, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: MaxPool, writer: *std.Io.Writer) !void {
         //input_X string equivalent
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);

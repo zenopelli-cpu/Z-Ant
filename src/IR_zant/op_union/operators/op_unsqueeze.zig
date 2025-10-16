@@ -55,18 +55,18 @@ pub const Unsqueeze = struct {
     }
 
     pub fn get_input_tensors(self: Unsqueeze) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        try inputs.append(self.input_X);
-        try inputs.append(self.input_axes);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        try inputs.append(allocator, self.input_X);
+        try inputs.append(allocator, self.input_axes);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Unsqueeze) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
-        try outputs.append(self.output_Y);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
+        try outputs.append(allocator, self.output_Y);
+        return outputs.toOwnedSlice(allocator);
     }
 
     pub fn compute_output_shape(self: Unsqueeze) ![]usize {
@@ -83,7 +83,7 @@ pub const Unsqueeze = struct {
         std.debug.print("\n Unsqueeze: {any}", .{self});
     }
 
-    pub fn write_op(self: Unsqueeze, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Unsqueeze, writer: *std.Io.Writer) !void {
         // Input tensor string
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);

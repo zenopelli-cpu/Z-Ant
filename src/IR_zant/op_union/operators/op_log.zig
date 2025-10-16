@@ -53,20 +53,20 @@ pub const Log = struct {
     }
 
     pub fn get_input_tensors(self: Log) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        try inputs.append(self.input);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        try inputs.append(allocator, self.input);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Log) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
-        try outputs.append(self.output);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
+        try outputs.append(allocator, self.output);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Log, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Log, writer: *std.Io.Writer) !void {
         //----create tensor_input_string
         var tensor_input_string: []u8 = undefined;
         defer allocator.free(tensor_input_string);

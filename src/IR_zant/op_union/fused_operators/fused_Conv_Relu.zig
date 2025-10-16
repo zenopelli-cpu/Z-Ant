@@ -180,7 +180,7 @@ pub const Fused_Conv_Relu = struct {
         return try self.op_Relu.get_output_tensors();
     }
 
-    pub fn write_op(self: Fused_Conv_Relu, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Conv_Relu, writer: *std.Io.Writer) !void {
 
         //----create tensor_X_string
         var tensor_X_string: []u8 = undefined;
