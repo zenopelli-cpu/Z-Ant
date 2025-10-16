@@ -13,9 +13,9 @@ const ErrorDetail = struct {
     errorLoad: anyerror,
 };
 
-var models: std.ArrayList([]const u8) = std.ArrayList([]const u8).init(allocator);
-var failed_parsed_models: std.ArrayList(ErrorDetail) = std.ArrayList(ErrorDetail).init(allocator);
-var failed_write_op_models: std.ArrayList(ErrorDetail) = std.ArrayList(ErrorDetail).init(allocator);
+var models: std.ArrayList([]const u8) = .empty;
+var failed_parsed_models: std.ArrayList(ErrorDetail) = .empty;
+var failed_write_op_models: std.ArrayList(ErrorDetail) = .empty;
 
 test "Test write_op on all oneOp models" {
     std.debug.print("\n     test: Test write_op on all oneOp models\n", .{});
@@ -89,7 +89,7 @@ test "Test write_op on all oneOp models" {
         // Parse the model
         var model = onnx.parseFromFile(allocator, model_path) catch |err| {
             std.debug.print("\nError parsing model {s}: {any}\n", .{ model_name, err });
-            try failed_parsed_models.append(.{ .modelName = try allocator.dupe(u8, model_name), .errorLoad = err });
+            try failed_parsed_models.append(allocator, .{ .modelName = try allocator.dupe(u8, model_name), .errorLoad = err });
             continue;
         };
         defer model.deinit(allocator);
@@ -100,7 +100,7 @@ test "Test write_op on all oneOp models" {
         // Create GraphZant
         var graphZant = IR_zant.init(&model) catch |err| {
             std.debug.print("\nError creating graph for model {s}: {any}\n", .{ model_name, err });
-            try failed_parsed_models.append(.{ .modelName = try allocator.dupe(u8, model_name), .errorLoad = err });
+            try failed_parsed_models.append(allocator, .{ .modelName = try allocator.dupe(u8, model_name), .errorLoad = err });
             continue;
         };
         defer graphZant.deinit();
@@ -108,7 +108,7 @@ test "Test write_op on all oneOp models" {
         // Linearize the graph
         const linearizedGraph = graphZant.linearize(allocator) catch |err| {
             std.debug.print("\nError linearizing graph for model {s}: {any}\n", .{ model_name, err });
-            try failed_parsed_models.append(.{ .modelName = try allocator.dupe(u8, model_name), .errorLoad = err });
+            try failed_parsed_models.append(allocator, .{ .modelName = try allocator.dupe(u8, model_name), .errorLoad = err });
             continue;
         };
         defer linearizedGraph.deinit();
@@ -125,7 +125,7 @@ test "Test write_op on all oneOp models" {
             // Try to call write_op on this node
             node.write_op(writer) catch |err| {
                 std.debug.print("\n     ERROR: Failed to write_op for node {s} in model {s}: {any}\n", .{ node_name, model_name, err });
-                try failed_write_op_models.append(.{ .modelName = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ model_name, node_name }), .errorLoad = err });
+                try failed_write_op_models.append(allocator, .{ .modelName = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ model_name, node_name }), .errorLoad = err });
                 try writer.print("// ERROR: write_op failed with error: {any}\n", .{err});
                 continue;
             };
@@ -155,15 +155,15 @@ test "Test write_op on all oneOp models" {
     for (models.items) |name| {
         allocator.free(name);
     }
-    models.deinit();
+    models.deinit(allocator);
 
     for (failed_parsed_models.items) |item| {
         allocator.free(item.modelName);
     }
-    failed_parsed_models.deinit();
+    failed_parsed_models.deinit(allocator);
 
     for (failed_write_op_models.items) |item| {
         allocator.free(item.modelName);
     }
-    failed_write_op_models.deinit();
+    failed_write_op_models.deinit(allocator);
 }

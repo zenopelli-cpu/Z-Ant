@@ -87,10 +87,10 @@ pub fn main() !void {
 }
 
 fn get_operations() !std.ArrayList([]const u8) {
-    var op_list = std.ArrayList([]const u8).init(allocator);
+    var op_list: std.ArrayList([]const u8) = .empty;
 
     if (!std.mem.eql(u8, testing_options.op, "all")) {
-        try op_list.append(testing_options.op);
+        try op_list.append(allocator, testing_options.op);
     } else {
         //collecting available operations from tests/CodeGen/Python-ONNX/available_operations.txt
         std.debug.print("\n     opening available_operations...", .{});
@@ -133,7 +133,7 @@ fn get_operations() !std.ArrayList([]const u8) {
                 std.debug.print(" ############ Loading Operation: {s} ############\n", .{trimmed_line});
                 const copy = try allocator.alloc(u8, trimmed_line.len);
                 @memcpy(copy, trimmed_line);
-                try op_list.append(copy);
+                try op_list.append(allocator, copy);
             }
         }
     }

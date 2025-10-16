@@ -110,17 +110,17 @@ test "LowerAdd Pipeline" {
     }
 
     // 4. Render UOps to Zig code as a function
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-    const Writer = @TypeOf(buffer.writer());
-    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(allocator);
+    const Writer = @TypeOf(buffer.writer(allocator));
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer(allocator));
     defer renderer.deinit(); // Deinit renderer AFTER use
 
     // Specify which IDs are inputs
     const input_ids = &[_]usize{ A_id, B_id };
     try renderer.render_as_function(uops_list, input_ids); // Call the new method
 
-    const actual_code = try buffer.toOwnedSlice();
+    const actual_code = try buffer.toOwnedSlice(allocator);
     defer allocator.free(actual_code);
 
     std.debug.print("\n--- Generated Function ---\n{s}\n---------------------\n", .{actual_code});
@@ -214,17 +214,17 @@ test "LowerMatMul Pipeline" {
     }
 
     // 4. Render UOps to Zig code as a function
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-    const Writer = @TypeOf(buffer.writer());
-    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(allocator);
+    const Writer = @TypeOf(buffer.writer(allocator));
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer(allocator));
     defer renderer.deinit(); // Deinit renderer AFTER use
 
     // Specify which IDs are inputs
     const input_ids = &[_]usize{ A_id, B_id };
     try renderer.render_as_function(uops_list, input_ids); // Call the new method
 
-    const actual_code = try buffer.toOwnedSlice();
+    const actual_code = try buffer.toOwnedSlice(allocator);
     defer allocator.free(actual_code);
 
     std.debug.print("\n--- Generated Function (MatMul) ---\n{s}\n---------------------------------\n", .{actual_code});
@@ -398,16 +398,16 @@ test "LowerMaxPool2d Pipeline" {
     }
 
     // 4. Render UOps to Zig code as a function
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-    const Writer = @TypeOf(buffer.writer());
-    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(allocator);
+    const Writer = @TypeOf(buffer.writer(allocator));
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer(allocator));
     defer renderer.deinit();
 
     const input_ids = &[_]usize{A_id};
     try renderer.render_as_function(uops_list, input_ids);
 
-    const actual_code = try buffer.toOwnedSlice();
+    const actual_code = try buffer.toOwnedSlice(allocator);
     defer allocator.free(actual_code);
 
     std.debug.print("\n--- Generated Function (MaxPool2d) ---\n{s}\n-------------------------------------\n", .{actual_code});
@@ -557,16 +557,16 @@ test "LowerConv2d Pipeline" {
     }
 
     // 4. Render UOps to Zig code as a function
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-    const Writer = @TypeOf(buffer.writer());
-    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(allocator);
+    const Writer = @TypeOf(buffer.writer(allocator));
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer(allocator));
     defer renderer.deinit();
 
     const input_ids = &[_]usize{ X_id, W_id }; // X, W are inputs (Bias B_id removed)
     try renderer.render_as_function(uops_list, input_ids);
 
-    const actual_code = try buffer.toOwnedSlice();
+    const actual_code = try buffer.toOwnedSlice(allocator);
     defer allocator.free(actual_code);
 
     std.debug.print("\n--- Generated Function (Conv2d) ---\n{s}\n-----------------------------------\n", .{actual_code});
@@ -691,16 +691,16 @@ test "LowerNeg Pipeline" {
     }
 
     // 4. Render UOps to Zig code as a function
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-    const Writer = @TypeOf(buffer.writer());
-    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(allocator);
+    const Writer = @TypeOf(buffer.writer(allocator));
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer(allocator));
     defer renderer.deinit();
 
     const input_ids = &[_]usize{A_id};
     try renderer.render_as_function(uops_list, input_ids);
 
-    const actual_code = try buffer.toOwnedSlice();
+    const actual_code = try buffer.toOwnedSlice(allocator);
     defer allocator.free(actual_code);
 
     std.debug.print("\n--- Generated Function (Neg) ---\n{s}\n--------------------------------\n", .{actual_code});
@@ -813,16 +813,16 @@ test "LowerClip Pipeline with f32" {
     }
 
     // 4. Render UOps to Zig code as a function
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-    const Writer = @TypeOf(buffer.writer());
-    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(allocator);
+    const Writer = @TypeOf(buffer.writer(allocator));
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer(allocator));
     defer renderer.deinit();
 
     const input_ids = &[_]usize{A_id};
     try renderer.render_as_function(uops_list, input_ids);
 
-    const actual_code = try buffer.toOwnedSlice();
+    const actual_code = try buffer.toOwnedSlice(allocator);
     defer allocator.free(actual_code);
 
     std.debug.print("\n--- Generated Function (Clip) ---\n{s}\n--------------------------------\n", .{actual_code});
@@ -933,16 +933,16 @@ test "LowerClip Pipeline with u16" {
     }
 
     // 4. Render UOps to Zig code as a function
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-    const Writer = @TypeOf(buffer.writer());
-    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(allocator);
+    const Writer = @TypeOf(buffer.writer(allocator));
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer(allocator));
     defer renderer.deinit();
 
     const input_ids = &[_]usize{A_id};
     try renderer.render_as_function(uops_list, input_ids);
 
-    const actual_code = try buffer.toOwnedSlice();
+    const actual_code = try buffer.toOwnedSlice(allocator);
     defer allocator.free(actual_code);
 
     std.debug.print("\n--- Generated Function (Clip) ---\n{s}\n--------------------------------\n", .{actual_code});
@@ -1037,11 +1037,11 @@ test "LowerReshape Pipeline" {
         }
     }
 
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-    const Writer = @TypeOf(buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(allocator);
+    const Writer = @TypeOf(buffer.writer(allocator));
 
-    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer(allocator));
     defer renderer.deinit();
 
     const input_ids = &[_]usize{A_id};
@@ -1054,7 +1054,7 @@ test "LowerReshape Pipeline" {
         }
     }
 
-    const actual_code = try buffer.toOwnedSlice();
+    const actual_code = try buffer.toOwnedSlice(allocator);
     defer allocator.free(actual_code);
     std.debug.print("\n--- Generated Function (Reshape) ---\n{s}\n--------------------------------\n", .{actual_code});
     // 5. Save output to a file
@@ -1144,11 +1144,11 @@ test "LowerReshape Pipeline 2" {
         }
     }
 
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-    const Writer = @TypeOf(buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(allocator);
+    const Writer = @TypeOf(buffer.writer(allocator));
 
-    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer());
+    var renderer = ZigRenderer(Writer).init(allocator, buffer.writer(allocator));
     defer renderer.deinit();
 
     const input_ids = &[_]usize{A_id};
@@ -1159,7 +1159,7 @@ test "LowerReshape Pipeline 2" {
             allocator.free(val.arg.view_meta.strides);
         }
     }
-    const actual_code = try buffer.toOwnedSlice();
+    const actual_code = try buffer.toOwnedSlice(allocator);
     defer allocator.free(actual_code);
     std.debug.print("\n--- Generated Function (Reshape) ---\n{s}\n--------------------------------\n", .{actual_code});
     // 5. Save output to a file

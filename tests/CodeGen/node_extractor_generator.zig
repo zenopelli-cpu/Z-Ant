@@ -87,7 +87,7 @@ pub fn main() !void {
 
 // Function to get all .onnx files in a given path
 fn get_extracted_models(path: []const u8) !std.ArrayList([]const u8) {
-    var model_list = std.ArrayList([]const u8).init(allocator);
+    var model_list: std.ArrayList([]const u8) = .empty;
 
     var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |err| {
         std.debug.print("Could not open directory: {s}, error: {}\n", .{ path, err });
@@ -99,7 +99,7 @@ fn get_extracted_models(path: []const u8) !std.ArrayList([]const u8) {
     while (try iterator.next()) |entry| {
         if (entry.kind == .file and std.mem.endsWith(u8, entry.name, ".onnx")) {
             const filename = try allocator.dupe(u8, entry.name[0 .. entry.name.len - 5]);
-            try model_list.append(filename);
+            try model_list.append(allocator, filename);
         }
     }
 
