@@ -175,12 +175,12 @@ pub const Fused_Pad_Conv = struct {
         // Set the successor nodes if it hasn't been done yet
         if (fused_node.next.items.len == 0) {
             for (last_node.next.items) |successor| {
-                try fused_node.next.append(successor);
+                try fused_node.next.append(allocator, successor);
             }
         }
 
         try graph.removeNodes(node_list);
-        try graph.nodes.append(fused_node);
+        try graph.nodes.append(allocator, fused_node);
     }
 
     pub fn get_output_shape(self: Fused_Pad_Conv) []usize {

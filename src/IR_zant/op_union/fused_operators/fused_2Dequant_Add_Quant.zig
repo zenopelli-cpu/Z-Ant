@@ -108,8 +108,8 @@ pub const Fused_2Dequant_Add_Quant = struct {
         errdefer node_list.deinit(allocator);
 
         // Get predecessors of the Add node
-        const predecessors = try graph.get_predecessors(root_node);
-        defer predecessors.deinit(allocator);
+        var predecessors = try graph.get_predecessors(root_node);
+        defer predecessors.deinit(zant.utils.allocator.allocator);
 
         // We need exactly 2 predecessors for binary Add operation
         if (predecessors.items.len != 2) {
@@ -228,7 +228,7 @@ pub const Fused_2Dequant_Add_Quant = struct {
         try graph.removeNodes(node_list);
 
         // Step 5: Add fused node to graph
-        try graph.nodes.append(fused_node);
+        try graph.nodes.append(allocator, fused_node);
     }
 
     // Helper functions matching the interface

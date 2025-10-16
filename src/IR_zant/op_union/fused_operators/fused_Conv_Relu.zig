@@ -137,7 +137,7 @@ pub const Fused_Conv_Relu = struct {
         if (fused_node.next.items.len == 0) {
             // Copy the last node's successors to the fused node
             for (last_node.next.items) |successor| {
-                try fused_node.next.append(successor);
+                try fused_node.next.append(allocator, successor);
             }
         }
 
@@ -145,7 +145,7 @@ pub const Fused_Conv_Relu = struct {
         try graph.removeNodes(node_list);
 
         // Step 5: Add the fused_node to the graph's node list
-        try graph.nodes.append(fused_node);
+        try graph.nodes.append(allocator, fused_node);
 
         // //This is a delicate step, read carrefully!!
         // //for each successor sobtitute the input equal to old last_node output wiht the new output of the fusion

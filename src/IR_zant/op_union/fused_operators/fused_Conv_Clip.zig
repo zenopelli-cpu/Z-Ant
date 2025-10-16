@@ -440,7 +440,7 @@ pub const Fused_Conv_Clip = struct {
         // Step 3: Set up fused node's successors
         if (fused_node.next.items.len == 0) {
             for (last_node.next.items) |successor| {
-                try fused_node.next.append(successor);
+                try fused_node.next.append(allocator, successor);
             }
         }
 
@@ -448,6 +448,6 @@ pub const Fused_Conv_Clip = struct {
         try graph.removeNodes(node_list);
 
         // Step 5: Add fused node to graph
-        try graph.nodes.append(fused_node);
+        try graph.nodes.append(allocator, fused_node);
     }
 };
