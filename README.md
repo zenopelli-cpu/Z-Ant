@@ -50,7 +50,7 @@ Beer model timing (QEMU, Cortex-M55):
 
 Prerequisites
 
-- [Zig 0.15.x](https://ziglang.org/learn/getting-started/) _(run `./scripts/install_zig.sh` to fetch a local copy; set `ZIG_DOWNLOAD_URL=file:///absolute/path/to/zig-linux-x86_64-0.14.0.tar.xz` when working from a pre-downloaded archive)_
+- [Zig 0.15.x](https://ziglang.org/learn/getting-started/) _(run `./scripts/install_zig.sh` to fetch a local copy; set `ZIG_DOWNLOAD_URL=file:///absolute/path/to/zig-linux-x86_64-0.15.2.tar.xz` when working from a pre-downloaded archive)_
 - `qemu-system-arm` 7.2+ _(install via `./scripts/install_qemu.sh` or your platform package manager when running the STM32 N6 QEMU harness)_
 
 ### Get Started in 2 Minutes
