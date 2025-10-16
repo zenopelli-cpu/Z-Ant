@@ -53,10 +53,10 @@ jobs:
         with:
           name: onnx-models
 
-      - name: Set up Zig 0.14.0
+      - name: Set up Zig 0.15.2
         uses: mlugg/setup-zig@v1
         with:
-          version: 0.14.0
+          version: 0.15.2
 
       - name: Generate OneOp codegen for ${{ matrix.operation }}
         run: zig build op-codegen-gen -Dop=${{ matrix.operation }}
