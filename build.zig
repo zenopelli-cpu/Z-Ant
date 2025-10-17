@@ -30,6 +30,17 @@ pub fn build(b: *std.Build) void {
     target = b.resolveTargetQuery(target_query);
     optimize = b.standardOptimizeOption(.{});
 
+    const use_bfs = b.option(bool, "bfs", "use BFS instead of DFS  for graph linearization (DFS default)") orelse false;
+
+    const build_options = b.addOptions();
+    build_options.addOption(bool, "use_bfs", use_bfs);
+
+    if (use_bfs) {
+        std.log.scoped(.build).info("graph trasversal: BFS", .{});
+    } else {
+        std.log.scoped(.build).info("graph trasversal: DFS", .{});
+    }
+
     // ************************************************ UNIT TESTS **************************************************
     // $ zig build test --summary all
     unit_test_creation(b, zantBuild);
@@ -44,11 +55,11 @@ pub fn build(b: *std.Build) void {
 
     // ************************************************ GENERATED LIBRARY TESTS **************************************
     // $ zig build lib-test -Dmodel="myModel" ...
-    lib_test(b, zantBuild);
+    lib_test(b, zantBuild, build_options);
 
     // ************************************************ STATIC LIBRARY CREATION **************************************
     // $ zig build lib -Dmodel="myModel" [ -Dtarget=... -Dcpu=... -Doptimize=[ReleaseSmall, ReleaseFast]]
-    const static_lib: *std.Build.Step.Compile = lib_creation(b, zantBuild) catch unreachable;
+    const static_lib: *std.Build.Step.Compile = lib_creation(b, zantBuild, build_options) catch unreachable;
 
     // ************************************************ ONEOP CODEGEN ************************************************
     // $ zig build op-codegen-gen [ -Dop="OpName" ]
@@ -176,7 +187,7 @@ inline fn lib_exe(b: *std.Build, zantBuild: ZantBuild) void {
     model_exe_step.dependOn(&model_exe_cmd.step);
 }
 
-inline fn lib_test(b: *std.Build, zantBuild: ZantBuild) void {
+inline fn lib_test(b: *std.Build, zantBuild: ZantBuild, build_options: *std.Build.Step.Options) void {
     //
     // OPTIONS: see codegen_options
     //
@@ -196,6 +207,8 @@ inline fn lib_test(b: *std.Build, zantBuild: ZantBuild) void {
         .optimize = .Debug,
     });
 
+    test_generated_lib.root_module.addOptions("build_options", build_options);
+
     if (zantBuild.zantOptions.stm32n6_flags.stm32n6_accel) build_utils.configureStm32n6Support(
         b,
         test_generated_lib,
@@ -212,7 +225,7 @@ inline fn lib_test(b: *std.Build, zantBuild: ZantBuild) void {
     test_step_generated_lib.dependOn(&run_test_generated_lib.step);
 }
 
-inline fn lib_creation(b: *std.Build, zantBuild: ZantBuild) !*std.Build.Step.Compile {
+inline fn lib_creation(b: *std.Build, zantBuild: ZantBuild, build_options: *std.Build.Step.Options) !*std.Build.Step.Compile {
     const lib_model_path = std.fmt.allocPrint(b.allocator, "{s}lib_{s}.zig", .{ zantBuild.zantOptions.codegen_flags.generated_path_option, zantBuild.zantOptions.codegen_flags.model_name_option }) catch |err| {
         std.log.scoped(.build).warn("Error allocating lib model path: {}\n", .{err});
         return err;
@@ -224,6 +237,8 @@ inline fn lib_creation(b: *std.Build, zantBuild: ZantBuild) !*std.Build.Step.Com
         .target = target,
         .optimize = optimize,
     });
+
+    static_lib.root_module.addOptions("build_options", build_options);
 
     if (zantBuild.zantOptions.stm32n6_flags.stm32n6_accel) build_utils.configureStm32n6Support(
         b,

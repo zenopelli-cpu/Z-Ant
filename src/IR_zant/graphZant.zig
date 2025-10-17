@@ -18,13 +18,14 @@ const onnx = zant.onnx;
 const pattern_matcher = @import("fusion/pattern_matcher.zig");
 const PatternConfig = pattern_matcher.PatternConfig;
 
-//flag per scegliere il tipo di algoritmo da eseguire DFS o BFS
-pub const algoritmo = enum {
-    DFS,
-    BFS,
-};
+//import biuld opsion
+const build_option = @import("build_options");
 
-pub var algoritmo_scelto: algoritmo = .DFS;
+const use_bfs = if (@hasDecl(build_option, "use_bfs")) {
+    build_option.use_bfs;
+} else {
+    false;
+};
 
 pub const GraphZant = struct {
     name: ?[]const u8,
@@ -155,15 +156,16 @@ pub const GraphZant = struct {
         try pattern_matcher.fusePatterns(self, pattern_configs);
     }
 
-    //linearize che sceglie quale algoritmo scegliere (BFS o DFS)
+    //choose BFS or DFS linearization
     pub fn linearize(self: *GraphZant, alloc: std.mem.Allocator) !std.ArrayList(*NodeZant) {
-        return switch (algoritmo_scelto) {
-            .DFS => try self.linearize_dfs(alloc),
-            .BFS => try self.linearize_bfs(alloc),
-        };
+        if (use_bfs) {
+            return try self.linearize_bfs(alloc);
+        } else {
+            return try self.linearize_dfs(alloc);
+        }
     }
 
-    // linearize the graph
+    // linearize the graph with DFS
     pub fn linearize_dfs(self: *GraphZant, alloc: std.mem.Allocator) !std.ArrayList(*NodeZant) {
         var visited = std.AutoHashMap(*NodeZant, bool).init(alloc);
         var result = std.ArrayList(*NodeZant).init(alloc);
@@ -194,7 +196,7 @@ pub const GraphZant = struct {
         try result.append(node);
     }
 
-    //linearizza il grafo usnado BFS
+    // linearize the graph with DFS
     pub fn linearize_bfs(self: *GraphZant, alloc: std.mem.Allocator) !std.ArrayList(*NodeZant) {
         var visited = std.AutoArrayHashMap(*NodeZant, bool).init(alloc);
         defer visited.deinit();
