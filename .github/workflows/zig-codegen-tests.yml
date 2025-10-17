@@ -53,10 +53,10 @@ jobs:
         with:
           name: onnx-models
 
-      - name: Set up Zig 0.14.0
-        uses: mlugg/setup-zig@v1
+      - name: Set up Zig 0.15.2
+        uses: goto-bus-stop/setup-zig@v2
         with:
-          version: 0.14.0
+          version: 0.15.2
 
       - name: Generate OneOp codegen for ${{ matrix.operation }}
         run: zig build op-codegen-gen -Dop=${{ matrix.operation }}
@@ -92,10 +92,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r tests/CodeGen/Python-ONNX/requirements.txt
 
-      - name: Set up Zig 0.14.0
+      - name: Set up Zig 0.15.2
         uses: mlugg/setup-zig@v1
         with:
-          version: 0.14.0
+          version: 0.15.2
 
       - name: Generate test data for ${{ matrix.model }}
         run: ./zant user_tests_gen --model ${{ matrix.model }}
@@ -136,10 +136,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r tests/CodeGen/Python-ONNX/requirements.txt
 
-      - name: Set up Zig 0.14.0
-        uses: mlugg/setup-zig@v1
+      - name: Set up Zig 0.15.2
+        uses: goto-bus-stop/setup-zig@v2
         with:
-          version: 0.14.0
+          version: 0.15.2
 
       - name: Extract nodes from ${{ matrix.model }}
         run: |
@@ -182,10 +182,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r tests/CodeGen/Python-ONNX/requirements.txt
 
-      - name: Set up Zig 0.14.0
-        uses: mlugg/setup-zig@v1
+      - name: Set up Zig 0.15.2
+        uses: goto-bus-stop/setup-zig@v2
         with:
-          version: 0.14.0
+          version: 0.15.2
 
       - name: Prepare model for cross-platform test
         run: |
