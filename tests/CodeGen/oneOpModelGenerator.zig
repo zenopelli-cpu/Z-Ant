@@ -24,12 +24,13 @@ pub fn main() !void {
     const test_oneop_file = try std.fs.cwd().createFile("generated/oneOpModels/test_oneop_models.zig", .{});
     defer test_oneop_file.close();
 
-    const test_oneop_writer = test_oneop_file.writer();
-
-    try test_oneop_writer.writeAll("const std = @import(\"std\");\n");
-    try test_oneop_writer.writeAll("\n");
-    try test_oneop_writer.writeAll("test {");
-    try test_oneop_writer.writeAll("\n");
+    var test_oneop_file_buffer: [1024]u8 = undefined;
+    var test_oneop_writer = test_oneop_file.writer(&test_oneop_file_buffer);
+    const writer = &test_oneop_writer.interface;
+    try writer.writeAll("const std = @import(\"std\");\n");
+    try writer.writeAll("\n");
+    try writer.writeAll("test {");
+    try writer.writeAll("\n");
 
     //retrive the operations I want to test
     const operations = try get_operations();
@@ -76,14 +77,16 @@ pub fn main() !void {
         std.debug.print("Written user test for {s}", .{op_name});
 
         // Add relative one op test to global tests file
-        try test_oneop_writer.print("\t _ = @import(\"{s}/test_{s}.zig\"); \n", .{ op_name, op_name });
+        try writer.print("\t _ = @import(\"{s}/test_{s}.zig\"); \n", .{ op_name, op_name });
 
         //try codeGen.globals.setGlobalAttributes(model);
         model.deinit(allocator);
     }
 
     // Adding last global test line
-    try test_oneop_writer.writeAll("} \n\n");
+    try writer.writeAll("} \n\n");
+
+    try writer.flush();
 }
 
 fn get_operations() !std.ArrayList([]const u8) {

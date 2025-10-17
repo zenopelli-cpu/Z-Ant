@@ -83,7 +83,9 @@ test "Test write_op on all oneOp models" {
         defer allocator.free(temp_file_path);
         var file = try std.fs.cwd().createFile(temp_file_path, .{});
 
-        var writer = file.writer();
+        var file_writer_buffer: [4096]u8 = undefined;
+        var file_writer = file.writer(&file_writer_buffer);
+        const writer = &file_writer.interface;
         try writer.writeAll("// Generated test file \n");
 
         // Parse the model
