@@ -20,9 +20,9 @@ const TensorError = error_handler.TensorError;
 const ArgumentError = error_handler.ArgumentError;
 const TensorProto = zant.onnx.TensorProto;
 
-pub var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
+pub var log_function: ?*const fn ([*c]u8) callconv(.c) void = null;
 
-pub fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {
+pub fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.c) void) void {
     log_function = func;
 }
 
@@ -881,7 +881,7 @@ pub fn Tensor(comptime T: type) type {
 
                 // Log size
                 if (std.fmt.bufPrint(&buffer, "Tensor size: {}\n", .{self.size})) |msg| {
-                    log(@constCast(@ptrCast(&buffer[0..msg.len])));
+                    log(@ptrCast(@constCast(&buffer[0..msg.len])));
                 } else |_| return;
 
                 // Log shape
@@ -899,7 +899,7 @@ pub fn Tensor(comptime T: type) type {
                     }
                 }
                 if (std.fmt.bufPrint(&buffer, "Tensor shape: [{s}]\n", .{shape_str[0..shape_pos]})) |msg| {
-                    log(@constCast(@ptrCast(&buffer[0..msg.len])));
+                    log(@ptrCast(@constCast(&buffer[0..msg.len])));
                 } else |_| return;
 
                 // Log data
@@ -923,7 +923,7 @@ pub fn Tensor(comptime T: type) type {
                     } else |_| return;
                 }
                 if (std.fmt.bufPrint(&buffer, "Tensor data: [{s}]\n", .{data_str[0..data_pos]})) |msg| {
-                    log(@constCast(@ptrCast(&buffer[0..msg.len])));
+                    log(@ptrCast(@constCast(&buffer[0..msg.len])));
                 } else |_| return;
             }
         }

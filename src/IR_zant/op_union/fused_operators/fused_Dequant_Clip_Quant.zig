@@ -89,38 +89,38 @@ pub const Fused_Dequant_Clip_Quant = struct {
             return null;
         }
 
-        var node_list = std.ArrayList(*NodeZant).init(allocator);
-        errdefer node_list.deinit();
+        var node_list: std.ArrayList(*NodeZant) = .empty;
+        errdefer node_list.deinit(allocator);
 
-        try node_list.append(root_node);
+        try node_list.append(allocator, root_node);
 
         // Check DequantizeLinear -> Clip
         if (root_node.next.items.len != 1) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         const clip_node = root_node.next.items[0];
         if (clip_node.op != .clip) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
-        try node_list.append(clip_node);
+        try node_list.append(allocator, clip_node);
 
         // Check Clip -> QuantizeLinear
         if (clip_node.next.items.len != 1) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         const quant_node = clip_node.next.items[0];
         if (quant_node.op != .quantizeLinear) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
-        try node_list.append(quant_node);
+        try node_list.append(allocator, quant_node);
         std.debug.print(" -> Found complete DequantizeLinear->Clip->QuantizeLinear pattern!", .{});
 
         return node_list;
@@ -139,9 +139,9 @@ pub const Fused_Dequant_Clip_Quant = struct {
         const last_node = node_list.items[2]; // QuantizeLinear node
 
         // Clone the next list instead of direct reference
-        var cloned_next = std.ArrayList(*NodeZant).init(allocator);
+        var cloned_next: std.ArrayList(*NodeZant) = .empty;
         for (last_node.next.items) |next_node| {
-            try cloned_next.append(next_node);
+            try cloned_next.append(allocator, next_node);
         }
 
         return NodeZant{
@@ -178,7 +178,7 @@ pub const Fused_Dequant_Clip_Quant = struct {
         // Step 3: Set up fused node's successors
         if (fused_node.next.items.len == 0) {
             for (last_node.next.items) |successor| {
-                try fused_node.next.append(successor);
+                try fused_node.next.append(allocator, successor);
             }
         }
 
@@ -186,7 +186,7 @@ pub const Fused_Dequant_Clip_Quant = struct {
         try graph.removeNodes(node_list);
 
         // Step 5: Add fused node to graph
-        try graph.nodes.append(fused_node);
+        try graph.nodes.append(allocator, fused_node);
     }
 
     // Helper functions matching the interface
@@ -196,30 +196,30 @@ pub const Fused_Dequant_Clip_Quant = struct {
     }
 
     pub fn get_input_tensors(self: Fused_Dequant_Clip_Quant) anyerror![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.op_DequantizeLinear.x);
-        try inputs.append(self.op_DequantizeLinear.x_scale);
+        try inputs.append(allocator, self.op_DequantizeLinear.x);
+        try inputs.append(allocator, self.op_DequantizeLinear.x_scale);
         if (self.op_DequantizeLinear.x_zero_point) |zp| {
-            try inputs.append(zp);
+            try inputs.append(allocator, zp);
         }
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Fused_Dequant_Clip_Quant) anyerror![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.op_QuantizeLinear.y);
-        return outputs.toOwnedSlice();
+        try outputs.append(allocator, self.op_QuantizeLinear.y);
+        return outputs.toOwnedSlice(allocator);
     }
 
     /// Optimized write operation for quantized clip pattern.
     /// This should be called when we detect the pattern:
     /// DequantizeLinear -> Clip -> QuantizeLinear
-    pub fn write_op(self: Fused_Dequant_Clip_Quant, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Dequant_Clip_Quant, writer: *std.Io.Writer) !void {
         // Extract clip bounds from the clip operation
         var min_val: f32 = 0.0;
         var max_val: f32 = std.math.floatMax(f32);
@@ -259,7 +259,7 @@ pub const Fused_Dequant_Clip_Quant = struct {
         output_zero_point_tensor: *TensorZant,
         min_val: f32,
         max_val: f32,
-        writer: std.fs.File.Writer,
+        writer: *std.Io.Writer,
     ) !void {
         _ = self; // Self is not used in this static-like function
 

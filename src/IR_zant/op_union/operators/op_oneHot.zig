@@ -70,23 +70,23 @@ pub const OneHot = struct {
     }
 
     pub fn get_input_tensors(self: OneHot) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.indices);
-        try inputs.append(self.depth);
-        try inputs.append(self.values);
+        try inputs.append(allocator, self.indices);
+        try inputs.append(allocator, self.depth);
+        try inputs.append(allocator, self.values);
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: OneHot) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.output);
+        try outputs.append(allocator, self.output);
 
-        return outputs.toOwnedSlice();
+        return outputs.toOwnedSlice(allocator);
     }
 
     pub fn compute_output_shape(self: OneHot) []usize {
@@ -99,7 +99,7 @@ pub const OneHot = struct {
         return output_shape;
     }
 
-    pub fn write_op(self: OneHot, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: OneHot, writer: *std.Io.Writer) !void {
         //----create indices string
         var indices_string: []u8 = undefined;
         defer allocator.free(indices_string);

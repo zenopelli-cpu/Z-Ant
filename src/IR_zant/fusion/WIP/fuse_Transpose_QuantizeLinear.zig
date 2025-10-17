@@ -56,7 +56,7 @@
 //     };
 // }
 
-// fn write_transpose_quantize_fused(writer: std.fs.File.Writer, pat: TransposeQuantizePatternResult) !void {
+// fn write_transpose_quantize_fused(writer: *std.Io.Writer, pat: TransposeQuantizePatternResult) !void {
 //     if (!pat.detected) return;
 
 //     const in_name = try pat.input_tensor.?.getNameSanitized();

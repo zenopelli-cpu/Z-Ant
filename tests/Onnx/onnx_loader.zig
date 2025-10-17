@@ -18,8 +18,8 @@ test " Onnx loader" {
     defer arena_state.deinit();
     const arena = arena_state.allocator();
 
-    var failed_parsed_models = std.ArrayList(ErrorDetail).init(allocator);
-    defer failed_parsed_models.deinit();
+    var failed_parsed_models: std.ArrayList(ErrorDetail) = .empty;
+    defer failed_parsed_models.deinit(allocator);
 
     var dir = try std.fs.cwd().openDir("datasets/models", .{ .iterate = true });
     defer dir.close();
@@ -39,7 +39,7 @@ test " Onnx loader" {
                 .modelName = model_name,
                 .errorLoad = err,
             };
-            try failed_parsed_models.append(errorDetail);
+            try failed_parsed_models.append(allocator, errorDetail);
             continue;
         };
         defer model.deinit(allocator);

@@ -53,20 +53,20 @@ pub const Sigmoid = struct {
     }
 
     pub fn get_input_tensors(self: Sigmoid) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        try inputs.append(self.input_X);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        try inputs.append(allocator, self.input_X);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Sigmoid) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
-        try outputs.append(self.output_Y);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
+        try outputs.append(allocator, self.output_Y);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Sigmoid, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Sigmoid, writer: *std.Io.Writer) !void {
         //----create tensor_X_string
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);

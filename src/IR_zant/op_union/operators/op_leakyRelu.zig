@@ -58,24 +58,24 @@ pub const LeakyRelu = struct {
     }
 
     pub fn get_input_tensors(self: LeakyRelu) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.input_X);
+        try inputs.append(allocator, self.input_X);
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: LeakyRelu) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.output_Y);
+        try outputs.append(allocator, self.output_Y);
 
-        return outputs.toOwnedSlice();
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: LeakyRelu, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: LeakyRelu, writer: *std.Io.Writer) !void {
         // Create input tensor string
         var input_tensor_string: []u8 = undefined;
         defer allocator.free(input_tensor_string);

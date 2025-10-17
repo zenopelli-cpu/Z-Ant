@@ -24,7 +24,7 @@ extern fn zant_stm32n6_conv_f32(
     group: usize,
     filters_per_group: usize,
     channels_per_group: usize,
-) callconv(.C) bool;
+) callconv(.c) bool;
 
 extern fn zant_stm32n6_conv_f32_helium(
     input_ptr: [*c]const f32,
@@ -41,7 +41,7 @@ extern fn zant_stm32n6_conv_f32_helium(
     group: usize,
     filters_per_group: usize,
     channels_per_group: usize,
-) callconv(.C) bool;
+) callconv(.c) bool;
 
 extern fn zant_stm32n6_conv_f32_ethos(
     input_ptr: [*c]const f32,
@@ -58,12 +58,12 @@ extern fn zant_stm32n6_conv_f32_ethos(
     group: usize,
     filters_per_group: usize,
     channels_per_group: usize,
-) callconv(.C) bool;
+) callconv(.c) bool;
 
-extern fn zant_stm32n6_reset_test_state() callconv(.C) void;
-extern fn zant_stm32n6_cmsis_was_used() callconv(.C) bool;
-extern fn zant_stm32n6_mark_cmsis_used() callconv(.C) void;
-extern fn zant_stm32n6_ethos_was_used() callconv(.C) bool;
+extern fn zant_stm32n6_reset_test_state() callconv(.c) void;
+extern fn zant_stm32n6_cmsis_was_used() callconv(.c) bool;
+extern fn zant_stm32n6_mark_cmsis_used() callconv(.c) void;
+extern fn zant_stm32n6_ethos_was_used() callconv(.c) bool;
 
 inline fn archSupported() bool {
     if (force_native) return true;

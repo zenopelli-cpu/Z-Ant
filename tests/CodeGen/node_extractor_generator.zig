@@ -29,12 +29,14 @@ pub fn main() !void {
     //check and retrive
     const mini_models = try get_extracted_models(models_dir);
 
-    const test_minimodels_writer = test_minimodels_file.writer();
+    var test_minimodels_buffer: [1024]u8 = undefined;
+    var test_minimodels_writer = test_minimodels_file.writer(&test_minimodels_buffer);
+    const writer = &test_minimodels_writer.interface;
 
-    try test_minimodels_writer.writeAll("const std = @import(\"std\");\n");
-    try test_minimodels_writer.writeAll("\n");
-    try test_minimodels_writer.writeAll("test {");
-    try test_minimodels_writer.writeAll("\n");
+    try writer.writeAll("const std = @import(\"std\");\n");
+    try writer.writeAll("\n");
+    try writer.writeAll("test {");
+    try writer.writeAll("\n");
 
     std.debug.print("\n --- {} models are present \n", .{mini_models.items.len});
 
@@ -75,19 +77,19 @@ pub fn main() !void {
         std.debug.print("Written user test for {s}", .{model_name});
 
         // Add relative one op test to global tests file
-        try test_minimodels_writer.print("\t _ = @import(\"{s}/test_{s}.zig\"); \n", .{ model_name, model_name });
+        try writer.print("\t _ = @import(\"{s}/test_{s}.zig\"); \n", .{ model_name, model_name });
 
         //try codeGen.globals.setGlobalAttributes(model);
         model.deinit(allocator);
     }
 
     // Adding last global test line
-    try test_minimodels_writer.writeAll("} \n\n");
+    try writer.writeAll("} \n\n");
 }
 
 // Function to get all .onnx files in a given path
 fn get_extracted_models(path: []const u8) !std.ArrayList([]const u8) {
-    var model_list = std.ArrayList([]const u8).init(allocator);
+    var model_list: std.ArrayList([]const u8) = .empty;
 
     var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |err| {
         std.debug.print("Could not open directory: {s}, error: {}\n", .{ path, err });
@@ -99,7 +101,7 @@ fn get_extracted_models(path: []const u8) !std.ArrayList([]const u8) {
     while (try iterator.next()) |entry| {
         if (entry.kind == .file and std.mem.endsWith(u8, entry.name, ".onnx")) {
             const filename = try allocator.dupe(u8, entry.name[0 .. entry.name.len - 5]);
-            try model_list.append(filename);
+            try model_list.append(allocator, filename);
         }
     }
 

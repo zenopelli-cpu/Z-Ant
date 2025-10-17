@@ -118,7 +118,7 @@ pub const Cast = struct {
         return tensors;
     }
 
-    pub fn write_op(op: *const Cast, writer: std.fs.File.Writer) !void {
+    pub fn write_op(op: *const Cast, writer: *std.Io.Writer) !void {
         // Create tensor string for input
         var tensor_input_string: []u8 = undefined;
         defer allocator.free(tensor_input_string);

@@ -39,8 +39,8 @@ pub const SparseTensorProto = struct {
             .dims = &[_]i64{},
         };
 
-        var dim_list = std.ArrayList(i64).init(reader.allocator);
-        defer dim_list.deinit();
+        var dim_list: std.ArrayList(i64) = .empty;
+        defer dim_list.deinit(reader.allocator);
 
         while (reader.hasMore()) {
             const sp_tag = try reader.readTag();
@@ -60,7 +60,7 @@ pub const SparseTensorProto = struct {
                 },
                 3 => {
                     const d = try reader.readVarint();
-                    try dim_list.append(@intCast(d));
+                    try dim_list.append(reader.allocator, @intCast(d));
                 },
                 else => {
                     onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for sparseTensorProto\n\n ", .{sp_tag});
@@ -68,7 +68,7 @@ pub const SparseTensorProto = struct {
                 },
             }
         }
-        sp_tensor.dims = try dim_list.toOwnedSlice();
+        sp_tensor.dims = try dim_list.toOwnedSlice(reader.allocator);
 
         return sp_tensor;
     }

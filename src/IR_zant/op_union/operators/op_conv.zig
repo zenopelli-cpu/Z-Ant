@@ -105,27 +105,27 @@ pub const Conv = struct {
     }
 
     pub fn get_input_tensors(self: Conv) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.input_X);
-        try inputs.append(self.input_W);
+        try inputs.append(allocator, self.input_X);
+        try inputs.append(allocator, self.input_W);
         if (self.input_B) |bias| {
-            try inputs.append(bias);
+            try inputs.append(allocator, bias);
         }
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Conv) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.output_Y);
-        return outputs.toOwnedSlice();
+        try outputs.append(allocator, self.output_Y);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Conv, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Conv, writer: *std.Io.Writer) !void {
 
         //----create tensor_X_string
         var tensor_X_string: []u8 = undefined;

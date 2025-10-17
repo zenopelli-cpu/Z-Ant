@@ -69,27 +69,27 @@ pub const ReduceMean = struct {
     }
 
     pub fn get_input_tensors(self: ReduceMean) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.data);
+        try inputs.append(allocator, self.data);
         if (self.axes) |axes| {
-            try inputs.append(axes);
+            try inputs.append(allocator, axes);
         }
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: ReduceMean) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.reduced);
+        try outputs.append(allocator, self.reduced);
 
-        return outputs.toOwnedSlice();
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: ReduceMean, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: ReduceMean, writer: *std.Io.Writer) !void {
 
         // Create input tensor string
         var input_tensor_string: []u8 = undefined;

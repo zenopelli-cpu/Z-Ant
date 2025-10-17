@@ -261,31 +261,31 @@ pub inline fn i64SliceToUsizeSlice(input: []const i64) ![]usize {
 }
 
 pub fn i64SliceToUsizeArrayString(values: []const i64) ![]const u8 {
-    var list = std.ArrayList(u8).init(allocator);
-    defer list.deinit(); // Frees all memory
+    var list: std.ArrayList(u8) = .empty;
+    defer list.deinit(allocator); // Frees all memory
 
-    try list.appendSlice("&[_]usize{");
+    try list.appendSlice(allocator, "&[_]usize{");
     for (values, 0..) |val, i| {
-        if (i > 0) try list.append(',');
-        try list.writer().print("{}", .{val});
+        if (i > 0) try list.append(allocator, ',');
+        try list.writer(allocator).print("{}", .{val});
     }
-    try list.append('}');
+    try list.append(allocator, '}');
 
-    return try list.toOwnedSlice(); // Caller must free this!
+    return try list.toOwnedSlice(allocator); // Caller must free this!
 }
 
 pub fn i64SliceToi64ArrayString(values: []const i64) ![]const u8 {
-    var list = std.ArrayList(u8).init(allocator);
-    defer list.deinit(); // Frees all memory
+    var list: std.ArrayList(u8) = .empty;
+    defer list.deinit(allocator); // Frees all memory
 
-    try list.appendSlice("&[_]i64{");
+    try list.appendSlice(allocator, "&[_]i64{");
     for (values, 0..) |val, i| {
-        if (i > 0) try list.append(',');
-        try list.writer().print("{}", .{val});
+        if (i > 0) try list.append(allocator, ',');
+        try list.writer(allocator).print("{}", .{val});
     }
-    try list.append('}');
+    try list.append(allocator, '}');
 
-    return try list.toOwnedSlice(); // Caller must free this!
+    return try list.toOwnedSlice(allocator); // Caller must free this!
 }
 
 pub fn usizeSliceToI64Slice(input: []usize) ![]const i64 {
@@ -477,82 +477,82 @@ pub fn broadcastShapes(general_allocator: std.mem.Allocator, shape1: []usize, sh
 }
 
 pub fn getInitializers(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
-    var initializers = std.ArrayList(TensorZant).init(allocator);
+    var initializers: std.ArrayList(TensorZant) = .empty;
     var it = hashMap.iterator();
     while (it.next()) |entry| {
         if (entry.value_ptr.tc == TensorCategory.INITIALIZER) {
-            try initializers.append(entry.value_ptr.*);
+            try initializers.append(allocator, entry.value_ptr.*);
         }
     }
-    return initializers.toOwnedSlice();
+    return initializers.toOwnedSlice(allocator);
 }
 
 pub fn getConstants(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
-    var constants = std.ArrayList(TensorZant).init(allocator);
+    var constants: std.ArrayList(TensorZant) = .empty;
     var it = hashMap.iterator();
     while (it.next()) |entry| {
         if (entry.value_ptr.tc == TensorCategory.CONSTANT) {
-            try constants.append(entry.value_ptr.*);
+            try constants.append(allocator, entry.value_ptr.*);
         }
     }
-    return constants.toOwnedSlice();
+    return constants.toOwnedSlice(allocator);
 }
 
 // Returns all the tensor tagged as Linkers (.LINK) in the global HashMap.
 // A linker tensor is a tensor connectingg two nodes.
 pub fn getLinkers(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
-    var linkers = std.ArrayList(TensorZant).init(allocator);
+    var linkers: std.ArrayList(TensorZant) = .empty;
     var it = hashMap.iterator();
     while (it.next()) |entry| {
         if (entry.value_ptr.tc == TensorCategory.LINK) {
-            try linkers.append(entry.value_ptr.*);
+            try linkers.append(allocator, entry.value_ptr.*);
         }
     }
-    return linkers.toOwnedSlice();
+    return linkers.toOwnedSlice(allocator);
 }
 
 // Returns all the tensor tagged as Fused Linkers (.FUSED_LINK) in the global HashMap.
 // A fused linker tensor is a tensor connectingg two fudes nodes.
 pub fn getFusedLinkers(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
-    var linkers = std.ArrayList(TensorZant).init(allocator);
+    var linkers: std.ArrayList(TensorZant) = .empty;
     var it = hashMap.iterator();
     while (it.next()) |entry| {
         if (entry.value_ptr.tc == TensorCategory.FUSED_LINK) {
-            try linkers.append(entry.value_ptr.*);
+            try linkers.append(allocator, entry.value_ptr.*);
         }
     }
-    return linkers.toOwnedSlice();
+    return linkers.toOwnedSlice(allocator);
 }
 
 pub fn getOutputs(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
-    var outputs = std.ArrayList(TensorZant).init(allocator);
+    var outputs: std.ArrayList(TensorZant) = .empty;
     var it = hashMap.iterator();
     while (it.next()) |entry| {
         if (entry.value_ptr.tc == TensorCategory.OUTPUT) {
-            try outputs.append(entry.value_ptr.*);
+            try outputs.append(allocator, entry.value_ptr.*);
         }
     }
-    return outputs.toOwnedSlice();
+    return outputs.toOwnedSlice(allocator);
 }
 
 pub fn getInputs(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
-    var inputs = std.ArrayList(TensorZant).init(allocator);
+    var inputs: std.ArrayList(TensorZant) = .empty;
     var it = hashMap.iterator();
     while (it.next()) |entry| {
         if (entry.value_ptr.tc == TensorCategory.INPUT) {
-            try inputs.append(entry.value_ptr.*);
+            try inputs.append(allocator, entry.value_ptr.*);
         }
     }
-    return inputs.toOwnedSlice();
+    return inputs.toOwnedSlice(allocator);
 }
 
 pub fn getAllTensors(hashMap: *std.StringHashMap(TensorZant)) ![]TensorZant {
-    var inputs = std.ArrayList(TensorZant).init(allocator);
+    var inputs: std.ArrayList(TensorZant) = .empty;
     var it = hashMap.iterator();
     while (it.next()) |entry| {
         if (entry.value_ptr.tc == TensorCategory.OUTPUT) {
-            try inputs.append(entry.value_ptr.*);
+            try inputs.append(allocator, entry.value_ptr.*);
         }
     }
-    return inputs.toOwnedSlice();
+    return inputs.toOwnedSlice(allocator);
 }

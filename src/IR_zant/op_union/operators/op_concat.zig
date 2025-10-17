@@ -32,12 +32,12 @@ pub const Concat = struct {
     axis: i64, // default = 1,
 
     pub fn init(nodeProto: *NodeProto) !Concat {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
+        var inputs: std.ArrayList(*TensorZant) = .empty;
         const concat_result = if (tensorZant_lib.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.concat_result_notFound;
 
         for (nodeProto.input) |input| {
             const ptr = if (tensorZant_lib.tensorMap.getPtr(input)) |ptr| ptr else return error.concat_result_notFound;
-            try inputs.append(ptr);
+            try inputs.append(allocator, ptr);
         }
         var axis: i64 = 1.0;
 
@@ -74,18 +74,18 @@ pub const Concat = struct {
         // Simply return an owned slice of the existing inputs list
 
         var mutable_inputs = self.inputs;
-        return mutable_inputs.toOwnedSlice();
+        return mutable_inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Concat) ![]*TensorZant {
-        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer output_tensors.deinit();
+        var output_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer output_tensors.deinit(allocator);
 
-        try output_tensors.append(self.concat_result);
-        return output_tensors.toOwnedSlice();
+        try output_tensors.append(allocator, self.concat_result);
+        return output_tensors.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Concat, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Concat, writer: *std.Io.Writer) !void {
 
         // Special case for axis 0 with different ranks
         if (self.axis == 0) {

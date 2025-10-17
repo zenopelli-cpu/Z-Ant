@@ -65,7 +65,7 @@ pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []cons
     });
 
     var linearizedGraph: std.ArrayList(*NodeZant) = try graphZant.linearize(allocator);
-    defer linearizedGraph.deinit();
+    defer linearizedGraph.deinit(allocator);
 
     var backing_buffers: ?static_memory_planning.TensorsBackingBuffers = null;
     defer {

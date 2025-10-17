@@ -77,11 +77,11 @@ pub const Split = struct {
     }
 
     pub fn get_input_tensors(self: Split) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        try inputs.append(self.input);
-        if (self.split) |s| try inputs.append(s);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        try inputs.append(allocator, self.input);
+        if (self.split) |s| try inputs.append(allocator, s);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Split) ![]*TensorZant {
@@ -94,7 +94,7 @@ pub const Split = struct {
         std.debug.print("\n Split: {any}", .{self});
     }
 
-    pub fn write_op(self: Split, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Split, writer: *std.Io.Writer) !void {
         // --- Crea stringa per input
         var tensor_input_string: []u8 = undefined;
         defer allocator.free(tensor_input_string);
@@ -136,19 +136,19 @@ pub const Split = struct {
         }
 
         // Creare l'array di output tensor
-        var output_list = std.ArrayList(u8).init(allocator);
-        defer output_list.deinit();
+        var output_list: std.ArrayList(u8) = .empty;
+        defer output_list.deinit(allocator);
 
-        try output_list.appendSlice("[_]Tensor(");
-        try output_list.appendSlice(self.input.ty.toString());
-        try output_list.appendSlice("){");
+        try output_list.appendSlice(allocator, "[_]Tensor(");
+        try output_list.appendSlice(allocator, self.input.ty.toString());
+        try output_list.appendSlice(allocator, "){");
 
         for (self.outputs, 0..) |output, i| {
-            if (i > 0) try output_list.appendSlice(", ");
-            try output_list.appendSlice("tensor_");
-            try output_list.appendSlice(try utils.getSanitizedName(output.name));
+            if (i > 0) try output_list.appendSlice(allocator, ", ");
+            try output_list.appendSlice(allocator, "tensor_");
+            try output_list.appendSlice(allocator, try utils.getSanitizedName(output.name));
         }
-        try output_list.appendSlice("}");
+        try output_list.appendSlice(allocator, "}");
 
         // Chiamare split_lean con la signature corretta
         if (self.split != null) {

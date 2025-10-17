@@ -131,20 +131,20 @@ pub const TensorProto = struct {
             .metadata_props = undefined,
         };
 
-        var dims = std.ArrayList(i64).init(reader.allocator);
-        defer dims.deinit();
+        var dims: std.ArrayList(i64) = .empty;
+        defer dims.deinit(reader.allocator);
         var dataLen: i64 = 1; //sometimes dims: []i64 is not reported so you have to assume it from the data lenght
-        var externalDataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
-        defer externalDataList.deinit();
-        var metaDataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
-        defer metaDataList.deinit();
+        var externalDataList: std.ArrayList(*StringStringEntryProto) = .empty;
+        defer externalDataList.deinit(reader.allocator);
+        var metaDataList: std.ArrayList(*StringStringEntryProto) = .empty;
+        defer metaDataList.deinit(reader.allocator);
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
             switch (tag.field_number) {
                 1 => { // dims
                     const value = try reader.readVarint();
-                    try dims.append(@as(i64, @intCast(value)));
+                    try dims.append(reader.allocator, @as(i64, @intCast(value)));
                 },
                 2 => { // data_type
                     const value = try reader.readVarint();
@@ -163,90 +163,90 @@ pub const TensorProto = struct {
                     tensor.raw_data = try reader.readBytes(reader.allocator);
                 },
                 4 => { // float_data
-                    var data = std.ArrayList(f32).init(reader.allocator);
-                    defer data.deinit();
+                    var data: std.ArrayList(f32) = .empty;
+                    defer data.deinit(reader.allocator);
                     if (tag.wire_type == .LengthDelimited) {
                         var float_reader = try reader.readLengthDelimited();
                         while (float_reader.hasMore()) {
                             if (float_reader.available() < 4) break;
                             const value = try float_reader.readFixed32();
-                            try data.append(@bitCast(value));
+                            try data.append(reader.allocator, @bitCast(value));
                         }
                     } else {
                         const value = try reader.readFixed32();
-                        try data.append(@bitCast(value));
+                        try data.append(reader.allocator, @bitCast(value));
                     }
                     dataLen = @intCast(data.items.len);
-                    tensor.float_data = try data.toOwnedSlice();
+                    tensor.float_data = try data.toOwnedSlice(reader.allocator);
                 },
                 5 => { // int32_data
-                    var data = std.ArrayList(i32).init(reader.allocator);
-                    defer data.deinit();
+                    var data: std.ArrayList(i32) = .empty;
+                    defer data.deinit(reader.allocator);
                     if (tag.wire_type == .LengthDelimited) {
                         var int_reader = try reader.readLengthDelimited();
                         while (int_reader.hasMore()) {
                             const value = try int_reader.readVarint();
                             const value64 = @as(u64, @intCast(value));
                             const value32_truncated = @as(u32, @truncate(value64));
-                            try data.append(@bitCast(value32_truncated));
+                            try data.append(reader.allocator, @bitCast(value32_truncated));
                         }
                     } else {
                         const value = try reader.readVarint();
                         const value64 = @as(u64, @intCast(value));
                         const value32_truncated = @as(u32, @truncate(value64));
-                        try data.append(@bitCast(value32_truncated));
+                        try data.append(reader.allocator, @bitCast(value32_truncated));
                     }
                     dataLen = @intCast(data.items.len);
-                    tensor.int32_data = try data.toOwnedSlice();
+                    tensor.int32_data = try data.toOwnedSlice(reader.allocator);
                 },
                 7 => { // int64_data
-                    var data = std.ArrayList(i64).init(reader.allocator);
-                    defer data.deinit();
+                    var data: std.ArrayList(i64) = .empty;
+                    defer data.deinit(reader.allocator);
                     if (tag.wire_type == .LengthDelimited) {
                         var int_reader = try reader.readLengthDelimited();
                         while (int_reader.hasMore()) {
                             const value = try int_reader.readVarint();
-                            try data.append(@bitCast(value));
+                            try data.append(reader.allocator, @bitCast(value));
                         }
                     } else {
                         const value = try reader.readVarint();
-                        try data.append(@bitCast(value));
+                        try data.append(reader.allocator, @bitCast(value));
                     }
                     dataLen = @intCast(data.items.len);
-                    tensor.int64_data = try data.toOwnedSlice();
+                    tensor.int64_data = try data.toOwnedSlice(reader.allocator);
                 },
                 10 => { // double_data
-                    var data = std.ArrayList(f64).init(reader.allocator);
-                    defer data.deinit();
+                    var data: std.ArrayList(f64) = .empty;
+                    defer data.deinit(reader.allocator);
                     if (tag.wire_type == .LengthDelimited) {
                         var double_reader = try reader.readLengthDelimited();
                         while (double_reader.hasMore()) {
                             if (double_reader.available() < 8) break;
                             const value = try double_reader.readFixed64();
-                            try data.append(@bitCast(value));
+                            try data.append(reader.allocator, @bitCast(value));
                         }
                     } else {
                         const value = try reader.readFixed64();
-                        try data.append(@bitCast(value));
+                        try data.append(reader.allocator, @bitCast(value));
                     }
                     dataLen = @intCast(data.items.len);
-                    tensor.double_data = try data.toOwnedSlice();
+                    tensor.double_data = try data.toOwnedSlice(reader.allocator);
                 },
                 11 => { // uint64_data
-                    var data = std.ArrayList(u64).init(reader.allocator);
-                    defer data.deinit();
+                    var data: std.ArrayList(u64) = .empty;
+                    defer data.deinit(reader.allocator);
                     if (tag.wire_type == .LengthDelimited) {
                         var uint_reader = try reader.readLengthDelimited();
                         while (uint_reader.hasMore()) {
                             const value = try uint_reader.readVarint();
-                            try data.append(value);
+                            try data.append(reader.allocator, value);
                         }
                     } else {
                         const value = try reader.readVarint();
-                        try data.append(value);
+                        try data.append(reader.allocator, value);
                     }
                     dataLen = @intCast(data.items.len);
-                    tensor.uint64_data = try data.toOwnedSlice();
+                    tensor.uint64_data = try data.toOwnedSlice(reader.allocator);
                 },
                 12 => {
                     tensor.doc_string = try reader.readString(reader.allocator);
@@ -255,7 +255,7 @@ pub const TensorProto = struct {
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
-                    try externalDataList.append(ssep_ptr);
+                    try externalDataList.append(reader.allocator, ssep_ptr);
                 },
                 14 => { //data location
                     const value = try reader.readVarint();
@@ -265,7 +265,7 @@ pub const TensorProto = struct {
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
-                    try metaDataList.append(ssep_ptr);
+                    try metaDataList.append(reader.allocator, ssep_ptr);
                 },
                 else => {
                     onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
@@ -278,10 +278,10 @@ pub const TensorProto = struct {
         if (tensor.raw_data) |_| try tensor.fromRawDataToDataType(reader.allocator);
 
         //check on the dims
-        if (dims.items.len == 0) try dims.append(dataLen);
-        tensor.dims = try dims.toOwnedSlice();
-        tensor.external_data = try externalDataList.toOwnedSlice();
-        tensor.metadata_props = try metaDataList.toOwnedSlice();
+        if (dims.items.len == 0) try dims.append(reader.allocator, dataLen);
+        tensor.dims = try dims.toOwnedSlice(reader.allocator);
+        tensor.external_data = try externalDataList.toOwnedSlice(reader.allocator);
+        tensor.metadata_props = try metaDataList.toOwnedSlice(reader.allocator);
 
         return tensor;
     }
@@ -409,7 +409,7 @@ pub const TensorProto = struct {
         switch (data_type) {
             .FLOAT16 => {
                 const num_elements = @divExact(raw_data_slice.len, @sizeOf(f16));
-                const typed_data = try allocator.alignedAlloc(f16, @alignOf(f16), num_elements);
+                const typed_data = try allocator.alignedAlloc(f16, .of(f16), num_elements);
                 errdefer allocator.free(typed_data);
                 const dest_bytes = std.mem.sliceAsBytes(typed_data);
                 @memcpy(dest_bytes, raw_data_slice);
@@ -417,7 +417,7 @@ pub const TensorProto = struct {
             },
             .FLOAT => {
                 const num_elements = @divExact(raw_data_slice.len, @sizeOf(f32));
-                const typed_data = try allocator.alignedAlloc(f32, @alignOf(f32), num_elements);
+                const typed_data = try allocator.alignedAlloc(f32, .of(f32), num_elements);
                 errdefer allocator.free(typed_data);
                 const dest_bytes = std.mem.sliceAsBytes(typed_data);
                 @memcpy(dest_bytes, raw_data_slice);
@@ -425,7 +425,7 @@ pub const TensorProto = struct {
             },
             .INT32 => {
                 const num_elements = @divExact(raw_data_slice.len, @sizeOf(i32));
-                const typed_data = try allocator.alignedAlloc(i32, @alignOf(i32), num_elements);
+                const typed_data = try allocator.alignedAlloc(i32, .of(i32), num_elements);
                 errdefer allocator.free(typed_data);
                 const dest_bytes = std.mem.sliceAsBytes(typed_data);
                 @memcpy(dest_bytes, raw_data_slice);
@@ -433,7 +433,7 @@ pub const TensorProto = struct {
             },
             .INT64 => {
                 const num_elements = @divExact(raw_data_slice.len, @sizeOf(i64));
-                const typed_data = try allocator.alignedAlloc(i64, @alignOf(i64), num_elements);
+                const typed_data = try allocator.alignedAlloc(i64, .of(i64), num_elements);
                 errdefer allocator.free(typed_data);
                 const dest_bytes = std.mem.sliceAsBytes(typed_data);
                 @memcpy(dest_bytes, raw_data_slice);
@@ -441,7 +441,7 @@ pub const TensorProto = struct {
             },
             .DOUBLE => {
                 const num_elements = @divExact(raw_data_slice.len, @sizeOf(f64));
-                const typed_data = try allocator.alignedAlloc(f64, @alignOf(f64), num_elements);
+                const typed_data = try allocator.alignedAlloc(f64, .of(f64), num_elements);
                 errdefer allocator.free(typed_data);
                 const dest_bytes = std.mem.sliceAsBytes(typed_data);
                 @memcpy(dest_bytes, raw_data_slice);
@@ -449,7 +449,7 @@ pub const TensorProto = struct {
             },
             .UINT64 => {
                 const num_elements = @divExact(raw_data_slice.len, @sizeOf(u64));
-                const typed_data = try allocator.alignedAlloc(u64, @alignOf(u64), num_elements);
+                const typed_data = try allocator.alignedAlloc(u64, .of(u64), num_elements);
                 errdefer allocator.free(typed_data);
                 const dest_bytes = std.mem.sliceAsBytes(typed_data);
                 @memcpy(dest_bytes, raw_data_slice);
@@ -457,7 +457,7 @@ pub const TensorProto = struct {
             },
             .UINT16 => {
                 const num_elements = @divExact(raw_data_slice.len, @sizeOf(u16));
-                const typed_data = try allocator.alignedAlloc(u16, @alignOf(u16), num_elements);
+                const typed_data = try allocator.alignedAlloc(u16, .of(u16), num_elements);
                 errdefer allocator.free(typed_data);
                 const dest_bytes = std.mem.sliceAsBytes(typed_data);
                 @memcpy(dest_bytes, raw_data_slice);
@@ -465,7 +465,7 @@ pub const TensorProto = struct {
             },
             .INT8 => {
                 const num_elements = raw_data_slice.len; // INT8 is 1 byte each
-                const typed_data = try allocator.alignedAlloc(i8, @alignOf(i8), num_elements);
+                const typed_data = try allocator.alignedAlloc(i8, .of(i8), num_elements);
                 errdefer allocator.free(typed_data);
                 for (typed_data, 0..) |*dest, i| {
                     dest.* = @bitCast(raw_data_slice[i]);
@@ -474,7 +474,7 @@ pub const TensorProto = struct {
             },
             .UINT8 => {
                 const num_elements = raw_data_slice.len; // UINT8 is 1 byte each
-                const typed_data = try allocator.alignedAlloc(u8, @alignOf(u8), num_elements);
+                const typed_data = try allocator.alignedAlloc(u8, .of(u8), num_elements);
                 errdefer allocator.free(typed_data);
                 @memcpy(typed_data, raw_data_slice);
                 self.uint8_data = typed_data;

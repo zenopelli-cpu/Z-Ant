@@ -24,7 +24,7 @@ const plan = @import("plan.zig");
 
 // Writes the computation function for predicting outputs
 pub inline fn writePredict(
-    writer: std.fs.File.Writer,
+    writer: *std.Io.Writer,
     linearizedGraph: std.ArrayList(*NodeZant),
     do_export: bool,
     codegen_parameters: cg_v1.CodegenParameters,
@@ -139,7 +139,7 @@ pub inline fn writePredict(
 // -------------------------------- WRITE LINKERS --------------------------------
 
 // Initializes output tensor of each node in the computation graph
-fn write_linkersInitialization(writer: std.fs.File.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
+fn write_linkersInitialization(writer: *std.Io.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
     try writer.print(
         \\
         \\
@@ -188,7 +188,7 @@ fn write_linkersInitialization(writer: std.fs.File.Writer, codegen_parameters: c
     }
 }
 
-fn write_linkersResetMethod(writer: std.fs.File.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
+fn write_linkersResetMethod(writer: *std.Io.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
     try writer.print(
         \\
         \\
@@ -290,7 +290,7 @@ fn write_linkersResetMethod(writer: std.fs.File.Writer, codegen_parameters: cg_v
 
 // -------------------------------- WRITE OUTPUT --------------------------------
 // Initializes output tensor of each node in the computation graph
-fn write_outputsInitialization(writer: std.fs.File.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
+fn write_outputsInitialization(writer: *std.Io.Writer, codegen_parameters: cg_v1.CodegenParameters) !void {
     if (!codegen_options.dynamic) {
         try writer.print(
             \\
@@ -315,7 +315,7 @@ fn write_outputsInitialization(writer: std.fs.File.Writer, codegen_parameters: c
 
 // -------------------------------- WRITE PREDICT() --------------------------------
 
-fn write_predictInitialization(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
+fn write_predictInitialization(writer: *std.Io.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
     const inputs: []TensorZant = try IR_utils.getInputs(tensorZantMap);
 
     // if there are no external inputs (e.g., node extracted model with only initializers), skip input setup
@@ -395,7 +395,7 @@ fn write_predictInitialization(writer: std.fs.File.Writer, linearizedGraph: std.
     }
 }
 
-fn writeReturn(writer: std.fs.File.Writer) !void {
+fn writeReturn(writer: *std.Io.Writer) !void {
     const outputs: []TensorZant = try IR_utils.getOutputs(tensorZantMap);
 
     //checks
@@ -448,7 +448,7 @@ fn writeReturn(writer: std.fs.File.Writer) !void {
 
 // -------------------------------- OTHER WRITE --------------------------------
 
-fn write_checks(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
+fn write_checks(writer: *std.Io.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
     // Autogen a check for the input shape as arg VS input shape as codegen option
 
     const inputs: []TensorZant = try IR_utils.getInputs(tensorZantMap);
@@ -512,7 +512,7 @@ fn isTensorUsedInGraph(linearizedGraph: std.ArrayList(*NodeZant), tensor: Tensor
     return false;
 }
 
-fn write_graphSerializationPlan(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
+fn write_graphSerializationPlan(writer: *std.Io.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
     // Build execution plan with liveness analysis
     std.log.info("Attempting to build ExecutionPlan with {d} nodes...", .{linearizedGraph.items.len});
     var execution_plan = plan.buildExecutionPlan(allocator, linearizedGraph) catch |err| {
@@ -537,7 +537,7 @@ fn write_graphSerializationPlan(writer: std.fs.File.Writer, linearizedGraph: std
     // For now, we need to make sure no duplicate tensors are generated
 }
 
-fn write_graphSerialization(writer: std.fs.File.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
+fn write_graphSerialization(writer: *std.Io.Writer, linearizedGraph: std.ArrayList(*NodeZant)) !void {
     for (linearizedGraph.items, 0..) |node, i| {
         if (codegen_options.comm) {
             try write_op_info(writer, node);
@@ -563,7 +563,7 @@ fn write_graphSerialization(writer: std.fs.File.Writer, linearizedGraph: std.Arr
 }
 
 //dynamically allocate a linker tensor
-fn allocate_output_link_tensors(writer: std.fs.File.Writer, node: *NodeZant) !void {
+fn allocate_output_link_tensors(writer: *std.Io.Writer, node: *NodeZant) !void {
 
     //if not used anymore in the rest of the graph
     for (try node.get_output_tensors()) |output_tensor| {
@@ -588,7 +588,7 @@ fn allocate_output_link_tensors(writer: std.fs.File.Writer, node: *NodeZant) !vo
 }
 
 //free a linker tensor after dynamical allocation
-fn deallocate_useless_link_tensors(writer: std.fs.File.Writer, starting_node: usize, linearizedGraph: std.ArrayList(*NodeZant)) !void {
+fn deallocate_useless_link_tensors(writer: *std.Io.Writer, starting_node: usize, linearizedGraph: std.ArrayList(*NodeZant)) !void {
     const node = linearizedGraph.items[starting_node];
 
     //After computing the OP, delete link tensors that are not useful anymore when we are in dynamic allocation
@@ -616,7 +616,7 @@ fn deallocate_useless_link_tensors(writer: std.fs.File.Writer, starting_node: us
     //
 }
 
-fn write_op_info(writer: std.fs.File.Writer, node: *NodeZant) !void {
+fn write_op_info(writer: *std.Io.Writer, node: *NodeZant) !void {
     try writer.print(
         \\
         \\

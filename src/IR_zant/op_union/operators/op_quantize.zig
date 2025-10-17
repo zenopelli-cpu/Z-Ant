@@ -67,21 +67,21 @@ pub const Quantize = struct {
     }
 
     pub fn get_input_tensors(self: Quantize) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.input);
+        try inputs.append(allocator, self.input);
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Quantize) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.output);
+        try outputs.append(allocator, self.output);
 
-        return outputs.toOwnedSlice();
+        return outputs.toOwnedSlice(allocator);
     }
 
     pub fn compute_output_shape(self: Quantize) []usize {
@@ -90,7 +90,7 @@ pub const Quantize = struct {
         return output_shape;
     }
 
-    pub fn write_op(self: Quantize, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Quantize, writer: *std.Io.Writer) !void {
         const input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
             "@constCast(&tensor_",
             try utils.getSanitizedName(self.input.name),

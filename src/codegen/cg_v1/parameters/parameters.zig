@@ -49,7 +49,7 @@ pub fn setXIPConfig(config: XIPConfig) void {
 /// This function generates declarations and definitions for each tensor.
 ///
 /// - `writer`: The file writer to output generated code.
-pub inline fn write_parameters(writer: std.fs.File.Writer) !void {
+pub inline fn write_parameters(writer: *std.Io.Writer) !void {
 
     //importing the libraries
     try write_libraries_parameters(writer);
@@ -91,7 +91,7 @@ pub inline fn write_parameters(writer: std.fs.File.Writer) !void {
     }
 }
 
-fn write_initilizers(writer: std.fs.File.Writer) !void {
+fn write_initilizers(writer: *std.Io.Writer) !void {
     const initializers: []TensorZant = try IR_utils.getInitializers(tensorZantMap);
 
     // Iterate over all initializers in the ONNX model and generate code
@@ -105,7 +105,7 @@ fn write_initilizers(writer: std.fs.File.Writer) !void {
         , .{name});
 
         // Generate the shape array for the tensor
-        try wrtiteTensorShape(writer, initializer);
+        try writeTensorShape(writer, initializer);
 
         // Generate the data array for the tensor
         try writeArray(writer, initializer);
@@ -123,7 +123,7 @@ fn write_initilizers(writer: std.fs.File.Writer) !void {
 }
 
 /// Generate missing zero_point tensors for quantized operations
-fn write_constantTensors(writer: std.fs.File.Writer) !void {
+fn write_constantTensors(writer: *std.Io.Writer) !void {
     const constants: []TensorZant = try IR_utils.getConstants(tensorZantMap);
 
     if (constants.len == 0) {
@@ -146,7 +146,7 @@ fn write_constantTensors(writer: std.fs.File.Writer) !void {
         , .{name});
 
         // Generate the shape array for the tensor
-        try wrtiteTensorShape(writer, constant_tensors);
+        try writeTensorShape(writer, constant_tensors);
 
         // Generate the data array for the tensor
         try writeArray(writer, constant_tensors);
@@ -160,7 +160,7 @@ fn write_constantTensors(writer: std.fs.File.Writer) !void {
 }
 
 /// Write XIP validation function for all weight arrays
-fn writeXIPValidationFunction(writer: std.fs.File.Writer, initializers: []TensorZant) !void {
+fn writeXIPValidationFunction(writer: *std.Io.Writer, initializers: []TensorZant) !void {
     try writer.print(
         \\
         \\
@@ -196,7 +196,7 @@ fn writeXIPValidationFunction(writer: std.fs.File.Writer, initializers: []Tensor
 ///
 /// # Errors
 /// This function may return an error if writing to the file fails.
-fn write_libraries_parameters(writer: std.fs.File.Writer) !void {
+fn write_libraries_parameters(writer: *std.Io.Writer) !void {
     _ = try writer.print(
         \\
         \\ const std = @import("std");
@@ -213,7 +213,7 @@ fn write_libraries_parameters(writer: std.fs.File.Writer) !void {
 /// - `writer`: The file writer to output generated code.
 /// - `t`: The tensor initializer.
 /// - `name`: The sanitized name of the tensor.
-pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, tz: *TensorZant) !void {
+pub inline fn writeTensorShape(writer: *std.Io.Writer, tz: *TensorZant) !void {
     try writer.print(
         \\
         \\
@@ -235,7 +235,7 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, tz: *TensorZant) !vo
 ///
 /// - `writer`: The file writer to output generated code.
 /// - `tz`: The tensor initializer.
-pub inline fn writeArray(writer: std.fs.File.Writer, tz: *TensorZant) !void {
+pub inline fn writeArray(writer: *std.Io.Writer, tz: *TensorZant) !void {
     // std.log.info("\n[writeArray] Processing tensor: {s}, DataType: {any}", .{ name, t.data_type });
 
     const name = try tz.getNameSanitized();
@@ -328,7 +328,7 @@ pub inline fn writeArray(writer: std.fs.File.Writer, tz: *TensorZant) !void {
 /// - `writer`: The file writer to output generated code.
 /// - `T`: The data type of the array elements.
 /// - `data`: The slice of data to write.
-pub inline fn writeArrayData(writer: std.fs.File.Writer, comptime T: type, data: []const T) !void {
+pub inline fn writeArrayData(writer: *std.Io.Writer, comptime T: type, data: []const T) !void {
     for (data, 0..) |value, i| {
         if (i > 0) try writer.print(",", .{});
         try writer.print(" {}", .{value});

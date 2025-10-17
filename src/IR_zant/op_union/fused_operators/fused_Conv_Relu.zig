@@ -57,26 +57,26 @@ pub const Fused_Conv_Relu = struct {
             return null;
         }
 
-        var node_list = std.ArrayList(*NodeZant).init(allocator);
-        errdefer node_list.deinit(); // Clean up on error
+        var node_list: std.ArrayList(*NodeZant) = .empty;
+        errdefer node_list.deinit(allocator); // Clean up on error
 
-        try node_list.append(root_node);
+        try node_list.append(allocator, root_node);
 
         // Check if Conv has exactly one successor and it's ReLU
         const next_nodes = root_node.next;
         if (next_nodes.items.len != 1) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         const successor = next_nodes.items[0];
         if (successor.op != .relu) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         std.debug.print(" -> Found Conv->Relu pattern!", .{});
-        try node_list.append(successor);
+        try node_list.append(allocator, successor);
         return node_list;
     }
 
@@ -93,9 +93,9 @@ pub const Fused_Conv_Relu = struct {
         const relu_node: *NodeZant = node_list.items[1];
 
         //  Clone the next list instead of direct reference
-        var cloned_next = std.ArrayList(*NodeZant).init(allocator);
+        var cloned_next: std.ArrayList(*NodeZant) = .empty;
         for (relu_node.next.items) |next_node| {
-            try cloned_next.append(next_node);
+            try cloned_next.append(allocator, next_node);
         }
 
         return NodeZant{
@@ -137,7 +137,7 @@ pub const Fused_Conv_Relu = struct {
         if (fused_node.next.items.len == 0) {
             // Copy the last node's successors to the fused node
             for (last_node.next.items) |successor| {
-                try fused_node.next.append(successor);
+                try fused_node.next.append(allocator, successor);
             }
         }
 
@@ -145,7 +145,7 @@ pub const Fused_Conv_Relu = struct {
         try graph.removeNodes(node_list);
 
         // Step 5: Add the fused_node to the graph's node list
-        try graph.nodes.append(fused_node);
+        try graph.nodes.append(allocator, fused_node);
 
         // //This is a delicate step, read carrefully!!
         // //for each successor sobtitute the input equal to old last_node output wiht the new output of the fusion
@@ -180,7 +180,7 @@ pub const Fused_Conv_Relu = struct {
         return try self.op_Relu.get_output_tensors();
     }
 
-    pub fn write_op(self: Fused_Conv_Relu, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Conv_Relu, writer: *std.Io.Writer) !void {
 
         //----create tensor_X_string
         var tensor_X_string: []u8 = undefined;

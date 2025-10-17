@@ -88,28 +88,28 @@ pub const BatchNormalization = struct {
     }
 
     pub fn get_input_tensors(self: BatchNormalization) ![]*TensorZant {
-        var input_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer input_tensors.deinit();
+        var input_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer input_tensors.deinit(allocator);
 
-        try input_tensors.append(self.input_X);
-        try input_tensors.append(self.scale);
-        try input_tensors.append(self.B);
-        try input_tensors.append(self.input_mean);
-        try input_tensors.append(self.input_var);
+        try input_tensors.append(allocator, self.input_X);
+        try input_tensors.append(allocator, self.scale);
+        try input_tensors.append(allocator, self.B);
+        try input_tensors.append(allocator, self.input_mean);
+        try input_tensors.append(allocator, self.input_var);
 
-        return input_tensors.toOwnedSlice();
+        return input_tensors.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: BatchNormalization) ![]*TensorZant {
-        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer output_tensors.deinit();
+        var output_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer output_tensors.deinit(allocator);
 
-        try output_tensors.append(self.output_Y);
+        try output_tensors.append(allocator, self.output_Y);
 
-        return output_tensors.toOwnedSlice();
+        return output_tensors.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: BatchNormalization, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: BatchNormalization, writer: *std.Io.Writer) !void {
 
         //----create tensor_X_string
         var tensor_X_string: []u8 = undefined;

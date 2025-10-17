@@ -80,31 +80,31 @@ pub const QLinearMatMul = struct {
     }
 
     pub fn get_input_tensors(self: QLinearMatMul) ![]*TensorZant {
-        var input_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer input_tensors.deinit();
+        var input_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer input_tensors.deinit(allocator);
 
-        try input_tensors.append(self.input_a);
-        try input_tensors.append(self.input_a_scale);
-        try input_tensors.append(self.input_a_zero_point);
-        try input_tensors.append(self.input_b);
-        try input_tensors.append(self.input_b_scale);
-        try input_tensors.append(self.input_b_zero_point);
-        try input_tensors.append(self.input_y_scale);
-        try input_tensors.append(self.input_y_zero_point);
+        try input_tensors.append(allocator, self.input_a);
+        try input_tensors.append(allocator, self.input_a_scale);
+        try input_tensors.append(allocator, self.input_a_zero_point);
+        try input_tensors.append(allocator, self.input_b);
+        try input_tensors.append(allocator, self.input_b_scale);
+        try input_tensors.append(allocator, self.input_b_zero_point);
+        try input_tensors.append(allocator, self.input_y_scale);
+        try input_tensors.append(allocator, self.input_y_zero_point);
 
-        return input_tensors.toOwnedSlice();
+        return input_tensors.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: QLinearMatMul) ![]*TensorZant {
-        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer output_tensors.deinit();
+        var output_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer output_tensors.deinit(allocator);
 
-        try output_tensors.append(self.output_y);
+        try output_tensors.append(allocator, self.output_y);
 
-        return output_tensors.toOwnedSlice();
+        return output_tensors.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: QLinearMatMul, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: QLinearMatMul, writer: *std.Io.Writer) !void {
         // Create tensor string variables for each input
         var tensor_a_string: []u8 = undefined;
         defer allocator.free(tensor_a_string);

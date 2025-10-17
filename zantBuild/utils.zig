@@ -14,11 +14,12 @@ pub fn configureStm32n6Support(
     const force_native: bool = stm32n6_flags.stm32n6_force_native;
 
     step.addIncludePath(b.path("src/Core/Tensor/Accelerators/stm32n6"));
-    var flag_buf = std.BoundedArray([]const u8, 3).init(0) catch unreachable;
-    if (force_native) flag_buf.append("-DZANT_STM32N6_FORCE_NATIVE=1") catch unreachable;
-    if (use_cmsis) flag_buf.append("-DZANT_HAS_CMSIS_DSP=1") catch unreachable;
-    if (use_ethos) flag_buf.append("-DZANT_HAS_ETHOS_U=1") catch unreachable;
-    const c_flags = flag_buf.constSlice();
+    var c_flag_buf: [3][]const u8 = undefined;
+    var flag_buf = std.ArrayListUnmanaged([]const u8).initBuffer(&c_flag_buf);
+    if (force_native) flag_buf.append(b.allocator, "-DZANT_STM32N6_FORCE_NATIVE=1") catch unreachable;
+    if (use_cmsis) flag_buf.append(b.allocator, "-DZANT_HAS_CMSIS_DSP=1") catch unreachable;
+    if (use_ethos) flag_buf.append(b.allocator, "-DZANT_HAS_ETHOS_U=1") catch unreachable;
+    const c_flags = flag_buf.items;
 
     step.addCSourceFile(.{
         .file = b.path("src/Core/Tensor/Accelerators/stm32n6/conv_f32.c"),

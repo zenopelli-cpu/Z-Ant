@@ -128,26 +128,26 @@ pub const QuantizeLinear = struct {
     }
 
     pub fn get_input_tensors(self: QuantizeLinear) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.x);
-        try inputs.append(self.y_scale);
-        if (self.y_zero_point) |y_zero_point| try inputs.append(y_zero_point);
+        try inputs.append(allocator, self.x);
+        try inputs.append(allocator, self.y_scale);
+        if (self.y_zero_point) |y_zero_point| try inputs.append(allocator, y_zero_point);
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: QuantizeLinear) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.y);
+        try outputs.append(allocator, self.y);
 
-        return outputs.toOwnedSlice();
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: QuantizeLinear, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: QuantizeLinear, writer: *std.Io.Writer) !void {
         // Create input tensor string
         var x_tensor_string: []const u8 = undefined;
         defer allocator.free(x_tensor_string);

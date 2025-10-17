@@ -116,29 +116,29 @@ pub const FunctionProto = struct {
             .metadata_props = undefined,
         };
 
-        var inputs = std.ArrayList([]const u8).init(reader.allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList([]const u8) = .empty;
+        defer inputs.deinit(reader.allocator);
 
-        var outputs = std.ArrayList([]const u8).init(reader.allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList([]const u8) = .empty;
+        defer outputs.deinit(reader.allocator);
 
-        var attributes = std.ArrayList([]const u8).init(reader.allocator);
-        defer attributes.deinit();
+        var attributes: std.ArrayList([]const u8) = .empty;
+        defer attributes.deinit(reader.allocator);
 
-        var attributes_proto = std.ArrayList(*AttributeProto).init(reader.allocator);
-        defer attributes_proto.deinit();
+        var attributes_proto: std.ArrayList(*AttributeProto) = .empty;
+        defer attributes_proto.deinit(reader.allocator);
 
-        var nodes = std.ArrayList(*NodeProto).init(reader.allocator);
-        defer nodes.deinit();
+        var nodes: std.ArrayList(*NodeProto) = .empty;
+        defer nodes.deinit(reader.allocator);
 
-        var opset_imports = std.ArrayList(*OperatorSetIdProto).init(reader.allocator);
-        defer opset_imports.deinit();
+        var opset_imports: std.ArrayList(*OperatorSetIdProto) = .empty;
+        defer opset_imports.deinit(reader.allocator);
 
-        var value_infos = std.ArrayList(*ValueInfoProto).init(reader.allocator);
-        defer value_infos.deinit();
+        var value_infos: std.ArrayList(*ValueInfoProto) = .empty;
+        defer value_infos.deinit(reader.allocator);
 
-        var metadataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
-        defer metadataList.deinit();
+        var metadataList: std.ArrayList(*StringStringEntryProto) = .empty;
+        defer metadataList.deinit(reader.allocator);
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
@@ -148,27 +148,27 @@ pub const FunctionProto = struct {
                 },
                 4 => { //input
                     const value = try reader.readString(reader.allocator);
-                    try inputs.append(value);
+                    try inputs.append(reader.allocator, value);
                 },
                 5 => { //output
                     const value = try reader.readString(reader.allocator);
-                    try outputs.append(value);
+                    try outputs.append(reader.allocator, value);
                 },
                 6 => { //attribute
                     const value = try reader.readString(reader.allocator);
-                    try attributes.append(value);
+                    try attributes.append(reader.allocator, value);
                 },
                 11 => { //attributes proto
                     var attr_reader = try reader.readLengthDelimited();
                     const attr_ptr = try reader.allocator.create(AttributeProto);
                     attr_ptr.* = try AttributeProto.parse(&attr_reader);
-                    try attributes_proto.append(attr_ptr);
+                    try attributes_proto.append(reader.allocator, attr_ptr);
                 },
                 7 => {
                     var node_reader = try reader.readLengthDelimited();
                     const node_ptr = try reader.allocator.create(NodeProto);
                     node_ptr.* = try NodeProto.parse(&node_reader);
-                    try nodes.append(node_ptr);
+                    try nodes.append(reader.allocator, node_ptr);
                 },
                 8 => { //doc_string
                     function.doc_string = try reader.readString(reader.allocator);
@@ -177,7 +177,7 @@ pub const FunctionProto = struct {
                     var setId_reader = try reader.readLengthDelimited();
                     const setId_ptr = try reader.allocator.create(OperatorSetIdProto);
                     setId_ptr.* = try OperatorSetIdProto.parse(&setId_reader);
-                    try opset_imports.append(setId_ptr);
+                    try opset_imports.append(reader.allocator, setId_ptr);
                 },
 
                 10 => { //domain
@@ -190,13 +190,13 @@ pub const FunctionProto = struct {
                     var value_info_reader = try reader.readLengthDelimited(); //var value_info_reader
                     const value_info_ptr = try reader.allocator.create(ValueInfoProto);
                     value_info_ptr.* = try ValueInfoProto.parse(&value_info_reader);
-                    try value_infos.append(value_info_ptr);
+                    try value_infos.append(reader.allocator, value_info_ptr);
                 },
                 14 => { //metadata_props
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
-                    try metadataList.append(ssep_ptr);
+                    try metadataList.append(reader.allocator, ssep_ptr);
                 },
                 else => {
                     std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
@@ -209,14 +209,14 @@ pub const FunctionProto = struct {
             }
         }
 
-        function.input = try inputs.toOwnedSlice();
-        function.output = try outputs.toOwnedSlice();
-        function.attribute = try attributes.toOwnedSlice();
-        function.attribute_proto = try attributes_proto.toOwnedSlice();
-        function.node = try nodes.toOwnedSlice();
-        function.opset_import = try opset_imports.toOwnedSlice();
-        function.value_info = try value_infos.toOwnedSlice();
-        function.metadata_props = try metadataList.toOwnedSlice();
+        function.input = try inputs.toOwnedSlice(reader.allocator);
+        function.output = try outputs.toOwnedSlice(reader.allocator);
+        function.attribute = try attributes.toOwnedSlice(reader.allocator);
+        function.attribute_proto = try attributes_proto.toOwnedSlice(reader.allocator);
+        function.node = try nodes.toOwnedSlice(reader.allocator);
+        function.opset_import = try opset_imports.toOwnedSlice(reader.allocator);
+        function.value_info = try value_infos.toOwnedSlice(reader.allocator);
+        function.metadata_props = try metadataList.toOwnedSlice(reader.allocator);
 
         return function;
     }

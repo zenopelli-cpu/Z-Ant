@@ -31,8 +31,8 @@ pub const TensorAnnotation = struct {
             if (tensor.tensor_name) |n| reader.allocator.free(n);
         }
 
-        var tensorNamesList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
-        defer tensorNamesList.deinit();
+        var tensorNamesList: std.ArrayList(*StringStringEntryProto) = .empty;
+        defer tensorNamesList.deinit(reader.allocator);
 
         while (reader.hasMore()) {
             const tensor_tag = try reader.readTag();
@@ -48,7 +48,7 @@ pub const TensorAnnotation = struct {
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
-                    try tensorNamesList.append(ssep_ptr);
+                    try tensorNamesList.append(reader.allocator, ssep_ptr);
                 },
                 else => {
                     onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for AttributeProto\n\n ", .{tensor_tag});
@@ -56,7 +56,7 @@ pub const TensorAnnotation = struct {
                 },
             }
         }
-        tensor.quant_parameter_tensor_names = try tensorNamesList.toOwnedSlice();
+        tensor.quant_parameter_tensor_names = try tensorNamesList.toOwnedSlice(reader.allocator);
 
         return tensor;
     }

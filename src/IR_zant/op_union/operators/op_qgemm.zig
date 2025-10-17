@@ -141,26 +141,26 @@ pub const QGemm = struct {
     }
 
     pub fn get_input_tensors(self: QGemm) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        try inputs.append(self.input_A);
-        try inputs.append(self.input_A_scale);
-        try inputs.append(self.input_A_zero_point);
-        try inputs.append(self.input_B);
-        try inputs.append(self.input_B_scale);
-        try inputs.append(self.input_B_zero_point);
-        try inputs.append(self.input_C);
-        try inputs.append(self.output_Y_scale);
-        try inputs.append(self.output_Y_zero_point);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        try inputs.append(allocator, self.input_A);
+        try inputs.append(allocator, self.input_A_scale);
+        try inputs.append(allocator, self.input_A_zero_point);
+        try inputs.append(allocator, self.input_B);
+        try inputs.append(allocator, self.input_B_scale);
+        try inputs.append(allocator, self.input_B_zero_point);
+        try inputs.append(allocator, self.input_C);
+        try inputs.append(allocator, self.output_Y_scale);
+        try inputs.append(allocator, self.output_Y_zero_point);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: QGemm) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        try outputs.append(self.output);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        try outputs.append(allocator, self.output);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: QGemm, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: QGemm, writer: *std.Io.Writer) !void {
         // Generate proper tensor name strings like other quantized operators do
         var tensor_a_string: []u8 = undefined;
         var tensor_a_scale_string: []u8 = undefined;
