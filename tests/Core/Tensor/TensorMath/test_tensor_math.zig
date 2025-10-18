@@ -8,7 +8,7 @@ test {
     _ = @import("test_lib_elementWise_math.zig");
     _ = @import("test_lib_logical_math.zig");
     _ = @import("test_lib_reduction_math.zig");
-    _ = @import("test_lib_shape_math.zig");
+    _ = @import("test_other.zig");
     _ = @import("test_op_mat_mul.zig");
     _ = @import("test_op_gemm.zig");
     _ = @import("test_op_convolution_stm32n6.zig");
@@ -17,4 +17,17 @@ test {
     _ = @import("test_op_mean.zig");
     _ = @import("test_op_pow.zig");
     _ = @import("test_op_log.zig");
+    _ = @import("test_op_squeeze.zig");
+    _ = @import("test_op_concatenate.zig");
+    _ = @import("test_op_split.zig");
+    _ = @import("test_op_flatten.zig");
+    _ = @import("test_op_pad.zig");
+    _ = @import("test_op_identity.zig");
+    _ = @import("test_op_shape.zig");
+    _ = @import("test_op_transpose.zig");
+    _ = @import("test_op_neg.zig");
+    _ = @import("test_op_resize.zig");
+    _ = @import("test_op_reshape.zig");
+    _ = @import("test_op_unsqueeze.zig");
+    _ = @import("test_op_gather.zig");
 }

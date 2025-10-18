@@ -1,6 +1,6 @@
 const std = @import("std");
 const model_opts = @import("model_opts"); // Importa il modulo aggiunto in build.zig
-const main_log = std.log.scoped(.main);
+const main_log = std.debug.print; //std.log.scoped(.main).info;
 
 // Declare the external C ABI function exported by the static library
 // Assumes T = f32 based on build options
@@ -34,23 +34,26 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    // main_log.info("Preparing input data...\\n", .{});
+    // main_log("Preparing input data...\\n", .{});
     const input_data = try prepareInputData(allocator);
     const input_shape = model_opts.input_shape;
-    main_log.info("Model expects input shape: {any}\n", .{input_shape});
-    main_log.info("Prepared input data length: {}\n", .{input_data.len});
+    main_log("Model expects input shape: {any}\n", .{input_shape});
+    main_log("Prepared input data length: {}\n", .{input_data.len});
 
     const output_size = getPredictOutputSize();
-    main_log.info("Expected output size: {}\n", .{output_size});
+    main_log("Expected output size: {}\n", .{output_size});
 
-    // Esegui 3 passate di predict
+    const start_time: i64 = std.time.microTimestamp();
+
+    const cycles: i64 = 10;
+
     var pass: u8 = 1;
-    while (pass <= 1) : (pass += 1) {
-        main_log.info("\n=== PASSATA {} ===\n", .{pass});
+    while (pass <= cycles) : (pass += 1) {
+        // main_log("\n=== PASSATA {} ===\n", .{pass});
 
         var output_ptr: [*]model_opts.output_data_type = undefined;
 
-        main_log.info("Calling predict (via model_opts.lib)...\\n", .{});
+        // main_log("Calling predict (via model_opts.lib)...\\n", .{});
 
         const res = model_opts.lib.predict(
             input_data.ptr,
@@ -59,49 +62,53 @@ pub fn main() !void {
             &output_ptr,
         );
 
-        main_log.info("Predict returned: {}\n", .{res});
+        // main_log("Predict returned: {}\n", .{res});
         if (res != 0) {
-            main_log.info("\n !!!! ERROR!!! Predict failed with code: {}\n", .{res});
-            main_log.info("Error codes: 0=success, -1=math ops failed, -2=init failed, -3=output failed\n", .{});
+            main_log("\n !!!! ERROR!!! Predict failed with code: {}\n", .{res});
+            main_log("Error codes: 0=success, -1=math ops failed, -2=init failed, -3=output failed\n", .{});
             allocator.free(input_data);
             return;
         }
-        main_log.info("Predict call finished.\n", .{});
+        // main_log("Predict call finished.\n", .{});
 
-        main_log.info("Output pointer address: 0x{x}\n", .{@intFromPtr(output_ptr)});
+        // main_log("Output pointer address: 0x{x}\n", .{@intFromPtr(output_ptr)});
 
         // Check if output_ptr is null before creating slice
         if (@intFromPtr(output_ptr) == 0) {
-            main_log.info("Error: predict returned a null pointer.\n", .{});
+            main_log("Error: predict returned a null pointer.\n", .{});
             allocator.free(input_data);
             return;
         }
 
         // // Test access to first element before creating full slice
-        // main_log.info("Testing first element access...\n", .{});
+        // main_log("Testing first element access...\n", .{});
         // const first_val = output_ptr[0];
-        // main_log.info("First element: {d}\n", .{first_val});
+        // main_log("First element: {d}\n", .{first_val});
 
         // const output_slice = @as([*]model_opts.output_data_type, @ptrCast(output_ptr))[0..output_size];
 
         // //print the output
-        // main_log.info("Output (first {} elements):\n", .{@min(output_size, 10)});
+        // main_log("Output (first {} elements):\n", .{@min(output_size, 10)});
         // var i: usize = 0;
         // while (i < output_slice.len and i < 10) : (i += 1) {
-        //     main_log.info("{d}, ", .{output_slice[i]});
+        //     main_log("{d}, ", .{output_slice[i]});
         // }
         // if (output_slice.len > 10) {
-        //     main_log.info("...\n", .{});
+        //     main_log("...\n", .{});
         // } else {
-        //     main_log.info("\n", .{});
+        //     main_log("\n", .{});
         // }
 
         // main_log.warn("WARNING: Memory for the predict output was NOT freed!\n", .{});
-        // main_log.info("Passata {} completata.\n", .{pass});
+        // main_log("Passata {} completata.\n", .{pass});
     }
 
-    // main_log.info("Attempting to free input memory...\\n", .{});
+    const end_time: i64 = std.time.microTimestamp();
+
+    main_log("\n average inference time: {} us \n", .{@divFloor(end_time - start_time, cycles)});
+
+    // main_log("Attempting to free input memory...\\n", .{});
     allocator.free(input_data);
 
-    // main_log.info("Program finished.\\n", .{});
+    // main_log("Program finished.\\n", .{});
 }
