@@ -97,20 +97,20 @@ pub const Constant = struct {
     pub fn get_input_tensors(self: Constant) ![]*TensorZant {
         _ = self;
         // `Constant` has no runtime inputs: it produces values from attributes only.
-        var empty = std.ArrayList(*TensorZant).init(allocator);
-        defer empty.deinit();
-        return empty.toOwnedSlice();
+        var empty: std.ArrayList(*TensorZant) = .empty;
+        defer empty.deinit(allocator);
+        return empty.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Constant) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.output);
-        return outputs.toOwnedSlice();
+        try outputs.append(allocator, self.output);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Constant, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Constant, writer: *std.Io.Writer) !void {
         const output_name = try utils.getSanitizedName(self.output.name);
 
         if (self.value != null) {

@@ -93,7 +93,7 @@ const Op_union = @import("../op_union/op_union.zig").Op_union;
 //     };
 // }
 
-// fn write_qadd_fused(writer: std.fs.File.Writer, pat: QAddPatternResult) !void {
+// fn write_qadd_fused(writer: *std.Io.Writer, pat: QAddPatternResult) !void {
 //     if (!pat.detected) return;
 
 //     // Helper to create tensor reference strings similar to other fused writers

@@ -86,14 +86,14 @@ pub const ModelProto = struct {
             if (model.graph) |g| g.deinit(reader.allocator);
         }
 
-        var opset_imports = std.ArrayList(*OperatorSetIdProto).init(reader.allocator);
-        defer opset_imports.deinit();
+        var opset_imports: std.ArrayList(*OperatorSetIdProto) = .empty;
+        defer opset_imports.deinit(reader.allocator);
 
-        var metadataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
-        defer metadataList.deinit();
+        var metadataList: std.ArrayList(*StringStringEntryProto) = .empty;
+        defer metadataList.deinit(reader.allocator);
 
-        var functions = std.ArrayList(*FunctionProto).init(reader.allocator);
-        defer functions.deinit();
+        var functions: std.ArrayList(*FunctionProto) = .empty;
+        defer functions.deinit(reader.allocator);
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
@@ -140,19 +140,19 @@ pub const ModelProto = struct {
                     var setId_reader = try reader.readLengthDelimited();
                     const setId_ptr = try reader.allocator.create(OperatorSetIdProto);
                     setId_ptr.* = try OperatorSetIdProto.parse(&setId_reader);
-                    try opset_imports.append(setId_ptr);
+                    try opset_imports.append(reader.allocator, setId_ptr);
                 },
                 14 => { // metadata props
                     var md_reader = try reader.readLengthDelimited();
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
-                    try metadataList.append(ssep_ptr);
+                    try metadataList.append(reader.allocator, ssep_ptr);
                 },
                 25 => { //functions
                     var fn_reader = try reader.readLengthDelimited();
                     const fn_ptr = try reader.allocator.create(FunctionProto);
                     fn_ptr.* = try FunctionProto.parse(&fn_reader);
-                    try functions.append(fn_ptr);
+                    try functions.append(reader.allocator, fn_ptr);
                 },
                 else => {
                     std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
@@ -161,9 +161,9 @@ pub const ModelProto = struct {
             }
         }
 
-        model.opset_import = try opset_imports.toOwnedSlice();
-        model.metadata_props = try metadataList.toOwnedSlice();
-        model.functions = try functions.toOwnedSlice();
+        model.opset_import = try opset_imports.toOwnedSlice(reader.allocator);
+        model.metadata_props = try metadataList.toOwnedSlice(reader.allocator);
+        model.functions = try functions.toOwnedSlice(reader.allocator);
 
         return model;
     }

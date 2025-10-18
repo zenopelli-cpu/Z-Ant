@@ -42,8 +42,8 @@ pub const ValueInfoProto = struct {
             .metadata_props = undefined,
         };
 
-        var metadataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
-        defer metadataList.deinit();
+        var metadataList: std.ArrayList(*StringStringEntryProto) = .empty;
+        defer metadataList.deinit(reader.allocator);
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
@@ -64,7 +64,7 @@ pub const ValueInfoProto = struct {
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
-                    try metadataList.append(ssep_ptr);
+                    try metadataList.append(reader.allocator, ssep_ptr);
                 },
                 else => {
                     onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for ValueInfoProto", .{tag});
@@ -73,7 +73,7 @@ pub const ValueInfoProto = struct {
             }
         }
 
-        value_info.metadata_props = try metadataList.toOwnedSlice();
+        value_info.metadata_props = try metadataList.toOwnedSlice(reader.allocator);
         return value_info;
     }
 

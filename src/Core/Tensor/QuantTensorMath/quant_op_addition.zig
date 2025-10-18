@@ -1,5 +1,5 @@
 const std = @import("std");
-const zant = @import("../../../../zant.zig");
+const zant = @import("zant");
 
 const Tensor = zant.core.tensor.Tensor; // Import Tensor type
 const pkg_allocator = zant.utils.allocator.allocator;
@@ -30,14 +30,13 @@ pub fn quant_sum_tensors(comptime inputType: anytype, comptime outputType: anyty
 }
 
 pub inline fn quant_lean_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *const Tensor(inputType), t2: *const Tensor(inputType), outputTensor: *Tensor(outputType)) !void {
-    
     switch (outputTensor.details) {
         .quant => |*qd| {
-            if(@typeInfo(inputType) == .int){
+            if (@typeInfo(inputType) == .int) {
 
                 // INTEGER OPERATIONS
                 // If the input tensors have the same scale factor operate directly in quantized integer
-                if(t1.details.quant.scale_factor == t2.details.quant.scale_factor){
+                if (t1.details.quant.scale_factor == t2.details.quant.scale_factor) {
 
                     // Set output tensor details
                     qd.zero_point = (t1.details.quant.zero_point + t2.details.quant.zero_point) / 2;
@@ -240,7 +239,7 @@ pub inline fn quant_lean_sum_tensors(comptime inputType: anytype, comptime outpu
                     // Create temporal tensor for the result
                     const dequant_result = try Tensor(f32).fromShape(&pkg_allocator, outputTensor.shape);
                     defer dequant_result.deinit();
-                    
+
                     // Simple case: same size tensors
                     if (dequant_t1.size == dequant_t2.size) {
 
@@ -388,15 +387,12 @@ pub inline fn quant_lean_sum_tensors(comptime inputType: anytype, comptime outpu
                     // Requantize the result
                     outputTensor.deinit();
                     try QuantTensMath.lean_quantize_minmax(outputType, dequant_result, outputTensor, quantScheme.ASYM);
-
                 }
-
-            }
-            else
-                return TensorError.NotQuantizedTensor;
+            } else return TensorError.NotQuantizedTensor;
         },
 
-        else => { return TensorError.NotQuantizedTensor; }
-
+        else => {
+            return TensorError.NotQuantizedTensor;
+        },
     }
 }

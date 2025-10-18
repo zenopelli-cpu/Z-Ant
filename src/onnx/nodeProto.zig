@@ -73,14 +73,14 @@ pub const NodeProto = struct {
             .metadata_props = undefined,
         };
 
-        var inputs = std.ArrayList([]const u8).init(reader.allocator);
-        defer inputs.deinit();
-        var outputs = std.ArrayList([]const u8).init(reader.allocator);
-        defer outputs.deinit();
-        var attributes = std.ArrayList(*AttributeProto).init(reader.allocator);
-        defer attributes.deinit();
-        var metadataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
-        defer metadataList.deinit();
+        var inputs: std.ArrayList([]const u8) = .empty;
+        defer inputs.deinit(reader.allocator);
+        var outputs: std.ArrayList([]const u8) = .empty;
+        defer outputs.deinit(reader.allocator);
+        var attributes: std.ArrayList(*AttributeProto) = .empty;
+        defer attributes.deinit(reader.allocator);
+        var metadataList: std.ArrayList(*StringStringEntryProto) = .empty;
+        defer metadataList.deinit(reader.allocator);
 
         errdefer {
             if (node.name) |n| reader.allocator.free(n);
@@ -100,11 +100,11 @@ pub const NodeProto = struct {
             switch (tag.field_number) {
                 1 => { // input
                     const value = try reader.readString(reader.allocator);
-                    try inputs.append(value);
+                    try inputs.append(reader.allocator, value);
                 },
                 2 => { // output
                     const value = try reader.readString(reader.allocator);
-                    try outputs.append(value);
+                    try outputs.append(reader.allocator, value);
                 },
                 3 => { // name
                     node.name = try reader.readString(reader.allocator);
@@ -118,7 +118,7 @@ pub const NodeProto = struct {
                     var attr_reader = try reader.readLengthDelimited();
                     const attr_ptr = try reader.allocator.create(AttributeProto);
                     attr_ptr.* = try AttributeProto.parse(&attr_reader);
-                    try attributes.append(attr_ptr);
+                    try attributes.append(reader.allocator, attr_ptr);
                 },
                 6 => { // doc_string
                     node.doc_string = try reader.readString(reader.allocator);
@@ -133,7 +133,7 @@ pub const NodeProto = struct {
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
-                    try metadataList.append(ssep_ptr);
+                    try metadataList.append(reader.allocator, ssep_ptr);
                 },
                 else => {
                     onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for NodeProto\n\n", .{tag});
@@ -142,10 +142,10 @@ pub const NodeProto = struct {
             }
         }
 
-        node.input = try inputs.toOwnedSlice();
-        node.output = try outputs.toOwnedSlice();
-        node.attribute = try attributes.toOwnedSlice();
-        node.metadata_props = try metadataList.toOwnedSlice();
+        node.input = try inputs.toOwnedSlice(reader.allocator);
+        node.output = try outputs.toOwnedSlice(reader.allocator);
+        node.attribute = try attributes.toOwnedSlice(reader.allocator);
+        node.metadata_props = try metadataList.toOwnedSlice(reader.allocator);
         return node;
     }
 

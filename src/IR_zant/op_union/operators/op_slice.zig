@@ -70,24 +70,24 @@ pub const Slice = struct {
     }
 
     pub fn get_input_tensors(self: Slice) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        try inputs.append(self.input);
-        try inputs.append(self.starts);
-        try inputs.append(self.ends);
-        if (self.axes) |a| try inputs.append(a);
-        if (self.steps) |s| try inputs.append(s);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        try inputs.append(allocator, self.input);
+        try inputs.append(allocator, self.starts);
+        try inputs.append(allocator, self.ends);
+        if (self.axes) |a| try inputs.append(allocator, a);
+        if (self.steps) |s| try inputs.append(allocator, s);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Slice) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
-        try outputs.append(self.output);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
+        try outputs.append(allocator, self.output);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Slice, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Slice, writer: *std.Io.Writer) !void {
 
         //----create tensor_input_string
         var tensor_input_string: []u8 = undefined;

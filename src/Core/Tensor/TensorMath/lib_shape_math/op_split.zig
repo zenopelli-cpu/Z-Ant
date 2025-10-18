@@ -19,14 +19,14 @@ pub fn split(comptime T: anytype, t: *Tensor(T), axis: i64, split_sizes: ?[]cons
 
     // Calculate split sizes
     const dim_size = t.shape[positive_axis];
-    var sizes = std.ArrayList(usize).init(t.allocator.*);
-    defer sizes.deinit();
+    var sizes: std.ArrayList(usize) = .empty;
+    defer sizes.deinit(t.allocator.*);
 
     if (split_sizes) |s| {
         // Validate and use provided split sizes
         var total_size: usize = 0;
         for (s) |size| {
-            try sizes.append(size);
+            try sizes.append(t.allocator.*, size);
             total_size += size;
         }
         if (total_size != dim_size) return TensorError.InvalidSplitSize;
@@ -34,7 +34,7 @@ pub fn split(comptime T: anytype, t: *Tensor(T), axis: i64, split_sizes: ?[]cons
         // Split into equal parts
         if (dim_size == 0) return TensorError.InvalidSplitSize;
         const split_size = dim_size;
-        try sizes.append(split_size);
+        try sizes.append(t.allocator.*, split_size);
     }
 
     // Create output tensors
@@ -178,14 +178,14 @@ pub fn get_split_output_shapes(input_shape: []const usize, axis: i64, split_size
     if (positive_axis >= input_shape.len) return TensorError.InvalidAxis;
 
     const dim_size: usize = input_shape[positive_axis];
-    var sizes = std.ArrayList(usize).init(pkg_allocator);
-    defer sizes.deinit();
+    var sizes: std.ArrayList(usize) = .empty;
+    defer sizes.deinit(pkg_allocator);
 
     if (split_sizes) |s| {
         // Validate and use provided split sizes
         var total_size: usize = 0;
         for (s) |size| {
-            try sizes.append(size);
+            try sizes.append(pkg_allocator, size);
             total_size += size;
         }
         if (total_size != dim_size) return TensorError.InvalidSplitSize;
@@ -194,10 +194,10 @@ pub fn get_split_output_shapes(input_shape: []const usize, axis: i64, split_size
         if (@mod(dim_size, n) != 0) return TensorError.InvalidSplitSize;
         const split_size = @divTrunc(dim_size, n);
         var i: usize = 0;
-        while (i < n) : (i += 1) try sizes.append(split_size);
+        while (i < n) : (i += 1) try sizes.append(pkg_allocator, split_size);
     } else {
         // Default case: just create one output with the full size
-        try sizes.append(dim_size);
+        try sizes.append(pkg_allocator, dim_size);
     }
 
     // Create output shapes

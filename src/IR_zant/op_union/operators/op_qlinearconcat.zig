@@ -56,9 +56,9 @@ pub const QLinearConcat = struct {
             return error.QLinearConcatInvalidInputCount;
         }
 
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        var input_scales = std.ArrayList(*TensorZant).init(allocator);
-        var input_zero_points = std.ArrayList(*TensorZant).init(allocator);
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        var input_scales: std.ArrayList(*TensorZant) = .empty;
+        var input_zero_points: std.ArrayList(*TensorZant) = .empty;
 
         const output_scale = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[0])) |ptr| ptr else return error.output_scale_notFound;
         const output_zero_point = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[1])) |ptr| ptr else return error.output_zero_point_notFound;
@@ -70,9 +70,9 @@ pub const QLinearConcat = struct {
             const input_scale = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[base + 1])) |ptr| ptr else return error.input_scale_notFound;
             const input_zero_point = if (tensorZant_lib.tensorMap.getPtr(nodeProto.input[base + 2])) |ptr| ptr else return error.input_zero_point_notFound;
 
-            try inputs.append(input_tensor);
-            try input_scales.append(input_scale);
-            try input_zero_points.append(input_zero_point);
+            try inputs.append(allocator, input_tensor);
+            try input_scales.append(allocator, input_scale);
+            try input_zero_points.append(allocator, input_zero_point);
         }
 
         const concat_result = if (tensorZant_lib.tensorMap.getPtr(nodeProto.output[0])) |ptr| ptr else return error.concat_result_notFound;
@@ -112,37 +112,37 @@ pub const QLinearConcat = struct {
     }
 
     pub fn get_input_tensors(self: QLinearConcat) ![]*TensorZant {
-        var input_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer input_tensors.deinit();
+        var input_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer input_tensors.deinit(allocator);
 
         // Add all input tensors
         for (self.inputs.items) |input| {
-            try input_tensors.append(input);
+            try input_tensors.append(allocator, input);
         }
         // Add all scales
         for (self.input_scales.items) |scale| {
-            try input_tensors.append(scale);
+            try input_tensors.append(allocator, scale);
         }
         // Add all zero points
         for (self.input_zero_points.items) |zp| {
-            try input_tensors.append(zp);
+            try input_tensors.append(allocator, zp);
         }
         // Add output scale and zero point
-        try input_tensors.append(self.output_scale);
-        try input_tensors.append(self.output_zero_point);
+        try input_tensors.append(allocator, self.output_scale);
+        try input_tensors.append(allocator, self.output_zero_point);
 
-        return input_tensors.toOwnedSlice();
+        return input_tensors.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: QLinearConcat) ![]*TensorZant {
-        var output_tensors = std.ArrayList(*TensorZant).init(allocator);
-        defer output_tensors.deinit();
+        var output_tensors: std.ArrayList(*TensorZant) = .empty;
+        defer output_tensors.deinit(allocator);
 
-        try output_tensors.append(self.concat_result);
-        return output_tensors.toOwnedSlice();
+        try output_tensors.append(allocator, self.concat_result);
+        return output_tensors.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: QLinearConcat, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: QLinearConcat, writer: *std.Io.Writer) !void {
         // Decide type strings robustly (prefer OUTPUT types for scale/zp)
         const input_type_s: []const u8 = if (self.inputs.items.len > 0 and self.inputs.items[0].ty != tensorZant_lib.TensorType.undefined) self.inputs.items[0].ty.toString() else "i8";
         const scale_type_s: []const u8 = if (self.output_scale.ty != tensorZant_lib.TensorType.undefined) self.output_scale.ty.toString() else "f32";

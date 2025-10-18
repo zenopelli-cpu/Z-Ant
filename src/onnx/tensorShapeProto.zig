@@ -101,8 +101,8 @@ pub const TensorShapeProto = struct {
             .dims = undefined,
         };
 
-        var dims_list = std.ArrayList(*Dimension).init(reader.allocator);
-        defer dims_list.deinit();
+        var dims_list: std.ArrayList(*Dimension) = .empty;
+        defer dims_list.deinit(reader.allocator);
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
@@ -112,7 +112,7 @@ pub const TensorShapeProto = struct {
                     var dim_reader = try reader.readLengthDelimited(); //var dim_reader
                     const dim_ptr = try reader.allocator.create(Dimension);
                     dim_ptr.* = try Dimension.parse(&dim_reader);
-                    try dims_list.append(dim_ptr);
+                    try dims_list.append(reader.allocator, dim_ptr);
                 },
                 else => {
                     onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for TensorShapeProto\n\n ", .{tag});
@@ -122,15 +122,15 @@ pub const TensorShapeProto = struct {
         }
 
         //creating shape []i64
-        var shape_list = std.ArrayList(i64).init(reader.allocator);
-        defer shape_list.deinit();
+        var shape_list: std.ArrayList(i64) = .empty;
+        defer shape_list.deinit(reader.allocator);
         for (dims_list.items) |d| {
-            if (d.*.dim_value) |val| try shape_list.append(val);
+            if (d.*.dim_value) |val| try shape_list.append(reader.allocator, val);
         }
-        shape.shape = try shape_list.toOwnedSlice();
+        shape.shape = try shape_list.toOwnedSlice(reader.allocator);
 
         //creating dim []Dimension
-        shape.dims = try dims_list.toOwnedSlice();
+        shape.dims = try dims_list.toOwnedSlice(reader.allocator);
         return shape;
     }
 

@@ -115,12 +115,12 @@ pub const Fused_Pad_Conv = struct {
         const conv_node = root_node.next.items[0];
         if (conv_node.op != .conv) return null;
 
-        var node_list = std.ArrayList(*NodeZant).init(allocator);
-        errdefer node_list.deinit();
+        var node_list: std.ArrayList(*NodeZant) = .empty;
+        errdefer node_list.deinit(allocator);
 
         // Node_list: Pad -> Conv
-        try node_list.append(root_node);
-        try node_list.append(conv_node);
+        try node_list.append(allocator, root_node);
+        try node_list.append(allocator, conv_node);
 
         std.debug.print(" -> Found Pad->Conv pattern!", .{});
         return node_list;
@@ -138,10 +138,10 @@ pub const Fused_Pad_Conv = struct {
 
         const last_node = node_list.items[1];
         // Clone the next list instead of direct reference
-        var cloned_next = std.ArrayList(*NodeZant).init(allocator);
+        var cloned_next: std.ArrayList(*NodeZant) = .empty;
         // Take the successors of the last_node, to make them successors of the fused_node
         for (last_node.next.items) |next_node| {
-            try cloned_next.append(next_node);
+            try cloned_next.append(allocator, next_node);
         }
 
         return NodeZant{
@@ -175,12 +175,12 @@ pub const Fused_Pad_Conv = struct {
         // Set the successor nodes if it hasn't been done yet
         if (fused_node.next.items.len == 0) {
             for (last_node.next.items) |successor| {
-                try fused_node.next.append(successor);
+                try fused_node.next.append(allocator, successor);
             }
         }
 
         try graph.removeNodes(node_list);
-        try graph.nodes.append(fused_node);
+        try graph.nodes.append(allocator, fused_node);
     }
 
     pub fn get_output_shape(self: Fused_Pad_Conv) []usize {
@@ -195,7 +195,7 @@ pub const Fused_Pad_Conv = struct {
         return try self.fused_pad_conv.get_output_tensors();
     }
 
-    pub fn write_op(self: Fused_Pad_Conv, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Pad_Conv, writer: *std.Io.Writer) !void {
         try self.fused_pad_conv.write_op(writer);
     }
 

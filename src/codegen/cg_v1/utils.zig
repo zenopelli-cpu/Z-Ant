@@ -304,32 +304,32 @@ pub fn u32ToUsize(alloc: std.mem.Allocator, input: [*]u32, size: u32) ![]usize {
 }
 
 pub fn parseNumbers(input: []const u8) ![]i64 {
-    var list = std.ArrayList(i64).init(allocator);
-    errdefer list.deinit();
+    var list: std.ArrayList(i64) = .empty;
+    errdefer list.deinit(allocator);
 
-    if (input.len == 0) return list.toOwnedSlice();
+    if (input.len == 0) return list.toOwnedSlice(allocator);
 
     var it = std.mem.splitScalar(u8, input, ',');
     while (it.next()) |num_str| {
         const num = try std.fmt.parseInt(i64, num_str, 10);
-        try list.append(num);
+        try list.append(allocator, num);
     }
 
-    return list.toOwnedSlice();
+    return list.toOwnedSlice(allocator);
 }
 
 pub fn i64SliceToUsizeArrayString(values: []const i64) ![]const u8 {
-    var list = std.ArrayList(u8).init(allocator);
-    defer list.deinit(); // Frees all memory
+    var list: std.ArrayList(u8) = .empty;
+    defer list.deinit(allocator); // Frees all memory
 
-    try list.appendSlice("&[_]usize{");
+    try list.appendSlice(allocator, "&[_]usize{");
     for (values, 0..) |val, i| {
-        if (i > 0) try list.append(',');
-        try list.writer().print("{}", .{val});
+        if (i > 0) try list.append(allocator, ',');
+        try list.writer(allocator).print("{}", .{val});
     }
-    try list.append('}');
+    try list.append(allocator, '}');
 
-    return try list.toOwnedSlice(); // Caller must free this!
+    return try list.toOwnedSlice(allocator); // Caller must free this!
 }
 
 /// Parses a raw byte slice (expected to be little-endian) into an allocated slice of i64.

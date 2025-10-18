@@ -143,8 +143,8 @@ pub fn nonmaxsuppression_lean(
     for (0..num_batches) |batch_idx| {
         for (0..num_classes) |class_idx| {
             // Collect boxes for this batch and class
-            var candidate_boxes = std.ArrayList(Box).init(pkg_allocator);
-            defer candidate_boxes.deinit();
+            var candidate_boxes: std.ArrayList(Box) = .empty;
+            defer candidate_boxes.deinit(pkg_allocator);
 
             for (0..num_boxes) |box_idx| {
                 const score_idx = batch_idx * num_classes * num_boxes + class_idx * num_boxes + box_idx;
@@ -178,7 +178,7 @@ pub fn nonmaxsuppression_lean(
                     box.batch_id = batch_idx;
                     box.original_index = box_idx;
 
-                    try candidate_boxes.append(box);
+                    try candidate_boxes.append(pkg_allocator, box);
                 }
             }
 
@@ -190,8 +190,8 @@ pub fn nonmaxsuppression_lean(
             }.lessThan);
 
             // Apply NMS
-            var selected_boxes = std.ArrayList(Box).init(pkg_allocator);
-            defer selected_boxes.deinit();
+            var selected_boxes: std.ArrayList(Box) = .empty;
+            defer selected_boxes.deinit(pkg_allocator);
 
             for (candidate_boxes.items) |candidate| {
                 if (selected_boxes.items.len >= max_boxes_per_class) {
@@ -208,7 +208,7 @@ pub fn nonmaxsuppression_lean(
                 }
 
                 if (!is_suppressed) {
-                    try selected_boxes.append(candidate);
+                    try selected_boxes.append(pkg_allocator, candidate);
                 }
             }
 

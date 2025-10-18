@@ -117,27 +117,27 @@ pub const Fused_Conv_Clip = struct {
     }
 
     pub fn get_input_tensors(self: Fused_Conv_Clip) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.input_X);
-        try inputs.append(self.input_W);
-        if (self.input_B) |bias| try inputs.append(bias);
-        if (self.min) |min_tensor| try inputs.append(min_tensor);
-        if (self.max) |max_tensor| try inputs.append(max_tensor);
+        try inputs.append(allocator, self.input_X);
+        try inputs.append(allocator, self.input_W);
+        if (self.input_B) |bias| try inputs.append(allocator, bias);
+        if (self.min) |min_tensor| try inputs.append(allocator, min_tensor);
+        if (self.max) |max_tensor| try inputs.append(allocator, max_tensor);
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Fused_Conv_Clip) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.output_Y);
-        return outputs.toOwnedSlice();
+        try outputs.append(allocator, self.output_Y);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Fused_Conv_Clip, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Conv_Clip, writer: *std.Io.Writer) !void {
         // Build Conv operation strings (similar to op_conv.zig)
         var tensor_X_string: []u8 = undefined;
         defer allocator.free(tensor_X_string);
@@ -360,24 +360,24 @@ pub const Fused_Conv_Clip = struct {
             return null;
         }
 
-        var node_list = std.ArrayList(*NodeZant).init(allocator);
-        errdefer node_list.deinit();
+        var node_list: std.ArrayList(*NodeZant) = .empty;
+        errdefer node_list.deinit(allocator);
 
-        try node_list.append(root_node);
+        try node_list.append(allocator, root_node);
 
         // Check DequantizeLinear -> Pad
         if (root_node.next.items.len != 1) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         const pad_node = root_node.next.items[0];
         if (pad_node.op != .clip) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
-        try node_list.append(pad_node);
+        try node_list.append(allocator, pad_node);
 
         std.debug.print(" -> Found complete Conv->Clip pattern!", .{});
 
@@ -396,9 +396,9 @@ pub const Fused_Conv_Clip = struct {
         const last_node = node_list.items[1]; // Clip
 
         // Clone the next list instead of direct reference
-        var cloned_next = std.ArrayList(*NodeZant).init(allocator);
+        var cloned_next: std.ArrayList(*NodeZant) = .empty;
         for (last_node.next.items) |next_node| {
-            try cloned_next.append(next_node);
+            try cloned_next.append(allocator, next_node);
         }
 
         return NodeZant{
@@ -440,7 +440,7 @@ pub const Fused_Conv_Clip = struct {
         // Step 3: Set up fused node's successors
         if (fused_node.next.items.len == 0) {
             for (last_node.next.items) |successor| {
-                try fused_node.next.append(successor);
+                try fused_node.next.append(allocator, successor);
             }
         }
 
@@ -448,6 +448,6 @@ pub const Fused_Conv_Clip = struct {
         try graph.removeNodes(node_list);
 
         // Step 5: Add fused node to graph
-        try graph.nodes.append(fused_node);
+        try graph.nodes.append(allocator, fused_node);
     }
 };

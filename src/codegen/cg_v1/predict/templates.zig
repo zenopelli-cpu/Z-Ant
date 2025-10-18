@@ -9,7 +9,7 @@ pub const RC = struct {
 };
 
 // Centralized logging helper
-pub fn emitLogHelper(writer: std.fs.File.Writer) !void {
+pub fn emitLogHelper(writer: *std.Io.Writer) !void {
     try writer.print(
         \\
         \\inline fn logMsg(comptime msg: []const u8) void {{
@@ -22,7 +22,7 @@ pub fn emitLogHelper(writer: std.fs.File.Writer) !void {
 }
 
 // Standard function signature template
-pub fn emitFunctionSignature(writer: std.fs.File.Writer, do_export: bool) !void {
+pub fn emitFunctionSignature(writer: *std.Io.Writer, do_export: bool) !void {
     try writer.print(
         \\
         \\ // return codes:
@@ -38,12 +38,12 @@ pub fn emitFunctionSignature(writer: std.fs.File.Writer, do_export: bool) !void 
         \\) {s} i32 {{
     , .{
         if (do_export) "export" else "",
-        if (do_export) "callconv(.C)" else "",
+        if (do_export) "callconv(.c)" else "",
     });
 }
 
 // Helper for input size calculation - extracted from common pattern
-pub fn emitInputSizeCalculation(writer: std.fs.File.Writer) !void {
+pub fn emitInputSizeCalculation(writer: *std.Io.Writer) !void {
     try writer.print(
         \\  
         \\    //computing the size of the input tensor (runtime)

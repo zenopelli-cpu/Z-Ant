@@ -25,9 +25,9 @@ comptime {
 ///
 ///
 ///
-pub var log_functionC: ?*const fn ([*c]u8) callconv(.C) void = null;
+pub var log_functionC: ?*const fn ([*c]u8) callconv(.c) void = null;
 
-pub export fn setLogFunctionC(func: ?*const fn ([*c]u8) callconv(.C) void) void {
+pub export fn setLogFunctionC(func: ?*const fn ([*c]u8) callconv(.c) void) void {
     log_functionC = func;
 }
 

@@ -154,18 +154,18 @@ pub const AttributeProto = struct {
             .sparse_tensor = null,
         };
 
-        var floats_list = std.ArrayList(f32).init(reader.allocator);
-        defer floats_list.deinit();
-        var ints_list = std.ArrayList(i64).init(reader.allocator);
-        defer ints_list.deinit();
-        var strings_list = std.ArrayList([]const u8).init(reader.allocator);
-        defer strings_list.deinit();
-        var tensors_list = std.ArrayList(*TensorProto).init(reader.allocator);
-        defer tensors_list.deinit();
-        var graphs_list = std.ArrayList(*GraphProto).init(reader.allocator);
-        defer graphs_list.deinit();
-        var type_protos_list = std.ArrayList(*TypeProto).init(reader.allocator);
-        defer type_protos_list.deinit();
+        var floats_list: std.ArrayList(f32) = .empty;
+        defer floats_list.deinit(reader.allocator);
+        var ints_list: std.ArrayList(i64) = .empty;
+        defer ints_list.deinit(reader.allocator);
+        var strings_list: std.ArrayList([]const u8) = .empty;
+        defer strings_list.deinit(reader.allocator);
+        var tensors_list: std.ArrayList(*TensorProto) = .empty;
+        defer tensors_list.deinit(reader.allocator);
+        var graphs_list: std.ArrayList(*GraphProto) = .empty;
+        defer graphs_list.deinit(reader.allocator);
+        var type_protos_list: std.ArrayList(*TypeProto) = .empty;
+        defer type_protos_list.deinit(reader.allocator);
 
         while (reader.hasMore()) {
             const attr_tag = try reader.readTag();
@@ -217,31 +217,31 @@ pub const AttributeProto = struct {
                         while (floats_reader.hasMore()) {
                             if (floats_reader.available() < 4) break;
                             const v = try floats_reader.readFixed32();
-                            try floats_list.append(@bitCast(v));
+                            try floats_list.append(reader.allocator, @bitCast(v));
                         }
                     } else {
                         const v = try reader.readFixed32();
-                        try floats_list.append(@bitCast(v));
+                        try floats_list.append(reader.allocator, @bitCast(v));
                     }
                     if (attr.type != .INTS) attr.type = .FLOATS;
                 },
                 8 => { // repeated int64 (ints) or potential repeated int
                     const v = try reader.readVarint();
-                    try ints_list.append(@intCast(v));
+                    try ints_list.append(reader.allocator, @intCast(v));
                     //DEBUG
                     //onnx_log.debug("Added int value {d} to {s}\n", .{ v, attr.name });
                     attr.type = .INTS;
                 },
                 9 => { // strings
                     const value = try reader.readString(reader.allocator);
-                    try strings_list.append(value);
+                    try strings_list.append(reader.allocator, value);
                 },
                 10 => { //tensors
                     _ = try reader.readLengthDelimited(); //var tensor_reader
                     var tensors_reader = try reader.readLengthDelimited();
                     const tensor_ptr = try reader.allocator.create(TensorProto);
                     tensor_ptr.* = try TensorProto.parse(&tensors_reader);
-                    try tensors_list.append(tensor_ptr);
+                    try tensors_list.append(reader.allocator, tensor_ptr);
                 },
                 11 => {
                     //var graph_reader = try reader.readLengthDelimited(); //var graph_reader
@@ -263,7 +263,7 @@ pub const AttributeProto = struct {
                     var tp_reader = try reader.readLengthDelimited();
                     const tp_ptr = try reader.allocator.create(TypeProto);
                     tp_ptr.* = try TypeProto.parse(&tp_reader);
-                    try type_protos_list.append(tp_ptr);
+                    try type_protos_list.append(reader.allocator, tp_ptr);
                 },
                 20 => { // type
 
@@ -291,10 +291,10 @@ pub const AttributeProto = struct {
             }
         }
 
-        attr.floats = try floats_list.toOwnedSlice();
-        attr.ints = try ints_list.toOwnedSlice();
-        attr.strings = try strings_list.toOwnedSlice();
-        attr.graphs = try graphs_list.toOwnedSlice();
+        attr.floats = try floats_list.toOwnedSlice(reader.allocator);
+        attr.ints = try ints_list.toOwnedSlice(reader.allocator);
+        attr.strings = try strings_list.toOwnedSlice(reader.allocator);
+        attr.graphs = try graphs_list.toOwnedSlice(reader.allocator);
 
         return attr;
     }

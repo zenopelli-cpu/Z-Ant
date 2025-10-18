@@ -65,17 +65,17 @@ pub const Fused_Conv_Sigmoid_Mul = struct {
             return null;
         }
 
-        var node_list = std.ArrayList(*NodeZant).init(allocator);
-        errdefer node_list.deinit(); // Clean up on error
+        var node_list: std.ArrayList(*NodeZant) = .empty;
+        errdefer node_list.deinit(allocator); // Clean up on error
 
-        try node_list.append(root_node);
+        try node_list.append(allocator, root_node);
         std.debug.print(" -> Conv node found, checking for Sigmoid/Mul successors", .{});
 
         // Check if Conv has exactly two successors
         const next_nodes = root_node.next;
         if (next_nodes.items.len != 2) {
             // std.debug.print(" -> Failed: Conv node does not have exactly 2 successors ({d})", .{next_nodes.items.len});
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
@@ -99,13 +99,13 @@ pub const Fused_Conv_Sigmoid_Mul = struct {
             //     node_a.op_type,
             //     node_b.op_type,
             // });
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         std.debug.print(" -> Found Conv_Sigmoid_Mul pattern!", .{});
-        try node_list.append(sigmoid_node.?);
-        try node_list.append(mul_node.?);
+        try node_list.append(allocator, sigmoid_node.?);
+        try node_list.append(allocator, mul_node.?);
 
         return node_list;
     }
@@ -122,18 +122,18 @@ pub const Fused_Conv_Sigmoid_Mul = struct {
         const mul_node: *NodeZant = node_list.items[2];
 
         //  Clone the next list instead of direct reference
-        var cloned_next = std.ArrayList(*NodeZant).init(allocator);
+        var cloned_next: std.ArrayList(*NodeZant) = .empty;
         for (sigmoid_node.next.items) |next_node| {
-            try cloned_next.append(next_node);
+            try cloned_next.append(allocator, next_node);
         }
         for (mul_node.next.items) |next_node| {
-            try cloned_next.append(next_node);
+            try cloned_next.append(allocator, next_node);
         }
 
         //  Clone the fusion_list instead of direct reference
-        var cloned_fusion_list = std.ArrayList(*NodeZant).init(allocator);
+        var cloned_fusion_list: std.ArrayList(*NodeZant) = .empty;
         for (node_list.items) |node| {
-            try cloned_fusion_list.append(node);
+            try cloned_fusion_list.append(allocator, node);
         }
 
         return NodeZant{

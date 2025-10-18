@@ -294,9 +294,9 @@ pub const UOpBuilder = struct {
 
     /// Transfer ownership of the slice (caller must later free each src* AND specific arg* payloads)
     pub fn toOwnedSlice(self: *UOpBuilder) ![]UOp {
-        const owned_slice = try self.list.toOwnedSlice();
+        const owned_slice = try self.list.toOwnedSlice(self.alloc);
         // Reset the builder's list to prevent double-free in deinit
-        self.list = std.ArrayList(UOp).init(self.alloc);
+        self.list = .empty;
         return owned_slice;
     }
 

@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Zig (replace the version with the desired one)
-ENV ZIG_VERSION=0.14.0
+ENV ZIG_VERSION=0.15.2
 RUN wget https://ziglang.org/download/${ZIG_VERSION}/zig-linux-$(arch)-${ZIG_VERSION}.tar.xz \
     && tar xf zig-linux-$(arch)-${ZIG_VERSION}.tar.xz \
     && mv zig-linux-$(arch)-${ZIG_VERSION} /opt/zig \

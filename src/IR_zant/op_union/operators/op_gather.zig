@@ -79,22 +79,22 @@ pub const Gather = struct {
     }
 
     pub fn get_input_tensors(self: Gather) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.input_A);
-        try inputs.append(self.input_B);
+        try inputs.append(allocator, self.input_A);
+        try inputs.append(allocator, self.input_B);
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Gather) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.output_C);
+        try outputs.append(allocator, self.output_C);
 
-        return outputs.toOwnedSlice();
+        return outputs.toOwnedSlice(allocator);
     }
 
     // pub fn compute_output_shape(self: Gather) []usize {
@@ -107,7 +107,7 @@ pub const Gather = struct {
     //     ));
     // }
 
-    pub fn write_op(self: Gather, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Gather, writer: *std.Io.Writer) !void {
         // Input A (data)
         var tensor_A_string: []u8 = undefined;
         defer allocator.free(tensor_A_string);

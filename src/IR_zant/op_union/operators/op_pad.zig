@@ -195,7 +195,7 @@ pub const Pad = struct {
         return tensors;
     }
 
-    pub fn write_op(op: *const Pad, writer: std.fs.File.Writer) !void {
+    pub fn write_op(op: *const Pad, writer: *std.Io.Writer) !void {
         // Build input data reference
         var data_ref: []u8 = undefined;
         defer allocator.free(data_ref);

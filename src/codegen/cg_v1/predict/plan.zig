@@ -46,10 +46,10 @@ pub const PlanStep = struct {
     // Tensors that alias previously allocated buffers (in-place ops)
     aliases: std.ArrayList(PlanTensor),
 
-    pub fn deinit(self: *PlanStep) void {
-        self.allocs.deinit();
-        self.frees.deinit();
-        self.aliases.deinit();
+    pub fn deinit(self: *PlanStep, allocator: std.mem.Allocator) void {
+        self.allocs.deinit(allocator);
+        self.frees.deinit(allocator);
+        self.aliases.deinit(allocator);
     }
 };
 
@@ -63,19 +63,19 @@ pub const ExecutionPlan = struct {
     pub fn init(allocator: std.mem.Allocator) ExecutionPlan {
         return ExecutionPlan{
             .allocator = allocator,
-            .steps = std.ArrayList(PlanStep).init(allocator),
-            .inputs = std.ArrayList(PlanTensor).init(allocator),
-            .outputs = std.ArrayList(PlanTensor).init(allocator),
+            .steps = .empty,
+            .inputs = .empty,
+            .outputs = .empty,
         };
     }
 
     pub fn deinit(self: *ExecutionPlan) void {
         for (self.steps.items) |*step| {
-            step.deinit();
+            step.deinit(self.allocator);
         }
-        self.steps.deinit();
-        self.inputs.deinit();
-        self.outputs.deinit();
+        self.steps.deinit(self.allocator);
+        self.inputs.deinit(self.allocator);
+        self.outputs.deinit(self.allocator);
     }
 };
 
@@ -146,9 +146,9 @@ fn buildSteps(plan: *ExecutionPlan, tensor_liveness: *std.StringHashMap(PlanTens
         var step = PlanStep{
             .idx = step_idx,
             .node = node,
-            .allocs = std.ArrayList(PlanTensor).init(plan.allocator),
-            .frees = std.ArrayList(PlanTensor).init(plan.allocator),
-            .aliases = std.ArrayList(PlanTensor).init(plan.allocator),
+            .allocs = .empty,
+            .frees = .empty,
+            .aliases = .empty,
         };
 
         // Find tensors to allocate before this step
@@ -157,19 +157,19 @@ fn buildSteps(plan: *ExecutionPlan, tensor_liveness: *std.StringHashMap(PlanTens
             const tensor = entry.value_ptr.*;
 
             if (tensor.first_def_step == step_idx and tensor.alias_of != null) {
-                try step.aliases.append(tensor);
+                try step.aliases.append(plan.allocator, tensor);
             }
 
             if (tensor.shouldAllocateAt(step_idx)) {
-                try step.allocs.append(tensor);
+                try step.allocs.append(plan.allocator, tensor);
             }
 
             if (tensor.shouldDeallocateAfter(step_idx)) {
-                try step.frees.append(tensor);
+                try step.frees.append(plan.allocator, tensor);
             }
         }
 
-        try plan.steps.append(step);
+        try plan.steps.append(plan.allocator, step);
     }
 }
 
