@@ -161,7 +161,7 @@ pub fn decodeHuffmanData(header: JpegData, allocator: *const std.mem.Allocator, 
         var x: usize = 0;
         while (x < header.mcu_width) {
             if (restartInerval != 0 and ((y * header.mcu_true_width + x) % restartInerval == 0)) {
-                std.debug.print("reset\n", .{});
+                // std.debug.print("reset\n", .{}); DEBUG
                 previousDCs[0] = 0;
                 previousDCs[1] = 0;
                 previousDCs[2] = 0;

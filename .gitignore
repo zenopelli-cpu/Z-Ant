@@ -45,6 +45,7 @@ massif*.*
 
 # profiling
 /profiling/*
+lazy.sh
 
 # Onnx models
 **/*.onnx
