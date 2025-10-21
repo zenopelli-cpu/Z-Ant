@@ -7,7 +7,7 @@ import json
 from onnx import helper, TensorProto
 import argparse
 from onnx import shape_inference
-#from onnxsim import simplify.  used for redundancy
+from onnxsim import simplify
 
 def load_extracted_shapes(shapes_file):
     """Load the extracted shapes from JSON file"""
@@ -596,16 +596,16 @@ def main():
 
     #for redundancy try also with the infer shape-----------------------
     
-    #model = onnx.load(model_path)
-   # inferred_model = shape_inference.infer_shapes(model)
+    model = onnx.load(model_path)
+    inferred_model = shape_inference.infer_shapes(model)
 
-    #model_simp, check = simplify(inferred_model)
+    model_simp, check = simplify(inferred_model)
 
-    #if check:
-    #    print("Simplified model is valid!")
-     #   onnx.save(model_simp, model_path)
-    #else:
-    #    raise RuntimeError("Something went wrong in the onnx simplifier()")
+    if check:
+       print("Simplified model is valid!")
+       onnx.save(model_simp, model_path)
+    else:
+       raise RuntimeError("Something went wrong in the onnx simplifier()")
 
 if __name__ == "__main__":
     main()
