@@ -1,7 +1,7 @@
 import onnx
 from onnx import shape_inference
 import argparse
-from onnxsim import simplify
+#from onnxsim import simplify  # Optional: can be commented if onnxsim causes issues (see safe_simplify() docstring)
 import numpy as np
 
 def create_dummy_input_for_initializers(model):
@@ -38,7 +38,7 @@ def create_dummy_input_for_initializers(model):
     
     return model
 
-def set_input_shape(model, input_shape, input_name="data"):
+'''def set_input_shape(model, input_shape):
     """
     Set the input tensor shape for a specific input by name.
     """
@@ -46,9 +46,13 @@ def set_input_shape(model, input_shape, input_name="data"):
     
     # Find the target input tensor by name
     for input_tensor in model.graph.input:
-        if input_tensor.name == input_name:
-            target_input = input_tensor
-            break
+        #Check for Loop Nodes
+        if input_tensor.name == 'M':
+            input_tensor.type.tensor_type.shape = []
+            continue
+        #same thing for cond
+    
+    #other tensors..    
     
     if target_input is None:
         print(f"Warning: Input '{input_name}' not found. Available inputs:")
@@ -60,7 +64,7 @@ def set_input_shape(model, input_shape, input_name="data"):
             print(f"Using first input: {target_input.name}")
         else:
             raise ValueError("No inputs found in model")
-    
+
     # Clear existing dimensions
     target_input.type.tensor_type.shape.ClearField('dim')
     
@@ -70,8 +74,42 @@ def set_input_shape(model, input_shape, input_name="data"):
         new_dim.dim_value = dim_value
     
     print(f"Updated input '{target_input.name}' shape to: {input_shape}")
-    return model
+    return model'''
 
+def set_input_shape(model, input_shape):
+    """Set shapes for all inputs, auto-fix Loop inputs"""
+
+    initializer_names = {init.name for init in model.graph.initializer}
+    
+    for input_tensor in model.graph.input:
+        # Skip initializers
+        if input_tensor.name in initializer_names:
+            continue
+        
+        input_tensor.type.tensor_type.shape.ClearField('dim')
+        
+        # Loop inputs → scalar (no dimensions)
+        if input_tensor.name in ['M', 'cond', 'trip_count']:
+            input_tensor.type.tensor_type.shape.CopyFrom(onnx.TensorShapeProto())  # esplicita scalar shape
+            print(f"  ✅ '{input_tensor.name}' → scalar []")
+            continue
+        
+        # Normal inputs → apply provided shape
+        for dim_value in input_shape:
+            input_tensor.type.tensor_type.shape.dim.add().dim_value = dim_value
+        print(f"  ✅ '{input_tensor.name}' → shape {input_shape}")
+    
+
+        '''---DEBUG---
+        print("  📋 Final input shapes:")
+        for input_tensor in model.graph.input:
+            dims = [dim.dim_value if dim.HasField("dim_value") else dim.dim_param
+                    for dim in input_tensor.type.tensor_type.shape.dim]
+            shape_str = dims if dims else "[]"
+            print(f"    - {input_tensor.name}: {shape_str}")''' 
+
+    return model
+    
 def calculate_avgpool_output_shape(input_shape, kernel_shape, strides=None, pads=None, ceil_mode=False):
     """
     Calculate output shape for AveragePool operation following ONNX specification.
@@ -216,7 +254,7 @@ def safe_simplify(model):
     """
     Attempt to simplify the model with multiple fallback strategies.
     """
-    print("Attempting model simplification...")
+    '''print("Attempting model simplification...")
     
     # Strategy 1: Standard simplification
     try:
@@ -247,7 +285,7 @@ def safe_simplify(model):
     except Exception as e:
         print(f"Skip shape inference also failed: {e}")
     
-    print("⚠️ All simplification strategies failed, keeping original model")
+    print("⚠️ All simplification strategies failed, keeping original model")'''
     return model
 
 def clean_model(model_path, input_shape, output_path=None):
