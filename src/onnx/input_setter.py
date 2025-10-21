@@ -1,7 +1,7 @@
 import onnx
 from onnx import shape_inference
 import argparse
-#from onnxsim import simplify  # Optional: can be commented if onnxsim causes issues (see safe_simplify() docstring)
+from onnxsim import simplify 
 import numpy as np
 
 def create_dummy_input_for_initializers(model):
@@ -254,7 +254,7 @@ def safe_simplify(model):
     """
     Attempt to simplify the model with multiple fallback strategies.
     """
-    '''print("Attempting model simplification...")
+    print("Attempting model simplification...")
     
     # Strategy 1: Standard simplification
     try:
@@ -285,7 +285,7 @@ def safe_simplify(model):
     except Exception as e:
         print(f"Skip shape inference also failed: {e}")
     
-    print("⚠️ All simplification strategies failed, keeping original model")'''
+    print("⚠️ All simplification strategies failed, keeping original model")
     return model
 
 def clean_model(model_path, input_shape, output_path=None):
