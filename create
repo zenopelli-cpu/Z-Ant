@@ -79,7 +79,7 @@ OPTIMIZE=""
 DO_EXTRACT=false
 DO_USER_TESTS=false
 DO_XIP=false
-DO_DYNAMIC=false
+DO_DYNAMIC=true
 
 # Parse options
 while [[ $# -gt 0 ]]; do
@@ -184,7 +184,7 @@ fi
 # Step 3: Generate main library
 print_step "Generating main library code..."
 
-if [ -n "$DO_XIP" ]; then
+if [ "$DO_XIP" = true  ]; then
     GEN_ARGS="$GEN_ARGS -Dxip=true"
 fi 
 
@@ -198,7 +198,9 @@ else
     GEN_ARGS=" $GEN_ARGS -Ddynamic=false -Dstatic_planning=true"
 fi
 
+print_step " zig build lib-gen $GEN_ARGS -Ddo_export "
 zig build lib-gen $GEN_ARGS -Ddo_export
+
 
 # ----------------------------------------------------------------------------------------------------
 
