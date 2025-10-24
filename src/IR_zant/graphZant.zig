@@ -21,11 +21,10 @@ const PatternConfig = pattern_matcher.PatternConfig;
 //import biuld opsion
 const build_option = @import("build_options");
 
-const use_bfs = if (@hasDecl(build_option, "use_bfs")) {
-    build_option.use_bfs;
-} else {
+const use_bfs = if (@hasDecl(build_option, "use_bfs"))
+    build_option.use_bfs
+else
     false;
-};
 
 pub const GraphZant = struct {
     name: ?[]const u8,

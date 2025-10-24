@@ -153,7 +153,7 @@ fn write_FBA(writer: std.fs.File.Writer) !void {
 
     const arena_alloc = arena.allocator();
 
-    if (!codegen_options.static_planning) {
+    if (codegen_options.dynamic) {
         const section = link_section orelse ".tensor_pool";
         try writer.print(old_static_format, .{
             .link_section = if (should_use_tensor_pool) blk: {

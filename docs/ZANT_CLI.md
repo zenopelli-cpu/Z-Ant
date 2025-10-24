@@ -23,7 +23,7 @@ Zant is a tensor computation framework with ONNX support. This document provides
 | `-Dtype` | string | `"f32"` | Input tensor data type | `lib-gen`, `lib-exe` |
 | `-Doutput_type` | string | `"f32"` | Output tensor data type | `lib-gen`, `lib-exe` |
 | `-Dcomm` | bool | `false` | Generate code with comments | `lib-gen`, `lib-exe` |
-| `-Ddynamic` | bool | `false` | Enable dynamic allocation | `lib-gen`, `lib-exe` |
+| `-Ddynamic` | bool | `false` | Enable dynamic allocation (default: stati allocation with backing buffers) | `lib-gen`, `lib-exe` |
 | `-Ddo_export` | bool | `false` | Generate exportable functions | `lib-gen`, `lib-exe` |
 | `-Dv` | string | `"v1"` | Codegen version ("v1" or "v2") | `lib-gen`, `lib-exe` |
 | `-Dlog` | bool | `false` | Enable logging during generation | `lib-gen`, `lib-exe` |
@@ -44,6 +44,19 @@ zig build lib-gen -Dmodel="custom" -Ddynamic -Dcomm=true
 # Run generated executable
 zig build lib-exe -Dmodel="mnist-8" -Dlog
 ```
+
+## Memory allocation
+
+Two metod exixst:
+
+-Static (default):
+    - Generate: zig build lib-gen -Dmodel=my_model
+    - Quick check: grep -c "backing_buffer" generated/my_model/*.zig  # high count expected
+
+-Dynamic (use -Ddynamic=false):
+    - Generate: zig build lib-gen -Dmodel=my_model -Ddynamic=true
+    - Quick check: grep -c "fromShape" generated/my_model/*.zig # high count expected
+
 
 ## Extractor Commands
 

@@ -74,7 +74,7 @@ pub fn codegnenerateFromGraphZant(model_name: []const u8, generated_path: []cons
         }
     }
 
-    if (!codegen_options.dynamic and codegen_options.static_planning) {
+    if (!codegen_options.dynamic) {
         // NOTE: Not a strict requirement for the future, but the first draft
         // will assume that there are no cycles (simplifies the implementation
         // and works for non-recurrent neural networks)

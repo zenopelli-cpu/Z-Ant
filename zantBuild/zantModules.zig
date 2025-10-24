@@ -21,6 +21,7 @@ pub const ZantModules = struct {
         codegen_mod.addImport("IR_zant", IR_zant_mod);
         codegen_mod.addOptions("codegen_options", zantStepOptions.codegen_step_option); //<<--OSS!! it is an option!
         IR_zant_mod.addImport("codegen", codegen_mod);
+        IR_zant_mod.addOptions("build_options", zantStepOptions.bench_step_option);
 
         const Img2Tens_mod = b.createModule(.{ .root_source_file = b.path("src/ImageToTensor/imageToTensor.zig") });
         Img2Tens_mod.addImport("zant", zant_mod);
