@@ -21,8 +21,8 @@ test "getInitializers() mnist-8 and TensorZant.getters" {
     var graphZant: IR_zant.GraphZant = try IR_zant.init(&model);
     defer graphZant.deinit();
 
-    const linearizedGraph = try graphZant.linearize(allocator);
-    defer linearizedGraph.deinit();
+    var linearizedGraph = try graphZant.linearize(allocator);
+    defer linearizedGraph.deinit(allocator);
 
     var tensorMap = IR_zant.tensorZant_lib.tensorMap;
 

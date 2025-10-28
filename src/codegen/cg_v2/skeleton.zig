@@ -35,11 +35,15 @@ pub fn writeZigFile(model_name: []const u8, model_path: []const u8, nodes: std.A
     //initializing writer for lib_operation file
     const lib_file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ model_path, model_name });
     defer allocator.free(lib_file_path);
-    var lib_file = try std.fs.cwd().createFile(lib_file_path, .{});
+    var lib_file = try std.fs.cwd().createFile(lib_file_path, .{
+        .read = false,
+        .truncate = true,
+    });
     std.log.info("\n .......... file created, path:{s}", .{lib_file_path});
     defer lib_file.close();
 
-    const lib_writer = lib_file.writer();
+    var buffer: [1024]u8 = undefined;
+    const lib_writer = lib_file.writer(&buffer).interface;
 
     //initializing writer for static_parameters file
     const params_file_path = try std.fmt.allocPrint(allocator, "{s}static_parameters.zig", .{model_path});
@@ -80,7 +84,7 @@ pub fn writeZigFile(model_name: []const u8, model_path: []const u8, nodes: std.A
 ///
 /// # Errors
 /// This function may return an error if writing to the file fails.
-fn write_libraries(writer: std.fs.File.Writer) !void {
+fn write_libraries(writer: *std.Io.Writer) !void {
     _ = try writer.print(
         \\
         \\ const std = @import("std");
@@ -96,12 +100,12 @@ fn write_libraries(writer: std.fs.File.Writer) !void {
     , .{});
 }
 
-fn write_logFunction(writer: std.fs.File.Writer) !void {
+fn write_logFunction(writer: *std.Io.Writer) !void {
     _ = try writer.print(
         \\
-        \\var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
+        \\var log_function: ?*const fn ([*c]u8) callconv(.c) void = null;
         \\
-        \\pub export fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {{
+        \\pub export fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.c) void) void {{
         \\    log_function = func;
         \\    // Forward to core so ops (e.g., qlinearconv) can log via same callback
         \\    zant.core.tensor.setLogFunction(func);
@@ -110,7 +114,7 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
     , .{});
 }
 
-fn write_FBA(writer: std.fs.File.Writer) !void {
+fn write_FBA(writer: *std.Io.Writer) !void {
     // Select allocator strategy based on flag
     if (codegen_options.dynamic) {
         // Use heap-based dynamic allocation
@@ -133,7 +137,7 @@ fn write_FBA(writer: std.fs.File.Writer) !void {
     }
 }
 
-fn write_type_T(writer: std.fs.File.Writer) !void {
+fn write_type_T(writer: *std.Io.Writer) !void {
     // Emit the tensor element type derived from the ONNX model input
     const type_str = try utils.getTypeString(globals.networkInputDataType);
     _ = try writer.print(

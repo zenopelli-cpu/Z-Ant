@@ -42,10 +42,16 @@ pub fn writeBmp(
 
     const file_size = bmp_header_size + dib_header_size + pixel_array;
 
-    // Open the file for writing
-    var file = try std.fs.cwd().createFile(bmp_path, .{});
+    var file = try std.fs.cwd().createFile(bmp_path, .{
+        .truncate = true,
+        .read = false,
+    });
     defer file.close();
-    var writer = file.writer();
+
+    // Create buffered writer
+    var file_buf: [1024]u8 = undefined;
+    var file_writer = file.writer(&file_buf);
+    const writer = &file_writer.interface;
 
     // --- BITMAPFILEHEADER (14 byte) ---
     try writer.writeByte('B');
@@ -90,4 +96,6 @@ pub fn writeBmp(
         if (padding != 0)
             try writer.writeAll(pad_buf[0..padding]);
     }
+
+    try writer.flush();
 }

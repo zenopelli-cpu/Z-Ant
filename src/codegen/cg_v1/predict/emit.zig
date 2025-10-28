@@ -20,7 +20,7 @@ const PlanTensor = plan.PlanTensor;
 pub const ShapeEmitter = struct {
     /// Emits tensor shape declaration and returns computed size
     /// Replaces the existing write_TensorShape function
-    pub fn emit(writer: std.fs.File.Writer, tz: *TensorZant) !i64 {
+    pub fn emit(writer: *std.Io.Writer, tz: *TensorZant) !i64 {
         var size: i64 = 1;
         const tensor_shape = tz.getShape();
 
@@ -55,7 +55,7 @@ pub const TensorEmitter = struct {
     /// Emits tensor allocation given a shape size
     /// This will eventually replace write_TensorAllocation with policy-based approach
     pub fn emitAllocation(
-        writer: std.fs.File.Writer,
+        writer: *std.Io.Writer,
         tz: *TensorZant,
         size: i64,
         dynamic: bool,
@@ -103,7 +103,7 @@ pub const TensorEmitter = struct {
 /// Plan-based emitter that replaces O(N^2) allocation logic
 pub const PlanEmitter = struct {
     /// Emits the entire graph execution using ExecutionPlan
-    pub fn emitGraph(writer: std.fs.File.Writer, execution_plan: *const ExecutionPlan, dynamic: bool) !void {
+    pub fn emitGraph(writer: *std.Io.Writer, execution_plan: *const ExecutionPlan, dynamic: bool) !void {
         // First, emit all input tensors (these don't have allocation events)
         try emitInputOutputTensors(writer, execution_plan, dynamic);
 
@@ -143,7 +143,7 @@ pub const PlanEmitter = struct {
     }
 
     /// Emits input and output tensors that are not handled by allocation events
-    fn emitInputOutputTensors(writer: std.fs.File.Writer, execution_plan: *const ExecutionPlan, dynamic: bool) !void {
+    fn emitInputOutputTensors(writer: *std.Io.Writer, execution_plan: *const ExecutionPlan, dynamic: bool) !void {
         // For now, we'll emit input/output tensors based on the plan
         // This is a placeholder - in a complete implementation, we'd extract
         // input/output tensors from the execution plan
@@ -156,7 +156,7 @@ pub const PlanEmitter = struct {
     }
 
     /// Emits allocation for a plan tensor
-    fn emitTensorAllocation(writer: std.fs.File.Writer, tensor: *const PlanTensor, dynamic: bool) !void {
+    fn emitTensorAllocation(writer: *std.Io.Writer, tensor: *const PlanTensor, dynamic: bool) !void {
         // First emit the shape
         _ = try emitTensorShape(writer, tensor);
 
@@ -189,13 +189,13 @@ pub const PlanEmitter = struct {
     }
 
     /// Emits deallocation for a plan tensor (only for dynamic mode)
-    fn emitTensorDeallocation(writer: std.fs.File.Writer, tensor: *const PlanTensor) !void {
+    fn emitTensorDeallocation(writer: *std.Io.Writer, tensor: *const PlanTensor) !void {
         const sanitized_name = sanitizeName(tensor.name);
         try writer.print("    tensor_{s}.deinit();\n", .{sanitized_name});
     }
 
     /// Emits shape for a plan tensor
-    fn emitTensorShape(writer: std.fs.File.Writer, tensor: *const PlanTensor) !i64 {
+    fn emitTensorShape(writer: *std.Io.Writer, tensor: *const PlanTensor) !i64 {
         var size: i64 = 1;
         const sanitized_name = sanitizeName(tensor.name);
 

@@ -23,12 +23,14 @@ Gemm
 GlobalAveragePool  
 Identity  
 LeakyRelu  
+Log
 MatMul  
 MaxPool 
 Mul  
 Neg
 OneHot
 Pad
+PadConv
 Pow
 QuantizeLinear
 QLinearConv

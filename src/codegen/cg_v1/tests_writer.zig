@@ -29,12 +29,13 @@ pub fn UserTest(comptime T_in: type, comptime T_out: type) type {
 
 fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
     // Generate model_options.zig
-
     const model_options_path = try std.fmt.allocPrint(allocator, "{s}model_options.zig", .{model_path});
     const model_options_file = try std.fs.cwd().createFile(model_options_path, .{});
     defer model_options_file.close();
 
-    const writer = model_options_file.writer();
+    var buffer: [1024]u8 = undefined;
+    var model_options_writer = model_options_file.writer(&buffer);
+    const writer = &model_options_writer.interface;
 
     ////////////
 
@@ -53,7 +54,7 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
     const input_shape: []usize = if (has_inputs) inputs[0].getShape() else &[_]usize{};
     const input_data_type: []const u8 = if (has_inputs) inputs[0].ty.toString() else "f32";
 
-    _ = try writer.print(
+    try writer.print(
         \\
         \\pub const lib = @import("lib_{s}.zig");
         \\pub const name = "{s}";
@@ -82,6 +83,7 @@ fn writeModelOptionsFile(model_name: []const u8, model_path: []const u8) !void {
     });
 
     ////////////
+    try writer.flush();
 }
 
 pub fn writeTestFile(model_name: []const u8, model_path: []const u8) !void {
@@ -115,7 +117,9 @@ pub fn writeSlimTestFile(model_name: []const u8, model_path: []const u8) !void {
 // ----------------- FILE MANAGEMENT -----------------
 // Copy file from src to dst
 fn copyFile(src_path: []const u8, dst_path: []const u8) !void {
-    var src_file = try std.fs.cwd().openFile(src_path, .{});
+    var src_file = try std.fs.cwd().openFile(src_path, .{
+        .mode = .read_only,
+    });
     defer src_file.close();
 
     var dst_file = try std.fs.cwd().createFile(dst_path, .{});

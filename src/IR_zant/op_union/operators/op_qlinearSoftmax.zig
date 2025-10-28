@@ -141,7 +141,7 @@ pub const QLinearSoftmax = struct {
         return tensors;
     }
 
-    pub fn write_op(op: *const QLinearSoftmax, writer: std.fs.File.Writer) !void {
+    pub fn write_op(op: *const QLinearSoftmax, writer: *std.Io.Writer) !void {
         // Create sanitized tensor name strings
         var tensor_x_string: []u8 = undefined;
         defer allocator.free(tensor_x_string);

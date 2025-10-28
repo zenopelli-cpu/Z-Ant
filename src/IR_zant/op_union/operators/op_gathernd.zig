@@ -76,25 +76,25 @@ pub const GatherND = struct {
     }
 
     pub fn get_input_tensors(self: GatherND) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        try inputs.append(self.input_data);
-        try inputs.append(self.input_indices);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        try inputs.append(allocator, self.input_data);
+        try inputs.append(allocator, self.input_indices);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: GatherND) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
-        try outputs.append(self.output);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
+        try outputs.append(allocator, self.output);
+        return outputs.toOwnedSlice(allocator);
     }
 
     pub fn print(self: GatherND) void {
         std.debug.print("\n GatherND: data={s}, indices={s}, output={s}, batch_dims={d}", .{ self.input_data.name, self.input_indices.name, self.output.name, self.batch_dims });
     }
 
-    pub fn write_op(self: GatherND, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: GatherND, writer: *std.Io.Writer) !void {
         // Generate tensor strings for inputs
         var tensor_data_string: []u8 = undefined;
         defer allocator.free(tensor_data_string);

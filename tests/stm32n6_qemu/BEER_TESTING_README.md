@@ -12,7 +12,7 @@ The beer model is a large neural network that previously suffered from RAM overf
 
 ## Prerequisites
 
-- Zig compiler (0.14.0+)
+- Zig compiler (0.15.2+)
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
 - QEMU system emulator
 - Python 3.11+
@@ -42,6 +42,7 @@ Compare reference vs CMSIS-NN accelerated versions:
 ```
 
 Expected output:
+
 ```
 beer_reference: 2083.86 ms
 beer_cmsis_nn: 898.69 ms
@@ -55,6 +56,7 @@ Performance improvement: 56.9% FASTER!
 #### Automatic Tensor Pool Allocation
 
 The `-Duse_tensor_pool=true` flag automatically:
+
 - Allocates arrays ≥100 elements to external RAM (`.tensor_pool` section)
 - Moves FBA buffers (2MB) to tensor pool
 - Reduces RAM usage by 80% (4.9MB → 960KB)
@@ -87,10 +89,9 @@ The `-Duse_tensor_pool=true` flag automatically:
 #### Performance Impact
 
 | Configuration | Execution Time | Speedup |
-|---------------|----------------|---------|
-| Reference | ~2084ms | 1.0x |
-| CMSIS-NN | ~899ms | 2.3x |
-
+| ------------- | -------------- | ------- |
+| Reference     | ~2084ms        | 1.0x    |
+| CMSIS-NN      | ~899ms         | 2.3x    |
 
 ### Build Commands
 
@@ -166,11 +167,13 @@ cat build/beer_comparison/comparison_results.txt
 ### Memory Issues
 
 **Problem**: RAM overflow errors
+
 ```
 region 'RAM' overflowed by X bytes
 ```
 
 **Solution**: Ensure tensor pool allocation is enabled:
+
 ```bash
 zig build lib-gen -Dmodel=beer -Duse_tensor_pool=true -Ddo_export=true
 ```
@@ -178,11 +181,13 @@ zig build lib-gen -Dmodel=beer -Duse_tensor_pool=true -Ddo_export=true
 ### Missing predict Function
 
 **Problem**: Linker error about undefined `predict` function
+
 ```
 undefined reference to `predict`
 ```
 
 **Solution**: Add the export flag:
+
 ```bash
 zig build lib -Dmodel=beer -Ddo_export=true
 ```
@@ -192,6 +197,7 @@ zig build lib -Dmodel=beer -Ddo_export=true
 **Problem**: No performance improvement with accelerator flags
 
 **Solution**: Verify all required flags are present:
+
 ```bash
 zig build lib \
   -Dmodel=beer \
@@ -205,6 +211,7 @@ zig build lib \
 **Problem**: QEMU test fails to run
 
 **Solution**: Check QEMU installation and ARM toolchain:
+
 ```bash
 # Verify QEMU
 qemu-system-arm --version
@@ -294,42 +301,53 @@ Z-Ant/
 ## Harness file roles
 
 - `tests/stm32n6_qemu/runtime.c`: bare‑metal startup and reset handler.
+
   - Installs the minimal vector table, initializes `.data`/`.bss`, enables FPU/MVE, calls `main()`.
   - On exit, calls `support_emit_heap_report()` and `semihost_exit(code)` so QEMU terminates.
 
 - `tests/stm32n6_qemu/beer_main.c`: tiny app `main()` for the Beer model.
+
   - Prepares a `[1,96,96,1]` input buffer, calls `predict(...)`, checks status, prints `beer PASS` via semihosting.
 
 - `tests/stm32n6_qemu/semihost.c`: C semihost helpers.
+
   - Host build (`STM32N6_HOST=1`): uses `stdio`/`exit`.
   - Target build: performs semihost calls via a BKPT 0xAB instruction to write strings and exit QEMU.
 
 - `tests/stm32n6_qemu/semihost_arm.c`: alternate semihost wrappers for target.
+
   - Declares `semihost_call(op, param)` and forwards `semihost_write0/semihost_exit` to it.
 
 - `tests/stm32n6_qemu/semihost_arm.S`: ARM Thumb assembly for semihosting.
+
   - Implements `semihost_call`: executes `bkpt 0xAB` so QEMU handles semihost ops (write0/exit).
 
 - `tests/stm32n6_qemu/stm32n6.ld`: linker script for the Cortex‑M55/QEMU platform.
+
   - Defines FLASH/RAM regions, section placements, vector table location, and symbols used by startup.
 
 - `tests/stm32n6_qemu/support.c`: minimal freestanding libc shims used by small tests.
+
   - Simple `malloc` (bump), `free` (no‑op), `memcpy/memmove/memset/memcmp`, and a few math helpers.
 
 - `tests/stm32n6_qemu/common/support.c`: enhanced support layer used by performance harnesses.
+
   - Managed heap with peak/current usage accounting, `__aeabi_*` memory intrinsics, math (`roundf/expf/fmaxf/fminf`),
     `support_emit_heap_report()` printed at exit by the runtime.
 
 - `src/Core/Tensor/Accelerators/stm32n6/conv_f32.c`: reference CPU convolution for the harness.
+
   - Provides floating‑point conv implementation; can fall back even when CMSIS‑NN is enabled.
 
 - `src/Core/Tensor/Accelerators/stm32n6/ethos_stub.c`: stubbed Ethos‑U hooks so the binary links without real NPU libs.
 
 - `scripts/test_stm32n6_qemu.py`: builds and runs the firmware variants under QEMU.
+
   - Detects toolchains (arm‑none‑eabi‑gcc, zig cc, clang), wires include paths, adds CMSIS sources when requested,
     launches QEMU, and looks for the PASS markers (e.g., `beer PASS`).
 
 - `test_beer_comparison.sh`: end‑to‑end A/B comparison.
+
   - Builds Beer lib (reference and CMSIS‑NN), runs QEMU for each, records timings.
 
 - `test_beer_independent.sh`: runs each configuration independently, useful for debugging single variants.

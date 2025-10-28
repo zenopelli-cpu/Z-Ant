@@ -35,7 +35,7 @@ pub const GraphZant = struct {
     pub fn init(graphProto: *GraphProto) !GraphZant {
         return GraphZant{
             .name = graphProto.name.?,
-            .nodes = std.ArrayList(*NodeZant).init(allocator),
+            .nodes = .empty,
             .graphProto = graphProto,
         };
     }
@@ -52,7 +52,7 @@ pub const GraphZant = struct {
             allocator.destroy(node); // Free the node
         }
 
-        self.nodes.deinit();
+        self.nodes.deinit(allocator);
     }
 
     /// Removes the specified nodes from the graph and cleans up their associated tensors.
@@ -106,7 +106,7 @@ pub const GraphZant = struct {
             // allocate memory for the node
             const node = try allocator.create(NodeZant);
             node.* = try NodeZant.init(nodeProto);
-            try self.nodes.append(node);
+            try self.nodes.append(allocator, node);
         }
 
         //hashmap for the outputs for the producers
@@ -135,12 +135,12 @@ pub const GraphZant = struct {
     }
 
     pub fn get_predecessors(self: *GraphZant, root_node: *NodeZant) !std.ArrayList(*NodeZant) {
-        var predecessors = std.ArrayList(*NodeZant).init(allocator);
+        var predecessors: std.ArrayList(*NodeZant) = .empty;
         for (self.nodes.items) |node| {
             // Check if this node points to our first_node
             for (node.next.items) |next_node| {
                 if (next_node == root_node) {
-                    try predecessors.append(node);
+                    try predecessors.append(allocator, node);
                     break;
                 }
             }
@@ -167,7 +167,7 @@ pub const GraphZant = struct {
     // linearize the graph with DFS
     pub fn linearize_dfs(self: *GraphZant, alloc: std.mem.Allocator) !std.ArrayList(*NodeZant) {
         var visited = std.AutoHashMap(*NodeZant, bool).init(alloc);
-        var result = std.ArrayList(*NodeZant).init(alloc);
+        var result: std.ArrayList(*NodeZant) = .empty;
         defer visited.deinit();
 
         for (self.nodes.items) |node| {
@@ -192,7 +192,7 @@ pub const GraphZant = struct {
             try dfs(child, visited, result);
         }
 
-        try result.append(node);
+        try result.append(allocator, node);
     }
 
     // linearize the graph with DFS
@@ -405,8 +405,8 @@ pub const GraphZant = struct {
         edge_nodes: std.ArrayList(*NodeZant),
         server_nodes: std.ArrayList(*NodeZant),
     } {
-        var edge_nodes = std.ArrayList(*NodeZant).init(allocator);
-        var server_nodes = std.ArrayList(*NodeZant).init(allocator);
+        var edge_nodes: std.ArrayList(*NodeZant) = .empty;
+        var server_nodes: std.ArrayList(*NodeZant) = .empty;
 
         var cumulative_memory: usize = 0;
 
@@ -416,7 +416,7 @@ pub const GraphZant = struct {
             const node_mem = try node.op.get_memory_footprint();
 
             if (cumulative_memory + node_mem <= max_edge_memory) {
-                try edge_nodes.append(node);
+                try edge_nodes.append(allocator, node);
                 cumulative_memory += node_mem;
             } else {
                 break;
@@ -425,7 +425,7 @@ pub const GraphZant = struct {
 
         // append the remaining nodes to the server
         while (i < nodes.items.len) : (i += 1) {
-            try server_nodes.append(nodes.items[i]);
+            try server_nodes.append(allocator, nodes.items[i]);
         }
 
         return .{

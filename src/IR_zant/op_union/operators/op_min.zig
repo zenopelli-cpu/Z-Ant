@@ -61,10 +61,10 @@ pub const Min = struct {
     }
 
     pub fn get_output_tensors(self: Min) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
-        try outputs.append(self.output);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
+        try outputs.append(allocator, self.output);
+        return outputs.toOwnedSlice(allocator);
     }
 
     pub fn print(self: Min) void {
@@ -85,7 +85,7 @@ pub const Min = struct {
         return error.TensorNotFound;
     }
 
-    pub fn write_op(self: Min, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Min, writer: *std.Io.Writer) !void {
         if (self.inputs.len == 0) return;
 
         // Handle simple case of two inputs (most common)

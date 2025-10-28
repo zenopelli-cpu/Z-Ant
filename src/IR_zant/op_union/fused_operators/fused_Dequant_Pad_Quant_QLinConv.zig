@@ -141,52 +141,52 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
             return null;
         }
 
-        var node_list = std.ArrayList(*NodeZant).init(allocator);
-        errdefer node_list.deinit();
+        var node_list: std.ArrayList(*NodeZant) = .empty;
+        errdefer node_list.deinit(allocator);
 
-        try node_list.append(root_node);
+        try node_list.append(allocator, root_node);
 
         // Check DequantizeLinear -> Pad
         if (root_node.next.items.len != 1) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         const pad_node = root_node.next.items[0];
         if (pad_node.op != .pad) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
-        try node_list.append(pad_node);
+        try node_list.append(allocator, pad_node);
 
         // Check Pad -> QuantizeLinear
         if (pad_node.next.items.len != 1) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         const quant_node = pad_node.next.items[0];
         if (quant_node.op != .quantizeLinear) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
-        try node_list.append(quant_node);
+        try node_list.append(allocator, quant_node);
 
         // Check QuantizeLinear -> QLinearConv
         if (quant_node.next.items.len != 1) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
         const qlinearconv_node = quant_node.next.items[0];
         if (qlinearconv_node.op != .qlinearconv) {
-            node_list.deinit();
+            node_list.deinit(allocator);
             return null;
         }
 
-        try node_list.append(qlinearconv_node);
+        try node_list.append(allocator, qlinearconv_node);
         std.debug.print(" -> Found complete DequantizeLinear->Pad->QuantizeLinear->QLinearConv pattern!", .{});
 
         return node_list;
@@ -206,9 +206,9 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         const last_node = node_list.items[3]; // QLinearConv node
 
         // Clone the next list instead of direct reference
-        var cloned_next = std.ArrayList(*NodeZant).init(allocator);
+        var cloned_next: std.ArrayList(*NodeZant) = .empty;
         for (last_node.next.items) |next_node| {
-            try cloned_next.append(next_node);
+            try cloned_next.append(allocator, next_node);
         }
 
         return NodeZant{
@@ -245,7 +245,7 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         // Step 3: Set up fused node's successors
         if (fused_node.next.items.len == 0) {
             for (last_node.next.items) |successor| {
-                try fused_node.next.append(successor);
+                try fused_node.next.append(allocator, successor);
             }
         }
 
@@ -253,7 +253,7 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         try graph.removeNodes(node_list);
 
         // Step 5: Add fused node to graph
-        try graph.nodes.append(fused_node);
+        try graph.nodes.append(allocator, fused_node);
     }
 
     // Helper functions matching the Fused_Conv_Relu interface
@@ -270,7 +270,7 @@ pub const Fused_Dequant_Pad_Quant_QLinConv = struct {
         return try self.fused_qlinearconv.get_output_tensors();
     }
 
-    pub fn write_op(self: Fused_Dequant_Pad_Quant_QLinConv, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Fused_Dequant_Pad_Quant_QLinConv, writer: *std.Io.Writer) !void {
         try self.fused_qlinearconv.write_op(writer);
     }
 

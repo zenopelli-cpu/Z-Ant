@@ -101,24 +101,24 @@ pub const NonMaxSuppression = struct {
     }
 
     pub fn get_input_tensors(self: NonMaxSuppression) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        try inputs.append(self.boxes);
-        try inputs.append(self.scores);
-        if (self.max_output_boxes_per_class) |tensor| try inputs.append(tensor);
-        if (self.iou_threshold) |tensor| try inputs.append(tensor);
-        if (self.score_threshold) |tensor| try inputs.append(tensor);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        try inputs.append(allocator, self.boxes);
+        try inputs.append(allocator, self.scores);
+        if (self.max_output_boxes_per_class) |tensor| try inputs.append(allocator, tensor);
+        if (self.iou_threshold) |tensor| try inputs.append(allocator, tensor);
+        if (self.score_threshold) |tensor| try inputs.append(allocator, tensor);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: NonMaxSuppression) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
-        try outputs.append(self.output);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
+        try outputs.append(allocator, self.output);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: NonMaxSuppression, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: NonMaxSuppression, writer: *std.Io.Writer) !void {
         // Create tensor strings for inputs
         var boxes_string: []u8 = undefined;
         defer allocator.free(boxes_string);

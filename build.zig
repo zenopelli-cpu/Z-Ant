@@ -94,9 +94,11 @@ inline fn unit_test_creation(b: *std.Build, zantBuild: ZantBuild) void {
     // Define unified tests for the project.
     const unit_tests = b.addTest(.{
         .name = "test_lib",
-        .root_source_file = b.path("tests/test_lib.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/test_lib.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     if (zantBuild.zantOptions.stm32n6_flags.stm32n6_accel) build_utils.configureStm32n6Support(
@@ -120,9 +122,11 @@ inline fn unit_test_creation(b: *std.Build, zantBuild: ZantBuild) void {
 inline fn lib_codegen(b: *std.Build, zantBuild: ZantBuild) void {
     const IR_codeGen_exe = b.addExecutable(.{
         .name = "codegen",
-        .root_source_file = b.path("src/codegen/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/codegen/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     if (zantBuild.zantOptions.stm32n6_flags.stm32n6_accel) build_utils.configureStm32n6Support(
@@ -162,9 +166,11 @@ inline fn lib_exe(b: *std.Build, zantBuild: ZantBuild) void {
 
     const lib_model_exe = b.addExecutable(.{
         .name = exe_name,
-        .root_source_file = b.path(generated_lib_root),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(generated_lib_root),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     if (zantBuild.zantOptions.stm32n6_flags.stm32n6_accel) build_utils.configureStm32n6Support(
@@ -202,9 +208,11 @@ inline fn lib_test(b: *std.Build, zantBuild: ZantBuild, build_options: *std.Buil
 
     const test_generated_lib = b.addTest(.{
         .name = "test_generated_lib",
-        .root_source_file = b.path(test_model_path),
-        .target = target,
-        .optimize = .Debug,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(test_model_path),
+            .target = target,
+            .optimize = .Debug,
+        }),
     });
 
     test_generated_lib.root_module.addOptions("build_options", build_options);
@@ -231,11 +239,13 @@ inline fn lib_creation(b: *std.Build, zantBuild: ZantBuild, build_options: *std.
         return err;
     };
 
-    const static_lib: *std.Build.Step.Compile = b.addStaticLibrary(.{
+    const static_lib: *std.Build.Step.Compile = b.addLibrary(.{
         .name = "zant",
-        .root_source_file = b.path(lib_model_path),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(lib_model_path),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     static_lib.root_module.addOptions("build_options", build_options);
@@ -304,9 +314,11 @@ inline fn op_codegen_gen(b: *std.Build, zantBuild: ZantBuild) void { // Setup on
 
     const oneop_codegen_exe = b.addExecutable(.{
         .name = "oneop_codegen",
-        .root_source_file = b.path("tests/CodeGen/oneOpModelGenerator.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/CodeGen/oneOpModelGenerator.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     if (zantBuild.zantOptions.stm32n6_flags.stm32n6_accel) build_utils.configureStm32n6Support(
@@ -329,9 +341,11 @@ inline fn op_codegen_gen(b: *std.Build, zantBuild: ZantBuild) void { // Setup on
 inline fn op_codegen_test(b: *std.Build, zantBuild: ZantBuild) void {
     const test_all_oneOp = b.addTest(.{
         .name = "test_all_oneOp",
-        .root_source_file = b.path("generated/oneOpModels/test_oneop_models.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("generated/oneOpModels/test_oneop_models.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     if (zantBuild.zantOptions.stm32n6_flags.stm32n6_accel) build_utils.configureStm32n6Support(
@@ -362,9 +376,11 @@ inline fn op_codegen_test(b: *std.Build, zantBuild: ZantBuild) void {
 inline fn extractor_gen(b: *std.Build, zantBuild: ZantBuild) void {
     const node_extractor_generator = b.addExecutable(.{
         .name = "node_extractor_generator",
-        .root_source_file = b.path("tests/CodeGen/node_extractor_generator.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/CodeGen/node_extractor_generator.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     if (zantBuild.zantOptions.stm32n6_flags.stm32n6_accel) build_utils.configureStm32n6Support(
@@ -392,9 +408,11 @@ inline fn extractor_test(b: *std.Build, zantBuild: ZantBuild) void {
 
     const test_node_extractor = b.addTest(.{
         .name = "test_node_extractor",
-        .root_source_file = b.path(test_extractor_path),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(test_extractor_path),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     if (zantBuild.zantOptions.stm32n6_flags.stm32n6_accel) build_utils.configureStm32n6Support(
@@ -417,9 +435,11 @@ inline fn extractor_test(b: *std.Build, zantBuild: ZantBuild) void {
 inline fn benchmark_create(b: *std.Build, zantBuild: ZantBuild) void {
     const benchmark = b.addExecutable(.{
         .name = "benchmark",
-        .root_source_file = b.path("benchmarks/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("benchmarks/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     if (zantBuild.zantOptions.stm32n6_flags.stm32n6_accel) build_utils.configureStm32n6Support(
@@ -441,9 +461,11 @@ inline fn benchmark_create(b: *std.Build, zantBuild: ZantBuild) void {
 inline fn onnx_parser(b: *std.Build, zantBuild: ZantBuild) void {
     const test_onnx_parser = b.addTest(.{
         .name = "test_generated_lib",
-        .root_source_file = b.path("tests/Onnx/onnx_loader.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/Onnx/onnx_loader.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     if (zantBuild.zantOptions.stm32n6_flags.stm32n6_accel) build_utils.configureStm32n6Support(
@@ -469,9 +491,11 @@ inline fn build_main(b: *std.Build, zantBuild: ZantBuild, static_lib: *std.Build
 
     const main_executable = b.addExecutable(.{
         .name = "main_profiling_target",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     main_executable.linkLibC();

@@ -81,24 +81,24 @@ pub const Reshape = struct {
     }
 
     pub fn get_input_tensors(self: Reshape) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.data);
-        if (self.shape) |s| try inputs.append(s);
+        try inputs.append(allocator, self.data);
+        if (self.shape) |s| try inputs.append(allocator, s);
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Reshape) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.reshaped);
-        return outputs.toOwnedSlice();
+        try outputs.append(allocator, self.reshaped);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Reshape, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Reshape, writer: *std.Io.Writer) !void {
         // Input tensor string creation
         const sanitized_input_name = try utils.getSanitizedName(self.data.name);
         const input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
@@ -109,8 +109,8 @@ pub const Reshape = struct {
         defer allocator.free(input_string);
 
         // Shape slice generation logic
-        var shape_slice_code = std.ArrayList(u8).init(allocator);
-        defer shape_slice_code.deinit();
+        var shape_slice_code: std.ArrayList(u8) = .empty;
+        defer shape_slice_code.deinit(allocator);
         const output_sanitized_name = try utils.getSanitizedName(self.reshaped.name);
         var shape_from_attr = false; // Track source of shape
 
@@ -118,11 +118,11 @@ pub const Reshape = struct {
             shape_from_attr = true;
             // Shape from attribute
             // Generate code like: const shape_slice_<output_name> = [_]isize{ val1, val2, ... };
-            try shape_slice_code.writer().print("const shape_slice_{s} = [_]isize{{", .{output_sanitized_name});
+            try shape_slice_code.writer(allocator).print("const shape_slice_{s} = [_]isize{{", .{output_sanitized_name});
             for (attr_shape, 0..) |val, i| {
-                try shape_slice_code.writer().print("{s}{}", .{ if (i > 0) ", " else "", val });
+                try shape_slice_code.writer(allocator).print("{s}{}", .{ if (i > 0) ", " else "", val });
             }
-            try shape_slice_code.writer().print("}};", .{});
+            try shape_slice_code.writer(allocator).print("}};", .{});
         } else {
             // Shape from input tensor
 
@@ -136,7 +136,7 @@ pub const Reshape = struct {
             defer allocator.free(shape_tensor_name);
 
             // Generate code to convert tensor data to isize slice
-            try shape_slice_code.writer().print(
+            try shape_slice_code.writer(allocator).print(
                 \\    // Convert shape tensor data to isize slice
                 \\    // Pass the local allocator to the utils function
                 \\    const shape_slice_{s} = utils.sliceToIsizeSlice(allocator, {s}.data); // Removed catch return
@@ -254,33 +254,33 @@ pub const Reshape = struct {
         var nelem: usize = 1;
         for (out_shape) |dim| nelem *= dim;
 
-        var id_ranges = std.ArrayList(usize).init(pkg_allocator);
-        defer id_ranges.deinit();
+        var id_ranges: std.ArrayList(usize) = .empty;
+        defer id_ranges.deinit(pkg_allocator);
 
         _ = b.push(.RESHAPE, out_dtype, &.{id_viewA}, Any{ .shape = out_shape });
 
         for (out_shape) |dim| {
             const id_range = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = dim } });
-            id_ranges.append(id_range) catch {};
+            id_ranges.append(pkg_allocator, id_range) catch {};
         }
 
-        var src_A = std.ArrayList(usize).init(pkg_allocator);
-        defer src_A.deinit();
-        try src_A.append(id_viewA);
+        var src_A: std.ArrayList(usize) = .empty;
+        defer src_A.deinit(pkg_allocator);
+        try src_A.append(pkg_allocator, id_viewA);
         for (id_ranges.items) |range| {
-            try src_A.append(range);
+            try src_A.append(pkg_allocator, range);
         }
 
         const id_gepA = b.push(.GEP, out_dtype, src_A.items, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
 
         const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
 
-        var src_0 = std.ArrayList(usize).init(pkg_allocator);
-        defer src_0.deinit();
+        var src_0: std.ArrayList(usize) = .empty;
+        defer src_0.deinit(pkg_allocator);
 
-        try src_0.append(out_id);
+        try src_0.append(pkg_allocator, out_id);
         for (id_ranges.items) |range| {
-            try src_0.append(range);
+            try src_0.append(pkg_allocator, range);
         }
 
         const id_gepO = b.push(.GEP, out_dtype, src_0.items, Any{ .mem_info = .{ .base = out_id, .offset = 0, .stride = 1 } });

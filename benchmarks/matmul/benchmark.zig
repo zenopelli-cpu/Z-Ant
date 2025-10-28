@@ -91,8 +91,9 @@ inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T),
 }
 
 fn mat_mul_bench(comptime T: anytype, comptime N: u8, comptime tests_num: usize) ![]BenchmarkResult {
-    var results = std.ArrayList(BenchmarkResult).init(std.heap.page_allocator);
-    defer results.deinit();
+    const alloc = std.heap.page_allocator;
+    var results: std.ArrayList(BenchmarkResult) = .empty;
+    defer results.deinit(alloc);
 
     var seed: u64 = undefined;
     try std.posix.getrandom(std.mem.asBytes(&seed));
@@ -209,10 +210,10 @@ fn mat_mul_bench(comptime T: anytype, comptime N: u8, comptime tests_num: usize)
         @memcpy(&benchmark_res.a_shape, &shape_1);
         @memcpy(&benchmark_res.b_shape, &shape_2);
 
-        try results.append(benchmark_res);
+        try results.append(alloc, benchmark_res);
     }
 
-    return results.toOwnedSlice();
+    return results.toOwnedSlice(alloc);
 }
 
 fn run_mat_mul_benchmarks(comptime T: anytype, comptime N: u8, comptime tests_num: usize) !void {

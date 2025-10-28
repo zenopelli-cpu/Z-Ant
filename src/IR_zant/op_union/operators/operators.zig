@@ -22,6 +22,7 @@ pub const Gemm = @import("op_gemm.zig").Gemm;
 pub const GlobalAveragePool = @import("op_globalAveragePool.zig").GlobalAveragePool;
 pub const Identity = @import("op_identity.zig").Identity;
 pub const LeakyRelu = @import("op_leakyRelu.zig").LeakyRelu;
+pub const Log = @import("op_log.zig").Log;
 pub const MatMul = @import("op_matMul.zig").MatMul;
 pub const MaxPool = @import("op_maxPool.zig").MaxPool;
 pub const Min = @import("op_min.zig").Min;

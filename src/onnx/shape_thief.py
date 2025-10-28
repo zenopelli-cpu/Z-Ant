@@ -347,11 +347,12 @@ def extract_all_intermediate_shapes(model_path):
         print("Could not get input info")
         return None
     
-    # Find all intermediate tensors
+    #Find all intermediate tensors
     all_tensors = set()
     for node in model.graph.node:
         all_tensors.update(node.output)
     
+
     input_names = {inp.name for inp in model.graph.input}
     output_names = {out.name for out in model.graph.output}
     intermediate_tensors = all_tensors - input_names - output_names
@@ -601,10 +602,10 @@ def main():
     model_simp, check = simplify(inferred_model)
 
     if check:
-        print("Simplified model is valid!")
-        onnx.save(model_simp, model_path)
+       print("Simplified model is valid!")
+       onnx.save(model_simp, model_path)
     else:
-        raise RuntimeError("Something went wrong in the onnx simplifier()")
+       raise RuntimeError("Something went wrong in the onnx simplifier()")
 
 if __name__ == "__main__":
     main()

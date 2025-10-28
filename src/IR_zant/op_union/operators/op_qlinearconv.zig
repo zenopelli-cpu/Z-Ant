@@ -169,33 +169,33 @@ pub const QLinearConv = struct {
     }
 
     pub fn get_input_tensors(self: QLinearConv) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.input_x);
-        try inputs.append(self.input_x_scale);
-        try inputs.append(self.input_x_zero_point);
-        try inputs.append(self.input_w);
-        try inputs.append(self.input_w_scale);
-        try inputs.append(self.input_w_zero_point);
-        try inputs.append(self.input_y_scale);
-        try inputs.append(self.input_y_zero_point);
+        try inputs.append(allocator, self.input_x);
+        try inputs.append(allocator, self.input_x_scale);
+        try inputs.append(allocator, self.input_x_zero_point);
+        try inputs.append(allocator, self.input_w);
+        try inputs.append(allocator, self.input_w_scale);
+        try inputs.append(allocator, self.input_w_zero_point);
+        try inputs.append(allocator, self.input_y_scale);
+        try inputs.append(allocator, self.input_y_zero_point);
         if (self.input_B) |bias| {
-            try inputs.append(bias);
+            try inputs.append(allocator, bias);
         }
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: QLinearConv) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.output_y);
-        return outputs.toOwnedSlice();
+        try outputs.append(allocator, self.output_y);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: QLinearConv, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: QLinearConv, writer: *std.Io.Writer) !void {
         // Create tensor string for input x
         var tensor_x_string: []u8 = undefined;
         defer allocator.free(tensor_x_string);

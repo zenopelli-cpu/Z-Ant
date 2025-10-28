@@ -29,11 +29,15 @@ pub fn write(
     //initializing writer for lib_operation file
     const lib_file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ generated_path, model_name });
     defer allocator.free(lib_file_path);
+
     var lib_file = try std.fs.cwd().createFile(lib_file_path, .{});
+
     std.log.info("\n .......... file created, path:{s}", .{lib_file_path});
     defer lib_file.close();
 
-    const writer = lib_file.writer();
+    var lib_file_buffer: [1024]u8 = undefined;
+    var lib_file_writer = lib_file.writer(&lib_file_buffer);
+    const writer = &lib_file_writer.interface;
 
     // Write the necessary library imports to the generated Zig file
     try write_libraries(writer);
@@ -54,6 +58,8 @@ pub fn write(
     // _ = linearizedGraph;
     // Generate prediction function code
     try codeGenPredict.writePredict(writer, linearizedGraph, codegen_options.do_export, codegen_parameters);
+
+    try writer.flush();
 }
 
 /// Writes the required library imports to the generated Zig file for predict function.
@@ -66,7 +72,7 @@ pub fn write(
 ///
 /// # Errors
 /// This function may return an error if writing to the file fails.
-fn write_libraries(writer: std.fs.File.Writer) !void {
+fn write_libraries(writer: *std.Io.Writer) !void {
     _ = try writer.print(
         \\
         \\ const std = @import("std");
@@ -81,14 +87,14 @@ fn write_libraries(writer: std.fs.File.Writer) !void {
     , .{});
 }
 
-fn write_allocationTracking(writer: std.fs.File.Writer) !void {
+fn write_allocationTracking(writer: *std.Io.Writer) !void {
     _ = try writer.print(
         \\
         \\// Global allocation tracking for safe deallocation
         \\var last_result_size: usize = 0;
         \\
         \\// Deallocator function for external C usage
-        \\pub {s} fn zant_free_result(ptr: ?[*]T_out) callconv(.C) void {{
+        \\pub {s} fn zant_free_result(ptr: ?[*]T_out) callconv(.c) void {{
         \\    if (ptr) |valid_ptr| {{
         \\        if (last_result_size > 0) {{
         \\            const slice = valid_ptr[0..last_result_size];
@@ -101,12 +107,12 @@ fn write_allocationTracking(writer: std.fs.File.Writer) !void {
     , .{if (codegen_options.do_export == true) "export" else ""});
 }
 
-fn write_logFunction(writer: std.fs.File.Writer) !void {
+fn write_logFunction(writer: *std.Io.Writer) !void {
     _ = try writer.print(
         \\
-        \\var log_function: ?*const fn ([*c]u8) callconv(.C) void = null;
+        \\var log_function: ?*const fn ([*c]u8) callconv(.c) void = null;
         \\
-        \\pub {s} fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.C) void) void {{
+        \\pub {s} fn setLogFunction(func: ?*const fn ([*c]u8) callconv(.c) void) void {{
         \\    log_function = func;
         \\    // Forward to core so ops (e.g., qlinearconv) can log via same callback
         \\    zant.core.tensor.setLogFunction(func);
@@ -115,7 +121,7 @@ fn write_logFunction(writer: std.fs.File.Writer) !void {
     , .{if (codegen_options.do_export == true) "export" else ""});
 }
 
-fn write_FBA(writer: std.fs.File.Writer) !void {
+fn write_FBA(writer: *std.Io.Writer) !void {
     const buffer_size_kb = if (std.process.getEnvVarOwned(std.heap.page_allocator, "ZANT_FBA_SIZE_KB")) |env_size| blk: {
         defer std.heap.page_allocator.free(env_size);
         break :blk std.fmt.parseInt(u32, env_size, 10) catch 512;

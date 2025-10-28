@@ -15,7 +15,7 @@ const codegen_options = @import("codegen_options");
 
 const allocator = zant.utils.allocator.allocator;
 
-const Writer = std.fs.File.Writer;
+const Writer = *std.Io.Writer;
 
 /// XIP Configuration for weight storage
 pub const XIPConfig = struct {

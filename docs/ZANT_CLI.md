@@ -326,7 +326,7 @@ The workflows above use the `zant` wrapper script for ONNX model preparation. He
 ```bash
 zig build build-main -Dmodel="my_model"
 
-valgrind --tool=massif --heap=yes --stacks=yes ./zig-out/bin/main_profiling_target 
+valgrind --tool=massif --heap=yes --stacks=yes --time-unit=ms ./zig-out/bin/main_profiling_target 
 
 ms_print massif.out.* > out_profiling.txt
 ```

@@ -39,6 +39,7 @@ from operators.floor import generate_floor_model
 from operators.sqrt import generate_sqrt_model
 from operators.gelu import generate_gelu_model
 from operators.leakyrelu import generate_leakyrelu_model
+from operators.log import generate_log_model
 from operators.reduceMean import generate_reducemean_model
 from operators.constant import generate_constant_model
 from operators.oneHot import generate_onehot_model
@@ -62,6 +63,7 @@ from operators.qLinearGlobalAveragePool import generate_qlinearglobalaveragepool
 from operators.qLinearAdd import generate_qlinearadd_model
 from operators.qLinearMatMul import generate_qlinearmatmul_model
 from operators.convInteger import generate_convinteger_model
+from operators.padConv import generate_padconv_model
 from operators.pow import generate_pow_model
 
 
@@ -109,6 +111,7 @@ def generate_fuzz_model(op_name):
         "Sqrt": generate_sqrt_model,
         "Gelu": generate_gelu_model,
         "LeakyRelu": generate_leakyrelu_model,
+        "Log": generate_log_model,
         "ReduceMean": generate_reducemean_model,
         "Constant": generate_constant_model,
         "OneHot": generate_onehot_model,
@@ -132,6 +135,7 @@ def generate_fuzz_model(op_name):
         "QLinearAdd": generate_qlinearadd_model,
         "QLinearMatMul": generate_qlinearmatmul_model,
         "ConvInteger": generate_convinteger_model,
+        "PadConv": generate_padconv_model,
         "Pow": generate_pow_model,
     }
     
@@ -260,7 +264,7 @@ def load_supported_ops(filename="tests/CodeGen/Python-ONNX/available_operations.
             "Relu", "Sigmoid", "Add", "Sub", "Div", "Mul", "Clip", "Conv", "MatMul", "MaxPool",
             "Reshape", "QuantizeLinear", "BatchNormalization", "Transpose", "Softmax", "Concat", 
             "Squeeze", "Ceil", "Tanh", "Identity", "Neg", "Shape", "Floor", "Sqrt", "Gelu", 
-            "LeakyRelu", "ReduceMean", "Constant", "OneHot", "Gather", "Elu", "Flatten", "Pad",
+            "LeakyRelu","Log", "ReduceMean", "Constant", "OneHot", "Gather", "Elu", "Flatten", "Pad",
             "Resize", "Slice", "Split", "Unsqueeze", "Gemm", "AveragePool", "GlobalAveragePool",
             "Mean", "DequantizeLinear", "Cast", "DynamicQuantizeLinear", "QLinearConv", 
             "QLinearGlobalAveragePool", "QLinearAdd", "QLinearMatMul", "ConvInteger"

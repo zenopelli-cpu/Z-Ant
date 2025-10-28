@@ -13,7 +13,7 @@ const conv = @import("op_convolution.zig");
 // Lightweight logger that forwards to the global core tensor log_function (if set)
 inline fn coreLogStatic(comptime msg: []const u8) void {
     if (zant.core.tensor.log_function) |log| {
-        log(@constCast(@ptrCast(msg)));
+        log(@ptrCast(@constCast(msg)));
     }
 }
 
@@ -394,16 +394,16 @@ pub fn qlinearconv_lean(
     const y_zp_f: f32 = if (y_zero_point.data.len > 0) asF32(@TypeOf(y_zero_point.data[0]), y_zero_point.data[0]) else 0.0;
 
     // Pre-calcola scale e bias per tutti i canali output (evita calcoli ridondanti)
-    var channel_scales = std.ArrayList(f32).init(pkg_allocator);
-    defer channel_scales.deinit();
-    var channel_zps = std.ArrayList(f32).init(pkg_allocator);
-    defer channel_zps.deinit();
-    var channel_bias = std.ArrayList(f32).init(pkg_allocator);
-    defer channel_bias.deinit();
+    var channel_scales: std.ArrayList(f32) = .empty;
+    defer channel_scales.deinit(pkg_allocator);
+    var channel_zps: std.ArrayList(f32) = .empty;
+    defer channel_zps.deinit(pkg_allocator);
+    var channel_bias: std.ArrayList(f32) = .empty;
+    defer channel_bias.deinit(pkg_allocator);
 
-    try channel_scales.ensureTotalCapacity(out_channels);
-    try channel_zps.ensureTotalCapacity(out_channels);
-    try channel_bias.ensureTotalCapacity(out_channels);
+    try channel_scales.ensureTotalCapacity(pkg_allocator, out_channels);
+    try channel_zps.ensureTotalCapacity(pkg_allocator, out_channels);
+    try channel_bias.ensureTotalCapacity(pkg_allocator, out_channels);
 
     for (0..out_channels) |m| {
         const w_scale_val: f32 = if (w_scale.data.len == out_channels)

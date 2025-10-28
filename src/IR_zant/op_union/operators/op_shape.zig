@@ -65,20 +65,20 @@ pub const Shape = struct {
     }
 
     pub fn get_input_tensors(self: Shape) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
-        try inputs.append(self.data);
-        return inputs.toOwnedSlice();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
+        try inputs.append(allocator, self.data);
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Shape) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
-        try outputs.append(self.shape);
-        return outputs.toOwnedSlice();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
+        try outputs.append(allocator, self.shape);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Shape, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Shape, writer: *std.Io.Writer) !void {
         //----create tensor_data_string
         var tensor_data_string: []u8 = undefined;
         defer allocator.free(tensor_data_string);

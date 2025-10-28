@@ -26,6 +26,8 @@ pub const OnnxOperator = enum {
     GLOBALAVERAGEPOOL,
     IDENTITY,
     LEAKYRELU,
+    LOG,
+    LOOP,
     MATMUL,
     MAXPOOL,
     MIN,
@@ -95,6 +97,7 @@ pub fn fromString(op_type: []const u8) !OnnxOperator {
     if (std.mem.eql(u8, op_type, "GlobalAveragePool")) return .GLOBALAVERAGEPOOL;
     if (std.mem.eql(u8, op_type, "Identity")) return .IDENTITY;
     if (std.mem.eql(u8, op_type, "LeakyRelu")) return .LEAKYRELU;
+    if (std.mem.eql(u8, op_type, "Log")) return .LOG;
     if (std.mem.eql(u8, op_type, "MatMul")) return .MATMUL;
     if (std.mem.eql(u8, op_type, "MaxPool")) return .MAXPOOL;
     if (std.mem.eql(u8, op_type, "Min")) return .MIN;

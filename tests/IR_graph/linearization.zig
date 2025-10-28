@@ -15,8 +15,8 @@ const ErrorDetail = struct {
     errorLoad: anyerror,
 };
 
-var models: std.ArrayList([]const u8) = std.ArrayList([]const u8).init(allocator);
-var failed_parsed_models: std.ArrayList(ErrorDetail) = std.ArrayList(ErrorDetail).init(allocator);
+var models: std.ArrayList([]const u8) = .empty;
+var failed_parsed_models: std.ArrayList(ErrorDetail) = .empty;
 
 test "linearizing mnist-8 " {
     std.debug.print("\n\n ------TEST: linearizing mnist-8 ", .{});
@@ -29,8 +29,8 @@ test "linearizing mnist-8 " {
     var graphZant: IR_zant.GraphZant = try IR_zant.init(&model);
     defer graphZant.deinit();
 
-    const linearizedGraph = try graphZant.linearize(allocator);
-    defer linearizedGraph.deinit();
+    var linearizedGraph = try graphZant.linearize(allocator);
+    defer linearizedGraph.deinit(allocator);
 
     std.debug.print("\n\nLinearized Graph Nodes:\n", .{});
     for (linearizedGraph.items) |node| {

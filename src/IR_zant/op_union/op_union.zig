@@ -41,6 +41,7 @@ pub const Op_union = union(enum) {
     globalAveragePool: operators.GlobalAveragePool,
     identity: operators.Identity,
     leakyRelu: operators.LeakyRelu,
+    log: operators.Log,
     matMul: operators.MatMul,
     maxPool: operators.MaxPool,
     min: operators.Min,
@@ -86,6 +87,7 @@ pub const Op_union = union(enum) {
     fused_Dequant_Quant: fused_operators.Fused_Dequant_Quant,
     fused_Quant_Dequant: fused_operators.Fused_Quant_Dequant,
     fused_2Dequant_Add_Quant: fused_operators.Fused_2Dequant_Add_Quant,
+    fused_Pad_Conv: fused_operators.Fused_Pad_Conv,
 
     // ------------- others
     useless: operators.Useless,
@@ -117,6 +119,7 @@ pub const Op_union = union(enum) {
             .GLOBALAVERAGEPOOL => Op_union{ .globalAveragePool = try operators.GlobalAveragePool.init(nodeProto) },
             .IDENTITY => Op_union{ .identity = try operators.Identity.init(nodeProto) },
             .LEAKYRELU => Op_union{ .leakyRelu = try operators.LeakyRelu.init(nodeProto) },
+            .LOG => Op_union{ .log = try operators.Log.init(nodeProto) },
             .MATMUL => Op_union{ .matMul = try operators.MatMul.init(nodeProto) },
             .MAXPOOL => Op_union{ .maxPool = try operators.MaxPool.init(nodeProto) },
             .MIN => Op_union{ .min = try operators.Min.init(nodeProto) },
@@ -215,7 +218,7 @@ pub const Op_union = union(enum) {
         return node_mem;
     }
 
-    pub fn write_op(self: Op_union, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Op_union, writer: *std.Io.Writer) !void {
         switch (self) {
             .split => |ptr| try ptr.write_op(writer), //not working! error: .FAULT => unreachable,
             .useless => |ptr| try ptr.write_op(writer),

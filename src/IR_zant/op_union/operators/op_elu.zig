@@ -61,23 +61,23 @@ pub const Elu = struct {
     }
 
     pub fn get_input_tensors(self: Elu) ![]*TensorZant {
-        var inputs = std.ArrayList(*TensorZant).init(allocator);
-        defer inputs.deinit();
+        var inputs: std.ArrayList(*TensorZant) = .empty;
+        defer inputs.deinit(allocator);
 
-        try inputs.append(self.input_X);
+        try inputs.append(allocator, self.input_X);
 
-        return inputs.toOwnedSlice();
+        return inputs.toOwnedSlice(allocator);
     }
 
     pub fn get_output_tensors(self: Elu) ![]*TensorZant {
-        var outputs = std.ArrayList(*TensorZant).init(allocator);
-        defer outputs.deinit();
+        var outputs: std.ArrayList(*TensorZant) = .empty;
+        defer outputs.deinit(allocator);
 
-        try outputs.append(self.output_Y);
-        return outputs.toOwnedSlice();
+        try outputs.append(allocator, self.output_Y);
+        return outputs.toOwnedSlice(allocator);
     }
 
-    pub fn write_op(self: Elu, writer: std.fs.File.Writer) !void {
+    pub fn write_op(self: Elu, writer: *std.Io.Writer) !void {
         var input_tensor_string: []u8 = undefined;
         defer allocator.free(input_tensor_string);
         if (self.input_X.tc == TensorCategory.INITIALIZER) {

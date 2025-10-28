@@ -8,6 +8,10 @@ const StringStringEntryProto = @import("stringStringEntryProto.zig").StringStrin
 const TensorAnnotation = @import("tensorAnnotation.zig").TensorAnnotation;
 const SparseTensorProto = @import("sparseTensorProto.zig").SparseTensorProto;
 
+//--
+const parseError = @import("parseErrors.zig");
+//--
+
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
@@ -88,7 +92,7 @@ pub const GraphProto = struct {
         allocator.free(self.metadata_props);
     }
 
-    pub fn parse(reader: *protobuf.ProtoReader) !GraphProto {
+    pub fn parse(reader: *protobuf.ProtoReader) parseError.ParseError!GraphProto {
         var graph = GraphProto{
             .name = null,
             .nodes = &[_]*NodeProto{},
@@ -101,22 +105,22 @@ pub const GraphProto = struct {
             .metadata_props = &[_]*StringStringEntryProto{},
         };
 
-        var nodes = std.ArrayList(*NodeProto).init(reader.allocator);
-        defer nodes.deinit();
-        var initializers = std.ArrayList(*TensorProto).init(reader.allocator);
-        defer initializers.deinit();
-        var inputs = std.ArrayList(*ValueInfoProto).init(reader.allocator);
-        defer inputs.deinit();
-        var outputs = std.ArrayList(*ValueInfoProto).init(reader.allocator);
-        defer outputs.deinit();
-        var value_infos = std.ArrayList(*ValueInfoProto).init(reader.allocator);
-        defer value_infos.deinit();
-        var quantizationList = std.ArrayList(*TensorAnnotation).init(reader.allocator);
-        defer quantizationList.deinit();
-        var sparse_inizializers = std.ArrayList(*SparseTensorProto).init(reader.allocator);
-        defer sparse_inizializers.deinit();
-        var metadataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
-        defer metadataList.deinit();
+        var nodes: std.ArrayList(*NodeProto) = .empty;
+        defer nodes.deinit(reader.allocator);
+        var initializers: std.ArrayList(*TensorProto) = .empty;
+        defer initializers.deinit(reader.allocator);
+        var inputs: std.ArrayList(*ValueInfoProto) = .empty;
+        defer inputs.deinit(reader.allocator);
+        var outputs: std.ArrayList(*ValueInfoProto) = .empty;
+        defer outputs.deinit(reader.allocator);
+        var value_infos: std.ArrayList(*ValueInfoProto) = .empty;
+        defer value_infos.deinit(reader.allocator);
+        var quantizationList: std.ArrayList(*TensorAnnotation) = .empty;
+        defer quantizationList.deinit(reader.allocator);
+        var sparse_initializers: std.ArrayList(*SparseTensorProto) = .empty;
+        defer sparse_initializers.deinit(reader.allocator);
+        var metadataList: std.ArrayList(*StringStringEntryProto) = .empty;
+        defer metadataList.deinit(reader.allocator);
 
         while (reader.hasMore()) {
             const tag = try reader.readTag();
@@ -125,7 +129,7 @@ pub const GraphProto = struct {
                     var node_reader = try reader.readLengthDelimited();
                     const node_ptr = try reader.allocator.create(NodeProto);
                     node_ptr.* = try NodeProto.parse(&node_reader);
-                    try nodes.append(node_ptr);
+                    try nodes.append(reader.allocator, node_ptr);
                 },
                 2 => { // name
                     graph.name = try reader.readString(reader.allocator);
@@ -134,7 +138,7 @@ pub const GraphProto = struct {
                     var tensor_reader = try reader.readLengthDelimited();
                     const tensor_ptr = try reader.allocator.create(TensorProto);
                     tensor_ptr.* = try TensorProto.parse(&tensor_reader);
-                    try initializers.append(tensor_ptr);
+                    try initializers.append(reader.allocator, tensor_ptr);
                 },
                 10 => { // doc_string
                     // The doc_string field is optional and not currently used.
@@ -145,7 +149,7 @@ pub const GraphProto = struct {
                     var input_reader = try reader.readLengthDelimited();
                     const input_ptr = try reader.allocator.create(ValueInfoProto);
                     input_ptr.* = try ValueInfoProto.parse(&input_reader);
-                    try inputs.append(input_ptr);
+                    try inputs.append(reader.allocator, input_ptr);
                 },
                 12 => { // output
                     // This field contains a list of ValueInfoProto messages, each representing an output of the graph.
@@ -153,7 +157,7 @@ pub const GraphProto = struct {
                     var output_reader = try reader.readLengthDelimited();
                     const output_ptr = try reader.allocator.create(ValueInfoProto);
                     output_ptr.* = try ValueInfoProto.parse(&output_reader);
-                    try outputs.append(output_ptr);
+                    try outputs.append(reader.allocator, output_ptr);
                 },
                 13 => { // value_info
                     //This optional field holds a list of ValueInfoProto messages that describe intermediate values within the graph.
@@ -161,25 +165,25 @@ pub const GraphProto = struct {
                     var value_info_reader = try reader.readLengthDelimited(); //var value_info_reader
                     const value_info_ptr = try reader.allocator.create(ValueInfoProto);
                     value_info_ptr.* = try ValueInfoProto.parse(&value_info_reader);
-                    try value_infos.append(value_info_ptr);
+                    try value_infos.append(reader.allocator, value_info_ptr);
                 },
                 14 => {
                     var quantization_reader = try reader.readLengthDelimited();
                     const quantization_ptr = try reader.allocator.create(TensorAnnotation);
                     quantization_ptr.* = try TensorAnnotation.parse(&quantization_reader);
-                    try quantizationList.append(quantization_ptr);
+                    try quantizationList.append(reader.allocator, quantization_ptr);
                 },
                 15 => {
                     var tensor_reader = try reader.readLengthDelimited();
                     const tensor_ptr = try reader.allocator.create(SparseTensorProto);
                     tensor_ptr.* = try SparseTensorProto.parse(&tensor_reader);
-                    try sparse_inizializers.append(tensor_ptr);
+                    try sparse_initializers.append(reader.allocator, tensor_ptr);
                 },
                 16 => {
                     var md_reader = try reader.readLengthDelimited(); //var md_reader
                     const ssep_ptr = try reader.allocator.create(StringStringEntryProto);
                     ssep_ptr.* = try StringStringEntryProto.parse(&md_reader);
-                    try metadataList.append(ssep_ptr);
+                    try metadataList.append(reader.allocator, ssep_ptr);
                 },
                 else => {
                     //onnx_log.debug("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
@@ -192,14 +196,14 @@ pub const GraphProto = struct {
             }
         }
 
-        graph.nodes = try nodes.toOwnedSlice();
-        graph.initializers = try initializers.toOwnedSlice();
-        graph.inputs = try inputs.toOwnedSlice();
-        graph.outputs = try outputs.toOwnedSlice();
-        graph.value_info = try value_infos.toOwnedSlice();
-        graph.quantization_annotation = try quantizationList.toOwnedSlice();
-        graph.sparse_initializer = try sparse_inizializers.toOwnedSlice();
-        graph.metadata_props = try metadataList.toOwnedSlice();
+        graph.nodes = try nodes.toOwnedSlice(reader.allocator);
+        graph.initializers = try initializers.toOwnedSlice(reader.allocator);
+        graph.inputs = try inputs.toOwnedSlice(reader.allocator);
+        graph.outputs = try outputs.toOwnedSlice(reader.allocator);
+        graph.value_info = try value_infos.toOwnedSlice(reader.allocator);
+        graph.quantization_annotation = try quantizationList.toOwnedSlice(reader.allocator);
+        graph.sparse_initializer = try sparse_initializers.toOwnedSlice(reader.allocator);
+        graph.metadata_props = try metadataList.toOwnedSlice(reader.allocator);
 
         return graph;
     }
