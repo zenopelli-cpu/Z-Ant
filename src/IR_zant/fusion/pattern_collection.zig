@@ -76,6 +76,14 @@ pub const patterns = [_]PatternConfig{
         .fn_pattern_sobstitution = fused_operators.Fused_Dequant_Quant.fn_pattern_sobstitution,
     },
 
+    .{ // Conv -> Sigmoid + Mul (Attention Gate / Squeeze-Excitation)
+        .pattern = &[_][]const u8{ "Conv", "Sigmoid", "Mul" },
+        .name = "fused_Conv_Sigmoid_Mul",
+        .fn_pattern_detection = fused_operators.Fused_Conv_Sigmoid_Mul.fn_pattern_detection,
+        .fn_pattern_fusion = fused_operators.Fused_Conv_Sigmoid_Mul.fn_pattern_fusion,
+        .fn_pattern_sobstitution = fused_operators.Fused_Conv_Sigmoid_Mul.fn_pattern_sobstitution,
+    },
+
     // // Quantized convolution with padding
     // .{
     //     .pattern = &[_][]const u8{ "DequantizeLinear", "Pad", "QuantizeLinear", "QLinearConv" },

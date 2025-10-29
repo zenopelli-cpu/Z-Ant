@@ -341,6 +341,12 @@ pub const conv_relu = conv_relu_math_lib.conv_relu;
 pub const conv_relu_lean = conv_relu_math_lib.conv_relu_lean;
 pub const get_conv_relu_output_shape = conv_relu_math_lib.get_conv_relu_output_shape;
 
+// ---convolution+Sigmoid+Mul
+const conv_sigmoid_mul_math_lib = @import("op_conv_sigmoid_mul.zig");
+pub const conv_sigmoid_mul = conv_sigmoid_mul_math_lib.conv_sigmoid_mul;
+pub const conv_sigmoid_mul_lean = conv_sigmoid_mul_math_lib.conv_sigmoid_mul_lean;
+pub const get_conv_sigmoid_mul_output_shape = conv_sigmoid_mul_math_lib.get_conv_sigmoid_mul_output_shape;
+
 //---qlinearconv
 const qlinearconv_math_lib = @import("op_qlinearconv.zig");
 const qlinearconv_simd_lib = @import("op_qlinearconv_simd.zig");

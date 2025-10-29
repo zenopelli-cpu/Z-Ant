@@ -1,18 +1,20 @@
 const std = @import("std");
+const zant = @import("zant");
+const allocator = zant.utils.allocator.allocator;
 const IR_zant = @import("../../IR_zant.zig");
-const allocator = std.heap.page_allocator;
 
 // --- zant IR---
-const NodeZant = NodeZant_lib.NodeZant;
-const NodeZant_lib = IR_zant.NodeZant_lib;
+const tensorZant_lib = IR_zant.tensorZant_lib;
 const TensorZant = tensorZant_lib.TensorZant;
 const TensorCategory = tensorZant_lib.TensorCategory;
-const tensorZant_lib = IR_zant.tensorZant_lib;
+const NodeZant_lib = IR_zant.NodeZant_lib;
+const NodeZant = NodeZant_lib.NodeZant;
 const GraphZant = IR_zant.GraphZant;
+const IR_utils = IR_zant.utils; //this is IR utils
 
 // --- union ---
-const operators = IR_zant.operators;
 const Op_union = @import("../op_union.zig").Op_union;
+const operators = IR_zant.operators;
 
 /// Fused Conv+Sigmoid+Mul operation for better performance
 /// This combines convolution followed by a Sigmoid function and a Mul.
@@ -206,5 +208,149 @@ pub const Fused_Conv_Sigmoid_Mul = struct {
         //         }
         //     }
         // }
+    }
+    /// The final output is from the Mul operator (last in chain)
+    pub fn get_output_shape(self: Fused_Conv_Sigmoid_Mul) []usize {
+        return self.op_Mul.get_output_shape();
+    }
+
+    /// Returns input tensors for the fused operation
+    /// Inputs are from the Conv operator
+    pub fn get_input_tensors(self: Fused_Conv_Sigmoid_Mul) anyerror![]*TensorZant {
+        return try self.op_Conv.get_input_tensors();
+    }
+
+    /// Returns output tensors for the fused operation
+    /// Output is from the Mul operator
+    pub fn get_output_tensors(self: Fused_Conv_Sigmoid_Mul) anyerror![]*TensorZant {
+        return try self.op_Mul.get_output_tensors();
+    }
+
+    /// Computes the output shape
+    pub fn compute_output_shape(self: Fused_Conv_Sigmoid_Mul) []usize {
+        return self.op_Mul.compute_output_shape();
+    }
+
+    /// Debug print function
+    pub fn print(self: Fused_Conv_Sigmoid_Mul) void {
+        std.debug.print("\n Fused_Conv_Sigmoid_Mul:\n {any}", .{self});
+    }
+
+    /// Substitutes old tensor references with new ones across all sub-operations
+    pub fn sobstitute_tensors(self: *Fused_Conv_Sigmoid_Mul, old_tensor: *TensorZant, new_tensor: *TensorZant) !void {
+        // Try to substitute in Conv first
+        self.op_Conv.sobstitute_tensors(old_tensor, new_tensor) catch {
+            // If not found, try in Sigmoid
+            self.op_Sigmoid.sobstitute_tensors(old_tensor, new_tensor) catch {
+                // If not found, try in Mul
+                return try self.op_Mul.sobstitute_tensors(old_tensor, new_tensor);
+            };
+        };
+    }
+
+    /// Generates the Zig code for executing this fused operation
+    // ...existing code up to line 318...
+
+    // Generates the Zig code for executing this fused operation
+    pub fn write_op(self: Fused_Conv_Sigmoid_Mul, writer: *std.Io.Writer) !void {
+
+        //---- Create tensor_X_string (Conv input)
+        var tensor_X_string: []u8 = undefined;
+        defer allocator.free(tensor_X_string);
+
+        if (self.op_Conv.input_X.tc == TensorCategory.INITIALIZER) {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try IR_utils.getSanitizedName(self.op_Conv.input_X.name),
+                ")",
+            });
+        } else {
+            tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try IR_utils.getSanitizedName(self.op_Conv.input_X.name), ")" });
+        }
+
+        //---- Create tensor_W_string (Conv weight)
+        var tensor_W_string: []u8 = undefined;
+        defer allocator.free(tensor_W_string);
+
+        if (self.op_Conv.input_W.tc == TensorCategory.INITIALIZER) {
+            tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+                "@constCast(&param_lib.tensor_",
+                try IR_utils.getSanitizedName(self.op_Conv.input_W.name),
+                ")",
+            });
+        } else {
+            tensor_W_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try IR_utils.getSanitizedName(self.op_Conv.input_W.name), ")" });
+        }
+
+        //---- Create optional bias string
+        var bias_string: []u8 = undefined;
+        defer allocator.free(bias_string);
+
+        if (self.op_Conv.input_B) |input_B| {
+            const B_name = try IR_utils.getSanitizedName(input_B.name);
+            bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&param_lib.tensor_", B_name, ")" });
+        } else {
+            bias_string = try std.mem.concat(allocator, u8, &[_][]const u8{"null"});
+        }
+
+        //---- Create stride string (mandatory)
+        if (self.op_Conv.strides == null) return error.StrideNotFound;
+        const stride_string: []const u8 = try IR_utils.i64SliceToUsizeArrayString(self.op_Conv.strides.?);
+
+        //---- Create optional pads string
+        var pads_string: []const u8 = "null";
+        if (self.op_Conv.pads != null) {
+            if (self.op_Conv.pads.?.len > 0) {
+                pads_string = try IR_utils.i64SliceToUsizeArrayString(self.op_Conv.pads.?);
+            } else {
+                pads_string = "&[_]usize{}";
+            }
+        }
+
+        //---- Create optional dilations string
+        var dilat_string: []const u8 = "null";
+        if (self.op_Conv.dilations != null) {
+            if (self.op_Conv.dilations.?.len > 0) {
+                dilat_string = try IR_utils.i64SliceToUsizeArrayString(self.op_Conv.dilations.?);
+            } else {
+                dilat_string = "&[_]usize{}";
+            }
+        }
+
+        // Get target type from final output
+        const output_tensors = try self.get_output_tensors();
+        const target_type = output_tensors[0].ty.toString();
+
+        //---- Generate the fused operation call
+        _ = try writer.print(
+            \\    
+            \\    @setEvalBranchQuota(10000);
+            \\
+            \\    // Conv + Sigmoid + Mul operation (Attention Gate / Squeeze-Excitation)
+            \\    tensMath.conv_sigmoid_mul_lean(
+            \\        {s}, //type
+            \\        {s}, //input
+            \\        {s}, //kernel
+            \\        &tensor_{s}, //output
+            \\        {s}, //bias
+            \\        {s}, //stride
+            \\        {s}, //pads
+            \\        {s}, //dilatations
+            \\        {d}, //group
+            \\        "{s}", //auto_pad
+            \\    ) catch return -1;
+            \\
+        , .{
+            target_type,
+            tensor_X_string,
+            tensor_W_string,
+            try IR_utils.getSanitizedName(output_tensors[0].name),
+            bias_string,
+            stride_string,
+            pads_string,
+            dilat_string,
+            self.op_Conv.group,
+            self.op_Conv.auto_pad,
+        });
     }
 };

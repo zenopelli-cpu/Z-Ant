@@ -21,6 +21,7 @@ from operators.div import generate_div_model
 from operators.mul import generate_mul_model
 from operators.conv import generate_conv_model
 from operators.convRelu import generate_conv_relu_model
+from operators.convSigmoidMul import generate_conv_sigmoid_mul_model
 from operators.matmul import generate_matmul_model
 from operators.maxpool import generate_maxpool_model
 from operators.reshape import generate_reshape_model
@@ -93,6 +94,7 @@ def generate_fuzz_model(op_name):
         "Mul": generate_mul_model,
         "Conv": generate_conv_model,
         "ConvRelu": generate_conv_relu_model,
+        "ConvSigmoidMul": generate_conv_sigmoid_mul_model,
         "MatMul": generate_matmul_model,
         "MaxPool": generate_maxpool_model,
         "Reshape": generate_reshape_model,
